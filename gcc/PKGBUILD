@@ -33,7 +33,8 @@ sha256sums=('79a66834e96a6050d8fe78db2c3b32fb285b230b855d0a66288235bc04b327a0'
 
 _svnrev=264010
 _svnurl=svn://gcc.gnu.org/svn/gcc/branches/gcc-${_majorver}-branch
-_libdir=usr/lib/gcc/$CHOST/${pkgver%%+*}
+_chost=riscv64-unknown-linux-gnu
+_libdir=usr/lib/gcc/$_chost/${pkgver%%+*}
 
 snapshot() {
   svn export -r${_svnrev} ${_svnurl} gcc-r${_svnrev}
@@ -113,7 +114,7 @@ build() {
   make
 
   # make documentation
-  make -C $CHOST/libstdc++-v3/doc doc-man-doxygen
+  make -C $_chost/libstdc++-v3/doc doc-man-doxygen
 }
 
 check() {
@@ -133,28 +134,24 @@ package_gcc-libs() {
             libtsan.so liblsan.so)
 
   cd gcc-build
-  make -C $CHOST/libgcc DESTDIR="$pkgdir" install-shared
+  make -C $_chost/libgcc DESTDIR="$pkgdir" install-shared
   rm -f "$pkgdir/$_libdir/libgcc_eh.a"
 
   for lib in libatomic \
              libgfortran \
              libgo \
              libgomp \
-             libitm \
              libquadmath \
-             libsanitizer/{a,l,ub,t}san \
-             libstdc++-v3/src \
-             libvtv; do
-    make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
+             libstdc++-v3/src; do
+    make -C $_chost/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
   done
 
-  make -C $CHOST/libobjc DESTDIR="$pkgdir" install-libs
-  make -C $CHOST/libstdc++-v3/po DESTDIR="$pkgdir" install
+  make -C $_chost/libobjc DESTDIR="$pkgdir" install-libs
+  make -C $_chost/libstdc++-v3/po DESTDIR="$pkgdir" install
 
   for lib in libgomp \
-             libitm \
              libquadmath; do
-    make -C $CHOST/$lib DESTDIR="$pkgdir" install-info
+    make -C $_chost/$lib DESTDIR="$pkgdir" install-info
   done
 
   # Install Runtime Library Exception
@@ -176,13 +173,13 @@ package_gcc() {
   install -m755 -t "$pkgdir/usr/bin/" gcc/gcov{,-tool}
   install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
 
-  make -C $CHOST/libgcc DESTDIR="$pkgdir" install
+  make -C $_chost/libgcc DESTDIR="$pkgdir" install
   rm -f "$pkgdir"/usr/lib/libgcc_s.so*
 
-  make -C $CHOST/libstdc++-v3/src DESTDIR="$pkgdir" install
-  make -C $CHOST/libstdc++-v3/include DESTDIR="$pkgdir" install
-  make -C $CHOST/libstdc++-v3/libsupc++ DESTDIR="$pkgdir" install
-  make -C $CHOST/libstdc++-v3/python DESTDIR="$pkgdir" install
+  make -C $_chost/libstdc++-v3/src DESTDIR="$pkgdir" install
+  make -C $_chost/libstdc++-v3/include DESTDIR="$pkgdir" install
+  make -C $_chost/libstdc++-v3/libsupc++ DESTDIR="$pkgdir" install
+  make -C $_chost/libstdc++-v3/python DESTDIR="$pkgdir" install
 
   make DESTDIR="$pkgdir" install-libcc1
   install -d "$pkgdir/usr/share/gdb/auto-load/usr/lib"
@@ -198,20 +195,15 @@ package_gcc() {
   ln -s /${_libdir}/liblto_plugin.so \
     "$pkgdir/usr/lib/bfd-plugins/"
 
-  make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_{libsubinclude,toolexeclib}HEADERS
-  make -C $CHOST/libitm DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
-  make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
-  make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
-  make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
-  make -C $CHOST/libsanitizer/tsan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
-  make -C $CHOST/libsanitizer/lsan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
+  make -C $_chost/libgomp DESTDIR="$pkgdir" install-nodist_{libsubinclude,toolexeclib}HEADERS
+  make -C $_chost/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
 
   make -C libiberty DESTDIR="$pkgdir" install
   install -m644 libiberty/pic/libiberty.a "$pkgdir/usr/lib"
 
   make -C gcc DESTDIR="$pkgdir" install-man install-info
   rm "$pkgdir"/usr/share/man/man1/{gccgo,gfortran}.1
-  rm "$pkgdir"/usr/share/info/{gccgo,gfortran,gnat-style,gnat_rm,gnat_ugn}.info
+  rm "$pkgdir"/usr/share/info/{gccgo,gfortran}.info
 
   make -C libcpp DESTDIR="$pkgdir" install
   make -C gcc DESTDIR="$pkgdir" install-po
@@ -224,7 +216,7 @@ package_gcc() {
   install -Dm755 "$srcdir/c99" "$pkgdir/usr/bin/c99"
 
   # install the libstdc++ man pages
-  make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
+  make -C $_chost/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
 
   # byte-compile python libraries
   python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
@@ -241,9 +233,9 @@ package_gcc-fortran() {
   depends=("gcc=$pkgver-$pkgrel")
 
   cd gcc-build
-  make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
+  make -C $_chost/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
     install-{toolexeclibDATA,nodist_fincludeHEADERS}
-  make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
+  make -C $_chost/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
   make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
   install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
 
@@ -260,7 +252,7 @@ package_gcc-objc() {
   depends=("gcc=$pkgver-$pkgrel")
 
   cd gcc-build
-  make DESTDIR="$pkgdir" -C $CHOST/libobjc install-headers
+  make DESTDIR="$pkgdir" -C $_chost/libobjc install-headers
   install -dm755 "$pkgdir/${_libdir}"
   install -m755 gcc/cc1obj{,plus} "$pkgdir/${_libdir}/"
 
@@ -277,7 +269,7 @@ package_gcc-go() {
   conflicts=(go)
 
   cd gcc-build
-  make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
+  make -C $_chost/libgo DESTDIR="$pkgdir" install-exec-am
   make DESTDIR="$pkgdir" install-gotools
   make -C gcc DESTDIR="$pkgdir" go.install-{common,man,info}
 
