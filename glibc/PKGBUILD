@@ -5,8 +5,8 @@
 # NOTE: valgrind requires rebuilt with each major glibc version
 
 pkgname=glibc
-pkgver=2.29
-pkgrel=2
+pkgver=2.31
+pkgrel=1
 arch=(x86_64)
 url='https://www.gnu.org/software/libc'
 license=(GPL LGPL)
@@ -17,18 +17,14 @@ options=(!strip staticlibs)
 source=(https://ftp.gnu.org/gnu/glibc/glibc-$pkgver.tar.xz{,.sig}
         locale.gen.txt
         locale-gen
-        bz20338.patch
-        0001-Revert-elf-Correct-absolute-SHN_ABS-symbol-run-time-.patch
-        file-truncated-while-reading-soname-after-patchelf.patch)
+        bz20338.patch)
 validpgpkeys=(7273542B39962DF7B299931416792B4EA25340F8 # Carlos O'Donell
               BC7C7372637EC10C57D7AA6579C43DFBF1CF2187) # Siddhesh Poyarekar
-md5sums=('e6c279d5b2f0736f740216f152acf974'
+md5sums=('78a720f17412f3c3282be5a6f3363ec6'
          'SKIP'
          '07ac979b6ab5eeb778d55f041529d623'
          '476e9113489f93b348b21e144b6a8fcf'
-         'dc0d3ad59aeaaf591b085a77de6e03e9'
-         'af5d3c5227ac639effe39667a43879a1'
-         '0820504d2e83ee15f74a656771361872')
+         '430673eccc78e52c249aa4b0f1786450')
 
 prepare() {
   mkdir -p glibc-build
@@ -53,6 +49,7 @@ build() {
       --with-bugurl=https://bugs.archlinux.org/
       --enable-add-ons
       --enable-bind-now
+      --enable-cet
       --enable-lock-elision
       --enable-stack-protector=strong
       --enable-stackguard-randomization
@@ -80,7 +77,6 @@ build() {
   "$srcdir/glibc/configure" \
       --libdir=/usr/lib \
       --libexecdir=/usr/lib \
-      --enable-cet \
       ${_configure_flags[@]}
 
   # TODO: figure out fortify
