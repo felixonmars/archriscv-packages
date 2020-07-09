@@ -1,0 +1,54 @@
+# Maintainer: Sébastien "Seblu" Luttringer
+# Contributor: Bartłomiej Piotrowski <bpiotrowski@archlinux.org>
+# Contributor: Allan McRae <allan@archlinux.org>
+# Contributor: judd <jvinet@zeroflux.org>
+
+pkgname=coreutils
+pkgver=8.32
+pkgrel=1
+pkgdesc='The basic file, shell and text manipulation utilities of the GNU operating system'
+arch=('x86_64')
+license=('GPL3')
+url='https://www.gnu.org/software/coreutils/'
+depends=('glibc' 'acl' 'attr' 'gmp' 'libcap' 'openssl')
+source=("https://ftp.gnu.org/gnu/$pkgname/$pkgname-$pkgver.tar.xz"{,.sig}
+        "coreutils-ls.patch::https://git.alpinelinux.org/aports/plain/main/coreutils/ls.patch?id=9d7cab77e911bba47d621d0a3560e5f8526df1bc")
+validpgpkeys=('6C37DC12121A5006BC1DB804DF6FD971306037D9') # Pádraig Brady
+sha256sums=('4458d8de7849df44ccab15e16b1548b285224dbba5f08fac070c1c0e0bcc4cfa'
+            'SKIP'
+            'c0a0ee2f60bc7a325e35bb845641a3f96f8c5a8d15055dea945b4ba7b428aa27')
+
+prepare() {
+  cd $pkgname-$pkgver
+  # apply patch from the source array (should be a pacman feature)
+  local filename
+  for filename in "$srcdir"/*.patch; do
+    if [[ "$filename" =~ \.patch$ ]]; then
+      msg2 "Applying patch ${filename##*/}"
+      patch -p1 -N -i "$srcdir/${filename##*/}"
+    fi
+  done
+  :
+}
+
+build() {
+  cd $pkgname-$pkgver
+  FORCE_UNSAFE_CONFIGURE=1 ./configure \
+      --prefix=/usr \
+      --libexecdir=/usr/lib \
+      --with-openssl \
+      --enable-no-install-program=groups,hostname,kill,uptime
+  make
+}
+
+check() {
+  cd $pkgname-$pkgver
+  make check
+}
+
+package() {
+  cd $pkgname-$pkgver
+  make DESTDIR="$pkgdir" install
+}
+
+# vim:set ts=2 sw=2 et:
