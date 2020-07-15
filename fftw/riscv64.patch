@@ -1,0 +1,60 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 391859)
++++ PKGBUILD	(working copy)
+@@ -30,13 +30,12 @@
+ #  )
+   cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-double"
+   cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-long-double"
+-  cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-quad"
+ }
+ 
+ build() {
+   export F77='gfortran'
+   # use upstream default CFLAGS while keeping our -march/-mtune
+-  CFLAGS+=" -O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math"
++  CFLAGS+=" -O3 -fomit-frame-pointer -fstrict-aliasing"
+   # default configure call
+   _default_configure="./configure --prefix=/usr --enable-shared --enable-threads --enable-mpi --enable-openmp"
+ 
+@@ -43,13 +42,13 @@
+   # configure single precision
+   (
+     cd "${pkgname}-${pkgver}"
+-    ${_default_configure} --enable-sse --enable-avx --enable-single
++    ${_default_configure} --enable-single
+   )
+ 
+   # configure double precision
+   (
+     cd "${pkgname}-${pkgver}-double"
+-    ${_default_configure} --enable-sse2 --enable-avx
++    ${_default_configure}
+   )
+ 
+   # configure long-double precission
+@@ -58,16 +57,9 @@
+     ${_default_configure} --enable-long-double
+   )
+ 
+-  # configure quad precision
+-  (
+-    cd "${pkgname}-${pkgver}-quad"
+-    ${_default_configure} --disable-mpi --enable-quad-precision
+-  )
+-
+   make -C "${pkgname}-${pkgver}"
+   make -C "${pkgname}-${pkgver}-double"
+   make -C "${pkgname}-${pkgver}-long-double"
+-  make -C "${pkgname}-${pkgver}-quad"
+ }
+ 
+ package() {
+@@ -74,7 +66,6 @@
+   make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}"
+   make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-double"
+   make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-long-double"
+-  make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-quad"
+   cd "${pkgname}-${pkgver}"
+   install -vDm 644 {AUTHORS,ChangeLog,NEWS,README,TODO} \
+     -t "${pkgdir}/usr/share/doc/${pkgname}"
