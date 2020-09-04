@@ -1,6 +1,6 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 391859)
+--- PKGBUILD	(revision 395138)
 +++ PKGBUILD	(working copy)
 @@ -4,14 +4,13 @@
  # toolchain build order: linux-api-headers->glibc->binutils->gcc->binutils->glibc
@@ -9,18 +9,18 @@ Index: PKGBUILD
 -pkgbase=glibc
 -pkgname=(glibc lib32-glibc)
 +pkgname=glibc
- pkgver=2.31
- pkgrel=5
+ pkgver=2.32
+ pkgrel=4
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
 -makedepends=(git gd lib32-gcc-libs python)
 +makedepends=(git gd python)
  options=(!strip staticlibs)
- #source=(https://ftp.gnu.org/gnu/glibc/glibc-$pkgver.tar.xz{,.sig}
- _commit=18fdba553dd9b907e9812b90d2cea593f776058f
-@@ -32,7 +31,7 @@
-          '430673eccc78e52c249aa4b0f1786450')
+ #_commit=3de512be7ea6053255afed6154db9ee31d4e557a
+ #source=(git+https://sourceware.org/git/glibc.git#commit=$_commit
+@@ -33,7 +32,7 @@
+          'fc57038c1297c7c11258e8dda1623ec2')
  
  prepare() {
 -  mkdir -p glibc-build lib32-glibc-build
@@ -28,7 +28,7 @@ Index: PKGBUILD
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc 
    cd glibc
-@@ -56,13 +55,12 @@
+@@ -57,13 +56,12 @@
        --enable-bind-now
        --enable-cet
        --enable-lock-elision
@@ -44,7 +44,7 @@ Index: PKGBUILD
    )
  
    cd "$srcdir/glibc-build"
-@@ -85,51 +83,17 @@
+@@ -86,51 +84,17 @@
        --libexecdir=/usr/lib \
        ${_configure_flags[@]}
  
@@ -102,7 +102,7 @@ Index: PKGBUILD
  }
  
  check() {
-@@ -142,7 +106,7 @@
+@@ -143,7 +107,7 @@
    make check || true
  }
  
@@ -111,20 +111,23 @@ Index: PKGBUILD
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat')
-@@ -189,42 +153,5 @@
-       -not -name 'libthread_db-*.so' \
+@@ -191,48 +155,6 @@
        -name '*-*.so' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
    fi
--
+ 
 -  # Provide tracing probes to libstdc++ for exceptions, possibly for other
 -  # libraries too. Useful for gdb's catch command.
 -  install -Dm644 "$srcdir/sdt.h" "$pkgdir/usr/include/sys/sdt.h"
 -  install -Dm644 "$srcdir/sdt-config.h" "$pkgdir/usr/include/sys/sdt-config.h"
+-
+   # Provided by libxcrypt; keep the old shared library for backwards compatibility
+   rm -f "$pkgdir"/usr/include/crypt.h "$pkgdir"/usr/lib/libcrypt.{a,so}
  }
- 
+-
 -package_lib32-glibc() {
 -  pkgdesc='GNU C Library (32-bit)'
 -  depends=("glibc=$pkgver")
+-  options+=('!emptydirs')
 -
 -  cd lib32-glibc-build
 -
@@ -153,4 +156,7 @@ Index: PKGBUILD
 -      -not -name 'libthread_db-*.so' \
 -      -name '*-*.so' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
 -  fi
+-
+-  # Provided by lib32-libxcrypt; keep the old shared library for backwards compatibility
+-  rm -f "$pkgdir"/usr/lib32/libcrypt.{a,so}
 -}
