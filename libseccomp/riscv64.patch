@@ -1,43 +1,12 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 391859)
+--- PKGBUILD	(revision 405399)
 +++ PKGBUILD	(working copy)
-@@ -4,7 +4,8 @@
- # Contributor: Patryk Kowalczyk < patryk at kowalczyk dot ws>
- 
- pkgname=libseccomp
--pkgver=2.4.2
-+pkgver=2.4.3.20200614
-+_commit=6b286c2e8e43de76746346b8eab855311915f5aa
- pkgrel=1
- pkgdesc='Enhanced seccomp library'
- arch=('x86_64')
-@@ -15,7 +16,7 @@
- makedepends=('git')
- provides=('libseccomp.so')
- #source=(https://github.com/seccomp/${pkgname}/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz{,.asc})
--source=("git+https://github.com/seccomp/${pkgname}?signed#tag=v${pkgver}")
-+source=("git+https://github.com/seccomp/${pkgname}?commit=_commit")
- sha256sums=('SKIP')
- # XXX: do NOT trust this key as its not yet in the strong set, see linked issue
- # XXX: https://github.com/seccomp/libseccomp/issues/187
-@@ -23,19 +24,6 @@
- # XXX: do NOT trust ^^ this key as its not yet in the strong set ^^ see linked issue
- validpgpkeys=('7100AADFAE6E6E940D2E0AD655E45A5AE8CA7C8A') # Paul Moore <paul@paul-moore.com>
- 
--pkgver() {
--  cd ${pkgname}
--  git describe --tags --match 'v*' | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
--}
--
--prepare() {
--  cd ${pkgname}
--  # assert annotated tag doesn't change
--  test "$(git rev-parse HEAD)" = "1b6cfd1fc0b7499a28c24299a93a80bd18619563"
--  # backport: api: define __SNR_ppoll again
--  git cherry-pick --no-commit e3647f5b6b52996bf30d0c2c1d1248e4182e1c1c
--}
--
- build() {
-   cd ${pkgname}
-   autoreconf -fiv
+@@ -12,7 +12,6 @@
+ license=('LGPL2.1')
+ url="https://github.com/seccomp/libseccomp"
+ depends=('glibc')
+-checkdepends=('valgrind')
+ makedepends=('gperf' 'cython' 'python-setuptools')
+ source=(https://github.com/seccomp/${pkgname}/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz{,.asc})
+ sha256sums=('ee307e383c77aa7995abc5ada544d51c9723ae399768a97667d4cdb3c3a30d55'
