@@ -1,0 +1,3172 @@
+From 10c3c587430b10e6d68dd00a21a5f69fb33cc337 Mon Sep 17 00:00:00 2001
+From: Zhaofeng Li <hello@zhaofeng.li>
+Date: Fri, 25 Jun 2021 20:32:54 +0000
+Subject: [PATCH] Add port for Linux on RISC-V (riscv)
+
+This commit adds support for Linux on RISC-V. Only 64-bit is supported
+at the moment.
+---
+ Makefile.am                          |   5 +
+ README                               |   7 +-
+ configure.ac                         |   6 +-
+ include/libunwind-riscv.h            | 187 +++++++++++
+ include/libunwind.h.in               |   2 +
+ include/tdep-riscv/dwarf-config.h    |  50 +++
+ include/tdep-riscv/jmpbuf.h          |  49 +++
+ include/tdep-riscv/libunwind_i.h     | 303 ++++++++++++++++++
+ include/tdep/dwarf-config.h          |   2 +
+ include/tdep/jmpbuf.h                |   2 +
+ include/tdep/libunwind_i.h.in        |   2 +
+ src/Makefile.am                      |  33 ++
+ src/coredump/_UCD_access_reg_linux.c |   5 +
+ src/ptrace/_UPT_access_reg.c         |  10 +
+ src/ptrace/_UPT_reg_offset.c         |  41 +++
+ src/riscv/Gapply_reg_state.c         |  36 +++
+ src/riscv/Gcreate_addr_space.c       |  54 ++++
+ src/riscv/Gget_proc_info.c           |  45 +++
+ src/riscv/Gget_save_loc.c            |  97 ++++++
+ src/riscv/Gglobal.c                  | 127 ++++++++
+ src/riscv/Ginit.c                    | 448 +++++++++++++++++++++++++++
+ src/riscv/Ginit_local.c              |  81 +++++
+ src/riscv/Ginit_remote.c             |  55 ++++
+ src/riscv/Gis_signal_frame.c         |  79 +++++
+ src/riscv/Greg_states_iterate.c      |  36 +++
+ src/riscv/Gregs.c                    |  95 ++++++
+ src/riscv/Gresume.c                  | 122 ++++++++
+ src/riscv/Gstep.c                    | 130 ++++++++
+ src/riscv/Lapply_reg_state.c         |   5 +
+ src/riscv/Lcreate_addr_space.c       |   5 +
+ src/riscv/Lget_proc_info.c           |   5 +
+ src/riscv/Lget_save_loc.c            |   5 +
+ src/riscv/Lglobal.c                  |   5 +
+ src/riscv/Linit.c                    |   5 +
+ src/riscv/Linit_local.c              |   5 +
+ src/riscv/Linit_remote.c             |   5 +
+ src/riscv/Lis_signal_frame.c         |   5 +
+ src/riscv/Lreg_states_iterate.c      |   5 +
+ src/riscv/Lregs.c                    |   5 +
+ src/riscv/Lresume.c                  |   5 +
+ src/riscv/Lstep.c                    |   5 +
+ src/riscv/asm.h                      |  46 +++
+ src/riscv/getcontext.S               |  87 ++++++
+ src/riscv/init.h                     |  65 ++++
+ src/riscv/is_fpreg.c                 |  31 ++
+ src/riscv/offsets.h                  |  13 +
+ src/riscv/regname.c                  |  59 ++++
+ src/riscv/setcontext.S               |  87 ++++++
+ src/riscv/siglongjmp.S               |   7 +
+ src/riscv/unwind_i.h                 |  46 +++
+ tests/Makefile.am                    |   4 +
+ tests/check-namespace.sh.in          |  15 +
+ 52 files changed, 2629 insertions(+), 5 deletions(-)
+ create mode 100644 include/libunwind-riscv.h
+ create mode 100644 include/tdep-riscv/dwarf-config.h
+ create mode 100644 include/tdep-riscv/jmpbuf.h
+ create mode 100644 include/tdep-riscv/libunwind_i.h
+ create mode 100644 src/riscv/Gapply_reg_state.c
+ create mode 100644 src/riscv/Gcreate_addr_space.c
+ create mode 100644 src/riscv/Gget_proc_info.c
+ create mode 100644 src/riscv/Gget_save_loc.c
+ create mode 100644 src/riscv/Gglobal.c
+ create mode 100644 src/riscv/Ginit.c
+ create mode 100644 src/riscv/Ginit_local.c
+ create mode 100644 src/riscv/Ginit_remote.c
+ create mode 100644 src/riscv/Gis_signal_frame.c
+ create mode 100644 src/riscv/Greg_states_iterate.c
+ create mode 100644 src/riscv/Gregs.c
+ create mode 100644 src/riscv/Gresume.c
+ create mode 100644 src/riscv/Gstep.c
+ create mode 100644 src/riscv/Lapply_reg_state.c
+ create mode 100644 src/riscv/Lcreate_addr_space.c
+ create mode 100644 src/riscv/Lget_proc_info.c
+ create mode 100644 src/riscv/Lget_save_loc.c
+ create mode 100644 src/riscv/Lglobal.c
+ create mode 100644 src/riscv/Linit.c
+ create mode 100644 src/riscv/Linit_local.c
+ create mode 100644 src/riscv/Linit_remote.c
+ create mode 100644 src/riscv/Lis_signal_frame.c
+ create mode 100644 src/riscv/Lreg_states_iterate.c
+ create mode 100644 src/riscv/Lregs.c
+ create mode 100644 src/riscv/Lresume.c
+ create mode 100644 src/riscv/Lstep.c
+ create mode 100644 src/riscv/asm.h
+ create mode 100644 src/riscv/getcontext.S
+ create mode 100644 src/riscv/init.h
+ create mode 100644 src/riscv/is_fpreg.c
+ create mode 100644 src/riscv/offsets.h
+ create mode 100644 src/riscv/regname.c
+ create mode 100644 src/riscv/setcontext.S
+ create mode 100644 src/riscv/siglongjmp.S
+ create mode 100644 src/riscv/unwind_i.h
+
+diff --git a/Makefile.am b/Makefile.am
+index 072decf16..9bb2413dc 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -44,6 +44,9 @@ endif
+ if ARCH_S390X
+ include_HEADERS += include/libunwind-s390x.h
+ endif
++if ARCH_RISCV
++include_HEADERS += include/libunwind-riscv.h
++endif
+ 
+ if !REMOTE_ONLY
+ include_HEADERS += include/libunwind.h
+@@ -92,6 +95,8 @@ noinst_HEADERS = include/dwarf.h include/dwarf_i.h include/dwarf-eh.h	\
+ 	include/tdep-sh/jmpbuf.h include/tdep-sh/libunwind_i.h		\
+ 	include/tdep-s390x/dwarf-config.h				\
+ 	include/tdep-s390x/jmpbuf.h include/tdep-s390x/libunwind_i.h	\
++	include/tdep-riscv/dwarf-config.h				\
++	include/tdep-riscv/jmpbuf.h include/tdep-riscv/libunwind_i.h	\
+ 	include/tdep/libunwind_i.h					\
+ 	include/tdep/jmpbuf.h include/tdep/dwarf-config.h
+ 
+diff --git a/README b/README
+index 3dacd8b87..9427144c8 100644
+--- a/README
++++ b/README
+@@ -18,6 +17,7 @@ several architecture/operating-system combinations:
+ | Linux   | PARISC       | Works well, but C library missing unwind-info |
+ | Linux   | Tilegx       | 64-bit mode only |
+ | Linux   | MIPS         | Newly added |
++| Linux   | RISC-V       | 64-bit only |
+ | HP-UX   | IA-64        | Mostly works, but known to have serious limitations |
+ | FreeBSD | x86-64       | ✓      |
+ | FreeBSD | x86          | ✓      |
+@@ -35,7 +35,7 @@ such dependencies
+  - p, provides its own implementation
+  - empty, no requirement
+ 
+-| Archtecture  | getcontext | setcontext |
++| Architecture | getcontext | setcontext |
+ |--------------|------------|------------|
+ |    aarch64   |     p      |            |
+ |    arm       |     p      |            |
+@@ -44,6 +44,7 @@ such dependencies
+ |    mips      |     p      |            |
+ |    ppc32     |     r      |            |
+ |    ppc64     |     r      |      r     |
++|    riscv     |     p      |      p     |
+ |    s390x     |     p      |      p     |
+ |    sh        |     r      |            |
+ |    tilegx    |     r      |      r     |
+diff --git a/configure.ac b/configure.ac
+index 77baf92da..9fadc1638 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -97,6 +97,7 @@ AC_DEFUN([SET_ARCH],[
+         [sh*],[$2=sh],
+         [amd64],[$2=x86_64],
+         [tile*],[$2=tilegx],
++        [riscv*],[$2=riscv],
+         [$2=$1])
+ ]) dnl SET_ARCH
+ 
+@@ -119,7 +120,7 @@ esac
+ 
+ AC_ARG_ENABLE(coredump,
+ 	AS_HELP_STRING([--enable-coredump],[building libunwind-coredump library]),,
+-        [AS_CASE([$host_arch], [aarch64*|arm*|mips*|sh*|x86*|tile*], [enable_coredump=yes], [enable_coredump=no])]
++        [AS_CASE([$host_arch], [aarch64*|arm*|mips*|sh*|x86*|tile*|riscv*], [enable_coredump=yes], [enable_coredump=no])]
+ )
+ 
+ AC_MSG_CHECKING([if we should build libunwind-coredump])
+@@ -187,6 +188,7 @@ AM_CONDITIONAL(ARCH_PPC64, test x$target_arch = xppc64)
+ AM_CONDITIONAL(ARCH_SH, test x$target_arch = xsh)
+ AM_CONDITIONAL(ARCH_TILEGX, test x$target_arch = xtilegx)
+ AM_CONDITIONAL(ARCH_S390X, test x$target_arch = xs390x)
++AM_CONDITIONAL(ARCH_RISCV, test x$target_arch = xriscv)
+ AM_CONDITIONAL(OS_LINUX, expr x$target_os : xlinux >/dev/null)
+ AM_CONDITIONAL(OS_HPUX, expr x$target_os : xhpux >/dev/null)
+ AM_CONDITIONAL(OS_FREEBSD, expr x$target_os : xfreebsd >/dev/null)
+@@ -197,7 +199,7 @@ AC_MSG_CHECKING([for ELF helper width])
+ case "${target_arch}" in
+ (arm|hppa|ppc32|x86|sh) use_elf32=yes; AC_MSG_RESULT([32]);;
+ (aarch64|ia64|ppc64|x86_64|s390x|tilegx)  use_elf64=yes; AC_MSG_RESULT([64]);;
+-(mips)                 use_elfxx=yes; AC_MSG_RESULT([xx]);;
++(mips|riscv)                 use_elfxx=yes; AC_MSG_RESULT([xx]);;
+ *)                     AC_MSG_ERROR([Unknown ELF target: ${target_arch}])
+ esac
+ AM_CONDITIONAL(USE_ELF32, [test x$use_elf32 = xyes])
+diff --git a/include/libunwind-riscv.h b/include/libunwind-riscv.h
+new file mode 100644
+index 000000000..e74db0f93
+--- /dev/null
++++ b/include/libunwind-riscv.h
+@@ -0,0 +1,187 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2002-2004 Hewlett-Packard Co
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++
++   Modified for riscv by Zhaofeng Li <hello@zhaofeng.li>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef LIBUNWIND_H
++#define LIBUNWIND_H
++
++#if defined(__cplusplus) || defined(c_plusplus)
++extern "C" {
++#endif
++
++#include <sys/types.h>
++#include <inttypes.h>
++#include <ucontext.h>
++
++#define UNW_TARGET              riscv
++#define UNW_TARGET_RISCV      1
++
++#define _U_TDEP_QP_TRUE 0       /* ignored - see libunwind-dynamic.h */
++
++/* This needs to be big enough to accommodate "struct cursor", while
++   leaving some slack for future expansion.  Changing this value will
++   require recompiling all users of this library.  Stack allocation is
++   relatively cheap and unwind-state copying is relatively rare, so we
++   want to err on making it rather too big than too small.  */
++/* FIXME for riscv: Figure out a more reasonable size */
++#define UNW_TDEP_CURSOR_LEN     4096
++
++#if __riscv_xlen == 32
++typedef uint32_t unw_word_t;
++typedef int32_t unw_sword_t;
++#elif __riscv_xlen == 64
++typedef uint64_t unw_word_t;
++typedef int64_t unw_sword_t;
++#endif
++
++#if __riscv_flen == 64
++typedef double unw_tdep_fpreg_t;
++#elif __riscv_flen == 32
++typedef float unw_tdep_fpreg_t;
++#else
++# error "Unsupported RISC-V floating-point size"
++#endif
++
++/* Also see src/riscv/Gglobal.c. This ordering is consistent with
++   https://github.com/riscv/riscv-elf-psabi-doc/blob/74ecf07bcebd0cb4bf3c39f3f9d96946cd6aba61/riscv-elf.md#dwarf-register-numbers- */
++
++typedef enum
++  {
++    /* integer registers */
++    UNW_RISCV_X0,
++    UNW_RISCV_X1,
++    UNW_RISCV_X2,
++    UNW_RISCV_X3,
++    UNW_RISCV_X4,
++    UNW_RISCV_X5,
++    UNW_RISCV_X6,
++    UNW_RISCV_X7,
++    UNW_RISCV_X8,
++    UNW_RISCV_X9,
++    UNW_RISCV_X10,
++    UNW_RISCV_X11,
++    UNW_RISCV_X12,
++    UNW_RISCV_X13,
++    UNW_RISCV_X14,
++    UNW_RISCV_X15,
++    UNW_RISCV_X16,
++    UNW_RISCV_X17,
++    UNW_RISCV_X18,
++    UNW_RISCV_X19,
++    UNW_RISCV_X20,
++    UNW_RISCV_X21,
++    UNW_RISCV_X22,
++    UNW_RISCV_X23,
++    UNW_RISCV_X24,
++    UNW_RISCV_X25,
++    UNW_RISCV_X26,
++    UNW_RISCV_X27,
++    UNW_RISCV_X28,
++    UNW_RISCV_X29,
++    UNW_RISCV_X30,
++    UNW_RISCV_X31,
++
++    /* floating point registers */
++    UNW_RISCV_F0,
++    UNW_RISCV_F1,
++    UNW_RISCV_F2,
++    UNW_RISCV_F3,
++    UNW_RISCV_F4,
++    UNW_RISCV_F5,
++    UNW_RISCV_F6,
++    UNW_RISCV_F7,
++    UNW_RISCV_F8,
++    UNW_RISCV_F9,
++    UNW_RISCV_F10,
++    UNW_RISCV_F11,
++    UNW_RISCV_F12,
++    UNW_RISCV_F13,
++    UNW_RISCV_F14,
++    UNW_RISCV_F15,
++    UNW_RISCV_F16,
++    UNW_RISCV_F17,
++    UNW_RISCV_F18,
++    UNW_RISCV_F19,
++    UNW_RISCV_F20,
++    UNW_RISCV_F21,
++    UNW_RISCV_F22,
++    UNW_RISCV_F23,
++    UNW_RISCV_F24,
++    UNW_RISCV_F25,
++    UNW_RISCV_F26,
++    UNW_RISCV_F27,
++    UNW_RISCV_F28,
++    UNW_RISCV_F29,
++    UNW_RISCV_F30,
++    UNW_RISCV_F31,
++
++    UNW_RISCV_PC,
++
++    UNW_TDEP_LAST_REG = UNW_RISCV_PC,
++
++    /* The CFA is the value of SP in previous frame */
++    UNW_RISCV_CFA = UNW_RISCV_X2,
++
++    UNW_TDEP_IP = UNW_RISCV_PC,
++    UNW_TDEP_SP = UNW_RISCV_X2,
++    UNW_TDEP_EH = UNW_RISCV_X10,
++  }
++riscv_regnum_t;
++
++/* https://github.com/gcc-mirror/gcc/blob/16e2427f50c208dfe07d07f18009969502c25dc8/gcc/config/riscv/riscv.h#L104-L106 */
++#define UNW_TDEP_NUM_EH_REGS    4
++
++typedef struct unw_tdep_save_loc
++  {
++    /* Additional target-dependent info on a save location.  */
++    char unused;
++  }
++unw_tdep_save_loc_t;
++
++/* On riscv, we can directly use ucontext_t as the unwind context.  */
++typedef ucontext_t unw_tdep_context_t;
++
++typedef struct
++  {
++    /* no riscv-specific auxiliary proc-info */
++    char unused;
++  }
++unw_tdep_proc_info_t;
++
++#include "libunwind-dynamic.h"
++#include "libunwind-common.h"
++
++#define unw_tdep_getcontext             UNW_ARCH_OBJ(getcontext)
++#define unw_tdep_is_fpreg               UNW_ARCH_OBJ(is_fpreg)
++
++extern int unw_tdep_getcontext (unw_tdep_context_t *);
++extern int unw_tdep_is_fpreg (int);
++
++#if defined(__cplusplus) || defined(c_plusplus)
++}
++#endif
++
++#endif /* LIBUNWIND_H */
+diff --git a/include/libunwind.h.in b/include/libunwind.h.in
+index a13e77673..dfea76626 100644
+--- a/include/libunwind.h.in
++++ b/include/libunwind.h.in
+@@ -27,6 +27,8 @@
+ # include "libunwind-tilegx.h"
+ #elif defined __s390x__
+ # include "libunwind-s390x.h"
++#elif defined __riscv || defined __riscv__
++# include "libunwind-riscv.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/include/tdep-riscv/dwarf-config.h b/include/tdep-riscv/dwarf-config.h
+new file mode 100644
+index 000000000..78277761d
+--- /dev/null
++++ b/include/tdep-riscv/dwarf-config.h
+@@ -0,0 +1,50 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (c) 2003, 2005 Hewlett-Packard Development Company, L.P.
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++
++   Modified for riscv by Zhaofeng Li <hello@zhaofeng.li>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef dwarf_config_h
++#define dwarf_config_h
++
++/* 32 integer registers + 32 floating-point registers + 2 pseudo-registers */
++#define DWARF_NUM_PRESERVED_REGS        66
++
++#define DWARF_REGNUM_MAP_LENGTH         DWARF_NUM_PRESERVED_REGS
++
++/* Not big-endian. */
++#define dwarf_is_big_endian(addr_space) 0
++
++/* Convert a pointer to a dwarf_cursor structure to a pointer to
++   unw_cursor_t.  */
++#define dwarf_to_cursor(c)      ((unw_cursor_t *) (c))
++
++typedef struct dwarf_loc
++  {
++    unw_word_t val;
++    unw_word_t type;            /* see RISCV_LOC_TYPE_* macros.  */
++  }
++dwarf_loc_t;
++
++#endif /* dwarf_config_h */
+diff --git a/include/tdep-riscv/jmpbuf.h b/include/tdep-riscv/jmpbuf.h
+new file mode 100644
+index 000000000..8831f6900
+--- /dev/null
++++ b/include/tdep-riscv/jmpbuf.h
+@@ -0,0 +1,49 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2004 Hewlett-Packard Co
++        Contributed by Zhaofeng Li <hello@zhaofeng.li>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#if defined __linux__
++
++/* https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/riscv/setjmp.S;h=0b92016b311b11aa9eeb62b38c670a262f1924c9;hb=HEAD */
++#define JB_SP           13
++#define JB_RP           0
++
++#if __riscv_xlen == 64
++
++/* GCC's internal structure for this depends on the floating-point ABI:
++   https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/riscv/rv64/jmp_buf-macros.h;h=be9199e514bf4f15f0612327b8b762e29a2b7862;hb=HEAD
++*/
++
++#if defined __riscv_float_abi_double
++# define JB_MASK_SAVED  (208>>3)
++# define JB_MASK        (216>>3)
++#else
++# error "Unsupported RISC-V floating point ABI"
++#endif /* __riscv_float_abi_double */
++
++#else
++# error "Add offsets here"
++#endif /* __riscv_xlen */
++
++#endif
+diff --git a/include/tdep-riscv/libunwind_i.h b/include/tdep-riscv/libunwind_i.h
+new file mode 100644
+index 000000000..4404a4751
+--- /dev/null
++++ b/include/tdep-riscv/libunwind_i.h
+@@ -0,0 +1,303 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++   Modified for riscv by Zhaofeng Li <hello@zhaofeng.li>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef RISCV_LIBUNWIND_I_H
++#define RISCV_LIBUNWIND_I_H
++
++/* Target-dependent definitions that are internal to libunwind but need
++   to be shared with target-independent code.  */
++
++#include <stdlib.h>
++#include <libunwind.h>
++#include <stdatomic.h>
++
++/* FIXME: Remote across address sizes? */
++
++#if __riscv_xlen == 64
++# include "elf64.h"
++#elif __riscv_xlen == 32
++# include "elf32.h"
++#else
++# error "Unsupported address size"
++#endif
++
++#include "mempool.h"
++#include "dwarf.h"
++
++typedef struct
++  {
++    /* no riscv-specific fast trace */
++  }
++unw_tdep_frame_t;
++
++struct unw_addr_space
++  {
++    struct unw_accessors acc;
++
++    int big_endian;
++    unsigned int addr_size;
++
++    unw_caching_policy_t caching_policy;
++    _Atomic uint32_t cache_generation;
++    unw_word_t dyn_generation;          /* see dyn-common.h */
++    unw_word_t dyn_info_list_addr;      /* (cached) dyn_info_list_addr */
++    struct dwarf_rs_cache global_cache;
++    struct unw_debug_frame_list *debug_frames;
++};
++
++#define tdep_big_endian(as)             ((as)->big_endian)
++
++struct cursor
++  {
++    struct dwarf_cursor dwarf;          /* must be first */
++    enum
++      {
++        RISCV_SCF_NONE, // 0
++        RISCV_SCF_LINUX_RT_SIGFRAME, // 1
++      }
++    sigcontext_format;
++    unw_word_t sigcontext_addr;
++    unw_word_t sigcontext_sp;
++    unw_word_t sigcontext_pc;
++    int validate;
++    ucontext_t *uc;
++  };
++
++static inline ucontext_t *
++dwarf_get_uc(const struct dwarf_cursor *cursor)
++{
++  const struct cursor *c = (struct cursor *) cursor->as_arg;
++  return c->uc;
++}
++
++#define DWARF_GET_LOC(l)        ((l).val)
++
++#ifdef UNW_LOCAL_ONLY
++# define DWARF_NULL_LOC         DWARF_LOC (0, 0)
++# define DWARF_IS_NULL_LOC(l)   (DWARF_GET_LOC (l) == 0)
++# define DWARF_LOC(r, t)        ((dwarf_loc_t) { .val = (r) })
++# define DWARF_IS_REG_LOC(l)    0
++# define DWARF_REG_LOC(c,r)     (DWARF_LOC((unw_word_t)                      \
++                                 tdep_uc_addr(dwarf_get_uc(c), (r)), 0))
++# define DWARF_MEM_LOC(c,m)     DWARF_LOC ((m), 0)
++# define DWARF_FPREG_LOC(c,r)   (DWARF_LOC((unw_word_t)                      \
++                                 tdep_uc_addr(dwarf_get_uc(c), (r)), 0))
++
++static inline int
++dwarf_getfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t *val)
++{
++  if (!DWARF_GET_LOC (loc))
++    return -1;
++  *val = *(unw_fpreg_t *) (intptr_t) DWARF_GET_LOC (loc);
++  return 0;
++}
++
++static inline int
++dwarf_putfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t val)
++{
++  if (!DWARF_GET_LOC (loc))
++    return -1;
++  *(unw_fpreg_t *) (intptr_t) DWARF_GET_LOC (loc) = val;
++  return 0;
++}
++
++static inline int
++dwarf_get (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t *val)
++{
++  if (!DWARF_GET_LOC (loc))
++    return -1;
++  *val = *(unw_word_t *) (intptr_t) DWARF_GET_LOC (loc);
++  return 0;
++}
++
++static inline int
++dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
++{
++  if (!DWARF_GET_LOC (loc))
++    return -1;
++  *(unw_word_t *) (intptr_t) DWARF_GET_LOC (loc) = val;
++  return 0;
++}
++
++#else /* !UNW_LOCAL_ONLY */
++# define DWARF_LOC_TYPE_FP      (1 << 0)
++# define DWARF_LOC_TYPE_REG     (1 << 1)
++# define DWARF_NULL_LOC         DWARF_LOC (0, 0)
++# define DWARF_IS_NULL_LOC(l)                                           \
++                ({ dwarf_loc_t _l = (l); _l.val == 0 && _l.type == 0; })
++# define DWARF_LOC(r, t)        ((dwarf_loc_t) { .val = (r), .type = (t) })
++# define DWARF_IS_REG_LOC(l)    (((l).type & DWARF_LOC_TYPE_REG) != 0)
++# define DWARF_IS_FP_LOC(l)     (((l).type & DWARF_LOC_TYPE_FP) != 0)
++# define DWARF_REG_LOC(c,r)     DWARF_LOC((r), DWARF_LOC_TYPE_REG)
++# define DWARF_MEM_LOC(c,m)     DWARF_LOC ((m), 0)
++# define DWARF_FPREG_LOC(c,r)   DWARF_LOC((r), (DWARF_LOC_TYPE_REG      \
++                                                | DWARF_LOC_TYPE_FP))
++
++static inline int
++dwarf_getfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t *val)
++{
++  char *valp = (char *) &val;
++  unw_word_t addr;
++  int ret;
++
++  if (DWARF_IS_NULL_LOC (loc))
++    return -UNW_EBADREG;
++
++  if (DWARF_IS_REG_LOC (loc))
++    return (*c->as->acc.access_fpreg) (c->as, DWARF_GET_LOC (loc),
++                                       val, 0, c->as_arg);
++
++  /* FIXME: unw_word_t may not be equal to FLEN */
++  addr = DWARF_GET_LOC (loc);
++#if __riscv_xlen == __riscv_flen
++  return (*c->as->acc.access_mem) (c->as, addr, (unw_word_t *) valp,
++                                       0, c->as_arg);
++#else
++# error "FIXME"
++#endif
++}
++
++static inline int
++dwarf_putfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t val)
++{
++  char *valp = (char *) &val;
++  unw_word_t addr;
++  int ret;
++
++  if (DWARF_IS_NULL_LOC (loc))
++    return -UNW_EBADREG;
++
++  if (DWARF_IS_REG_LOC (loc))
++    return (*c->as->acc.access_fpreg) (c->as, DWARF_GET_LOC (loc),
++                                       &val, 1, c->as_arg);
++
++  /* FIXME: unw_word_t may not be equal to FLEN */
++  addr = DWARF_GET_LOC (loc);
++#if __riscv_xlen == __riscv_flen
++  return (*c->as->acc.access_mem) (c->as, addr, (unw_word_t *) valp,
++                                       1, c->as_arg);
++#else
++# error "FIXME"
++#endif
++}
++
++static inline int
++dwarf_get (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t *val)
++{
++  if (DWARF_IS_NULL_LOC (loc))
++    return -UNW_EBADREG;
++
++  /* If a code-generator were to save a value of type unw_word_t in a
++     floating-point register, we would have to support this case.  I
++     suppose it could happen with MMX registers, but does it really
++     happen?  */
++  assert (!DWARF_IS_FP_LOC (loc));
++
++  if (DWARF_IS_REG_LOC (loc))
++    return (*c->as->acc.access_reg) (c->as, DWARF_GET_LOC (loc), val,
++                                     0, c->as_arg);
++  else
++    return (*c->as->acc.access_mem) (c->as, DWARF_GET_LOC (loc), val,
++                                     0, c->as_arg);
++}
++
++static inline int
++dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
++{
++  if (DWARF_IS_NULL_LOC (loc))
++    return -UNW_EBADREG;
++
++  /* If a code-generator were to save a value of type unw_word_t in a
++     floating-point register, we would have to support this case.  I
++     suppose it could happen with MMX registers, but does it really
++     happen?  */
++  assert (!DWARF_IS_FP_LOC (loc));
++
++  if (DWARF_IS_REG_LOC (loc))
++    return (*c->as->acc.access_reg) (c->as, DWARF_GET_LOC (loc), &val,
++                                     1, c->as_arg);
++  else
++    return (*c->as->acc.access_mem) (c->as, DWARF_GET_LOC (loc), &val,
++                                     1, c->as_arg);
++}
++
++#endif /* !UNW_LOCAL_ONLY */
++
++#define tdep_getcontext_trace           unw_getcontext
++#define tdep_init_mem_validate          UNW_OBJ(init_mem_validate)
++#define tdep_init_done                  UNW_OBJ(init_done)
++#define tdep_init                       UNW_OBJ(init)
++/* Platforms that support UNW_INFO_FORMAT_TABLE need to define
++   tdep_search_unwind_table.  */
++#define tdep_search_unwind_table        dwarf_search_unwind_table
++#define tdep_find_unwind_table          dwarf_find_unwind_table
++#define tdep_uc_addr                    UNW_ARCH_OBJ(uc_addr)
++#define tdep_get_elf_image              UNW_ARCH_OBJ(get_elf_image)
++#define tdep_get_exe_image_path         UNW_ARCH_OBJ(get_exe_image_path)
++#define tdep_access_reg                 UNW_OBJ(access_reg)
++#define tdep_access_fpreg               UNW_OBJ(access_fpreg)
++#define tdep_fetch_frame(c,ip,n)        do {} while(0)
++#define tdep_cache_frame(c)             0
++#define tdep_reuse_frame(c,frame)       do {} while(0)
++#define tdep_stash_frame(c,rs)          do {} while(0)
++#define tdep_trace(cur,addr,n)          (-UNW_ENOINFO)
++
++#ifdef UNW_LOCAL_ONLY
++# define tdep_find_proc_info(c,ip,n)                            \
++        dwarf_find_proc_info((c)->as, (ip), &(c)->pi, (n),      \
++                                       (c)->as_arg)
++# define tdep_put_unwind_info(as,pi,arg)                \
++        dwarf_put_unwind_info((as), (pi), (arg))
++#else
++# define tdep_find_proc_info(c,ip,n)                                    \
++        (*(c)->as->acc.find_proc_info)((c)->as, (ip), &(c)->pi, (n),    \
++                                       (c)->as_arg)
++# define tdep_put_unwind_info(as,pi,arg)                \
++        (*(as)->acc.put_unwind_info)((as), (pi), (arg))
++#endif
++
++#define tdep_get_as(c)                  ((c)->dwarf.as)
++#define tdep_get_as_arg(c)              ((c)->dwarf.as_arg)
++#define tdep_get_ip(c)                  ((c)->dwarf.ip)
++
++extern atomic_bool tdep_init_done;
++
++extern void tdep_init (void);
++extern void tdep_init_mem_validate (void);
++extern int tdep_search_unwind_table (unw_addr_space_t as, unw_word_t ip,
++                                     unw_dyn_info_t *di, unw_proc_info_t *pi,
++                                     int need_unwind_info, void *arg);
++extern void *tdep_uc_addr (ucontext_t *uc, int reg);
++extern int tdep_get_elf_image (struct elf_image *ei, pid_t pid, unw_word_t ip,
++                               unsigned long *segbase, unsigned long *mapoff,
++                               char *path, size_t pathlen);
++extern void tdep_get_exe_image_path (char *path);
++extern int tdep_access_reg (struct cursor *c, unw_regnum_t reg,
++                            unw_word_t *valp, int write);
++extern int tdep_access_fpreg (struct cursor *c, unw_regnum_t reg,
++                              unw_fpreg_t *valp, int write);
++
++#endif /* RISCV_LIBUNWIND_I_H */
+diff --git a/include/tdep/dwarf-config.h b/include/tdep/dwarf-config.h
+index e27e2a236..0cfd079e6 100644
+--- a/include/tdep/dwarf-config.h
++++ b/include/tdep/dwarf-config.h
+@@ -25,6 +25,8 @@
+ # include "tdep-x86_64/dwarf-config.h"
+ #elif defined __tilegx__
+ # include "tdep-tilegx/dwarf-config.h"
++#elif defined __riscv || defined __riscv__
++# include "tdep-riscv/dwarf-config.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/include/tdep/jmpbuf.h b/include/tdep/jmpbuf.h
+index 13093a0cd..77d35c3da 100644
+--- a/include/tdep/jmpbuf.h
++++ b/include/tdep/jmpbuf.h
+@@ -23,6 +23,8 @@
+ # include "tdep-x86_64/jmpbuf.h"
+ #elif defined __tilegx__
+ # include "tdep-tilegx/jmpbuf.h"
++#elif defined __riscv || defined __riscv__
++# include "tdep-riscv/jmpbuf.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/include/tdep/libunwind_i.h.in b/include/tdep/libunwind_i.h.in
+index c47299640..a40f7cf61 100644
+--- a/include/tdep/libunwind_i.h.in
++++ b/include/tdep/libunwind_i.h.in
+@@ -27,6 +27,8 @@
+ # include "tdep-tilegx/libunwind_i.h"
+ #elif defined __s390x__
+ # include "tdep-s390x/libunwind_i.h"
++#elif defined __riscv || defined __riscv__
++# include "tdep-riscv/libunwind_i.h"
+ #else
+ # error "Unsupported arch"
+ #endif
+diff --git a/src/Makefile.am b/src/Makefile.am
+index a073665a7..df10ed1f1 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -339,6 +339,26 @@ libunwind_tilegx_la_SOURCES_tilegx = $(libunwind_la_SOURCES_tilegx_common)	    \
+ 	tilegx/Gglobal.c tilegx/Ginit.c tilegx/Ginit_local.c tilegx/Ginit_remote.c	    \
+ 	tilegx/Gis_signal_frame.c tilegx/Gregs.c tilegx/Gresume.c tilegx/Gstep.c
+ 
++# The list of files that go info libunwind and libunwind-riscv:
++noinst_HEADERS += riscv/init.h riscv/offsets.h riscv/unwind_i.h
++libunwind_la_SOURCES_riscv_common = $(libunwind_la_SOURCES_common)	    \
++	riscv/is_fpreg.c riscv/regname.c
++
++# The list of files that go into libunwind:
++libunwind_la_SOURCES_riscv = $(libunwind_la_SOURCES_riscv_common)		    \
++	$(libunwind_la_SOURCES_local)					    \
++	riscv/getcontext.S riscv/setcontext.S \
++	riscv/Lapply_reg_state.c riscv/Lreg_states_iterate.c		    \
++	riscv/Lcreate_addr_space.c riscv/Lget_proc_info.c riscv/Lget_save_loc.c   \
++	riscv/Lglobal.c riscv/Linit.c riscv/Linit_local.c riscv/Linit_remote.c  \
++	riscv/Lis_signal_frame.c riscv/Lregs.c riscv/Lresume.c riscv/Lstep.c
++
++libunwind_riscv_la_SOURCES_riscv = $(libunwind_la_SOURCES_riscv_common)	    \
++	$(libunwind_la_SOURCES_generic)					    \
++	riscv/Gapply_reg_state.c riscv/Greg_states_iterate.c			     \
++	riscv/Gcreate_addr_space.c riscv/Gget_proc_info.c riscv/Gget_save_loc.c   \
++	riscv/Gglobal.c riscv/Ginit.c riscv/Ginit_local.c riscv/Ginit_remote.c	    \
++	riscv/Gis_signal_frame.c riscv/Gregs.c riscv/Gresume.c riscv/Gstep.c
+ 
+ # The list of files that go both into libunwind and libunwind-x86:
+ noinst_HEADERS += x86/init.h x86/offsets.h x86/unwind_i.h
+@@ -642,6 +662,18 @@ if !REMOTE_ONLY
+ endif
+  libunwind_setjmp_la_SOURCES += tilegx/siglongjmp.S
+ else
++if ARCH_RISCV
++ lib_LTLIBRARIES += libunwind-riscv.la
++ libunwind_la_SOURCES = $(libunwind_la_SOURCES_riscv)
++ libunwind_riscv_la_SOURCES = $(libunwind_riscv_la_SOURCES_riscv)
++ libunwind_riscv_la_LDFLAGS = $(COMMON_SO_LDFLAGS) -version-info $(SOVERSION)
++ libunwind_riscv_la_LIBADD = libunwind-dwarf-generic.la
++ libunwind_riscv_la_LIBADD += libunwind-elf64.la
++if !REMOTE_ONLY
++ libunwind_riscv_la_LIBADD += libunwind.la -lc
++endif
++ libunwind_setjmp_la_SOURCES += riscv/siglongjmp.S
++else
+ if ARCH_X86
+  lib_LTLIBRARIES += libunwind-x86.la
+  libunwind_la_SOURCES = $(libunwind_la_SOURCES_x86) $(libunwind_x86_la_SOURCES_os)
+@@ -719,6 +751,7 @@ endif # ARCH_PPC64
+ endif # ARCH_PPC32
+ endif # ARCH_X86_64
+ endif # ARCH_X86
++endif # ARCH_RISCV
+ endif # ARCH_TILEGX
+ endif # ARCH_MIPS
+ endif # ARCH_HPPA
+diff --git a/src/coredump/_UCD_access_reg_linux.c b/src/coredump/_UCD_access_reg_linux.c
+index 8f050c9e0..27eef1238 100644
+--- a/src/coredump/_UCD_access_reg_linux.c
++++ b/src/coredump/_UCD_access_reg_linux.c
+@@ -60,6 +60,11 @@ _UCD_access_reg (unw_addr_space_t as,
+ #elif defined(UNW_TARGET_IA64) || defined(UNW_TARGET_HPPA) || defined(UNW_TARGET_PPC32) || defined(UNW_TARGET_PPC64)
+   if (regnum >= ARRAY_SIZE(ui->prstatus->pr_reg))
+     goto badreg;
++#elif defined(UNW_TARGET_RISCV)
++  if (regnum == UNW_RISCV_PC)
++    regnum = 0;
++  else if (regnum > UNW_RISCV_X31)
++    goto badreg;
+ #else
+ #if defined(UNW_TARGET_MIPS)
+   static const uint8_t remap_regs[] =
+diff --git a/src/ptrace/_UPT_access_reg.c b/src/ptrace/_UPT_access_reg.c
+index ce25c783b..0e247053f 100644
+--- a/src/ptrace/_UPT_access_reg.c
++++ b/src/ptrace/_UPT_access_reg.c
+@@ -268,6 +268,16 @@ _UPT_access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val,
+       }
+ #endif /* End of IA64 */
+ 
++#if UNW_TARGET_RISCV
++  if (reg == UNW_RISCV_X0) {
++    if (write)
++      goto badreg;
++
++    *val = 0;
++    return 0;
++  }
++#endif /* End of RISCV */
++
+   if ((unsigned) reg >= ARRAY_SIZE (_UPT_reg_offset))
+     {
+ #if UNW_DEBUG
+diff --git a/src/ptrace/_UPT_reg_offset.c b/src/ptrace/_UPT_reg_offset.c
+index 32cf965ac..5c3085d2e 100644
+--- a/src/ptrace/_UPT_reg_offset.c
++++ b/src/ptrace/_UPT_reg_offset.c
+@@ -709,6 +709,47 @@ const int _UPT_reg_offset[UNW_REG_LAST + 1] =
+     [UNW_S390X_F14]     = 0x150,
+     [UNW_S390X_F15]     = 0x150,
+     [UNW_S390X_IP]      = 0x08
++#elif defined(UNW_TARGET_RISCV)
++
++#if __riscv_xlen == 64
++# define RISCV_REG_OFFSET(x) (8*x)
++#elif __riscv_xlen == 32
++# define RISCV_REG_OFFSET(x) (4*x)
++#else
++# error "Unsupported address size"
++#endif
++    [UNW_RISCV_PC]  = RISCV_REG_OFFSET(0),
++    [UNW_RISCV_X1]  = RISCV_REG_OFFSET(1),
++    [UNW_RISCV_X2]  = RISCV_REG_OFFSET(2),
++    [UNW_RISCV_X3]  = RISCV_REG_OFFSET(3),
++    [UNW_RISCV_X4]  = RISCV_REG_OFFSET(4),
++    [UNW_RISCV_X5]  = RISCV_REG_OFFSET(5),
++    [UNW_RISCV_X6]  = RISCV_REG_OFFSET(6),
++    [UNW_RISCV_X7]  = RISCV_REG_OFFSET(7),
++    [UNW_RISCV_X8]  = RISCV_REG_OFFSET(8),
++    [UNW_RISCV_X9]  = RISCV_REG_OFFSET(9),
++    [UNW_RISCV_X10] = RISCV_REG_OFFSET(10),
++    [UNW_RISCV_X11] = RISCV_REG_OFFSET(11),
++    [UNW_RISCV_X12] = RISCV_REG_OFFSET(12),
++    [UNW_RISCV_X13] = RISCV_REG_OFFSET(13),
++    [UNW_RISCV_X14] = RISCV_REG_OFFSET(14),
++    [UNW_RISCV_X15] = RISCV_REG_OFFSET(15),
++    [UNW_RISCV_X16] = RISCV_REG_OFFSET(16),
++    [UNW_RISCV_X17] = RISCV_REG_OFFSET(17),
++    [UNW_RISCV_X18] = RISCV_REG_OFFSET(18),
++    [UNW_RISCV_X19] = RISCV_REG_OFFSET(19),
++    [UNW_RISCV_X20] = RISCV_REG_OFFSET(20),
++    [UNW_RISCV_X21] = RISCV_REG_OFFSET(21),
++    [UNW_RISCV_X22] = RISCV_REG_OFFSET(22),
++    [UNW_RISCV_X23] = RISCV_REG_OFFSET(23),
++    [UNW_RISCV_X24] = RISCV_REG_OFFSET(24),
++    [UNW_RISCV_X25] = RISCV_REG_OFFSET(25),
++    [UNW_RISCV_X26] = RISCV_REG_OFFSET(26),
++    [UNW_RISCV_X27] = RISCV_REG_OFFSET(27),
++    [UNW_RISCV_X28] = RISCV_REG_OFFSET(28),
++    [UNW_RISCV_X29] = RISCV_REG_OFFSET(29),
++    [UNW_RISCV_X30] = RISCV_REG_OFFSET(30),
++    [UNW_RISCV_X31] = RISCV_REG_OFFSET(31),
+ #else
+ # error Fix me.
+ #endif
+diff --git a/src/riscv/Gapply_reg_state.c b/src/riscv/Gapply_reg_state.c
+new file mode 100644
+index 000000000..09299ac58
+--- /dev/null
++++ b/src/riscv/Gapply_reg_state.c
+@@ -0,0 +1,36 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (c) 2002-2003 Hewlett-Packard Development Company, L.P.
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++   Copyright (c) 2004 Max Asbock <masbock@us.ibm.com>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_apply_reg_state (unw_cursor_t *cursor,
++		     void *reg_states_data)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  return dwarf_apply_reg_state (&c->dwarf, (dwarf_reg_state_t *)reg_states_data);
++}
+diff --git a/src/riscv/Gcreate_addr_space.c b/src/riscv/Gcreate_addr_space.c
+new file mode 100644
+index 000000000..5cf016417
+--- /dev/null
++++ b/src/riscv/Gcreate_addr_space.c
+@@ -0,0 +1,54 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2014 Tilera Corp.
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include <stdlib.h>
++
++#include "unwind_i.h"
++
++unw_addr_space_t
++unw_create_addr_space (unw_accessors_t *a, int byte_order)
++{
++#ifdef UNW_LOCAL_ONLY
++  return NULL;
++#else
++  unw_addr_space_t as;
++
++  /*
++   * We only support little-endian for now.
++   */
++  if (byte_order != 0 && byte_order != __LITTLE_ENDIAN)
++    return NULL;
++
++  as = malloc (sizeof (*as));
++  if (!as)
++    return NULL;
++
++  memset (as, 0, sizeof (*as));
++
++  as->acc = *a;
++
++  return as;
++#endif
++}
+diff --git a/src/riscv/Gget_proc_info.c b/src/riscv/Gget_proc_info.c
+new file mode 100644
+index 000000000..ff11c59bd
+--- /dev/null
++++ b/src/riscv/Gget_proc_info.c
+@@ -0,0 +1,45 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_get_proc_info (unw_cursor_t *cursor, unw_proc_info_t *pi)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  int ret;
++
++  ret = dwarf_make_proc_info (&c->dwarf);
++
++  if (ret < 0) {
++    /* No DWARF info? */
++    memset (pi, 0, sizeof (*pi));
++    pi->start_ip = c->dwarf.ip;
++    pi->end_ip = c->dwarf.ip + 1;
++    return 0;
++  }
++
++  *pi = c->dwarf.pi;
++  return 0;
++}
+diff --git a/src/riscv/Gget_save_loc.c b/src/riscv/Gget_save_loc.c
+new file mode 100644
+index 000000000..342f8654f
+--- /dev/null
++++ b/src/riscv/Gget_save_loc.c
+@@ -0,0 +1,97 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_get_save_loc (unw_cursor_t *cursor, int reg, unw_save_loc_t *sloc)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  dwarf_loc_t loc;
++
++  switch (reg)
++    {
++    case UNW_RISCV_X1:
++    case UNW_RISCV_X2:
++    case UNW_RISCV_X3:
++    case UNW_RISCV_X4:
++    case UNW_RISCV_X5:
++    case UNW_RISCV_X6:
++    case UNW_RISCV_X7:
++    case UNW_RISCV_X8:
++    case UNW_RISCV_X9:
++    case UNW_RISCV_X10:
++    case UNW_RISCV_X11:
++    case UNW_RISCV_X12:
++    case UNW_RISCV_X13:
++    case UNW_RISCV_X14:
++    case UNW_RISCV_X15:
++    case UNW_RISCV_X16:
++    case UNW_RISCV_X17:
++    case UNW_RISCV_X18:
++    case UNW_RISCV_X19:
++    case UNW_RISCV_X20:
++    case UNW_RISCV_X21:
++    case UNW_RISCV_X22:
++    case UNW_RISCV_X23:
++    case UNW_RISCV_X24:
++    case UNW_RISCV_X25:
++    case UNW_RISCV_X26:
++    case UNW_RISCV_X27:
++    case UNW_RISCV_X28:
++    case UNW_RISCV_X29:
++    case UNW_RISCV_X30:
++    case UNW_RISCV_X31:
++    case UNW_RISCV_PC:
++      loc = c->dwarf.loc[reg - UNW_RISCV_X0];
++      break;
++
++    default:
++      loc = DWARF_NULL_LOC;       /* default to "not saved" */
++      break;
++    }
++
++  memset (sloc, 0, sizeof (*sloc));
++
++  if (DWARF_IS_NULL_LOC (loc))
++    {
++      sloc->type = UNW_SLT_NONE;
++      return 0;
++    }
++
++#if !defined(UNW_LOCAL_ONLY)
++  if (DWARF_IS_REG_LOC (loc))
++    {
++      sloc->type = UNW_SLT_REG;
++      sloc->u.regnum = DWARF_GET_LOC (loc);
++    }
++  else
++#endif
++    {
++      sloc->type = UNW_SLT_MEMORY;
++      sloc->u.addr = DWARF_GET_LOC (loc);
++    }
++  return 0;
++}
+diff --git a/src/riscv/Gglobal.c b/src/riscv/Gglobal.c
+new file mode 100644
+index 000000000..65f11b353
+--- /dev/null
++++ b/src/riscv/Gglobal.c
+@@ -0,0 +1,127 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include "dwarf_i.h"
++
++HIDDEN define_lock (riscv_lock);
++HIDDEN atomic_bool tdep_init_done = 0;
++
++/* Our ordering is already consistent with
++   https://github.com/riscv/riscv-elf-psabi-doc/blob/74ecf07bcebd0cb4bf3c39f3f9d96946cd6aba61/riscv-elf.md#dwarf-register-numbers- */
++HIDDEN const uint8_t dwarf_to_unw_regnum_map[] =
++  {
++    UNW_RISCV_X0,
++    UNW_RISCV_X1,
++    UNW_RISCV_X2,
++    UNW_RISCV_X3,
++    UNW_RISCV_X4,
++    UNW_RISCV_X5,
++    UNW_RISCV_X6,
++    UNW_RISCV_X7,
++    UNW_RISCV_X8,
++    UNW_RISCV_X9,
++    UNW_RISCV_X10,
++    UNW_RISCV_X11,
++    UNW_RISCV_X12,
++    UNW_RISCV_X13,
++    UNW_RISCV_X14,
++    UNW_RISCV_X15,
++    UNW_RISCV_X16,
++    UNW_RISCV_X17,
++    UNW_RISCV_X18,
++    UNW_RISCV_X19,
++    UNW_RISCV_X20,
++    UNW_RISCV_X21,
++    UNW_RISCV_X22,
++    UNW_RISCV_X23,
++    UNW_RISCV_X24,
++    UNW_RISCV_X25,
++    UNW_RISCV_X26,
++    UNW_RISCV_X27,
++    UNW_RISCV_X28,
++    UNW_RISCV_X29,
++    UNW_RISCV_X30,
++    UNW_RISCV_X31,
++
++    UNW_RISCV_F0,
++    UNW_RISCV_F1,
++    UNW_RISCV_F2,
++    UNW_RISCV_F3,
++    UNW_RISCV_F4,
++    UNW_RISCV_F5,
++    UNW_RISCV_F6,
++    UNW_RISCV_F7,
++    UNW_RISCV_F8,
++    UNW_RISCV_F9,
++    UNW_RISCV_F10,
++    UNW_RISCV_F11,
++    UNW_RISCV_F12,
++    UNW_RISCV_F13,
++    UNW_RISCV_F14,
++    UNW_RISCV_F15,
++    UNW_RISCV_F16,
++    UNW_RISCV_F17,
++    UNW_RISCV_F18,
++    UNW_RISCV_F19,
++    UNW_RISCV_F20,
++    UNW_RISCV_F21,
++    UNW_RISCV_F22,
++    UNW_RISCV_F23,
++    UNW_RISCV_F24,
++    UNW_RISCV_F25,
++    UNW_RISCV_F26,
++    UNW_RISCV_F27,
++    UNW_RISCV_F28,
++    UNW_RISCV_F29,
++    UNW_RISCV_F30,
++    UNW_RISCV_F31,
++  };
++
++HIDDEN void
++tdep_init (void)
++{
++  intrmask_t saved_mask;
++
++  sigfillset (&unwi_full_mask);
++
++  lock_acquire (&riscv_lock, saved_mask);
++
++  if (atomic_load(&tdep_init_done))
++    /* another thread else beat us to it... */
++    goto out;
++
++  mi_init ();
++  dwarf_init ();
++  tdep_init_mem_validate ();
++
++#ifndef UNW_REMOTE_ONLY
++  riscv_local_addr_space_init ();
++#endif
++  atomic_store(&tdep_init_done, 1);  /* signal that we're initialized... */
++
++ out:
++  lock_release (&riscv_lock, saved_mask);
++}
+diff --git a/src/riscv/Ginit.c b/src/riscv/Ginit.c
+new file mode 100644
+index 000000000..907f72962
+--- /dev/null
++++ b/src/riscv/Ginit.c
+@@ -0,0 +1,448 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2012 Tommi Rantala <tt.rantala@gmail.com>
++   Copyright (C) 2013 Linaro Limited
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include "unwind_i.h"
++
++#ifdef UNW_REMOTE_ONLY
++
++/* unw_local_addr_space is a NULL pointer in this case.  */
++unw_addr_space_t unw_local_addr_space;
++
++#else /* !UNW_REMOTE_ONLY */
++
++static struct unw_addr_space local_addr_space;
++
++unw_addr_space_t unw_local_addr_space = &local_addr_space;
++
++/*
++  NB: as_arg is the cursor (see Ginit_local.c)
++*/
++
++static inline void *
++uc_addr (unw_context_t *uc, int reg)
++{
++  /* FIXME: Floating-point? */
++
++  unw_word_t *regs = (unw_word_t*)&uc->uc_mcontext;
++  if (reg >= UNW_RISCV_X1 && reg <= UNW_RISCV_X31)
++    return &regs[reg];
++  else if (reg >= UNW_RISCV_F0 && reg <= UNW_RISCV_F31)
++    {
++      unw_fpreg_t *fpregs = (unw_fpreg_t*)(regs + 32);
++      return &fpregs[reg - UNW_RISCV_F0];
++    }
++  else if (reg == UNW_RISCV_PC)
++    return &regs[0];
++  else
++    return NULL;
++}
++
++# ifdef UNW_LOCAL_ONLY
++
++HIDDEN void *
++tdep_uc_addr (unw_context_t *uc, int reg)
++{
++  return uc_addr (uc, reg);
++}
++
++# endif /* UNW_LOCAL_ONLY */
++
++static void
++put_unwind_info (unw_addr_space_t as, unw_proc_info_t *proc_info, void *arg)
++{
++  /* it's a no-op */
++}
++
++static int
++get_dyn_info_list_addr (unw_addr_space_t as, unw_word_t *dyn_info_list_addr,
++                        void *arg)
++{
++#ifndef UNW_LOCAL_ONLY
++# pragma weak _U_dyn_info_list_addr
++  if (!_U_dyn_info_list_addr)
++    return -UNW_ENOINFO;
++#endif
++  // Access the `_U_dyn_info_list` from `LOCAL_ONLY` library, i.e. libunwind.so.
++  *dyn_info_list_addr = _U_dyn_info_list_addr ();
++  return 0;
++}
++
++// Memory validation routines are from aarch64
++
++#define PAGE_SIZE 4096
++#define PAGE_START(a)   ((a) & ~(PAGE_SIZE-1))
++
++static int mem_validate_pipe[2] = {-1, -1};
++
++#ifdef HAVE_PIPE2
++static inline void
++do_pipe2 (int pipefd[2])
++{
++  pipe2 (pipefd, O_CLOEXEC | O_NONBLOCK);
++}
++#else
++static inline void
++set_pipe_flags (int fd)
++{
++  int fd_flags = fcntl (fd, F_GETFD, 0);
++  int status_flags = fcntl (fd, F_GETFL, 0);
++
++  fd_flags |= FD_CLOEXEC;
++  fcntl (fd, F_SETFD, fd_flags);
++
++  status_flags |= O_NONBLOCK;
++  fcntl (fd, F_SETFL, status_flags);
++}
++
++static inline void
++do_pipe2 (int pipefd[2])
++{
++  pipe (pipefd);
++  set_pipe_flags(pipefd[0]);
++  set_pipe_flags(pipefd[1]);
++}
++#endif
++
++static inline void
++open_pipe (void)
++{
++  if (mem_validate_pipe[0] != -1)
++    close (mem_validate_pipe[0]);
++  if (mem_validate_pipe[1] != -1)
++    close (mem_validate_pipe[1]);
++
++  do_pipe2 (mem_validate_pipe);
++}
++
++ALWAYS_INLINE
++static int
++write_validate (void *addr)
++{
++  int ret = -1;
++  ssize_t bytes = 0;
++
++  do
++    {
++      char buf;
++      bytes = read (mem_validate_pipe[0], &buf, 1);
++    }
++  while ( errno == EINTR );
++
++  int valid_read = (bytes > 0 || errno == EAGAIN || errno == EWOULDBLOCK);
++  if (!valid_read)
++    {
++      // re-open closed pipe
++      open_pipe ();
++    }
++
++  do
++    {
++       ret = write (mem_validate_pipe[1], addr, 1);
++    }
++  while ( errno == EINTR );
++
++  return ret;
++}
++
++static int (*mem_validate_func) (void *addr, size_t len);
++static int msync_validate (void *addr, size_t len)
++{
++  if (msync (addr, len, MS_ASYNC) != 0)
++    {
++      return -1;
++    }
++
++  return write_validate (addr);
++}
++
++#ifdef HAVE_MINCORE
++static int mincore_validate (void *addr, size_t len)
++{
++  unsigned char mvec[2]; /* Unaligned access may cross page boundary */
++
++  /* mincore could fail with EAGAIN but we conservatively return -1
++     instead of looping. */
++  if (mincore (addr, len, (unsigned char *)mvec) != 0)
++    {
++      return -1;
++    }
++
++  return write_validate (addr);
++}
++#endif
++
++/* Initialise memory validation method. On linux kernels <2.6.21,
++   mincore() returns incorrect value for MAP_PRIVATE mappings,
++   such as stacks. If mincore() was available at compile time,
++   check if we can actually use it. If not, use msync() instead. */
++HIDDEN void
++tdep_init_mem_validate (void)
++{
++  open_pipe ();
++
++#ifdef HAVE_MINCORE
++  unsigned char present = 1;
++  unw_word_t addr = PAGE_START((unw_word_t)&present);
++  unsigned char mvec[1];
++  int ret;
++  while ((ret = mincore ((void*)addr, PAGE_SIZE, (unsigned char *)mvec)) == -1 &&
++         errno == EAGAIN) {}
++  if (ret == 0)
++    {
++      Debug(1, "using mincore to validate memory\n");
++      mem_validate_func = mincore_validate;
++    }
++  else
++#endif
++    {
++      Debug(1, "using msync to validate memory\n");
++      mem_validate_func = msync_validate;
++    }
++}
++
++/* Cache of already validated addresses */
++#define NLGA 4
++#if defined(HAVE___CACHE_PER_THREAD) && HAVE___CACHE_PER_THREAD
++// thread-local variant
++static _Thread_local unw_word_t last_good_addr[NLGA];
++static _Thread_local int lga_victim;
++
++static int
++is_cached_valid_mem(unw_word_t addr)
++{
++  int i;
++  for (i = 0; i < NLGA; i++)
++    {
++      if (addr == last_good_addr[i])
++        return 1;
++    }
++  return 0;
++}
++
++static void
++cache_valid_mem(unw_word_t addr)
++{
++  int i, victim;
++  victim = lga_victim;
++  for (i = 0; i < NLGA; i++) {
++    if (last_good_addr[victim] == 0) {
++      last_good_addr[victim] = addr;
++      return;
++    }
++    victim = (victim + 1) % NLGA;
++  }
++
++  /* All slots full. Evict the victim. */
++  last_good_addr[victim] = addr;
++  victim = (victim + 1) % NLGA;
++  lga_victim = victim;
++}
++
++#else
++// global, thread safe variant
++static _Atomic unw_word_t last_good_addr[NLGA];
++static _Atomic int lga_victim;
++
++static int
++is_cached_valid_mem(unw_word_t addr)
++{
++  int i;
++  for (i = 0; i < NLGA; i++)
++    {
++      if (addr == atomic_load(&last_good_addr[i]))
++        return 1;
++    }
++  return 0;
++}
++
++static void
++cache_valid_mem(unw_word_t addr)
++{
++  int i, victim;
++  victim = atomic_load(&lga_victim);
++  unw_word_t zero = 0;
++  for (i = 0; i < NLGA; i++) {
++    if (atomic_compare_exchange_strong(&last_good_addr[victim], &zero, addr)) {
++      return;
++    }
++    victim = (victim + 1) % NLGA;
++  }
++
++  /* All slots full. Evict the victim. */
++  atomic_store(&last_good_addr[victim], addr);
++  victim = (victim + 1) % NLGA;
++  atomic_store(&lga_victim, victim);
++}
++#endif
++
++static int
++validate_mem (unw_word_t addr)
++{
++  size_t len;
++
++  if (PAGE_START(addr + sizeof (unw_word_t) - 1) == PAGE_START(addr))
++    len = PAGE_SIZE;
++  else
++    len = PAGE_SIZE * 2;
++
++  addr = PAGE_START(addr);
++
++  if (addr == 0)
++    return -1;
++
++  if (is_cached_valid_mem(addr))
++    return 0;
++
++  if (mem_validate_func ((void *) addr, len) == -1)
++    return -1;
++
++  cache_valid_mem(addr);
++
++  return 0;
++}
++
++static int
++access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
++            void *arg)
++{
++  if (write)
++    {
++      Debug (16, "mem[%p] <- %lx\n", addr, *val);
++      *(unw_word_t *) (intptr_t) addr = *val;
++    }
++  else
++    {
++      /* validate address */
++      const struct cursor *c = (const struct cursor *)arg;
++
++      if (likely (c != NULL) && unlikely (c->validate)
++          && unlikely (validate_mem (addr))) {
++        Debug (16, "mem[%016lx] -> invalid\n", addr);
++        return -1;
++      }
++      *val = *(unw_word_t *) addr;
++      Debug (16, "mem[%lx] -> %lx\n", addr, *val);
++    }
++  return 0;
++}
++
++static int
++access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val, int write,
++            void *arg)
++{
++  unw_word_t *addr;
++  unw_tdep_context_t *uc = ((struct cursor *)arg)->uc;
++
++  if (unw_is_fpreg (reg))
++    goto badreg;
++
++  Debug (16, "reg = %s\n", unw_regname (reg));
++  if (!(addr = uc_addr (uc, reg)))
++    goto badreg;
++
++  if (write)
++    {
++      *addr = *val;
++      Debug (12, "%s <- %lx\n", unw_regname (reg), *val);
++    }
++  else
++    {
++      *val = *(unw_word_t *) addr;
++      Debug (12, "%s -> %lx\n", unw_regname (reg), *val);
++    }
++  return 0;
++
++ badreg:
++  Debug (1, "bad register number %u\n", reg);
++  return -UNW_EBADREG;
++}
++
++static int
++access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *fpval, int write,
++            void *arg)
++{
++  struct cursor *c = (struct cursor *)arg;
++
++  unw_fpreg_t *addr;
++  unw_context_t *uc = c->uc;
++
++  if (!unw_is_fpreg (reg))
++    goto badreg;
++
++  Debug (16, "reg = %s\n", unw_regname (reg));
++  if (!(addr = uc_addr (uc, reg)))
++    goto badreg;
++
++  if (write)
++    {
++      *addr = *fpval;
++      Debug (12, "%s <- %lx\n", unw_regname (reg), *fpval);
++    }
++  else
++    {
++      *fpval = *(unw_word_t *) addr;
++      Debug (12, "%s -> %lx\n", unw_regname (reg), *fpval);
++    }
++  return 0;
++
++ badreg:
++  Debug (1, "bad register number %u\n", reg);
++  return -UNW_EBADREG;
++}
++
++static int
++get_static_proc_name (unw_addr_space_t as, unw_word_t ip,
++                      char *buf, size_t buf_len, unw_word_t *offp,
++                      void *arg)
++{
++  return elf_w (get_proc_name) (as, getpid (), ip, buf, buf_len, offp);
++}
++
++HIDDEN void
++riscv_local_addr_space_init (void)
++{
++  memset (&local_addr_space, 0, sizeof (local_addr_space));
++
++  local_addr_space.caching_policy = UNWI_DEFAULT_CACHING_POLICY;
++  local_addr_space.addr_size = sizeof (void *);
++  local_addr_space.acc.find_proc_info = dwarf_find_proc_info;
++  local_addr_space.acc.put_unwind_info = put_unwind_info;
++  local_addr_space.acc.get_dyn_info_list_addr = get_dyn_info_list_addr;
++  local_addr_space.acc.access_mem = access_mem;
++  local_addr_space.acc.access_reg = access_reg;
++  local_addr_space.acc.access_fpreg = access_fpreg;
++  local_addr_space.acc.resume = riscv_local_resume;
++  local_addr_space.acc.get_proc_name = get_static_proc_name;
++  local_addr_space.big_endian = target_is_big_endian();
++  unw_flush_cache (&local_addr_space, 0, 0);
++}
++
++#endif /* !UNW_REMOTE_ONLY */
+diff --git a/src/riscv/Ginit_local.c b/src/riscv/Ginit_local.c
+new file mode 100644
+index 000000000..255e75a2b
+--- /dev/null
++++ b/src/riscv/Ginit_local.c
+@@ -0,0 +1,81 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2014 Tilera Corp.
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include "init.h"
++
++#ifdef UNW_REMOTE_ONLY
++
++int
++unw_init_local (unw_cursor_t *cursor, ucontext_t *uc)
++{
++  return -UNW_EINVAL;
++}
++
++#else /* !UNW_REMOTE_ONLY */
++
++static int
++unw_init_local_common(unw_cursor_t *cursor, ucontext_t *uc, unsigned use_prev_instr)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  if (!atomic_load(&tdep_init_done))
++    tdep_init ();
++
++  Debug (1, "(cursor=%p)\n", c);
++
++  c->dwarf.as = unw_local_addr_space;
++  c->dwarf.as_arg = cursor;
++  c->uc = uc;
++  c->validate = 1;
++
++  return common_init (c, use_prev_instr);
++}
++
++int
++unw_init_local (unw_cursor_t *cursor, unw_context_t *uc)
++{
++  return unw_init_local_common(cursor, uc, 1);
++}
++
++int
++unw_init_local2 (unw_cursor_t *cursor, unw_context_t *uc, int flag)
++{
++  if (!flag)
++    {
++      return unw_init_local_common(cursor, uc, 1);
++    }
++  else if (flag == UNW_INIT_SIGNAL_FRAME)
++    {
++      return unw_init_local_common(cursor, uc, 0);
++    }
++  else
++    {
++      return -UNW_EINVAL;
++    }
++}
++
++#endif /* !UNW_REMOTE_ONLY */
+diff --git a/src/riscv/Ginit_remote.c b/src/riscv/Ginit_remote.c
+new file mode 100644
+index 000000000..08f5f1582
+--- /dev/null
++++ b/src/riscv/Ginit_remote.c
+@@ -0,0 +1,55 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "init.h"
++#include "unwind_i.h"
++
++int
++unw_init_remote (unw_cursor_t *cursor, unw_addr_space_t as, void *as_arg)
++{
++#ifdef UNW_LOCAL_ONLY
++  return -UNW_EINVAL;
++#else /* !UNW_LOCAL_ONLY */
++  struct cursor *c = (struct cursor *) cursor;
++
++  if (!atomic_load(&tdep_init_done))
++    tdep_init ();
++
++  Debug (1, "(cursor=%p)\n", c);
++
++  c->dwarf.as = as;
++  if (as == unw_local_addr_space)
++    {
++      c->dwarf.as_arg = c;
++      c->uc = as_arg;
++    }
++  else
++    {
++      c->dwarf.as_arg = as_arg;
++      c->uc = 0;
++    }
++
++  return common_init (c, 0);
++#endif /* !UNW_LOCAL_ONLY */
++}
+diff --git a/src/riscv/Gis_signal_frame.c b/src/riscv/Gis_signal_frame.c
+new file mode 100644
+index 000000000..923563431
+--- /dev/null
++++ b/src/riscv/Gis_signal_frame.c
+@@ -0,0 +1,79 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++#ifdef __linux__
++
++/*
++  The stub looks like:
++
++  addi x17, zero, 139    0x08b00893
++  ecall                  0x00000073
++
++  See <https://github.com/torvalds/linux/blob/44db63d1ad8d71c6932cbe007eb41f31c434d140/arch/riscv/kernel/vdso/rt_sigreturn.S>.
++*/
++#define SIGRETURN_I0 0x08b00893
++#define SIGRETURN_I1 0x00000073
++
++#endif /* __linux__ */
++
++int
++unw_is_signal_frame (unw_cursor_t *cursor)
++{
++#ifdef __linux__
++  struct cursor *c = (struct cursor*) cursor;
++  unw_word_t i0, i1, ip;
++  unw_addr_space_t as;
++  unw_accessors_t *a;
++  void *arg;
++  int ret;
++
++  as = c->dwarf.as;
++  a = unw_get_accessors_int (as);
++  arg = c->dwarf.as_arg;
++
++  ip = c->dwarf.ip;
++
++  if (!ip || !a->access_mem || (ip & (sizeof(unw_word_t) - 1)))
++    return 0;
++
++  if ((ret = (*a->access_mem) (as, ip, &i0, 0, arg)) < 0)
++    return ret;
++
++  if ((ret = (*a->access_mem) (as, ip + 4, &i1, 0, arg)) < 0)
++    return ret;
++
++  if ((i0 & 0xffffffff) == SIGRETURN_I0 && (i1 & 0xffffffff) == SIGRETURN_I1)
++    {
++      Debug (8, "cursor at signal frame\n");
++      return 1;
++    }
++
++  return 0;
++#else
++  return -UNW_ENOINFO;
++#endif
++}
+diff --git a/src/riscv/Greg_states_iterate.c b/src/riscv/Greg_states_iterate.c
+new file mode 100644
+index 000000000..b436370cf
+--- /dev/null
++++ b/src/riscv/Greg_states_iterate.c
+@@ -0,0 +1,36 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (c) 2002-2003 Hewlett-Packard Development Company, L.P.
++        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
++   Copyright (c) 2004 Max Asbock <masbock@us.ibm.com>
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++int
++unw_reg_states_iterate (unw_cursor_t *cursor,
++			unw_reg_states_callback cb, void *token)
++{
++  struct cursor *c = (struct cursor *) cursor;
++
++  return dwarf_reg_states_iterate (&c->dwarf, cb, token);
++}
+diff --git a/src/riscv/Gregs.c b/src/riscv/Gregs.c
+new file mode 100644
+index 000000000..61db98681
+--- /dev/null
++++ b/src/riscv/Gregs.c
+@@ -0,0 +1,95 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++HIDDEN int
++tdep_access_reg (struct cursor *c, unw_regnum_t reg, unw_word_t *valp,
++                 int write)
++{
++  dwarf_loc_t loc;
++
++  if (reg >= UNW_RISCV_F0 && reg <= UNW_RISCV_F31)
++    return -UNW_EBADREG;
++
++  switch (reg)
++    {
++    case UNW_RISCV_X0:
++      if (write)
++        return -UNW_EREADONLYREG;
++      *valp = 0;
++      return 0;
++    case UNW_TDEP_IP:
++      if (write)
++        {
++          Debug (16, "pc is now 0x%lx\n", *valp);
++          c->dwarf.ip = *valp;
++        }
++
++      /* We store PC in place of the hard-wired X0 */
++      loc = c->dwarf.loc[0];
++
++      /* FIXME: Is IP valid? */
++      break;
++    case UNW_TDEP_SP:
++      if (write)
++        return -UNW_EREADONLYREG;
++      *valp = c->dwarf.cfa;
++      return 0;
++    default:
++      loc = c->dwarf.loc[reg];
++      break;
++    }
++
++  if (write)
++    {
++      return dwarf_put (&c->dwarf, loc, *valp);
++    }
++  else
++    {
++      return dwarf_get (&c->dwarf, loc, valp);
++    }
++}
++
++HIDDEN int
++tdep_access_fpreg (struct cursor *c, unw_regnum_t reg, unw_fpreg_t *valp,
++                   int write)
++{
++  dwarf_loc_t loc;
++
++  if (reg < UNW_RISCV_F0 || reg > UNW_RISCV_F31)
++    return -UNW_EBADREG;
++
++  loc = c->dwarf.loc[reg];
++
++  if (write)
++    {
++      return dwarf_putfp (&c->dwarf, loc, *valp);
++    }
++  else
++    {
++      return dwarf_getfp (&c->dwarf, loc, valp);
++    }
++}
+diff --git a/src/riscv/Gresume.c b/src/riscv/Gresume.c
+new file mode 100644
+index 000000000..c157ea6eb
+--- /dev/null
++++ b/src/riscv/Gresume.c
+@@ -0,0 +1,122 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++
++#include "unwind_i.h"
++#include "offsets.h"
++#include <ucontext.h>
++
++#ifndef UNW_REMOTE_ONLY
++
++HIDDEN inline int
++riscv_local_resume (unw_addr_space_t as, unw_cursor_t *cursor, void *arg)
++{
++#ifdef __linux__
++  struct cursor *c = (struct cursor *) cursor;
++  ucontext_t *uc = c->uc;
++
++  unw_word_t *mcontext = (unw_word_t*) &uc->uc_mcontext;
++  mcontext[0] = c->dwarf.ip;
++
++  if (c->sigcontext_format == RISCV_SCF_NONE)
++    {
++      /* Restore PC in RA */
++      mcontext[1] = c->dwarf.ip;
++
++      Debug (8, "resuming at ip=0x%lx via setcontext()\n", c->dwarf.ip);
++
++      setcontext(uc);
++    }
++  else
++    {
++      struct sigcontext *sc = (struct sigcontext *) c->sigcontext_addr;
++      unw_word_t *regs = (unw_word_t*)sc;
++
++      regs[0] = c->dwarf.ip;
++      for (int i = UNW_RISCV_X1; i <= UNW_RISCV_F31; ++i) {
++        regs[i] = mcontext[i];
++      }
++
++      Debug (8, "resuming at ip=0x%lx via sigreturn() (trampoline @ 0x%lx, sp @ 0x%lx)\n", c->dwarf.ip, c->sigcontext_pc, c->sigcontext_sp);
++
++      // Jump back to the trampoline
++      __asm__ __volatile__ (
++        "mv sp, %0\n"
++        "jr %1 \n"
++        : : "r" (c->sigcontext_sp), "r" (c->sigcontext_pc)
++      );
++    }
++
++  unreachable();
++#else
++# warning Implement me
++#endif
++  return -UNW_EINVAL;
++}
++
++#endif /* !UNW_REMOTE_ONLY */
++
++static inline int
++establish_machine_state (struct cursor *c)
++{
++  unw_addr_space_t as = c->dwarf.as;
++  void *arg = c->dwarf.as_arg;
++  unw_fpreg_t fpval;
++  unw_word_t val;
++  int reg;
++
++  Debug (8, "copying out cursor state\n");
++
++  for (reg = UNW_RISCV_X1; reg <= UNW_REG_LAST; ++reg)
++    {
++      Debug (16, "copying %s %d\n", unw_regname (reg), reg);
++      if (unw_is_fpreg (reg))
++        {
++          if (tdep_access_fpreg (c, reg, &fpval, 0) >= 0)
++            as->acc.access_fpreg (as, reg, &fpval, 1, arg);
++        }
++      else
++        {
++          if (tdep_access_reg (c, reg, &val, 0) >= 0)
++            as->acc.access_reg (as, reg, &val, 1, arg);
++        }
++    }
++
++  return 0;
++}
++
++int
++unw_resume (unw_cursor_t *cursor)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  int ret;
++
++  Debug (1, "(cursor=%p)\n", c);
++
++  if ((ret = establish_machine_state (c)) < 0)
++    return ret;
++
++  return (*c->dwarf.as->acc.resume) (c->dwarf.as, (unw_cursor_t *)c,
++                                     c->dwarf.as_arg);
++}
+diff --git a/src/riscv/Gstep.c b/src/riscv/Gstep.c
+new file mode 100644
+index 000000000..5126b0efd
+--- /dev/null
++++ b/src/riscv/Gstep.c
+@@ -0,0 +1,130 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++#include "offsets.h"
++
++static int
++riscv_handle_signal_frame (unw_cursor_t *cursor)
++{
++  int ret, i;
++  struct cursor *c = (struct cursor *) cursor;
++  unw_word_t sp, sp_addr = c->dwarf.cfa;
++  struct dwarf_loc sp_loc = DWARF_LOC (sp_addr, 0);
++
++  if ((ret = dwarf_get (&c->dwarf, sp_loc, &sp)) < 0)
++    return -UNW_EUNSPEC;
++
++  if (!unw_is_signal_frame (cursor))
++    return -UNW_EUNSPEC;
++
++#ifdef __linux__
++  /* rt_sigframe contains the siginfo structure, the ucontext, and then
++     the trampoline. We store the mcontext inside ucontext as sigcontext_addr.
++  */
++  c->sigcontext_format = RISCV_SCF_LINUX_RT_SIGFRAME;
++  c->sigcontext_addr = sp_addr + sizeof (siginfo_t) + UC_MCONTEXT_REGS_OFF;
++  c->sigcontext_sp = sp_addr;
++  c->sigcontext_pc = c->dwarf.ip;
++#else
++  /* Not making any assumption at all - You need to implement this */
++  return -UNW_EUNSPEC;
++#endif
++
++  /* Update the dwarf cursor.
++     Set the location of the registers to the corresponding addresses of the
++     uc_mcontext / sigcontext structure contents.  */
++
++#define  SC_REG_OFFSET(X)   (8 * X)
++
++  /* The PC is stored in place of X0 in sigcontext */
++  c->dwarf.loc[UNW_TDEP_IP] = DWARF_LOC (c->sigcontext_addr + SC_REG_OFFSET(UNW_RISCV_X0), 0);
++
++  for (i = UNW_RISCV_X1; i <= UNW_RISCV_F31; i++)
++    {
++      c->dwarf.loc[i] = DWARF_LOC (c->sigcontext_addr + SC_REG_OFFSET(i), 0);
++    }
++
++  /* Set SP/CFA and PC/IP.  */
++  dwarf_get (&c->dwarf, c->dwarf.loc[UNW_TDEP_SP], &c->dwarf.cfa);
++  dwarf_get (&c->dwarf, c->dwarf.loc[UNW_TDEP_IP], &c->dwarf.ip);
++
++  return 1;
++}
++
++int
++unw_step (unw_cursor_t *cursor)
++{
++  struct cursor *c = (struct cursor *) cursor;
++  int validate = c->validate;
++  int ret;
++
++  Debug (1, "(cursor=%p, ip=0x%016lx, sp=0x%016lx)\n",
++         c, c->dwarf.ip, c->dwarf.cfa);
++
++  /* Validate all addresses before dereferencing. */
++  c->validate = 1;
++
++  /* Special handling the signal frame. */
++  if (unw_is_signal_frame (cursor) > 0)
++    return riscv_handle_signal_frame (cursor);
++
++  /* Restore default memory validation state */
++  c->validate = validate;
++
++  /* Try DWARF-based unwinding... */
++  ret = dwarf_step (&c->dwarf);
++
++  if (unlikely (ret == -UNW_ESTOPUNWIND))
++    return ret;
++
++  /* DWARF unwinding didn't work, let's tread carefully here */
++  if (unlikely (ret < 0))
++    {
++      Debug (1, "DWARF unwinding failed (cursor=%p, ip=0x%016lx, sp=0x%016lx)\n", c, c->dwarf.ip, c->dwarf.cfa);
++
++      /* Try RA/X1? */
++      c->dwarf.loc[UNW_RISCV_PC] = c->dwarf.loc[UNW_RISCV_X1];
++      c->dwarf.loc[UNW_RISCV_X1] = DWARF_NULL_LOC;
++      if (!DWARF_IS_NULL_LOC (c->dwarf.loc[UNW_RISCV_PC]))
++        {
++          ret = dwarf_get (&c->dwarf, c->dwarf.loc[UNW_RISCV_PC], &c->dwarf.ip);
++          if (ret < 0)
++            {
++              Debug (2, "Failed to get PC from return address: %d\n", ret);
++              return ret;
++            }
++
++          Debug (2, "ra= 0x%016lx\n", c->dwarf.ip);
++          ret = 1;
++        }
++      else
++        {
++          c->dwarf.ip = 0;
++        }
++    }
++
++  return (c->dwarf.ip == 0) ? 0 : 1;
++}
+diff --git a/src/riscv/Lapply_reg_state.c b/src/riscv/Lapply_reg_state.c
+new file mode 100644
+index 000000000..7ebada480
+--- /dev/null
++++ b/src/riscv/Lapply_reg_state.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gapply_reg_state.c"
++#endif
+diff --git a/src/riscv/Lcreate_addr_space.c b/src/riscv/Lcreate_addr_space.c
+new file mode 100644
+index 000000000..0f2dc6be9
+--- /dev/null
++++ b/src/riscv/Lcreate_addr_space.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gcreate_addr_space.c"
++#endif
+diff --git a/src/riscv/Lget_proc_info.c b/src/riscv/Lget_proc_info.c
+new file mode 100644
+index 000000000..69028b019
+--- /dev/null
++++ b/src/riscv/Lget_proc_info.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gget_proc_info.c"
++#endif
+diff --git a/src/riscv/Lget_save_loc.c b/src/riscv/Lget_save_loc.c
+new file mode 100644
+index 000000000..9ea048a90
+--- /dev/null
++++ b/src/riscv/Lget_save_loc.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gget_save_loc.c"
++#endif
+diff --git a/src/riscv/Lglobal.c b/src/riscv/Lglobal.c
+new file mode 100644
+index 000000000..6d7b489e1
+--- /dev/null
++++ b/src/riscv/Lglobal.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gglobal.c"
++#endif
+diff --git a/src/riscv/Linit.c b/src/riscv/Linit.c
+new file mode 100644
+index 000000000..e9abfdd46
+--- /dev/null
++++ b/src/riscv/Linit.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Ginit.c"
++#endif
+diff --git a/src/riscv/Linit_local.c b/src/riscv/Linit_local.c
+new file mode 100644
+index 000000000..68a1687e8
+--- /dev/null
++++ b/src/riscv/Linit_local.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Ginit_local.c"
++#endif
+diff --git a/src/riscv/Linit_remote.c b/src/riscv/Linit_remote.c
+new file mode 100644
+index 000000000..58cb04ab7
+--- /dev/null
++++ b/src/riscv/Linit_remote.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Ginit_remote.c"
++#endif
+diff --git a/src/riscv/Lis_signal_frame.c b/src/riscv/Lis_signal_frame.c
+new file mode 100644
+index 000000000..b9a7c4f51
+--- /dev/null
++++ b/src/riscv/Lis_signal_frame.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gis_signal_frame.c"
++#endif
+diff --git a/src/riscv/Lreg_states_iterate.c b/src/riscv/Lreg_states_iterate.c
+new file mode 100644
+index 000000000..f1eb1e79d
+--- /dev/null
++++ b/src/riscv/Lreg_states_iterate.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Greg_states_iterate.c"
++#endif
+diff --git a/src/riscv/Lregs.c b/src/riscv/Lregs.c
+new file mode 100644
+index 000000000..2c9c75cd7
+--- /dev/null
++++ b/src/riscv/Lregs.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gregs.c"
++#endif
+diff --git a/src/riscv/Lresume.c b/src/riscv/Lresume.c
+new file mode 100644
+index 000000000..41a8cf003
+--- /dev/null
++++ b/src/riscv/Lresume.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gresume.c"
++#endif
+diff --git a/src/riscv/Lstep.c b/src/riscv/Lstep.c
+new file mode 100644
+index 000000000..c1ac3c754
+--- /dev/null
++++ b/src/riscv/Lstep.c
+@@ -0,0 +1,5 @@
++#define UNW_LOCAL_ONLY
++#include <libunwind.h>
++#if defined(UNW_LOCAL_ONLY) && !defined(UNW_REMOTE_ONLY)
++#include "Gstep.c"
++#endif
+diff --git a/src/riscv/asm.h b/src/riscv/asm.h
+new file mode 100644
+index 000000000..7f7b444f9
+--- /dev/null
++++ b/src/riscv/asm.h
+@@ -0,0 +1,46 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#if __riscv_xlen == 32
++# define STORE sw
++# define LOAD lw
++# define SZREG 4
++#elif __riscv_xlen == 64
++# define STORE sd
++# define LOAD ld
++# define SZREG 8
++#endif
++
++#if __riscv_flen == 64
++# define SZFREG 8
++# define STORE_FP fsd
++# define LOAD_FP fld
++#elif __riscv_flen == 32
++# define SZFREG 4
++# define STORE_FP fsw
++# define LOAD_FP flw
++#else
++# error "Unsupported RISC-V floating-point length"
++#endif
++
+diff --git a/src/riscv/getcontext.S b/src/riscv/getcontext.S
+new file mode 100644
+index 000000000..9c24888b8
+--- /dev/null
++++ b/src/riscv/getcontext.S
+@@ -0,0 +1,87 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2021 Zhaofeng Li
++        
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "offsets.h"
++#include "asm.h"
++
++#define REG(X) (UC_MCONTEXT_REGS_OFF + SZREG * X)(a0)
++#define FREG(X) (UC_MCONTEXT_REGS_OFF + SZREG * 32 + SZFREG * X)(a0)
++
++	.text
++	.global _Uriscv_getcontext
++	.type   _Uriscv_getcontext, @function
++_Uriscv_getcontext:
++	.cfi_startproc
++
++	STORE ra, REG(0)
++	STORE ra, REG(1)
++	STORE sp, REG(2)
++	STORE s0, REG(8)
++	STORE s1, REG(9)
++	STORE x0, REG(10) /* Write 0 to a0 */
++	STORE a1, REG(11)
++	STORE a2, REG(12)
++	STORE a3, REG(13)
++	STORE a4, REG(14)
++	STORE a5, REG(15)
++	STORE a6, REG(16)
++	STORE a7, REG(17)
++	STORE s2, REG(18)
++	STORE s3, REG(19)
++	STORE s4, REG(20)
++	STORE s5, REG(21)
++	STORE s6, REG(22)
++	STORE s7, REG(23)
++	STORE s8, REG(24)
++	STORE s9, REG(25)
++	STORE s10, REG(26)
++	STORE s11, REG(27)
++
++#ifdef STORE_FP
++	/* The FCSR is always 32-bits and comes after all registers */
++	frcsr a1
++	sw a1, FREG(32)
++
++	STORE_FP fs0, FREG(8)
++	STORE_FP fs1, FREG(9)
++	STORE_FP fs2, FREG(18)
++	STORE_FP fs3, FREG(19)
++	STORE_FP fs4, FREG(20)
++	STORE_FP fs5, FREG(21)
++	STORE_FP fs6, FREG(22)
++	STORE_FP fs7, FREG(23)
++	STORE_FP fs8, FREG(24)
++	STORE_FP fs9, FREG(25)
++	STORE_FP fs10, FREG(26)
++	STORE_FP fs11, FREG(27)
++#endif
++
++	li a0, 0
++	ret
++
++	.cfi_endproc
++	.size _Uriscv_getcontext, . - _Uriscv_getcontext
++
++	/* We do not need executable stack.  */
++	.section        .note.GNU-stack,"",@progbits
+diff --git a/src/riscv/init.h b/src/riscv/init.h
+new file mode 100644
+index 000000000..163ddb427
+--- /dev/null
++++ b/src/riscv/init.h
+@@ -0,0 +1,65 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2014 Tilera Corp.
++   Copyright (C) 2021 Zhaofeng Li
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++static inline int
++common_init (struct cursor *c, unsigned use_prev_instr)
++{
++  int ret, i;
++
++  for (i = 0; i < 32; i++)
++    c->dwarf.loc[i] = DWARF_REG_LOC (&c->dwarf, UNW_RISCV_X0 + i);
++
++  for (i = 32; i < DWARF_NUM_PRESERVED_REGS; i++)
++    c->dwarf.loc[i] = DWARF_NULL_LOC;
++
++  c->dwarf.loc[UNW_RISCV_PC] = DWARF_REG_LOC (&c->dwarf, UNW_RISCV_PC);
++
++  ret = dwarf_get (&c->dwarf, c->dwarf.loc[UNW_RISCV_PC], &c->dwarf.ip);
++  if (ret < 0)
++    return ret;
++
++  ret = dwarf_get (&c->dwarf, DWARF_REG_LOC (&c->dwarf, UNW_TDEP_SP),
++                     &c->dwarf.cfa);
++  if (ret < 0)
++    return ret;
++
++  c->sigcontext_format = RISCV_SCF_NONE;
++  c->sigcontext_addr = 0;
++  c->sigcontext_sp = 0;
++  c->sigcontext_pc = 0;
++
++  c->dwarf.args_size = 0;
++  c->dwarf.stash_frames = 0;
++  c->dwarf.use_prev_instr = use_prev_instr;
++  c->dwarf.pi_valid = 0;
++  c->dwarf.pi_is_dynamic = 0;
++  c->dwarf.hint = 0;
++  c->dwarf.prev_rs = 0;
++
++  return 0;
++}
+diff --git a/src/riscv/is_fpreg.c b/src/riscv/is_fpreg.c
+new file mode 100644
+index 000000000..f5a6dc4e3
+--- /dev/null
++++ b/src/riscv/is_fpreg.c
+@@ -0,0 +1,31 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "libunwind_i.h"
++
++int
++unw_is_fpreg (int regnum)
++{
++  return (regnum >= UNW_RISCV_F0 && regnum <= UNW_RISCV_F31);
++}
+diff --git a/src/riscv/offsets.h b/src/riscv/offsets.h
+new file mode 100644
+index 000000000..66a2eef62
+--- /dev/null
++++ b/src/riscv/offsets.h
+@@ -0,0 +1,13 @@
++#ifdef __linux__
++
++/* Linux-specific definitions: */
++
++/* The RISC-V ucontext has the following structure:
++
++   https://github.com/torvalds/linux/blob/44db63d1ad8d71c6932cbe007eb41f31c434d140/arch/riscv/include/uapi/asm/ucontext.h
++*/
++#define UC_MCONTEXT_REGS_OFF 176
++
++#else
++# error "Unsupported OS"
++#endif
+diff --git a/src/riscv/regname.c b/src/riscv/regname.c
+new file mode 100644
+index 000000000..370383ac6
+--- /dev/null
++++ b/src/riscv/regname.c
+@@ -0,0 +1,59 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++   Copyright (C) 2014 Tilera Corp.
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "unwind_i.h"
++
++static const char *regname[] =
++  {
++    /* 0.  */
++    "zero",  "ra",  "sp",  "gp",  "tp",  "t0",  "t1",  "t2",
++    /* 8.  */
++    "s0",  "s1",  "a0",  "a1",  "a2",  "a3",  "a4",  "a5",
++    /* 16.  */
++    "a6",  "a7",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",
++    /* 24.  */
++    "s8",  "s9",  "s10",  "s11",  "t3",  "t4",  "t5",  "t6",
++
++    /* 0.  */
++    "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
++    /* 8.  */
++    "f8",  "f9",  "f10",  "f11",  "f12",  "f13",  "f14",  "f15",
++    /* 16.  */
++    "f16",  "f17",  "f18",  "f19",  "f20",  "f21",  "f22",  "f23",
++    /* 24.  */
++    "f24",  "f25",  "f26",  "f27",  "f28",  "f29",  "f30",  "f31",
++
++    /* pc */
++    "pc"
++  };
++
++const char *
++unw_regname (unw_regnum_t reg)
++{
++  if (reg < (unw_regnum_t) ARRAY_SIZE (regname))
++    return regname[reg];
++  else
++    return "???";
++}
+diff --git a/src/riscv/setcontext.S b/src/riscv/setcontext.S
+new file mode 100644
+index 000000000..43f0b9290
+--- /dev/null
++++ b/src/riscv/setcontext.S
+@@ -0,0 +1,87 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2021 Zhaofeng Li
++        
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#include "offsets.h"
++#include "asm.h"
++
++#define REG(X) (UC_MCONTEXT_REGS_OFF + SZREG * X)(a0)
++#define FREG(X) (UC_MCONTEXT_REGS_OFF + SZREG * 32 + SZFREG * X)(a0)
++
++	.text
++	.global _Uriscv_setcontext
++	.type   _Uriscv_setcontext, @function
++_Uriscv_setcontext:
++	.cfi_startproc
++
++#ifdef LOAD_FP
++	/* The FCSR is always 32-bits and comes after all registers */
++	lw a1, FREG(32)
++	fscsr a1
++
++	LOAD_FP fs0, FREG(8)
++	LOAD_FP fs1, FREG(9)
++	LOAD_FP fs2, FREG(18)
++	LOAD_FP fs3, FREG(19)
++	LOAD_FP fs4, FREG(20)
++	LOAD_FP fs5, FREG(21)
++	LOAD_FP fs6, FREG(22)
++	LOAD_FP fs7, FREG(23)
++	LOAD_FP fs8, FREG(24)
++	LOAD_FP fs9, FREG(25)
++	LOAD_FP fs10, FREG(26)
++	LOAD_FP fs11, FREG(27)
++#endif
++
++	LOAD t1, REG(0)
++	LOAD ra, REG(1)
++	LOAD sp, REG(2)
++	LOAD s0, REG(8)
++	LOAD s1, REG(9)
++	LOAD a1, REG(11)
++	LOAD a2, REG(12)
++	LOAD a3, REG(13)
++	LOAD a4, REG(14)
++	LOAD a5, REG(15)
++	LOAD a6, REG(16)
++	LOAD a7, REG(17)
++	LOAD s2, REG(18)
++	LOAD s3, REG(19)
++	LOAD s4, REG(20)
++	LOAD s5, REG(21)
++	LOAD s6, REG(22)
++	LOAD s7, REG(23)
++	LOAD s8, REG(24)
++	LOAD s9, REG(25)
++	LOAD s10, REG(26)
++	LOAD s11, REG(27)
++
++	LOAD a0, REG(10)
++
++	jr t1
++
++	.cfi_endproc
++	.size _Uriscv_setcontext, . - _Uriscv_setcontext
++
++	/* We do not need executable stack.  */
++	.section        .note.GNU-stack,"",@progbits
+diff --git a/src/riscv/siglongjmp.S b/src/riscv/siglongjmp.S
+new file mode 100644
+index 000000000..9960691d9
+--- /dev/null
++++ b/src/riscv/siglongjmp.S
+@@ -0,0 +1,7 @@
++        /* Dummy implementation for now.  */
++        .globl _UI_siglongjmp_cont
++        .globl _UI_longjmp_cont
++
++_UI_siglongjmp_cont:
++_UI_longjmp_cont:
++        ret
+diff --git a/src/riscv/unwind_i.h b/src/riscv/unwind_i.h
+new file mode 100644
+index 000000000..3a045da0a
+--- /dev/null
++++ b/src/riscv/unwind_i.h
+@@ -0,0 +1,46 @@
++/* libunwind - a platform-independent unwind library
++   Copyright (C) 2008 CodeSourcery
++
++This file is part of libunwind.
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the
++"Software"), to deal in the Software without restriction, including
++without limitation the rights to use, copy, modify, merge, publish,
++distribute, sublicense, and/or sell copies of the Software, and to
++permit persons to whom the Software is furnished to do so, subject to
++the following conditions:
++
++The above copyright notice and this permission notice shall be
++included in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
++LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
++OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
++WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
++
++#ifndef unwind_i_h
++#define unwind_i_h
++
++#include <memory.h>
++#include <stdint.h>
++
++#include <libunwind-riscv.h>
++
++#include "libunwind_i.h"
++
++#define riscv_lock                    UNW_OBJ(lock)
++#define riscv_local_resume            UNW_OBJ(local_resume)
++#define riscv_local_addr_space_init   UNW_OBJ(local_addr_space_init)
++#define setcontext                    UNW_ARCH_OBJ (setcontext)
++
++extern void riscv_local_addr_space_init (void);
++extern int riscv_local_resume (unw_addr_space_t as,
++                                unw_cursor_t *cursor,
++                                void *arg);
++extern int setcontext (const ucontext_t *ucp);
++
++#endif /* unwind_i_h */
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 1faf3fa9f..c783fc312 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -116,6 +116,10 @@ if ARCH_MIPS
+ XFAIL_TESTS += $(XFAIL_TESTS_PTRACE_SINGLESTEP)
+ endif
+ 
++if ARCH_RISCV
++XFAIL_TESTS += $(XFAIL_TESTS_PTRACE_SINGLESTEP)
++endif
++
+ if ARCH_ARM
+ # ARM Linux kernel >=2.6.39 removed PTRACE_SINGLESTEP emulation
+ XFAIL_TESTS += $(XFAIL_TESTS_PTRACE_SINGLESTEP)
+diff --git a/tests/check-namespace.sh.in b/tests/check-namespace.sh.in
+index f43bca263..f99fb59f7 100644
+--- a/tests/check-namespace.sh.in
++++ b/tests/check-namespace.sh.in
+@@ -189,6 +189,14 @@ check_local_unw_abi () {
+ 	    match _UL${plat}_dwarf_find_unwind_table
+ 	    match _U${plat}_setcontext
+ 	    ;;
++	riscv)
++	    match _U${plat}_get_elf_image
++	    match _U${plat}_get_exe_image_path
++	    match _U${plat}_is_fpreg
++	    match _UL${plat}_dwarf_search_unwind_table
++	    match _UL${plat}_dwarf_find_unwind_table
++	    match _U${plat}_setcontext
++	    ;;
+ 
+ 	*)
+ 	    match _U${plat}_is_fpreg
+@@ -296,6 +304,13 @@ check_generic_unw_abi () {
+ 	    match _U${plat}_dwarf_search_unwind_table
+ 	    match _U${plat}_dwarf_find_unwind_table
+ 	    ;;
++	riscv)
++	    match _U${plat}_get_elf_image
++	    match _U${plat}_get_exe_image_path
++	    match _U${plat}_is_fpreg
++	    match _U${plat}_dwarf_search_unwind_table
++	    match _U${plat}_dwarf_find_unwind_table
++	    ;;
+ 	*)
+ 	    match _U${plat}_is_fpreg
+ 	    match _U${plat}_dwarf_search_unwind_table

@@ -1,0 +1,34 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 420565)
++++ PKGBUILD	(working copy)
+@@ -13,13 +13,27 @@
+ license=('GPL')
+ depends=('xz' 'zlib')
+ makedepends=('texlive-core')
+-source=("https://download.savannah.gnu.org/releases/$pkgname/$pkgname-$pkgver.tar.gz"{,.sig})
++source=("https://download.savannah.gnu.org/releases/$pkgname/$pkgname-$pkgver.tar.gz"{,.sig}
++        libunwind-riscv.patch)
+ sha512sums=('1df20ca7a8cee2f2e61294fa9b677e88fec52e9d5a329f88d05c2671c69fa462f6c18808c97ca9ff664ef57292537a844f00b18d142b1938c9da701ca95a4bab'
+-            'SKIP')
++            'SKIP'
++            '3cfdb9c20159d23bf4d0ef42f1b76798f93c73ed0c4f1269c96ee2c5fb584dc15dcafc42da4b95122d4a050a3f0023fbc2163b59dfad6a86d3695fbe56f91775')
+ validpgpkeys=('5C96BDEAF5F47FB02BD4F6B965D98560914F3F48'  # Arun Sharma
+               '1675C8DA2EF907FB116EB709EC52B396E6874AF2'  # Dave Watson
+               '75D2CFC56CC2E935A4143297015A268A17D55FA4') # Dave Watson
+ 
++prepare() {
++  cd $pkgname-$pkgver
++  patch -p1 -i ../libunwind-riscv.patch
++  autoreconf -fiv
++
++  # Unknown issue :/
++  # /usr/bin/ld: ../src/.libs/libunwind.so: undefined reference to `target_is_big_endian'
++  # collect2: error: ld returned 1 exit status
++  # make[1]: *** [Makefile:1217: Lperf-trace] Error 1
++  sed -i 's/target_is_big_endian()/0/' src/riscv/Ginit.c
++}
++
+ build() {
+   cd $pkgname-$pkgver
+   ./configure --prefix=/usr
