@@ -1,17 +1,20 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 391859)
+--- PKGBUILD	(revision 420565)
 +++ PKGBUILD	(working copy)
-@@ -10,7 +10,7 @@
+@@ -10,10 +10,9 @@
  arch=('x86_64')
  license=('custom:OpenMPI')
- depends=('libltdl' 'hwloc' 'openssh' 'zlib' 'libnl')
--makedepends=('inetutils' 'valgrind' 'gcc-fortran')
+ depends=('glibc' 'libltdl' 'hwloc' 'openssh' 'zlib' 'libnl' 'perl' 'libevent')
+-makedepends=('inetutils' 'valgrind' 'gcc-fortran' 'cuda')
 +makedepends=('inetutils' 'gcc-fortran')
- optdepends=('gcc-fortran: fortran support')
+ optdepends=(
+   'gcc-fortran: fortran support'
+-  'cuda: cuda support'
+ )
  options=('staticlibs')
  source=(https://www.open-mpi.org/software/ompi/v${pkgver%.*}/downloads/${pkgname}-${pkgver}.tar.bz2)
-@@ -25,8 +25,6 @@
+@@ -29,14 +28,11 @@
      --libdir=/usr/lib/${pkgname} \
      --enable-builtin-atomics \
      --enable-mpi-cxx \
@@ -20,3 +23,9 @@ Index: PKGBUILD
      --enable-pretty-print-stacktrace \
      --without-slurm \
      --with-hwloc=/usr \
+     --with-libltdl=/usr  \
+     --with-libevent=/usr  \
+-    --with-cuda=/opt/cuda \
+     FC=/usr/bin/gfortran \
+     LDFLAGS="${LDFLAGS} -Wl,-z,noexecstack"
+   make
