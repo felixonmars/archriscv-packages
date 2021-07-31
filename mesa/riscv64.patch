@@ -2,22 +2,20 @@ Index: PKGBUILD
 ===================================================================
 --- PKGBUILD	(revision 420565)
 +++ PKGBUILD	(working copy)
-@@ -4,7 +4,7 @@
+@@ -4,15 +4,15 @@
  # Contributor: Andreas Radke <andyrtr@archlinux.org>
  
  pkgbase=mesa
 -pkgname=('vulkan-mesa-layers' 'opencl-mesa' 'vulkan-intel' 'vulkan-radeon' 'vulkan-swrast' 'libva-mesa-driver' 'mesa-vdpau' 'mesa')
 +pkgname=('vulkan-mesa-layers' 'opencl-mesa' 'vulkan-radeon' 'vulkan-swrast' 'libva-mesa-driver' 'mesa-vdpau' 'mesa')
  pkgdesc="An open-source implementation of the OpenGL specification"
- pkgver=21.1.5
+ pkgver=21.1.6
  pkgrel=1
-@@ -11,8 +11,8 @@
  arch=('x86_64')
  makedepends=('python-mako' 'libxml2' 'libx11' 'xorgproto' 'libdrm' 'libxshmfence' 'libxxf86vm'
               'libxdamage' 'libvdpau' 'libva' 'wayland' 'wayland-protocols' 'zstd' 'elfutils' 'llvm'
--             'libomxil-bellagio' 'libclc' 'clang' 'libglvnd' 'libunwind' 'lm_sensors' 'libxrandr'
+              'libomxil-bellagio' 'libclc' 'clang' 'libglvnd' 'libunwind' 'lm_sensors' 'libxrandr'
 -             'valgrind' 'glslang' 'vulkan-icd-loader' 'cmake' 'meson')
-+             'libomxil-bellagio' 'libclc' 'clang' 'libunwind' 'lm_sensors' 'libxrandr'
 +             'glslang' 'vulkan-icd-loader' 'cmake' 'meson')
  url="https://www.mesa3d.org/"
  license=('custom')
@@ -37,15 +35,7 @@ Index: PKGBUILD
      -D dri3=enabled \
      -D egl=enabled \
      -D gallium-extra-hud=true \
-@@ -50,7 +49,6 @@
-     -D gbm=enabled \
-     -D gles1=disabled \
-     -D gles2=enabled \
--    -D glvnd=true \
-     -D glx=dri \
-     -D libunwind=enabled \
-     -D llvm=enabled \
-@@ -57,8 +55,7 @@
+@@ -57,8 +56,7 @@
      -D lmsensors=enabled \
      -D osmesa=true \
      -D shared-glapi=enabled \
@@ -55,7 +45,7 @@ Index: PKGBUILD
  
    # Print config
    meson configure build
-@@ -108,18 +105,6 @@
+@@ -108,18 +106,6 @@
    install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
  }
  
@@ -74,30 +64,7 @@ Index: PKGBUILD
  package_vulkan-radeon() {
    pkgdesc="Radeon's Vulkan mesa driver"
    depends=('wayland' 'libx11' 'libxshmfence' 'libelf' 'libdrm' 'llvm-libs')
-@@ -168,18 +153,17 @@
- 
- package_mesa() {
-   depends=('libdrm' 'wayland' 'libxxf86vm' 'libxdamage' 'libxshmfence' 'libelf'
--           'libomxil-bellagio' 'libunwind' 'llvm-libs' 'lm_sensors' 'libglvnd'
-+           'libomxil-bellagio' 'libunwind' 'llvm-libs' 'lm_sensors'
-            'zstd' 'vulkan-icd-loader')
-   depends+=('libsensors.so' 'libexpat.so' 'libvulkan.so')
-   optdepends=('opengl-man-pages: for the OpenGL API man pages'
-               'mesa-vdpau: for accelerated video playback'
-               'libva-mesa-driver: for accelerated video playback')
--  provides=('mesa-libgl' 'opengl-driver')
--  conflicts=('mesa-libgl')
--  replaces=('mesa-libgl')
-+  provides=('mesa-libgl' 'opengl-driver' 'libgl' 'libegl')
-+  conflicts=('mesa-libgl' 'libgl' 'libegl')
-+  replaces=('mesa-libgl' 'libgl' 'libegl')
- 
-   _install fakeinstall/usr/share/drirc.d/00-mesa-defaults.conf
--  _install fakeinstall/usr/share/glvnd/egl_vendor.d/50_mesa.json
- 
-   # ati-dri, nouveau-dri, intel-dri, svga-dri, swrast, swr
-   _install fakeinstall/usr/lib/dri/*_dri.so
-@@ -189,18 +173,14 @@
+@@ -189,7 +175,6 @@
    _install fakeinstall/usr/lib/lib{gbm,glapi}.so*
    _install fakeinstall/usr/lib/libOSMesa.so*
    _install fakeinstall/usr/lib/libxatracker.so*
@@ -105,17 +72,3 @@ Index: PKGBUILD
  
    _install fakeinstall/usr/include
    _install fakeinstall/usr/lib/pkgconfig
- 
--  # libglvnd support
--  _install fakeinstall/usr/lib/libGLX_mesa.so*
--  _install fakeinstall/usr/lib/libEGL_mesa.so*
-+  _install fakeinstall/usr/lib/libEGL.so*
-+  _install fakeinstall/usr/lib/libGL.so*
-+  _install fakeinstall/usr/lib/libGLESv2.so*
- 
--  # indirect rendering
--  ln -s /usr/lib/libGLX_mesa.so.0 "${pkgdir}/usr/lib/libGLX_indirect.so.0"
--
-   # make sure there are no files left to install
-   find fakeinstall -depth -print0 | xargs -0 rmdir
- 
