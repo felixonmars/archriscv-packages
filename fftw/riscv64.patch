@@ -1,9 +1,7 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 391859)
-+++ PKGBUILD	(working copy)
-@@ -30,13 +30,12 @@
- #  )
+--- PKGBUILD.orig	2021-08-04 10:23:41.113984170 +0800
++++ PKGBUILD	2021-08-04 22:33:19.600364447 +0800
+@@ -22,20 +22,19 @@
+ prepare() {
    cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-double"
    cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-long-double"
 -  cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-quad"
@@ -17,44 +15,55 @@ Index: PKGBUILD
    # default configure call
    _default_configure="./configure --prefix=/usr --enable-shared --enable-threads --enable-mpi --enable-openmp"
  
-@@ -43,13 +42,13 @@
    # configure single precision
    (
      cd "${pkgname}-${pkgver}"
 -    ${_default_configure} --enable-sse --enable-avx --enable-single
 +    ${_default_configure} --enable-single
+     # NOTE: fix overlinking
+     sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
    )
- 
+@@ -43,7 +42,7 @@
    # configure double precision
    (
      cd "${pkgname}-${pkgver}-double"
 -    ${_default_configure} --enable-sse2 --enable-avx
 +    ${_default_configure}
+     # NOTE: fix overlinking
+     sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
    )
- 
-   # configure long-double precission
-@@ -58,16 +57,9 @@
-     ${_default_configure} --enable-long-double
+@@ -56,18 +55,10 @@
+     sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
    )
  
 -  # configure quad precision
 -  (
 -    cd "${pkgname}-${pkgver}-quad"
 -    ${_default_configure} --disable-mpi --enable-quad-precision
+-    # NOTE: fix overlinking
+-    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
 -  )
--
+ 
    make -C "${pkgname}-${pkgver}"
    make -C "${pkgname}-${pkgver}-double"
    make -C "${pkgname}-${pkgver}-long-double"
 -  make -C "${pkgname}-${pkgver}-quad"
- }
  
- package() {
-@@ -74,7 +66,6 @@
+ # NOTE: cmake setup still missing MPI integration and needs patch for libquadmath
+ #  _default_options=(
+@@ -111,7 +102,6 @@
+   make check -C "${pkgname}-${pkgver}"
+   make check -C "${pkgname}-${pkgver}-double"
+   make check -C "${pkgname}-${pkgver}-long-double"
+-  make check -C "${pkgname}-${pkgver}-quad"
+ 
+ #  cd "${pkgname}-${pkgver}"
+ #  make VERBOSE=1 -C build test
+@@ -124,7 +114,6 @@
    make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}"
    make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-double"
    make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-long-double"
 -  make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-quad"
+ 
    cd "${pkgname}-${pkgver}"
-   install -vDm 644 {AUTHORS,ChangeLog,NEWS,README,TODO} \
-     -t "${pkgdir}/usr/share/doc/${pkgname}"
+ #  make VERBOSE=1 DESTDIR="${pkgdir}" -C build install
