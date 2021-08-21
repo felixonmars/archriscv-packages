@@ -1,0 +1,190 @@
+commit 6c72dd9811e7a080237d7d8c028714e323d60979
+Author: Felix Yan <felixonmars@archlinux.org>
+Date:   Sat Aug 21 10:16:48 2021 +0300
+
+    deps: V8: cherry-pick 239898ef8c77
+    
+    Original commit message:
+    
+        [PATCH] [riscv64] Fix node.js build failed
+    
+        Change-Id: I0a614fa6c381770f56037f0401db008a37c71dca
+        Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/2966209
+        Auto-Submit: Yahan Lu <yahan@iscas.ac.cn>
+        Commit-Queue: Ji Qiu <qiuji@iscas.ac.cn>
+        Reviewed-by: Ji Qiu <qiuji@iscas.ac.cn>
+        Cr-Commit-Position: refs/heads/master@{#75199}
+    
+    Refs: https://github.com/v8/v8/commit/239898ef8c77f8cbf0b3f1b93a870edb2b34141d
+
+diff --git a/deps/v8/src/codegen/riscv64/assembler-riscv64.cc b/deps/v8/src/codegen/riscv64/assembler-riscv64.cc
+index 35c56ccdf5..e99fe2ce11 100644
+--- a/deps/v8/src/codegen/riscv64/assembler-riscv64.cc
++++ b/deps/v8/src/codegen/riscv64/assembler-riscv64.cc
+@@ -461,7 +461,7 @@ static inline Instr SetJalrOffset(int32_t offset, Instr instr) {
+   instr &= ~kImm12Mask;
+   int32_t imm12 = offset << kImm12Shift;
+   DCHECK(Assembler::IsJalr(instr | (imm12 & kImm12Mask)));
+-  DCHECK(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)) == offset);
++  DCHECK_EQ(Assembler::JalrOffset(instr | (imm12 & kImm12Mask)), offset);
+   return instr | (imm12 & kImm12Mask);
+ }
+ 
+@@ -702,7 +702,7 @@ int Assembler::BrachlongOffset(Instr auipc, Instr instr_I) {
+          InstructionBase::kIType);
+   DCHECK(IsAuipc(auipc));
+   int32_t imm_auipc = AuipcOffset(auipc);
+-  int32_t imm12 = (instr_I & kImm12Mask) >> 20;
++  int32_t imm12 = static_cast<int32_t>(instr_I & kImm12Mask) >> 20;
+   int32_t offset = imm12 + imm_auipc;
+   return offset;
+ }
+@@ -723,19 +723,19 @@ int Assembler::PatchBranchlongOffset(Address pc, Instr instr_auipc,
+ 
+ int Assembler::LdOffset(Instr instr) {
+   DCHECK(IsLd(instr));
+-  int32_t imm12 = (instr & kImm12Mask) >> 20;
++  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
+   return imm12;
+ }
+ 
+ int Assembler::JalrOffset(Instr instr) {
+   DCHECK(IsJalr(instr));
+-  int32_t imm12 = (instr & kImm12Mask) >> 20;
++  int32_t imm12 = static_cast<int32_t>(instr & kImm12Mask) >> 20;
+   return imm12;
+ }
+ 
+ int Assembler::AuipcOffset(Instr instr) {
+   DCHECK(IsAuipc(instr));
+-  int32_t imm20 = instr & kImm20Mask;
++  int32_t imm20 = static_cast<int32_t>(instr & kImm20Mask);
+   return imm20;
+ }
+ // We have to use a temporary register for things that can be relocated even
+@@ -1277,7 +1277,7 @@ void Assembler::label_at_put(Label* L, int at_offset) {
+       DCHECK_EQ(imm18 & 3, 0);
+       int32_t imm16 = imm18 >> 2;
+       DCHECK(is_int16(imm16));
+-      instr_at_put(at_offset, (imm16 & kImm16Mask));
++      instr_at_put(at_offset, (int32_t)(imm16 & kImm16Mask));
+     } else {
+       target_pos = kEndOfJumpChain;
+       instr_at_put(at_offset, target_pos);
+@@ -2692,7 +2692,7 @@ void Assembler::GrowBuffer() {
+                                reloc_info_writer.last_pc() + pc_delta);
+ 
+   // Relocate runtime entries.
+-  Vector<byte> instructions{buffer_start_, pc_offset()};
++  Vector<byte> instructions{buffer_start_, static_cast<size_t>(pc_offset())};
+   Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
+   for (RelocIterator it(instructions, reloc_info, 0); !it.done(); it.next()) {
+     RelocInfo::Mode rmode = it.rinfo()->rmode();
+diff --git a/deps/v8/src/codegen/riscv64/constants-riscv64.h b/deps/v8/src/codegen/riscv64/constants-riscv64.h
+index c8f54d8f7f..2187e61da8 100644
+--- a/deps/v8/src/codegen/riscv64/constants-riscv64.h
++++ b/deps/v8/src/codegen/riscv64/constants-riscv64.h
+@@ -215,54 +215,54 @@ const int kRvcFunct6Shift = 10;
+ const int kRvcFunct6Bits = 6;
+ 
+ // RISCV Instruction bit masks
+-const int kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
+-const int kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
+-const int kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
+-const int kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
+-const int kFunct2Mask = 0b11 << kFunct7Shift;
+-const int kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
+-const int kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
+-const int kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
+-const int kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
+-const int kITypeMask = kBaseOpcodeMask | kFunct3Mask;
+-const int kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
+-const int kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
+-const int kUTypeMask = kBaseOpcodeMask;
+-const int kJTypeMask = kBaseOpcodeMask;
+-const int kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
+-const int kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
+-const int kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
+-const int kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
+-const int kBImm12Mask = kFunct7Mask | kRdFieldMask;
+-const int kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
+-const int kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
+-const int kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
+-const int kImm31_12Mask = ((1 << 20) - 1) << 12;
+-const int kImm19_0Mask = ((1 << 20) - 1);
+-const int kRvcOpcodeMask =
++const uint32_t kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1) << kBaseOpcodeShift;
++const uint32_t kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
++const uint32_t kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
++const uint32_t kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
++const uint32_t kFunct2Mask = 0b11 << kFunct7Shift;
++const uint32_t kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
++const uint32_t kRATypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct5Mask;
++const uint32_t kRFPTypeMask = kBaseOpcodeMask | kFunct7Mask;
++const uint32_t kR4TypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct2Mask;
++const uint32_t kITypeMask = kBaseOpcodeMask | kFunct3Mask;
++const uint32_t kSTypeMask = kBaseOpcodeMask | kFunct3Mask;
++const uint32_t kBTypeMask = kBaseOpcodeMask | kFunct3Mask;
++const uint32_t kUTypeMask = kBaseOpcodeMask;
++const uint32_t kJTypeMask = kBaseOpcodeMask;
++const uint32_t kRs1FieldMask = ((1 << kRs1Bits) - 1) << kRs1Shift;
++const uint32_t kRs2FieldMask = ((1 << kRs2Bits) - 1) << kRs2Shift;
++const uint32_t kRs3FieldMask = ((1 << kRs3Bits) - 1) << kRs3Shift;
++const uint32_t kRdFieldMask = ((1 << kRdBits) - 1) << kRdShift;
++const uint32_t kBImm12Mask = kFunct7Mask | kRdFieldMask;
++const uint32_t kImm20Mask = ((1 << kImm20Bits) - 1) << kImm20Shift;
++const uint32_t kImm12Mask = ((1 << kImm12Bits) - 1) << kImm12Shift;
++const uint32_t kImm11Mask = ((1 << kImm11Bits) - 1) << kImm11Shift;
++const uint32_t kImm31_12Mask = ((1 << 20) - 1) << 12;
++const uint32_t kImm19_0Mask = ((1 << 20) - 1);
++const uint32_t kRvcOpcodeMask =
+     0b11 | (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
+-const int kRvcFunct3Mask = (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
+-const int kRvcFunct4Mask = (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
+-const int kRvcFunct6Mask = (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
+-const int kRvcFunct2Mask = (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
+-const int kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
+-const int kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
+-const int kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
++const uint32_t kRvcFunct3Mask = (((1 << kRvcFunct3Bits) - 1) << kRvcFunct3Shift);
++const uint32_t kRvcFunct4Mask = (((1 << kRvcFunct4Bits) - 1) << kRvcFunct4Shift);
++const uint32_t kRvcFunct6Mask = (((1 << kRvcFunct6Bits) - 1) << kRvcFunct6Shift);
++const uint32_t kRvcFunct2Mask = (((1 << kRvcFunct2Bits) - 1) << kRvcFunct2Shift);
++const uint32_t kCRTypeMask = kRvcOpcodeMask | kRvcFunct4Mask;
++const uint32_t kCSTypeMask = kRvcOpcodeMask | kRvcFunct6Mask;
++const uint32_t kCATypeMask = kRvcOpcodeMask | kRvcFunct6Mask | kRvcFunct2Mask;
+ 
+ // RISCV CSR related bit mask and shift
+ const int kFcsrFlagsBits = 5;
+-const int kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
++const uint32_t kFcsrFlagsMask = (1 << kFcsrFlagsBits) - 1;
+ const int kFcsrFrmBits = 3;
+ const int kFcsrFrmShift = kFcsrFlagsBits;
+-const int kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
++const uint32_t kFcsrFrmMask = ((1 << kFcsrFrmBits) - 1) << kFcsrFrmShift;
+ const int kFcsrBits = kFcsrFlagsBits + kFcsrFrmBits;
+-const int kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
++const uint32_t kFcsrMask = kFcsrFlagsMask | kFcsrFrmMask;
+ 
+ // Original MIPS constants
+ // TODO(RISCV): to be cleaned up
+ const int kImm16Shift = 0;
+ const int kImm16Bits = 16;
+-const int kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
++const uint32_t kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
+ // end of TODO(RISCV): to be cleaned up
+ 
+ // ----- RISCV Base Opcodes
+diff --git a/deps/v8/src/execution/riscv64/simulator-riscv64.cc b/deps/v8/src/execution/riscv64/simulator-riscv64.cc
+index e8f16155be..c90a4323fa 100644
+--- a/deps/v8/src/execution/riscv64/simulator-riscv64.cc
++++ b/deps/v8/src/execution/riscv64/simulator-riscv64.cc
+@@ -1842,7 +1842,7 @@ float Simulator::RoundF2FHelper(float input_val, int rmode) {
+   float rounded = 0;
+   switch (rmode) {
+     case RNE: {  // Round to Nearest, tiest to Even
+-      rounded = std::floorf(input_val);
++      rounded = floorf(input_val);
+       float error = input_val - rounded;
+ 
+       // Take care of correctly handling the range [-0.5, -0.0], which must
