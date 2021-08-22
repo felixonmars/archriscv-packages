@@ -1,0 +1,24 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 1004231)
++++ PKGBUILD	(working copy)
+@@ -10,10 +10,17 @@
+ depends=('gcc-libs')
+ optdepends=('devil: for ImageSeq plugin')
+ makedepends=('cmake' 'devil')
+-source=("https://github.com/AviSynth/AviSynthPlus/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha256sums=('8906d9e46dc90a194413d69b710e3106c0aafddc0c5c62004885d0c3beb79862')
++source=("https://github.com/AviSynth/AviSynthPlus/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz"
++        https://github.com/AviSynth/AviSynthPlus/commit/3ec0d81e7b6d8750f233122046c2692f20dd0643.patch
++        https://github.com/AviSynth/AviSynthPlus/commit/7596b6232626922d1b89ef5fc853cc8d1556a7b3.patch)
++sha256sums=('8906d9e46dc90a194413d69b710e3106c0aafddc0c5c62004885d0c3beb79862'
++            '41d542525b25bec37c24589e5a412c187e914ad34e0e3dd5243459e13a1f505a'
++            '1a267b76f797306380795ac0f8bbd752cdfd022ca5a449c6f4948bac576623dc')
+ 
+ build() {
++    patch -d AviSynthPlus-$pkgver -p1 < 3ec0d81e7b6d8750f233122046c2692f20dd0643.patch
++    patch -d AviSynthPlus-$pkgver -p1 < 7596b6232626922d1b89ef5fc853cc8d1556a7b3.patch
++    sed -i 's/size_t/std::size_t/g' AviSynthPlus-$pkgver/avs_core/core/BufferPool.h
+     cmake -B build -S "AviSynthPlus-${pkgver}" \
+         -DCMAKE_BUILD_TYPE:STRING='None' \
+         -DCMAKE_INSTALL_PREFIX:PATH='/usr' \
