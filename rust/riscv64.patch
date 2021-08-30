@@ -1,0 +1,152 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 422645)
++++ PKGBUILD	(working copy)
+@@ -4,7 +4,7 @@
+ # Contributor: Daniel Micay <danielmicay@gmail.com>
+ # Contributor: userwithuid <userwithuid@gmail.com>
+ 
+-pkgname=('rust' 'lib32-rust-libs' 'rust-musl' 'rust-docs')
++pkgname=('rust' 'rust-docs')
+ epoch=1
+ pkgver=1.54.0
+ pkgrel=1
+@@ -11,13 +11,16 @@
+ 
+ _llvm_ver=12.0.1
+ 
++_bootstrap_channel=1.54.0
++_bootstrap_date=2021-07-29
++
+ pkgdesc='Systems programming language focused on safety, speed and concurrency'
+ url='https://www.rust-lang.org/'
+ arch=('x86_64')
+ license=('MIT' 'Apache')
+ 
+-makedepends=('rust' "llvm=$_llvm_ver" 'libffi' 'lib32-gcc-libs' 'perl' 'python'
+-             'curl' 'cmake' 'musl' 'ninja')
++makedepends=('rust' "llvm=$_llvm_ver" 'libffi' 'perl' 'python'
++             'curl' 'cmake' 'ninja')
+ checkdepends=('procps-ng' 'gdb')
+ 
+ options=('!emptydirs' '!strip')
+@@ -25,6 +28,10 @@
+ source=(
+   "https://static.rust-lang.org/dist/rustc-$pkgver-src.tar.gz"{,.asc}
+   "https://github.com/llvm/llvm-project/releases/download/llvmorg-$_llvm_ver/compiler-rt-$_llvm_ver.src.tar.xz"{,.sig}
++  
++  https://github.com/rust-lang/rust/commit/4130a323b6aa1df5466d3b0d13c0e51039b6827d.patch
++  https://static.rust-lang.org/dist/$_bootstrap_date/rust-$_bootstrap_channel-riscv64gc-unknown-linux-gnu.tar.xz
++
+   0001-bootstrap-Change-libexec-dir.patch
+   0001-cargo-Change-libexec-dir.patch
+   0002-compiler-Change-LLVM-targets.patch
+@@ -33,6 +40,8 @@
+             'SKIP'
+             'b4c8d5f2a802332987c1c0a95b5afb35b1a66a96fe44add4e4ed4792c4cba0a4'
+             'SKIP'
++            '2e63ff8d7e47ff1f1376f89d5d1de27dc2b3d25e8b59f7df8285cd1905b7137f'
++            'bcb956dfca215e7c5f48b2f81873a94792d7603ada75a68d3f009ed41f02d89d'
+             '644238f652f2099befb30f30eff77a5269a63cb4db1615933032ab3f6cbc31ba'
+             '1833c3b5f8262b598115d13f08e2dcba792536768a2371869870e26244971112'
+             '851172a5a3c35e209d455232d0572f51b6d34d3bc5f1a0416c01f426fdf60e92')
+@@ -51,6 +60,9 @@
+   # Use our *-pc-linux-gnu targets, making LTO with clang simpler
+   patch -Np1 -i ../0002-compiler-Change-LLVM-targets.patch
+ 
++  # riscv64
++  patch -Np1 -i ../4130a323b6aa1df5466d3b0d13c0e51039b6827d.patch
++
+   cat >config.toml <<END
+ changelog-seen = 2
+ profile = "user"
+@@ -59,10 +71,10 @@
+ link-shared = true
+ 
+ [build]
+-target = ["x86_64-unknown-linux-gnu", "i686-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+-cargo = "/usr/bin/cargo"
+-rustc = "/usr/bin/rustc"
+-rustfmt = "/usr/bin/rustfmt"
++target = ["riscv64gc-unknown-linux-gnu"]
++cargo = "$srcdir/rust-$_bootstrap_channel-riscv64gc-unknown-linux-gnu/usr/bin/cargo"
++rustc = "$srcdir/rust-$_bootstrap_channel-riscv64gc-unknown-linux-gnu/usr/bin/rustc"
++rustfmt = "$srcdir/rust-$_bootstrap_channel-riscv64gc-unknown-linux-gnu/usr/bin/rustfmt"
+ vendor = true
+ tools = ["cargo", "rls", "clippy", "rustfmt", "analysis", "src", "rust-demangler"]
+ sanitizers = true
+@@ -82,13 +94,12 @@
+ channel = "stable"
+ rpath = false
+ 
+-[target.x86_64-unknown-linux-gnu]
++[target.riscv64gc-unknown-linux-gnu]
+ llvm-config = "/usr/bin/llvm-config"
++END
+ 
+-[target.x86_64-unknown-linux-musl]
+-sanitizers = false
+-musl-root = "/usr/lib/musl"
+-END
++  cd "$srcdir"/rust-$_bootstrap_channel-riscv64gc-unknown-linux-gnu
++  ./install.sh --components=cargo,rustc,rustfmt-preview,rust-std-riscv64gc-unknown-linux-gnu --prefix="$srcdir"/rust-$_bootstrap_channel-riscv64gc-unknown-linux-gnu/usr --disable-ldconfig
+ }
+ 
+ build() {
+@@ -98,7 +109,7 @@
+   export RUST_COMPILER_RT_ROOT="$srcdir/compiler-rt-$_llvm_ver.src"
+   [[ -d $RUST_COMPILER_RT_ROOT ]]
+ 
+-  DESTDIR="$PWD"/dest-rust python ./x.py install -j "$(nproc)"
++  DESTDIR="$PWD"/dest-rust python ./x.py install
+ 
+   # Remove analysis data for libs that weren't installed
+   # TODO: Find out where these come from
+@@ -113,8 +124,6 @@
+   done < <(find "dest-rust/usr/lib/rustlib"  -path '*/analysis/*.json' -print0)
+ 
+   # move docs and cross targets out of the way for splitting
+-  mv dest-rust/usr/lib/rustlib/i686-unknown-linux-gnu dest-i686
+-  mv dest-rust/usr/lib/rustlib/x86_64-unknown-linux-musl dest-musl
+   mv dest-rust/usr/share/doc dest-doc
+ }
+ 
+@@ -137,37 +146,12 @@
+ 
+   # rustbuild always installs copies of the shared libraries to /usr/lib,
+   # overwrite them with symlinks to the per-architecture versions
+-  ln -srft "$pkgdir"/usr/lib x86_64-unknown-linux-gnu/lib/*.so
++  ln -srft "$pkgdir"/usr/lib riscv64gc-unknown-linux-gnu/lib/*.so
+ 
+   install -d "$pkgdir"/usr/share/bash-completion/
+   mv "$pkgdir"/etc/bash_completion.d "$pkgdir"/usr/share/bash-completion/completions
+ }
+ 
+-package_lib32-rust-libs() {
+-  pkgdesc='32-bit target and libraries for Rust'
+-  depends=('lib32-gcc-libs')
+-  provides=('lib32-rust')
+-  conflicts=('lib32-rust')
+-  replaces=('lib32-rust')
+-
+-  cd "rustc-$pkgver-src"
+-  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE*
+-
+-  install -d "$pkgdir"/usr/lib/rustlib/ "$pkgdir"/usr/lib32/
+-  cp -a dest-i686 "$pkgdir"/usr/lib/rustlib/i686-unknown-linux-gnu
+-  ln -srft "$pkgdir"/usr/lib32 "$pkgdir"/usr/lib/rustlib/i686-unknown-linux-gnu/lib/*.so
+-}
+-
+-package_rust-musl() {
+-  pkgdesc='Musl target for Rust'
+-
+-  cd "rustc-$pkgver-src"
+-  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE*
+-
+-  install -d "$pkgdir"/usr/lib/rustlib/
+-  cp -a dest-musl "$pkgdir"/usr/lib/rustlib/x86_64-unknown-linux-musl
+-}
+-
+ package_rust-docs() {
+   pkgdesc='Documentation for the Rust programming language'
+ 
