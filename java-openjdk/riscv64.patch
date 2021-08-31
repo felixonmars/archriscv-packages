@@ -1,0 +1,51 @@
+--- PKGBUILD.orig	2021-08-31 02:01:13.056393110 +0800
++++ PKGBUILD	2021-08-31 13:24:02.320783856 +0800
+@@ -15,8 +15,8 @@
+ arch=('x86_64')
+ url='https://openjdk.java.net/'
+ license=('custom')
+-makedepends=('java-environment>=11' 'cpio' 'unzip' 'zip' 'libelf' 'libcups' 'libx11'
+-             'libxrender' 'libxtst' 'libxt' 'libxext' 'libxrandr' 'alsa-lib' 'pandoc'
++makedepends=('java-environment>=15' 'cpio' 'unzip' 'zip' 'libelf' 'libcups' 'libx11'
++             'libxrender' 'libxtst' 'libxt' 'libxext' 'libxrandr' 'alsa-lib'
+              'graphviz' 'freetype2' 'libjpeg-turbo' 'giflib' 'libpng' 'lcms2'
+              'libnet' 'bash' 'harfbuzz' 'gcc-libs' 'glibc')
+ source=(https://github.com/openjdk/jdk${_majorver}u/archive/${_git_tag}.tar.gz
+@@ -28,14 +28,16 @@
+             'c0673d680cc728af88bec89275f0a8e2199d52e48b5c5b0aa2d921bedbc2e12f'
+             '0cdf3dc10a64c5e589e655276189422b60a6b3294539164a6f29123d6b2046c7')
+ 
++_JVARIANT=server
+ case "${CARCH}" in
+   x86_64) _JARCH='x86_64';;
+   i686)   _JARCH='x86';;
++  riscv64)_JARCH='riscv64'; _JVARIANT=zero;
+ esac
+ 
+ _jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk
+ _jdkdir=jdk${_majorver}u-${_git_tag//+/-}
+-_imgdir=${_jdkdir}/build/linux-${_JARCH}-server-release/images
++_imgdir=${_jdkdir}/build/linux-${_JARCH}-${_JVARIANT}-release/images
+ 
+ _nonheadless=(lib/libawt_xawt.{so,debuginfo}
+               lib/libjawt.{so,debuginfo}
+@@ -88,12 +90,18 @@
+     --with-lcms=system \
+     --with-zlib=system \
+     --with-harfbuzz=system \
+-    --with-jvm-features=zgc \
++    --with-jvm-variants="$_JVARIANT" \
+     --enable-unlimited-crypto \
+     --disable-warnings-as-errors \
+     ${NUM_PROC_OPT}
+     #--disable-javac-server
+ 
++    # build system does not recognize qemu-system-riscv64
++    # --build="riscv64-unknown-linux-gnu"
++
++  # Runtime.exec is broken under qemu-user-riscv64
++  export _JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"  # or fork
++
+   make images legacy-jre-image docs
+ 
+   # https://bugs.openjdk.java.net/browse/JDK-8173610
