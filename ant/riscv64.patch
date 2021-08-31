@@ -1,0 +1,15 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 422712)
++++ PKGBUILD	(working copy)
+@@ -38,6 +38,10 @@
+ 
+ build() {
+   cd apache-${pkgbase}-${pkgver}
++
++    # Runtime.exec is broken under qemu-user-riscv64
++  export _JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"  # or fork
++
+   export JAVA_HOME=/usr/lib/jvm/default
+   ./bootstrap.sh
+   bootstrap/bin/ant -Ddest=optional -f fetch.xml
