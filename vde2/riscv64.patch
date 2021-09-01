@@ -1,50 +1,28 @@
 diff --git PKGBUILD PKGBUILD
-index 98b372885..81bbec329 100644
+index 98b372885..08d6a83b0 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,7 +18,7 @@ source=(https://downloads.sourceforge.net/vde/$pkgname-$pkgver.tar.bz2
- install=vde2.install
+@@ -11,6 +11,7 @@ depends=('bash' 'libpcap' 'openssl')
+ makedepends=('python')
+ source=(https://downloads.sourceforge.net/vde/$pkgname-$pkgver.tar.bz2
+         vde_cryptcab-compile-against-openssl-1.1.0.patch
++        vde-compile-format.patch
+         dhcpd.conf.sample
+         iptables.rules.sample
+         vde-config.sample
+@@ -19,6 +20,7 @@ install=vde2.install
  options=(!makeflags)
  sha256sums=('cbea9b7e03097f87a6b5e98b07890d2275848f1fe4b9fcda77b8994148bc9542'
--            '110370a5f48f1e241d43f8bb5e3ea6d2ca7d2c1949e1cf672d03bfc897f2e11f'
-+            '1b684b97a0389d43a4380108c41bfa33cd577b3068f9b37f51491f6ef6c7ea14'
+             '110370a5f48f1e241d43f8bb5e3ea6d2ca7d2c1949e1cf672d03bfc897f2e11f'
++            'd844fc49ad3051dbf01960005936e3accabf9f2185b3d217b2c882e149e2c4ff'
              'da0e2766dc63069da929c28126831ad5fdddcc4a04105a21217d78832c7ca1bc'
              '99076d7466cd99673dbe91ef83865187e7868177959b38e125df63eea957f83e'
              '5727c215646333c37b26388146cd3e6b3814b88d60d54051d7da99e00c0aef87'
-diff --git vde_cryptcab-compile-against-openssl-1.1.0.patch vde_cryptcab-compile-against-openssl-1.1.0.patch
-index 227312eab..a0594a4a6 100644
---- vde_cryptcab-compile-against-openssl-1.1.0.patch
-+++ vde_cryptcab-compile-against-openssl-1.1.0.patch
-@@ -90,3 +90,32 @@
-  	return olen;
-  }
-  
-+--- a/src/common/cmdparse.c	2021-09-01 09:57:33.000000000 +0000
-++++ b/src/common/cmdparse.c	2021-09-01 10:13:08.018673389 +0000
-+@@ -284,13 +284,13 @@
-+ 								int i;
-+ 								for (i=0;i<argc;i++) {
-+ 									if (i) fprintf(mf," ");
-+-									fprintf(mf,argv[i]);
-++									fprintf(mf,"%s",argv[i]);
-+ 								}
-+ 							} else {
-+ 								int num=atoi(t);
-+ 								while (*t >='0' && *t <= '9') t++;
-+ 								if (num < argc) 
-+-									fprintf(mf,argv[num]);
-++									fprintf(mf,"%s",argv[num]);
-+ 							}
-+ 						} else
-+ 							fprintf(mf,"%c",*t);
-+--- a/src/vde_switch/plugins/iplog.c	2021-09-01 09:57:33.000000000 +0000
-++++ b/src/vde_switch/plugins/iplog.c	2021-09-01 10:13:08.022006729 +0000
-+@@ -214,7 +214,7 @@
-+ 				ctime_r(&ntime,stime);
-+ 				writev(logfilefd,iov,3);
-+ 			} else if (logfilefd != -1) 
-+-				syslog(LOG_INFO, msg);
-++				syslog(LOG_INFO,"%s" ,msg);
-+ 			DBGOUT(D_LOGIP_NEWIP,"%s",msg);
-+ 		}
-+ 	}
+@@ -27,6 +29,7 @@ sha256sums=('cbea9b7e03097f87a6b5e98b07890d2275848f1fe4b9fcda77b8994148bc9542'
+ prepare() {
+   cd $pkgname-$pkgver
+   patch -Np1 -i ../vde_cryptcab-compile-against-openssl-1.1.0.patch
++  patch -Np1 -i ../vde-compile-format.patch
+ }
+ 
+ build() {
