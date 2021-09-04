@@ -1,0 +1,15 @@
+on: pull_request
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: archlinux/archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: pacman -Syu --noconfirm devtools
+      - uses: actions/checkout@v2
+      - name: Add remote
+        run: |
+          git remote add upstream https://github.com/felixonmars/archriscv-packages.git
+          git fetch upstream master
+      - name: Test patch
+        run: bash test.sh
