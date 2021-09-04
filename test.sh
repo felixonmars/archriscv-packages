@@ -1,6 +1,6 @@
 #!/bin/bash
 ORIGDIR=$PWD
-for _dir in git diff --name-only upstream/master | cut -d / -f 1 | uniq; do
+for _dir in $(git diff --name-only upstream/master | cut -d / -f 1 | uniq); do
   if [[ ! -e "$dir"/riscv64.patch ]]; then
     echo "Skipping $_dir..."
     continue
