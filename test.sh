@@ -1,7 +1,7 @@
 #!/bin/bash
 ORIGDIR=$PWD
-for _dir in git diff --name-only upstream/master | cut -d / -f 1 | uniq; do
-  if [[ ! -e "$dir"/riscv64.patch ]]; then
+for _dir in $(git diff --name-only upstream/master | cut -d / -f 1 | uniq); do
+  if [[ ! -e "$_dir"/riscv64.patch ]]; then
     echo "Skipping $_dir..."
     continue
   fi
@@ -11,10 +11,10 @@ for _dir in git diff --name-only upstream/master | cut -d / -f 1 | uniq; do
   pushd $_dir
   _tmp=$(mktemp -d)
   cd $_tmp
-  asp checkout $_dir
+  asp checkout $_dir || continue
   cd $_dir/trunk
   cp $ORIGDIR/$_dir/* ./
-  patch -p0 -i ./riscv64.patch
+  patch -p0 -i ./riscv64.patch || exit 1
   popd
 done
 
