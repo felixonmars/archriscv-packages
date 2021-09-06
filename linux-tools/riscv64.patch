@@ -1,0 +1,73 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 1011877)
++++ PKGBUILD	(working copy)
+@@ -4,15 +4,12 @@
+ pkgname=(
+   'bpf'
+   'cgroup_event_listener'
+-  'cpupower'
+   'hyperv'
+   'linux-tools-meta'
+   'perf'
+ #  'python-perf'
+   'tmon'
+-  'turbostat'
+   'usbip'
+-  'x86_energy_perf_policy'
+ )
+ pkgver=5.14
+ pkgrel=1
+@@ -26,8 +23,6 @@
+ makedepends+=('asciidoc' 'xmlto')
+ # perf deps
+ makedepends+=('perl' 'python' 'slang' 'elfutils' 'libunwind' 'numactl' 'audit' 'zstd' 'libcap')
+-# cpupower deps
+-makedepends+=('pciutils')
+ # usbip deps
+ makedepends+=('glib2' 'sysfsutils' 'udev')
+ # tmon deps
+@@ -88,16 +83,6 @@
+     DESTDIR="$pkgdir"
+   popd
+ 
+-  echo ':: cpupower'
+-  pushd linux/tools/power/cpupower
+-  make VERSION=$pkgver-$pkgrel
+-  popd
+-
+-  echo ':: x86_energy_perf_policy'
+-  pushd linux/tools/power/x86/x86_energy_perf_policy
+-  make
+-  popd
+-
+   echo ':: usbip'
+   pushd linux/tools/usb/usbip
+   # Fix gcc compilation
+@@ -117,11 +102,6 @@
+   make
+   popd
+ 
+-  echo ':: turbostat'
+-  pushd linux/tools/power/x86/turbostat
+-  make
+-  popd
+-
+   echo ':: hv'
+   pushd linux/tools/hv
+   CFLAGS+=' -DKVP_SCRIPTS_PATH=\"/usr/lib/hyperv/kvp_scripts/\"' make
+@@ -143,14 +123,11 @@
+   depends=(
+     'bpf'
+     'cgroup_event_listener'
+-    'cpupower'
+     'hyperv'
+     'perf'
+ #    'python-perf'
+     'tmon'
+-    'turbostat'
+     'usbip'
+-    'x86_energy_perf_policy'
+   )
+   conflicts=(
+     'acpidump'
