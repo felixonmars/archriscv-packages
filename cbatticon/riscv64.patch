@@ -1,0 +1,22 @@
+diff --git a/trunk/PKGBUILD b/trunk/PKGBUILD
+index 069dd1081..47d6d2e31 100644
+--- a/trunk/PKGBUILD
++++ b/trunk/PKGBUILD
+@@ -9,8 +9,15 @@ arch=(x86_64)
+ url='https://github.com/valr/cbatticon'
+ license=(GPL2)
+ depends=(gtk3 libnotify)
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/$pkgver.tar.gz")
+-sha256sums=('c9782e86dab64bea17583640f23e9fda34682967984f2105aa21e0d1c355cd57')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/$pkgver.tar.gz"
++        "fix-Wformat-security-ignored-without-Wformat.patch")
++sha256sums=('c9782e86dab64bea17583640f23e9fda34682967984f2105aa21e0d1c355cd57'
++            '1adb764f1b9168481863e3b20d761bcf30cc49b793cf9fe46b5c3a003af3fe1f')
++
++prepare(){
++  cd "${srcdir}"/"$pkgname-$pkgver"
++  patch -Np1 -i ../fix-Wformat-security-ignored-without-Wformat.patch
++}
+ 
+ build() {
+   make -C "$pkgname-$pkgver" WITH_NOTIFY=1 WITH_GTK3=1
