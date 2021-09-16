@@ -1,14 +1,25 @@
 diff --unified --recursive --text a/yabause/src/libretro/Makefile b/yabause/src/libretro/Makefile
---- a/yabause/src/libretro/Makefile	2021-09-16 11:49:27.528836451 +0000
-+++ b/yabause/src/libretro/Makefile	2021-09-16 11:50:30.995544580 +0000
-@@ -568,10 +568,6 @@
+--- a/yabause/src/libretro/Makefile	2021-09-16 13:43:38.425478484 +0000
++++ b/yabause/src/libretro/Makefile	2021-09-16 13:44:21.758831101 +0000
+@@ -52,6 +52,9 @@
+ 	ifeq ($(shell uname -p),arm)
+ 		arch = arm64
  	endif
- endif
++	ifneq ($(findstring riscv64,$(shell uname -a)),)
++		arch = riscv64
++	endif
  
--ifeq ($(HAVE_SSE),1)
--	FLAGS += -mfpmath=sse
--endif
--
- ifeq ($(DEBUG), 1)
- 	ifneq (,$(findstring msvc,$(platform)))
- 		ifeq ($(STATIC_LINKING),1)
+ else ifneq ($(findstring MINGW,$(shell uname -a)),)
+ 	system_platform = win
+@@ -109,6 +112,11 @@
+ 		FLAGS += -DARM
+ 	endif
+ 
++	#riscv64
++	ifeq ($(arch),riscv64)
++		HAVE_SSE = 0
++	endif
++
+ else ifneq (,$(findstring linux-portable,$(platform)))
+ 	TARGET := $(TARGET_NAME)_libretro.so
+ 	fpic := -fPIC -nostdlib
