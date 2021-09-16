@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index 63957dac2..95fe76b8e 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,14 +14,18 @@ license=('LGPL')
+ depends=('gdk-pixbuf2')
+ makedepends=('boost' 'libxml2' 'cargo')
+ provides=('libopenraw.so' 'libopenrawgnome.so')
+-source=("https://libopenraw.freedesktop.org/download/${pkgname}-${pkgver}.tar.bz2"{.asc,})
++source=("https://libopenraw.freedesktop.org/download/${pkgname}-${pkgver}.tar.bz2"{.asc,}
++        "https://github.com/hfiguiere/libopenraw/commit/43fac545b135bce981b6837aa6cb111ee853f090.patch")
+ b2sums=('SKIP'
+-        '45f4382f6be114c2c0a8ffac3affef83ae1d40430eb69ad3e8085f7ac1ff428bd2f886b093a4b81ff13d32b447f03bae9784caaa0a447830d969485a01711026')
++        '45f4382f6be114c2c0a8ffac3affef83ae1d40430eb69ad3e8085f7ac1ff428bd2f886b093a4b81ff13d32b447f03bae9784caaa0a447830d969485a01711026'
++        'ead6a875990eb85559ac8080ecc40462affa5570d408ede1a10305e6b5ad77f37ef9289dd3a6590594d63cea4356a9a953eb7704a637a56710d719c56c56eddf')
+ validpgpkeys=('6C44DB3E0BF3EAF5B433239A5FEE05E6A56E15A3') # Hubert Figuiere <hub@mozilla.com>
+ 
+ prepare() {
+ # Fix libopenraw dependency in -gnome pc file
+   sed -e 's|libopenraw-0.1|libopenraw-0.3|' -i $pkgname-$pkgver/gnome/libopenraw-gnome-0.3.pc.in
++  cd ${pkgname}-${pkgver}
++  patch -Np1 -i "${srcdir}/43fac545b135bce981b6837aa6cb111ee853f090.patch"
+ }
+ 
+ build() {
