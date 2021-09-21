@@ -1,0 +1,51 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+# Contributor: Thomas Dziedzic <gostrc@gmail.com>
+# Contributor: simo <simo@archlinux.org>
+# Contributor: Vesa Kaihlavirta <vegai@iki.fi>
+
+pkgname=ghc-bootstrap-helpers
+pkgver=1
+pkgrel=1
+pkgdesc="Bootstrap helpers"
+url="https://hackage.haskell.org/package/happy"
+arch=(riscv64)
+license=("custom:BSD2" "custom:BSD3")
+makedepends=('ghc-bootstrap-riscv64')
+source=(
+    "https://hackage.haskell.org/packages/archive/happy/1.20.0/happy-1.20.0.tar.gz"
+    "https://hackage.haskell.org/packages/archive/alex/3.2.6/alex-3.2.6.tar.gz"
+)
+sha512sums=('2c19e6e13032ead435495aab232192cf0ad9fe5e3e04c79b40b586272fb0208284815cf5c15d609f75387e7fe91ca0932b675bcaa95552f62ad08a12701649ce'
+            '05b6e55e9a1c348aea599d1130780a3d2a0a7c5f1db00b2c98bd34737cac9d48842fb1b1f98947a99d99013f94e39a6ffee1af8546f02fb2d32fcf362ff0f83c')
+
+ghc_bootstrap_root=/opt/ghc-bootstrap-riscv64
+
+build() {
+  cd "${srcdir}/happy-1.20.0"
+  export PATH="$ghc_bootstrap_root/bin:$PATH"
+
+  ghc Setup.hs -o cabal
+  ./cabal configure --prefix=$ghc_bootstrap_root
+  ./cabal build $MAKEFLAGS
+
+  cd "$srcdir/alex-3.2.6"
+  ghc Setup.hs -o cabal
+  ./cabal configure --prefix=$ghc_bootstrap_root
+  ./cabal build $MAKEFLAGS
+
+}
+
+package() {
+  cd "${srcdir}/happy-1.20.0"
+  ./cabal copy --destdir="${pkgdir}"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/$pkgname/LICENSE-happy"
+
+  cd "$srcdir/alex-3.2.6"
+  ./cabal copy --destdir="$pkgdir"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-alex"
+
+  # Doc only contains the license
+  rm -rf "$pkgdir/$ghc_bootstrap_root/share/doc"
+}
+
+# vim: ts=2 sw=2 et:

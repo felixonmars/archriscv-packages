@@ -1,0 +1,22 @@
+_pkgname=ghc-bootstrap-riscv64
+pkgname=ghc-bootstrap-riscv64-suse-bin
+pkgver=8.10.4
+pkgrel=1
+pkgdesc="GHC binary bootstrap"
+arch=('riscv64')
+depends=(glibc ncurses numactl gcc-libs libffi-8)
+provides=('ghc-bootstrap-riscv64')
+# Download from https://build.opensuse.org/package/show/home:Andreas_Schwab:riscv:ghc/ghc-bootstrap
+source=("ghc-8.10.4-riscv64-unknown-linux.tar.xz")
+sha256sums=('ee52d9b187409e440e274b6d9a3d75fa9d5b6d2f7558b130839b45d4521e95a6')
+install=ghc-bootstrap-binary.install
+
+build() {
+    cd "$srcdir/ghc-$pkgver"
+    ./configure --prefix=/opt/$_pkgname/
+}
+
+package() {
+    cd "$srcdir/ghc-$pkgver"
+    make install -j1 DESTDIR="$pkgdir"
+}
