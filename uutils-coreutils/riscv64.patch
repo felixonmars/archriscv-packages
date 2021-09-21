@@ -1,0 +1,17 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 1019698)
++++ PKGBUILD	(working copy)
+@@ -21,6 +21,12 @@
+   cd $_pkgname-$pkgver
+   sed 's|"bin"|"builduser"|g' -i tests/by-util/test_{chgrp,chown}.rs
+   patch -Np1 < ../tests.patch
++
++  echo -e "\n[patch.crates-io]\nioctl-sys = { git = 'https://github.com/felixonmars/ioctl', branch = '0.5.2' }" >> Cargo.toml
++  sed -i 's/nix = "<=0.13"/nix = "0.20.0"/' src/uu/more/Cargo.toml
++  sed -i 's/nix = { version="<= 0.13"/nix = { version="0.20.0"/' src/uucore/Cargo.toml
++  sed -i 's/nix = { version="<=0.13"/nix = { version="0.20.0"/' src/uu/nice/Cargo.toml
++  cargo update -p uucore -p uu_more -p nix:0.13.1
+ }
+ 
+ build() {
