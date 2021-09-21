@@ -1,0 +1,46 @@
+From 5c5380d6b54a69c0753a4b2496a114e518ea4d8b Mon Sep 17 00:00:00 2001
+From: Takenobu Tani <takenobu.hs@gmail.com>
+Date: Sun, 30 Aug 2020 18:15:44 +0900
+Subject: [PATCH 6/9] Limit upper version of Happy for ghc-9.2 (#18620)
+
+This patch adds the upper bound of a happy version for ghc-9.2.
+
+Currently, We can use happy-1.19 or happy-1.20 for ghc-9.2.
+
+See #18620.
+---
+ aclocal.m4            | 4 ++--
+ hadrian/hadrian.cabal | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/aclocal.m4 b/aclocal.m4
+index 0219ea3a61..b16f57e879 100644
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -1057,8 +1057,8 @@ if test ! -f compiler/GHC/Parser.hs || test ! -f compiler/GHC/Cmm/Parser.hs
+ then
+     FP_COMPARE_VERSIONS([$fptools_cv_happy_version],[-lt],[1.19.10],
+       [AC_MSG_ERROR([Happy version 1.19.10 or later is required to compile GHC.])])[]
+-    FP_COMPARE_VERSIONS([$fptools_cv_happy_version],[-ge],[1.20.0],
+-      [AC_MSG_ERROR([Happy version 1.19 is required to compile GHC.])])[]
++    FP_COMPARE_VERSIONS([$fptools_cv_happy_version],[-ge],[1.21.0],
++      [AC_MSG_ERROR([Happy version 1.20 or earlier is required to compile GHC.])])[]
+ fi
+ HappyVersion=$fptools_cv_happy_version;
+ AC_SUBST(HappyVersion)
+diff --git a/hadrian/hadrian.cabal b/hadrian/hadrian.cabal
+index fd879840d3..81dffea41c 100644
+--- a/hadrian/hadrian.cabal
++++ b/hadrian/hadrian.cabal
+@@ -149,7 +149,7 @@ executable hadrian
+                        , transformers         >= 0.4     && < 0.6
+                        , unordered-containers >= 0.2.1   && < 0.3
+     build-tools:         alex  >= 3.1
+-                       , happy >= 1.19.10 && < 1.20
++                       , happy >= 1.19.10 && < 1.21
+     ghc-options:       -Wall
+                        -Wincomplete-record-updates
+                        -Wredundant-constraints
+-- 
+2.33.0
+
