@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index 634622cfe..8350b9b67 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,9 +16,12 @@ depends=('curl' 'libcurl.so' 'libmpdclient' 'libmpdclient.so' 'fftw' 'libfftw3.s
+          'libboost_regex.so' 'libboost_thread.so' 'icu' 'libicui18n.so' 'libicuuc.so'
+          'glibc' 'gcc-libs' 'ncurses' 'libncursesw.so' 'readline' 'libreadline.so' 'taglib')
+ makedepends=('boost')
+-source=(https://rybczak.net/ncmpcpp/stable/${pkgname}-${pkgver}.tar.bz2)
+-sha512sums=('bbcb3b50233e363412af3c1cf1c0118122733dc376759cd35dee79950f42e098a0402ff670684df91847b990b26022630c9a71192e462bd46e70628e31489742')
+-b2sums=('160597493b93bac790b8619881e8a1fcf0efce4a538e35f54f31b06f3ed66691f02b37198cca46b475b7296aebbc864cb62a4398c60bd1e43907f9907a9bc118')
++source=(https://rybczak.net/ncmpcpp/stable/${pkgname}-${pkgver}.tar.bz2
++        fix-ISA-string-must-begin-with-rv32-or-rv64.patch)
++sha512sums=('bbcb3b50233e363412af3c1cf1c0118122733dc376759cd35dee79950f42e098a0402ff670684df91847b990b26022630c9a71192e462bd46e70628e31489742'
++            'eac852d6b062192813160a063d190a730099841e535766cf32f06b06908db7956dc950bd482a30d239c000594729868c7cf1cf850eaa5fdc3362b44eda7e652d')
++b2sums=('160597493b93bac790b8619881e8a1fcf0efce4a538e35f54f31b06f3ed66691f02b37198cca46b475b7296aebbc864cb62a4398c60bd1e43907f9907a9bc118'
++        'ca315b4d61a9669f64ffc7a2d6f921a7e6b7a200c8a839af7236c5a3900bc7125e89c84e13425564c04472cc9bc5612a2d7d709cc1d4ebf13060c242419dff6e')
+ 
+ prepare() {
+   cd ${pkgname}-${pkgver}
+@@ -27,6 +30,7 @@ prepare() {
+       -e 's/CPPFLAGS=/CPPFLAGS+=/' \
+       -e 's/LDFLAGS=/LDFLAGS+=/' \
+       -i extras/Makefile
++  patch -Np1 -i "${srcdir}/fix-ISA-string-must-begin-with-rv32-or-rv64.patch"
+ }
+ 
+ build() {
