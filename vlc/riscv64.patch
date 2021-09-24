@@ -1,0 +1,79 @@
+diff --git PKGBUILD PKGBUILD
+index 2696f531..749b3f78 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -101,12 +101,14 @@ options=('!emptydirs')
+ source=(https://download.videolan.org/${pkgname}/${_vlcver}/${pkgname}-${_vlcver}${_vlcfixupver}.tar.xz{,.asc}
+         update-vlc-plugin-cache.hook
+         vlc-3.0.11.1-srt_1.4.2.patch
+-        vlc-live-media-2021.patch)
++        vlc-live-media-2021.patch
++        riscv64-atomic.patch)
+ sha512sums=('35cdf191071224d0cf1b5a83c00773ff87b9e5bfcf0f5523f7edd53f75b23eda6b27bb49ffa97d69a1d176b8fe4786d959aeeb00d4380beab71c9f7e6b7c7298'
+             'SKIP'
+             'b247510ffeadfd439a5dadd170c91900b6cdb05b5ca00d38b1a17c720ffe5a9f75a32e0cb1af5ebefdf1c23c5acc53513ed983a736e8fa30dd8fad237ef49dd3'
+             'ac1d33d434aca2a0ad6e70800073deeaefc02b8fd72656b682ca833ee0cffe10dfa19a9355388700cab46ffbf9421c007d00ed04c7fa562698ff81e70db5f283'
+-            'ad17d6f4f2cc83841c1c89623c339ec3ee94f6084ea980e2c8cbc3903854c85e5396e31bfd8dc90745b41794670903d854c4d282d8adec263087a9d47b226ccc')
++            'ad17d6f4f2cc83841c1c89623c339ec3ee94f6084ea980e2c8cbc3903854c85e5396e31bfd8dc90745b41794670903d854c4d282d8adec263087a9d47b226ccc'
++            'cc522a5538a3485c8973907ecfb13c98f9277023350de4598ceb18180f85f9bdb58dc1e8a7913f44b5e8885713197867bd74c86b5d0e40502e07d01f8ccdb8cc')
+ validpgpkeys=('65F7C6B4206BD057A7EB73787180713BE58D1ADC') # VideoLAN Release Signing Key
+ 
+ prepare() {
+diff --git riscv64-atomic.patch riscv64-atomic.patch
+new file mode 100644
+index 00000000..749d2104
+--- /dev/null
++++ riscv64-atomic.patch
+@@ -0,0 +1,52 @@
++From 50b642992007df0d7b617a168b80898850385a04 Mon Sep 17 00:00:00 2001
++From: =?UTF-8?q?R=C3=A9mi=20Denis-Courmont?= <remi@remlab.net>
++Date: Sat, 16 Jun 2018 21:31:45 +0300
++Subject: [PATCH] configure: fix linking on RISC-V ISA
++
++---
++ configure.ac | 1 +
++ 1 file changed, 1 insertion(+)
++
++diff --git a/configure.ac b/configure.ac
++index 47e85debe0..3f1d13d208 100644
++--- a/configure.ac
+++++ b/configure.ac
++@@ -102,6 +102,7 @@ case "${host_os}" in
++     ;;
++   linux*)
++     SYS=linux
+++    test "${host_cpu}" = "riscv64" && CFLAGS="${CFLAGS} -pthread"
++     ;;
++   bsdi*)
++     SYS=bsdi
++-- 
++GitLab
++
++From fc8208ec86db8eff4ec666a4c9af1828a9ac5bdf Mon Sep 17 00:00:00 2001
++From: =?UTF-8?q?R=C3=A9mi=20Denis-Courmont?= <remi@remlab.net>
++Date: Sun, 17 Jun 2018 12:07:06 +0300
++Subject: [PATCH] configure: always pass -pthread on Linux
++
++This appears to be the official way to get POSIX threads. In practice,
++it pre-defines _REENTRANT to 1 and pulls -lpthread.
++(This works with both GCC and Clang.)
++---
++ configure.ac | 2 +-
++ 1 file changed, 1 insertion(+), 1 deletion(-)
++
++diff --git a/configure.ac b/configure.ac
++index c96778e04e..eaa17947b3 100644
++--- a/configure.ac
+++++ b/configure.ac
++@@ -102,7 +102,7 @@ case "${host_os}" in
++     ;;
++   linux*)
++     SYS=linux
++-    test "${host_cpu}" = "riscv64" && CFLAGS="${CFLAGS} -pthread"
+++    CFLAGS="${CFLAGS} -pthread"
++     ;;
++   bsdi*)
++     SYS=bsdi
++-- 
++GitLab
++
