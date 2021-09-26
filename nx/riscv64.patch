@@ -1,0 +1,160 @@
+diff --git 1023.patch 1023.patch
+new file mode 100644
+index 00000000..f7a5c819
+--- /dev/null
++++ 1023.patch
+@@ -0,0 +1,60 @@
++From a2ca4e350319022f29669a17d9da756aa8878b9a Mon Sep 17 00:00:00 2001
++From: Alexandre Ghiti <alexandre.ghiti@canonical.com>
++Date: Fri, 10 Sep 2021 08:51:53 +0200
++Subject: [PATCH] nx-X11: Add support for riscv64 architecture
++
++---
++ nx-X11/config/cf/Imake.cf   | 5 +++++
++ nx-X11/config/cf/Imake.tmpl | 2 ++
++ nx-X11/config/cf/linux.cf   | 9 +++++++++
++ 3 files changed, 16 insertions(+)
++
++diff --git a/nx-X11/config/cf/Imake.cf b/nx-X11/config/cf/Imake.cf
++index 9d683b858f..612bc4e38b 100644
++--- a/nx-X11/config/cf/Imake.cf
+++++ b/nx-X11/config/cf/Imake.cf
++@@ -878,6 +878,11 @@ XCOMM Keep cpp from replacing path elements containing i486/i586/i686
++ #  undef __powerpc64__
++ #  undef tmp_set_big_endian
++ # endif
+++# ifdef __riscv
+++#  if __riscv_xlen == 64
+++#   define Riscv64Architecture
+++#  endif
+++# endif
++ # ifdef sparc
++ #  define SparcArchitecture
++ #  undef sparc
++diff --git a/nx-X11/config/cf/Imake.tmpl b/nx-X11/config/cf/Imake.tmpl
++index de1fca937e..266be8c5a8 100644
++--- a/nx-X11/config/cf/Imake.tmpl
+++++ b/nx-X11/config/cf/Imake.tmpl
++@@ -509,6 +509,8 @@ XCOMM the platform-specific parameters - edit site.def to change
++ #define ByteOrder		X_BIG_ENDIAN
++ #elif defined(Ppc64LeArchitecture)
++ #define ByteOrder		X_LITTLE_ENDIAN
+++#elif defined(Riscv64Architecture)
+++#define ByteOrder		X_LITTLE_ENDIAN
++ #elif defined(HPArchitecture)
++ #define ByteOrder		X_BIG_ENDIAN
++ #elif defined(SuperHArchitecture)
++diff --git a/nx-X11/config/cf/linux.cf b/nx-X11/config/cf/linux.cf
++index c3e9eaafd5..6851be5586 100644
++--- a/nx-X11/config/cf/linux.cf
+++++ b/nx-X11/config/cf/linux.cf
++@@ -783,6 +783,15 @@ XCOMM binutils:	(LinuxBinUtilsMajorVersion)
++ # define ServerExtraDefines	-DGCCUSESGAS XFree86ServerDefines
++ #endif /* PpcArchitecture */
++ 
+++#ifdef Riscv64Architecture
+++# ifndef OptimizedCDebugFlags
+++#  define OptimizedCDebugFlags	-O2
+++# endif
+++# define LinuxMachineDefines	-D__riscv64__
+++# define ServerOSDefines	XFree86ServerOSDefines
+++# define ServerExtraDefines	-DGCCUSESGAS XFree86ServerDefines -D_XSERVER64
+++#endif /* Riscv64Achitecture */
+++
++ #ifdef s390Architecture
++ # ifndef OptimizedCDebugFlags
++ #  define OptimizedCDebugFlags	-O2 -fomit-frame-pointer GccAliasingArgs
+diff --git 605a266911b50ababbb3f8a8b224efb42743379c.patch 605a266911b50ababbb3f8a8b224efb42743379c.patch
+new file mode 100644
+index 00000000..fb77a3ed
+--- /dev/null
++++ 605a266911b50ababbb3f8a8b224efb42743379c.patch
+@@ -0,0 +1,42 @@
++From 605a266911b50ababbb3f8a8b224efb42743379c Mon Sep 17 00:00:00 2001
++From: ponce <matteo.bernardini@gmail.com>
++Date: Mon, 5 Apr 2021 08:44:00 +0200
++Subject: [PATCH] fix building with binutils >= 2.36.
++
++The l option of ar in the newer binutils versions switched
++from being unused to being used to specify dependencies
++so here should be safely removed
++---
++ nx-X11/config/cf/Imake.tmpl | 12 ------------
++ 1 file changed, 12 deletions(-)
++
++diff --git a/nx-X11/config/cf/Imake.tmpl b/nx-X11/config/cf/Imake.tmpl
++index 25d985d75f..de1fca937e 100644
++--- a/nx-X11/config/cf/Imake.tmpl
+++++ b/nx-X11/config/cf/Imake.tmpl
++@@ -1015,25 +1015,13 @@ TCLIBDIR = TclLibDir
++ #define ArCmdBase ar
++ #endif
++ #ifndef ArCmd
++-#if HasLargeTmp || SystemV4
++ #define ArCmd ArCmdBase cq
++-#else
++-#define ArCmd ArCmdBase clq
++-#endif
++ #endif
++ #ifndef ArAddCmd
++-#if HasLargeTmp || SystemV4
++ #define ArAddCmd ArCmdBase ru
++-#else
++-#define ArAddCmd ArCmdBase rul
++-#endif
++ #endif
++ #ifndef ArExtCmd
++-#if HasLargeTmp || SystemV4
++ #define ArExtCmd ArCmdBase x
++-#else
++-#define ArExtCmd ArCmdBase xl
++-#endif
++ #endif
++ #ifndef BootstrapCFlags
++ #define BootstrapCFlags /**/
+diff --git PKGBUILD PKGBUILD
+index 8add2a34..3e0f96c9 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -2,7 +2,7 @@
+ 
+ pkgbase=nx
+ pkgname=('libxcomp' 'nxproxy' 'nx-x11' 'nxagent' 'nx-headers')
+-pkgver=3.5.99.22
++pkgver=3.5.99.26
+ pkgrel=1
+ arch=('x86_64')
+ #url="https://arctica-project.org"
+@@ -18,15 +18,18 @@ makedepends=(# runtime dependencies from subpackages
+              # make dependencies
+              'xorgproto' 'imake'
+ )
+-#source=(https://github.com/ArcticaProject/nx-libs/archive/$pkgver/nx-libs-$pkgver.tar.gz)
+-source=(https://code.x2go.org/releases/source/nx-libs/nx-libs-$pkgver-full.tar.gz{,.asc})
+-sha256sums=('fe8851d96c2eedfe5caf4d2c0de870e06546471605da8a3742cfbadaad44a65f'
+-            'SKIP')
+-validpgpkeys=('1AD23D1B8F087A35AB74BDE9F4A7678C9C6B0B2B' # X2go Git Administrator <git-admin@x2go.org>
+-              '9BFBAEE86C0AA5FFBF2207829AF46B3025771B31') # Mike Gabriel <mike.gabriel@das-netzwerkteam.de>
++source=(https://github.com/ArcticaProject/nx-libs/archive/$pkgver/nx-libs-$pkgver.tar.gz
++        1023.patch
++        605a266911b50ababbb3f8a8b224efb42743379c.patch)
++sha256sums=('3ce7ca4e6b57b3a2d7588b2d0f4009036d2566a8925ca2c62f08a8dc0df50357'
++            'b8ba8872a6647a73f84bebaa44b7f5a9b7f9b798ad05ac0966fb54f62f1cd275'
++            'e9c7c33aa10bf6ccb571e3157fd2666b5900308bec023a173db0bd3774672e07')
+ 
+ build() {
+   cd "${srcdir}/nx-libs-$pkgver"
++  # ref to https://github.com/ArcticaProject/nx-libs/pull/1023
++  patch -Np1 -i ../1023.patch
++  patch -Np1 -i ../605a266911b50ababbb3f8a8b224efb42743379c.patch
+   
+   # let makepkg zip the man files
+   sed -i "s:gzip:#gzip:g" Makefile
+@@ -95,7 +98,6 @@ package_nxagent() {
+   install -dm755 ${pkgdir}/usr/{bin,lib/nx/bin,share/nx,share/man/man1,share/pixmaps}
+   cp -a ${srcdir}/fakeinstall/usr/lib/nx/bin/nxagent ${pkgdir}/usr/lib/nx/bin
+   cp -a ${srcdir}/fakeinstall/usr/share/man/man1/nxagent.1 ${pkgdir}/usr/share/man/man1
+-  cp -a ${srcdir}/fakeinstall/usr/share/pixmaps/nxagent.xpm ${pkgdir}/usr/share/pixmaps
+ 
+   # the wrapper
+   cp -a ${srcdir}/fakeinstall/usr/bin/nxagent ${pkgdir}/usr/bin
