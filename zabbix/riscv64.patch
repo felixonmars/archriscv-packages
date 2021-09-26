@@ -1,0 +1,44 @@
+diff --git PKGBUILD PKGBUILD
+index fc18d03d..adbd9490 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,7 +13,8 @@ source=("https://cdn.zabbix.com/zabbix/sources/stable/${pkgver%.*}/zabbix-${pkgv
+         zabbix-agent.{service,sysusers,tmpfiles}
+         zabbix-agent2.service
+         zabbix-server{-mysql,-pgsql}.service zabbix-server.{sysusers,tmpfiles}
+-        zabbix-proxy{-sqlite,-mysql,-pgsql}.service zabbix-proxy.{sysusers,tmpfiles})
++        zabbix-proxy{-sqlite,-mysql,-pgsql}.service zabbix-proxy.{sysusers,tmpfiles}
++        plugins-system-uname-riscv64.patch)
+ 
+ sha512sums=('6b5b012bc0c53502d97bc260f7c7f0293edba194fb05c65b05c5b4084cd3f05b00ba5e1c1ead1e42be39d740dc5c617a001c2d459c8157c1cab7136fb0054883'
+             '8c1fa2676bc0ef91bc39ec5f97b4d3ba5c365d063420455a3785121a54e120bc5afeacde42a48f4509c115f940dcc3b6c2f43044a7fbfb421182fc93b22a2444'
+@@ -28,10 +29,12 @@ sha512sums=('6b5b012bc0c53502d97bc260f7c7f0293edba194fb05c65b05c5b4084cd3f05b00b
+             '94701f34fe5df4859c6a4d0459c16062374e8f89f4f51c414e71c9c2db14f61e087721e68dddb3e8d88bf1c097477c1a21e27ba4705fd07d88c60adb41acc1be'
+             'ce026b748df9b7597452a69c6cb04244a95bf99b00ea795d96d7d4ca5a68190af1b2dbf141dfd8e63bb4405131de81d8aa8a831ddde2595f1b859026b9fb0faa'
+             '7c1072a8cd5837095f857b50124cb45d1bdbddbce108f6f067a35c3c9ebb1ad0502ef617dfa10f9c843631220177a6286a97b1c2a46539200be72fa83cb23b99'
+-            '64042ddf511b56b2a5a311e34643f4e049c09d909ea65b7343a8a9637f33dc59f2b1342201290ca0774cbcbf616096b3696982047fb622b7d51afb5eceb298dd')
++            '64042ddf511b56b2a5a311e34643f4e049c09d909ea65b7343a8a9637f33dc59f2b1342201290ca0774cbcbf616096b3696982047fb622b7d51afb5eceb298dd'
++            '61ec561eab7781351d59e7224bf11d7df42e1a233b7c5ef668c92a99378b71c4cce6ae36248585f8bd0f1d02de59c08da5e7e413050749f09ec8241e269af3c3')
+ 
+ prepare() {
+   cd $pkgbase-$pkgver
++  patch -Np1 -i ../plugins-system-uname-riscv64.patch
+   sed -i \
+     -e '/^LogFile=.*/d' \
+     -e 's/# LogType=file/LogType=system/' \
+diff --git plugins-system-uname-riscv64.patch plugins-system-uname-riscv64.patch
+new file mode 100644
+index 00000000..76d5440f
+--- /dev/null
++++ plugins-system-uname-riscv64.patch
+@@ -0,0 +1,10 @@
++diff --git a/src/go/plugins/system/uname/uname_uint8.go b/src/go/plugins/system/uname/uname_uint8.go
++index 72d3c36..93bc5d4 100644
++--- a/src/go/plugins/system/uname/uname_uint8.go
+++++ b/src/go/plugins/system/uname/uname_uint8.go
++@@ -1,4 +1,4 @@
++-// +build linux,arm linux,ppc64le linux,s390x
+++// +build linux,arm linux,ppc64le linux,s390x,riscv64 linux
++
++ /*
++ ** Zabbix
