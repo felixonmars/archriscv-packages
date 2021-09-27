@@ -1,0 +1,53 @@
+diff --git PKGBUILD PKGBUILD
+index c0449cff..aceb923e 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -33,7 +33,9 @@ source=(https://ftp.mozilla.org/pub/mozilla.org/thunderbird/releases/$pkgver/sou
+         vendor-prefs.js
+         distribution.ini
+         mozconfig.cfg
+-        metainfo.patch)
++        metainfo.patch
++        cc-crate-riscv64-clang-support.patch
++        makotokato-riscv64-support-and-zenithal-backported.patch)
+ validpgpkeys=(
+   14F26682D0916CDD81E37B6D61B7B526D98F0353 # Mozilla Software Releases <release@mozilla.com>
+   4360FE2109C49763186F8E21EBE41E90F6F12F6D # Mozilla Software Releases <release@mozilla.com>
+@@ -218,8 +220,10 @@ sha512sums=('2da102f9ec42489fc785ccdabcc7fdbc826f2df5e8e76c65866a44a221e762f5964
+             'a0061fcb2a7f66061e336a8d95948592f56f4752e56467f14ba63846720ebf845cce7511d1a2637e3b80d5a1ffdaa2fb783fa37195103425ef65222d45372012'
+             '6918c0de63deeddc6f53b9ba331390556c12e0d649cf54587dfaabb98b32d6a597b63cf02809c7c58b15501720455a724d527375a8fb9d757ccca57460320734'
+             '5cd3ac4c94ef6dcce72fba02bc18b771a2f67906ff795e0e3d71ce7db6d8a41165bd5443908470915bdbdb98dddd9cf3f837c4ba3a36413f55ec570e6efdbb9f'
+-            '328422adac0cfe6af4ecdcd864004b7ada8f8171aa954fecc23a7e883e90a9bb0848372faa1100440dc754922f965e1e7b98c185aa88df190bff1051d2146c85'
++            'c9271c6a89c1037aa018d08695d0b41e6f0a2da3c731a40d372baa825c08b960fc95c8003a86fb0bc5155c953ae1740e510a1c270e3dd1e3c2a4b23f4b099b7e'
+             '7e43b1f25827ddae615ad43fc1e11c6ba439d6c2049477dfe60e00188a70c0a76160c59a97cc01d1fd99c476f261c7cecb57628b5be48874be7cf991c22db290'
++            'abdc9bb34b380840eb35ce2c79318a5dca8e6c842ee9df35c4ba85c4e78cf389193bf91c3c4e03d5582863ffde5a372ef7061d80ed45e7ed4aa686e7a0af8598'
++            '5696f675d7313f9abfa62237f44562a3c0ecb644076937180356b5aa6f0eb615f895aa26db71e9f7de00b9aa9e0424f79e4f208bce44c269cf63967856eac186'
+             'b8bc00b0bf4a7564d8f59c6aa582f46f1d57949d7fb2a91e3ca22d72e554a45d50e8cf41c082af03d846beac0f9bd8fe4c3d762b9ae518bc4a13b3e0568c9482'
+             '6aa0ea929993a3ce88a78415c78fd5a76ac10f1e57ad1ecd629103d2f22ef32aab4bc77c1354ce9b9752e64305f7ef5725dfc3c82d82a4de464a9fbb1da09855'
+             '330f3ab1104ed8eaa356436d9a0e16e9313e48393ed6ec3109da7ce1ee7bedbe47d251d71288f8a5f69ea991d01f97a445391c6711798562ec69fde66557deb2'
+diff --git mozconfig.cfg mozconfig.cfg
+index e19e3cf2..066b231f 100644
+--- mozconfig.cfg
++++ mozconfig.cfg
+@@ -1,13 +1,18 @@
+ ac_add_options --enable-application=comm/mail
+ 
+ ac_add_options --prefix=/usr
+-ac_add_options --enable-release
+-ac_add_options --enable-linker=gold
++# enable-release incurs rustc to segfault when compiling neqo-transport
++ac_add_options --disable-release
++# can not use gold as linker
++ac_add_options --enable-linker=bfd
+ ac_add_options --enable-hardening
+ ac_add_options --enable-optimize
+ ac_add_options --enable-rust-simd
+ # https://bugzilla.mozilla.org/show_bug.cgi?id=1423822
+-ac_add_options --disable-elf-hack
++
++ac_add_options --disable-bootstrap
++ac_add_options --disable-jit
++ac_add_options --disable-debug
+ 
+ # Branding
+ ac_add_options --enable-official-branding
