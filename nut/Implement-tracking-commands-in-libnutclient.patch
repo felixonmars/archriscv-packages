@@ -1,0 +1,432 @@
+commit 92111a9be0d6a6e2c7b4ae6b543dd3d1a59e6c6c
+Author: Jean-Baptiste Boric <boricj@users.noreply.github.com>
+Date:   Mon Mar 11 18:23:13 2019 +0100
+
+    Implement tracking commands in libnutclient (#673)
+    
+    * Implement tracking commands in libnutclient
+    
+    Signed-off-by: Jean-Baptiste Boric <Jean-BaptisteBORIC@Eaton.com>
+    
+    * Add TrackingResult::INVALID_ARGUMENT
+    
+    Signed-off-by: Jean-Baptiste Boric <Jean-BaptisteBORIC@Eaton.com>
+
+diff --git a/clients/nutclient.cpp b/clients/nutclient.cpp
+index 8304473c..db26e26c 100644
+--- a/clients/nutclient.cpp
++++ b/clients/nutclient.cpp
+@@ -400,6 +400,8 @@ void Socket::write(const std::string& str)throw(nut::IOException)
+  *
+  */
+ 
++const Feature Client::TRACKING = "TRACKING";
++
+ Client::Client()
+ {
+ }
+@@ -461,6 +463,19 @@ bool Client::hasDeviceCommand(const std::string& dev, const std::string& name)th
+   return names.find(name) != names.end();
+ }
+ 
++bool Client::hasFeature(const Feature& feature)throw(NutException)
++{
++	try
++	{
++		// If feature is known, querying it won't throw an exception.
++		isFeatureEnabled(feature);
++		return true;
++	}
++	catch(...)
++	{
++		return false;
++	}
++}
+ 
+ /*
+  *
+@@ -634,20 +649,61 @@ std::map<std::string,std::vector<std::string> > TcpClient::getDeviceVariableValu
+ 	return map;
+ }
+ 
+-void TcpClient::setDeviceVariable(const std::string& dev, const std::string& name, const std::string& value)throw(NutException)
++std::map<std::string,std::map<std::string,std::vector<std::string> > > TcpClient::getDevicesVariableValues(const std::set<std::string>& devs)throw(NutException)
++{
++	std::map<std::string,std::map<std::string,std::vector<std::string> > > map;
++
++	std::vector<std::string> queries;
++	for (std::set<std::string>::const_iterator it=devs.cbegin(); it!=devs.cend(); ++it)
++	{
++		queries.push_back("LIST VAR " + *it);
++	}
++	sendAsyncQueries(queries);
++
++	for (std::set<std::string>::const_iterator it=devs.cbegin(); it!=devs.cend(); ++it)
++	{
++		try
++		{
++			std::map<std::string,std::vector<std::string> > map2;
++			std::vector<std::vector<std::string> > res = parseList("VAR " + *it);
++			for (std::vector<std::vector<std::string> >::iterator it2=res.begin(); it2!=res.end(); ++it2)
++			{
++				std::vector<std::string>& vals = *it2;
++				std::string var = vals[0];
++				vals.erase(vals.begin()),
++				map2[var] = vals;
++			}
++			map[*it] = map2;
++		}
++		catch (NutException&)
++		{
++			// We sent a bunch of queries, we need to process them all to clear up the backlog.
++		}
++	}
++
++	if (map.empty())
++	{
++		// We may fail on some devices, but not on ALL devices.
++		throw NutException("Invalid device");
++	}
++
++	return map;
++}
++
++TrackingID TcpClient::setDeviceVariable(const std::string& dev, const std::string& name, const std::string& value)throw(NutException)
+ {
+ 	std::string query = "SET VAR " + dev + " " + name + " " + escape(value);
+-	detectError(sendQuery(query));
++	return sendTrackingQuery(query);
+ }
+ 
+-void TcpClient::setDeviceVariable(const std::string& dev, const std::string& name, const std::vector<std::string>& values)throw(NutException)
++TrackingID TcpClient::setDeviceVariable(const std::string& dev, const std::string& name, const std::vector<std::string>& values)throw(NutException)
+ {
+ 	std::string query = "SET VAR " + dev + " " + name;
+ 	for(size_t n=0; n<values.size(); ++n)
+ 	{
+ 		query += " " + escape(values[n]);
+ 	}
+-	detectError(sendQuery(query));
++	return sendTrackingQuery(query);
+ }
+ 
+ std::set<std::string> TcpClient::getDeviceCommandNames(const std::string& dev)throw(NutException)
+@@ -668,9 +724,9 @@ std::string TcpClient::getDeviceCommandDescription(const std::string& dev, const
+ 	return get("CMDDESC", dev + " " + name)[0];
+ }
+ 
+-void TcpClient::executeDeviceCommand(const std::string& dev, const std::string& name)throw(NutException)
++TrackingID TcpClient::executeDeviceCommand(const std::string& dev, const std::string& name, const std::string& param)throw(NutException)
+ {
+-	detectError(sendQuery("INSTCMD " + dev + " " + name));
++	return sendTrackingQuery("INSTCMD " + dev + " " + name + " " + param);
+ }
+ 
+ void TcpClient::deviceLogin(const std::string& dev)throw(NutException)
+@@ -694,6 +750,60 @@ int TcpClient::deviceGetNumLogins(const std::string& dev)throw(NutException)
+ 	return atoi(num.c_str());
+ }
+ 
++TrackingResult TcpClient::getTrackingResult(const TrackingID& id)throw(NutException)
++{
++	if (id.empty())
++	{
++		return TrackingResult::SUCCESS;
++	}
++
++	std::string result = sendQuery("GET TRACKING " + id);
++
++	if (result == "PENDING")
++	{
++		return TrackingResult::PENDING;
++	}
++	else if (result == "SUCCESS")
++	{
++		return TrackingResult::SUCCESS;
++	}
++	else if (result == "ERR UNKNOWN")
++	{
++		return TrackingResult::UNKNOWN;
++	}
++	else if (result == "ERR INVALID-ARGUMENT")
++	{
++		return TrackingResult::INVALID_ARGUMENT;
++	}
++	else
++	{
++		return TrackingResult::FAILURE;
++	}
++}
++
++bool TcpClient::isFeatureEnabled(const Feature& feature)throw(NutException)
++{
++	std::string result = sendQuery("GET " + feature);
++	detectError(result);
++
++	if (result == "ON")
++	{
++		return true;
++	}
++	else if (result == "OFF")
++	{
++		return false;
++	}
++	else
++	{
++		throw NutException("Unknown feature result " + result);
++	}
++}
++void TcpClient::setFeature(const Feature& feature, bool status)throw(NutException)
++{
++	std::string result = sendQuery("SET " + feature + " " + (status ? "ON" : "OFF"));
++	detectError(result);
++}
+ 
+ std::vector<std::string> TcpClient::get
+ 	(const std::string& subcmd, const std::string& params) throw(NutException)
+@@ -892,6 +1002,26 @@ std::string TcpClient::escape(const std::string& str)
+ 	return res; 
+ }
+ 
++TrackingID TcpClient::sendTrackingQuery(const std::string& req)throw(NutException)
++{
++	std::string reply = sendQuery(req);
++	detectError(reply);
++	std::vector<std::string> res = explode(reply);
++
++	if (res.size() == 1 && res[0] == "OK")
++	{
++		return TrackingID("");
++	}
++	else if (res.size() == 3 && res[0] == "OK" && res[1] == "TRACKING")
++	{
++		return TrackingID(res[2]);
++	}
++	else
++	{
++		throw NutException("Unknown query result");
++	}
++}
++
+ /*
+  *
+  * Device implementation
+@@ -1054,9 +1184,10 @@ Command Device::getCommand(const std::string& name)throw(NutException)
+     return Command(NULL, "");
+ }
+ 
+-void Device::executeCommand(const std::string& name)throw(NutException)
++TrackingID Device::executeCommand(const std::string& name, const std::string& param)throw(NutException)
+ {
+-  getClient()->executeDeviceCommand(getName(), name);
++  if (!isOk()) throw NutException("Invalid device");
++  return getClient()->executeDeviceCommand(getName(), name, param);
+ }
+ 
+ void Device::login()throw(NutException)
+diff --git a/clients/nutclient.h b/clients/nutclient.h
+index ed2ea44b..c1db1896 100644
+--- a/clients/nutclient.h
++++ b/clients/nutclient.h
+@@ -111,6 +111,25 @@ public:
+ 	virtual ~TimeoutException() throw() {}
+ };
+ 
++/**
++ * Cookie given when performing async action, used to redeem result at a later date.
++ */
++typedef std::string TrackingID;
++
++/**
++ * Result of an async action.
++ */
++typedef enum
++{
++	UNKNOWN,
++	PENDING,
++	SUCCESS,
++	INVALID_ARGUMENT,
++	FAILURE,
++} TrackingResult;
++
++typedef std::string Feature;
++
+ /**
+  * A nut client is the starting point to dialog to NUTD.
+  * It can connect to an NUTD then retrieve its device list.
+@@ -226,14 +245,14 @@ public:
+ 	 * \param name Variable name
+ 	 * \param value Variable value
+ 	 */  
+-	virtual void setDeviceVariable(const std::string& dev, const std::string& name, const std::string& value)throw(NutException)=0;
++	virtual TrackingID setDeviceVariable(const std::string& dev, const std::string& name, const std::string& value)throw(NutException)=0;
+ 	/**
+ 	 * Intend to set the value of a variable.
+ 	 * \param dev Device name
+ 	 * \param name Variable name
+ 	 * \param value Variable value
+ 	 */  
+-	virtual void setDeviceVariable(const std::string& dev, const std::string& name, const std::vector<std::string>& values)throw(NutException)=0;
++	virtual TrackingID setDeviceVariable(const std::string& dev, const std::string& name, const std::vector<std::string>& values)throw(NutException)=0;
+ 	/** \} */
+ 
+ 	/**
+@@ -266,7 +285,7 @@ public:
+ 	 * \param dev Device name
+ 	 * \param name Command name
+ 	 */
+-	virtual void executeDeviceCommand(const std::string& dev, const std::string& name)throw(NutException)=0;
++	virtual TrackingID executeDeviceCommand(const std::string& dev, const std::string& name, const std::string& param="")throw(NutException)=0;
+ 	/** \} */
+ 
+ 	/**
+@@ -287,6 +306,18 @@ public:
+ 	virtual void deviceMaster(const std::string& dev)throw(NutException)=0;
+ 	virtual void deviceForcedShutdown(const std::string& dev)throw(NutException)=0;
+ 
++	/**
++	 * Retrieve the result of a tracking ID.
++	 * \param id Tracking ID.
++	 */
++	virtual TrackingResult getTrackingResult(const TrackingID& id)throw(NutException)=0;
++
++	virtual bool hasFeature(const Feature& feature)throw(NutException);
++	virtual bool isFeatureEnabled(const Feature& feature)throw(NutException)=0;
++	virtual void setFeature(const Feature& feature, bool status)throw(NutException)=0;
++
++	static const Feature TRACKING;
++
+ protected:
+ 	Client();
+ };
+@@ -370,21 +401,28 @@ public:
+ 	virtual std::string getDeviceVariableDescription(const std::string& dev, const std::string& name)throw(NutException);
+ 	virtual std::vector<std::string> getDeviceVariableValue(const std::string& dev, const std::string& name)throw(NutException);
+ 	virtual std::map<std::string,std::vector<std::string> > getDeviceVariableValues(const std::string& dev)throw(NutException);
+-	virtual void setDeviceVariable(const std::string& dev, const std::string& name, const std::string& value)throw(NutException);
+-	virtual void setDeviceVariable(const std::string& dev, const std::string& name, const std::vector<std::string>& values)throw(NutException);
++	virtual std::map<std::string,std::map<std::string,std::vector<std::string> > > getDevicesVariableValues(const std::set<std::string>& devs)throw(NutException);
++	virtual TrackingID setDeviceVariable(const std::string& dev, const std::string& name, const std::string& value)throw(NutException);
++	virtual TrackingID setDeviceVariable(const std::string& dev, const std::string& name, const std::vector<std::string>& values)throw(NutException);
+ 
+ 	virtual std::set<std::string> getDeviceCommandNames(const std::string& dev)throw(NutException);
+ 	virtual std::string getDeviceCommandDescription(const std::string& dev, const std::string& name)throw(NutException);
+-	virtual void executeDeviceCommand(const std::string& dev, const std::string& name)throw(NutException);
++	virtual TrackingID executeDeviceCommand(const std::string& dev, const std::string& name, const std::string& param="")throw(NutException);
+ 
+  	virtual void deviceLogin(const std::string& dev)throw(NutException);
+ 	virtual void deviceMaster(const std::string& dev)throw(NutException);
+ 	virtual void deviceForcedShutdown(const std::string& dev)throw(NutException);
+ 	virtual int deviceGetNumLogins(const std::string& dev)throw(NutException);
+ 
++	virtual TrackingResult getTrackingResult(const TrackingID& id)throw(NutException);
++
++	virtual bool isFeatureEnabled(const Feature& feature)throw(NutException);
++	virtual void setFeature(const Feature& feature, bool status)throw(NutException);
++
+ protected:
+ 	std::string sendQuery(const std::string& req)throw(nut::IOException);
+ 	static void detectError(const std::string& req)throw(nut::NutException);
++	TrackingID sendTrackingQuery(const std::string& req)throw(nut::NutException);
+ 
+ 	std::vector<std::string> get(const std::string& subcmd, const std::string& params = "")
+ 		throw(nut::NutException);
+@@ -528,7 +566,7 @@ public:
+ 	 * Intend to execute a command on the device.
+ 	 * \param name Command name.
+ 	 */
+-	void executeCommand(const std::string& name)throw(NutException);
++	TrackingID executeCommand(const std::string& name, const std::string& param="")throw(NutException);
+ 
+ 	/**
+ 	 * Login current client's user for the device.
+diff --git a/docs/new-clients.txt b/docs/new-clients.txt
+index 7b41364c..8fa9aaf1 100644
+--- a/docs/new-clients.txt
++++ b/docs/new-clients.txt
+@@ -52,27 +52,78 @@ and commands with an object-oriented API in C++ and C.
+ For more information, refer to the linkman:libnutclient[3] manual page.
+ 
+   #include <iostream>
++  #include <unistd.h>
++  #include <stdlib.h>
++  
+   #include <nutclient.h>
++  
+   using namespace nut;
+   using namespace std;
+   
+-  int main(int argc, char** argv)
++  int main(int argc, char **argv)
+   {
++    Client *client;
+     try
+     {
+       // Connection
+-      Client* client = new TcpClient("localhost", 3493);
+-      Device mydev = client->getDevice("myups");
+-      cout << mydev.getDescription() << endl;
+-      Variable var = mydev.getVariable("device.model");
+-      cout << var.getValue()[0] << endl;
++      client = new TcpClient("localhost", 3493);
++  
++      if (argc >= 2)
++      {
++        // Reading data from device
++        Device mydev = client->getDevice(argv[1]);
++        cout << "Description: " << mydev.getDescription() << endl;
++        Variable var = mydev.getVariable("device.model");
++        cout << "Model: " <<  var.getValue()[0] << endl;
++  
++        if (argc >= 3)
++        {
++          // Authenticate to NUT server
++          const char *user = getenv("NUT_USER");
++          const char *password = getenv("NUT_PASSWD");
++          client->authenticate(user ? user : "", password ? password : "");
++  
++          // Enable command tracking, if available
++          if (client->hasFeature(Client::TRACKING))
++          {
++            cout << "Server can do command tracking" << std::endl;
++            client->setFeature(Client::TRACKING, true);
++          }
++          else
++          {
++            std::cout << "Server can't do command tracking" << std::endl;
++          }
++  
++          // Perform an asynchronous command
++          TrackingID id = mydev.executeCommand(argv[2]);
++          TrackingResult result;
++          do
++          {
++            sleep(1);
++            result = client->getTrackingResult(id);
++          }
++          while (result == PENDING);
++  
++          // Display result of command
++          const char *output = "<UNRECOGNIZED>";
++          switch (result)
++          {
++            case SUCCESS: output = "SUCCESS"; break;
++            case FAILURE: output = "FAILURE"; break;
++            case UNKNOWN: output = "UNKNOWN"; break;
++          }
++          cout << "Command sent, result=" << output << endl;
++        }
++      }
+     }
+-    catch(NutException& ex)
++    catch (NutException &ex)
+     {
+       cerr << "Unexpected problem : " << ex.str() << endl;
+     }
++    delete client;
+     return 0;
+   }
++  
+ 
+ Configuration helpers
+ ~~~~~~~~~~~~~~~~~~~~~
