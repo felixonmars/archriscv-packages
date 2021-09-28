@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index 5e0be2a..e827413 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,15 +15,18 @@ provides=('ykpers')
+ conflicts=('ykpers')
+ validpgpkeys=('0A3B0262BCA1705307D5FF06BCA00FD4B2168C0A') # Klas Lindfors <klas@yubico.com>
+ source=("https://developers.yubico.com/${pkgname}/Releases/${_shortname}-${pkgver}.tar.gz"{,.sig}
+-        '0001-fix-boolean-value-with-json-c-0.14.patch')
++        '0001-fix-boolean-value-with-json-c-0.14.patch'
++        "https://gitweb.gentoo.org/repo/gentoo.git/plain/sys-auth/ykpers/files/ykpers-1.20.0-fix-gcc10-fno-common.patch")
+ sha256sums=('0ec84d0ea862f45a7d85a1a3afe5e60b8da42df211bb7d27a50f486e31a79b93'
+             'SKIP'
+-            'f9b434e9570ce7d0192182aab979f767238b704f12645546e567db841bb7b5e2')
++            'f9b434e9570ce7d0192182aab979f767238b704f12645546e567db841bb7b5e2'
++            '8ae31623531e5fe6f10b884ffaae17798282da39718139765fcd0e772c527358')
+ 
+ prepare() {
+ 	cd "${_shortname}-${pkgver}"
+ 
+ 	patch -Np1 < ../0001-fix-boolean-value-with-json-c-0.14.patch
++	patch -Np1 < ../ykpers-1.20.0-fix-gcc10-fno-common.patch
+ }
+ 
+ build() {
+@@ -48,4 +51,3 @@ package() {
+ 	install -D -m0644 README "${pkgdir}/usr/share/doc/yubikey-personalization/README"
+ 	make DESTDIR="${pkgdir}/" install
+ }
+-
