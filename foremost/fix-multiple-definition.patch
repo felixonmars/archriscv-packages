@@ -1,0 +1,81 @@
+diff --color -Naur foremost-1.5.7-original/api.c foremost-1.5.7/api.c
+--- foremost-1.5.7-original/api.c	2010-03-02 10:49:30.000000000 +0800
++++ foremost-1.5.7/api.c	2021-09-30 18:31:29.594049532 +0800
+@@ -21,6 +21,8 @@
+ int				block_list[OUR_BLK_SIZE / sizeof(int)];
+ extern int		errno;
+ 
++struct DIRECTORY *dirlist, *dl;
++
+ /*Inititialize those globals used by extract_ole*/
+ void init_ole()
+ {
+diff --color -Naur foremost-1.5.7-original/main.c foremost-1.5.7/main.c
+--- foremost-1.5.7-original/main.c	2010-03-02 10:49:30.000000000 +0800
++++ foremost-1.5.7/main.c	2021-09-30 18:26:06.192968344 +0800
+@@ -23,6 +23,12 @@
+ int _CRT_fmode = _O_BINARY;
+ #endif
+ 
++char wildcard;
++
++s_spec search_spec[50];
++
++int signal_caught;
++
+ void catch_alarm(int signum)
+ {
+ 	signal_caught = signum;
+diff --color -Naur foremost-1.5.7-original/main.h foremost-1.5.7/main.h
+--- foremost-1.5.7-original/main.h	2010-03-02 10:49:30.000000000 +0800
++++ foremost-1.5.7/main.h	2021-09-30 18:26:00.439609782 +0800
+@@ -256,7 +256,7 @@
+ #define REG 28
+ #define DOCX 29
+ #define XLSX 30
+-#define PPTX 31
++#define PPTX 31
+ #define MP4 32
+ 
+ 
+@@ -292,7 +292,7 @@
+ /* -----------------------------------------------------------------
+    State Variable and Global Variables
+    ----------------------------------------------------------------- */
+-char wildcard;
++extern char wildcard;
+ typedef struct f_state 
+ {
+   off_t mode;
+@@ -344,7 +344,7 @@
+     int written; /*used for -a mode*/
+ }s_spec;
+ 
+-s_spec search_spec[50];  /*ARRAY OF BUILTIN SEARCH TYPES*/
++extern s_spec search_spec[50];  /*ARRAY OF BUILTIN SEARCH TYPES*/
+ 
+ typedef struct f_info {
+   char *file_name;
+@@ -367,7 +367,7 @@
+ } f_info;
+ 
+ /* Set if the user hits ctrl-c */
+-int signal_caught;
++extern int signal_caught;
+ 
+ /* -----------------------------------------------------------------
+    Function definitions
+diff --color -Naur foremost-1.5.7-original/ole.h foremost-1.5.7/ole.h
+--- foremost-1.5.7-original/ole.h	2010-03-02 10:49:30.000000000 +0800
++++ foremost-1.5.7/ole.h	2021-09-30 18:31:24.814037454 +0800
+@@ -84,8 +84,8 @@
+ 	int		s2;
+ 	int		d1;
+ 	int		d2;
+-}
+-*dirlist, *dl;
++};
++extern struct DIRECTORY *dirlist, *dl;
+ 
+ int				get_dir_block(unsigned char *fd, int blknum, int buffersize);
+ int				get_dir_info(unsigned char *src);
