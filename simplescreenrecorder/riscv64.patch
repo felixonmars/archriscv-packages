@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index fe7dfe9..24633af 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,8 +14,10 @@ depends=("qt5-base" "qt5-x11extras"
+     "desktop-file-utils" "gtk-update-icon-cache")
+ optdepends=("lib32-simplescreenrecorder: OpenGL recording of 32-bit applications")
+ makedepends=("git" "cmake" "qt5-tools")
+-source=("git+https://github.com/MaartenBaert/ssr.git#tag=$pkgver")
+-md5sums=("SKIP")
++source=("git+https://github.com/MaartenBaert/ssr.git#tag=$pkgver"
++        "fix-elf-macro.patch")
++md5sums=('SKIP'
++         'e3c92c0a8cdacd49a4625e2bfe502cd4')
+ 
+ install=simplescreenrecorder.install
+ 
+@@ -25,7 +27,10 @@ prepare() {
+ }
+ 
+ build() {
+-  cd ssr/build
++  cd ssr
++  patch -Np1 < ../fix-elf-macro.patch
++
++  cd build
+   # fPIC is only required for qt5 + gcc5
+   #CXXFLAGS="$CXXFLAGS -fPIC"
+   #./configure --prefix=/usr --disable-assert --with-qt5
