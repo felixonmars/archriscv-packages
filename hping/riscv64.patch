@@ -1,0 +1,46 @@
+diff --git PKGBUILD PKGBUILD
+index 8a7a93f..6a28f61 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,21 +11,37 @@ license=('GPL2' 'BSD')
+ depends=('libpcap')
+ source=("http://www.hping.org/hping3-20051105.tar.gz"
+         'Makefile.patch'
+-        'bytesex.h.patch')
++        'bytesex.h.patch'
++        'bytesex.h.rv64.patch'
++        'bpf.patch'
++        'fix-delaytable-multidefinition.patch')
+ md5sums=('ca4ea4e34bcc2162aedf25df8b2d1747'
+          '339a38f86169d1b9344287a85201afbe'
+-         '8af8e336819df1447b0c1b879a704be9')
++         '8af8e336819df1447b0c1b879a704be9'
++         '2075a3e030ccca5e2af5111a03913b6d'
++         '9b0f9328bd4f172c51ef7c9f9b536955'
++         'eccd8249d3d74f32f375daab529c39d0')
+ sha256sums=('f5a671a62a11dc8114fa98eade19542ed1c3aa3c832b0e572ca0eb1a5a4faee8'
+             'd50891759baca0e7934a11f77a15e1b7694f7ac0445151408221e43ba0a2097e'
+-            'e994c326fc85928b6cde34eebf3c21fe6597ca3e7fd1d772d629949ddb20bf68')
++            'e994c326fc85928b6cde34eebf3c21fe6597ca3e7fd1d772d629949ddb20bf68'
++            '67f253bf19645f3e7d68b7ac14197edf33326d1e3350f272a8aeebbb054e0595'
++            '4690d376fa4cfba6dd7445a6fd39d22379be5bc4cf2389cbbe1275079a70bb63'
++            'b2ace47f573087f0ce298d5a2647d647275bca23fcfd75944d6e58f95d900479')
+ b2sums=('b99b7d2310e1706926ec5c649cd03a8889e3cff36f2a8e1f899799ddb1f4e6e432ab2b83c82b741ab827f715dbf8649a94831e75ef22793c7730e80d49c576c1'
+         'af5a102935f09ceb3bc81e21172872440ed3df65e90bb7b3078c979c7a865ac388572ea01ce7d09af068b74825bf8c821cbbdb5f083590077d8fecaf9169b14d'
+-        '3b2ebd1516e53ef05c73f9c228df179d6bfbc0134cf1d89e638e060324dcf289d23788a7d702098e5a85d4b66a49b82d16f8086f7c976d9bad3f5be3203de92c')
++        '3b2ebd1516e53ef05c73f9c228df179d6bfbc0134cf1d89e638e060324dcf289d23788a7d702098e5a85d4b66a49b82d16f8086f7c976d9bad3f5be3203de92c'
++        '942d1c00b13c9b34a789cabb1f55566157f29ae0f439025245ffe85e883c8441d6f4a07df9d5a056f1593bd892930dbcb850944c60cf243995e1687fd055824e'
++        '0c8c85c3480fd27afa8d538ddbb2f13f577d40c349aedfa8ebd242c123be7ccfbd3cba225629c33bcf20b0830945077afe3d9474f31d4930f8e4a6d0cb6342f6'
++        '2e861ecc7e63d6e5dae9d006dc0d2459add0c483517fb953b51dccc6e9eb1ebc9864837d008d163ba690295d08b948292e3049b0d1fbed0cd6937d741b1b19dd')
+
+ build() {
+   cd "${srcdir}/hping3-20051105"
+
+   [[ "$CARCH" == "x86_64" ]] && patch -Np1 -i ../bytesex.h.patch
++  [[ "$CARCH" == "riscv64" ]] && patch -Np1 -i ../bytesex.h.rv64.patch
++
++  patch -Np1 -i ../bpf.patch
++  patch -Np1 -i ../fix-delaytable-multidefinition.patch
+
+   MANPATH=/usr/share/man ./configure --no-tcl
+   make
