@@ -1,12 +1,27 @@
 diff --git PKGBUILD PKGBUILD
-index 568d2ac..b7d705f 100644
+index 568d2ac..532bfc9 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,6 +37,7 @@ build() {
+@@ -20,17 +20,20 @@ install=haproxy.install
+ source=(https://www.haproxy.org/download/${pkgver%.*}/src/haproxy-$pkgver.tar.gz
+         haproxy.cfg
+         haproxy.sysusers
+-        0001-Use-CFLAGS-and-LDFLAGS-when-building-admin.patch)
++        0001-Use-CFLAGS-and-LDFLAGS-when-building-admin.patch
++        0002-Fix-pthread.patch)
+ 
+ sha256sums=('116b7329cebee5dab8ba47ad70feeabd0c91680d9ef68c28e41c34869920d1fe'
+             'e88edeb2fe23508565e46ff485c93cfb7c2e9c64f231538452ec7ecd7ec37a42'
+             'b02b4088205039f0979aef0ef3e22957f493dd54eabefaee7011f2d795303b3e'
+-            '8cdbb8be7a712f7b2c7f4823a96d2d2926d96b57632e9669069354d7f2df9fd2')
++            '8cdbb8be7a712f7b2c7f4823a96d2d2926d96b57632e9669069354d7f2df9fd2'
++            '4548dd6324b886aae56d178113fad4fcaf914f7754b03f4c294177d09517cfaa')
+ 
+ prepare() {
    cd haproxy-$pkgver
  
-   export CFLAGS="$CFLAGS -fwrapv"
-+  export LDFLAGS="$LDFLAGS -latomic"
+   patch -p1 <"$srcdir"/0001-Use-CFLAGS-and-LDFLAGS-when-building-admin.patch
++  patch -p1 <"$srcdir"/0002-Fix-pthread.patch
+ }
  
-   make \
-     CFLAGS="$CFLAGS" \
+ build() {
