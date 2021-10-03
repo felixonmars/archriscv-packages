@@ -1,0 +1,2297 @@
+diff --git a/castget.1.ronn b/castget.1.ronn
+index 148472d..8d8d07e 100644
+--- a/castget.1.ronn
++++ b/castget.1.ronn
+@@ -117,7 +117,7 @@ Marius L. Jøhndal, Jick Nan.
+ 
+ ## COPYRIGHT
+ 
+-Castget is Copyright (C) 2005-2019 Marius L. Jøhndal.
++Castget is Copyright (C) 2005-2021 Marius L. Jøhndal.
+ 
+ Castget is Copyright (C) 2007 Jick Nan.
+ 
+diff --git a/castgetrc.5.ronn b/castgetrc.5.ronn
+index 0869785..952b161 100644
+--- a/castgetrc.5.ronn
++++ b/castgetrc.5.ronn
+@@ -28,6 +28,8 @@ processing the channel. The channel definition
+ for example, instructs `castget` to use `/home/joe/podcasts` as a download
+ directory when processing the channel `fooc`.
+ 
++Directory names and filenames with spaces do not need to be quoted or escaped.
++
+ ## KEYS
+ 
+   * `url`:
+@@ -42,26 +44,20 @@ directory when processing the channel `fooc`.
+   * `filter`:
+     Restrict operation to enclosures whose URLs match this regular expression.
+ 
+-  * `id3leadartist`:
+-    Add or overwrite the `lead artist' (TPE1) ID3v2 tag in enclosures that support this.
+-
+-  * `id3contentgroup`:
+-    Add or overwrite the `content group' (TIT1) ID3v2 tag in enclosures that support this.
+-
+-  * `id3title`:
+-    Add or overwrite the `title' (TIT2) ID3v2 tag in enclosures that support this.
++  * `title_tag`:
++    Add or set the title tag in the media file (e.g. `title' (TIT2) in ID3v2).
+ 
+-  * `id3album`:
+-    Add or overwrite the `album' (TALB) ID3v2 tag in enclosures that support this.
++  * `album_tag`:
++    Add or set the album tag in the media file (e.g. `album' (TALB) in ID3v2).
+ 
+-  * `id3contenttype`:
+-    Add or overwrite the `content type' (TCON) ID3v2 tag in enclosures that support this.
++  * `genre_tag`:
++    Add or set the genre tag in the media file (e.g. `content type' (TCON) in ID3v2).
+ 
+-  * `id3year`:
+-    Add or overwrite the `year' (TYER) ID3v2 tag in enclosures that support this.
++  * `year_tag`:
++    Add or set the year tag in the media file (e.g. `year' (TYER) in ID3v2).
+ 
+-  * `id3comment`:
+-    Add or overwrite the `comment' (COMM) ID3v2 tag in enclosures that support this.
++  * `comment_tag`:
++    Add or set the comment tag in the media file (e.g. `comment' (COMM) in ID3v2).
+ 
+   * `filename`:
+     Save downloads using the given filename pattern instead of deriving it from the URL of the enclosure. See FILENAME PATTERNS.
+@@ -72,10 +68,10 @@ A channel definition with the channel identifier `*` will define a global
+ configuration affecting all channels. The global configuration
+ 
+     [*]
+-    id3contenttype=Podcast
++    genre_tag=Podcast
+ 
+ for example, is equivalent to adding the key-value pair
+-`id3contenttype=Podcast` to all other channel definitions.
++`genre_tag=Podcast` to all other channel definitions.
+ 
+ Key-value pairs in channel definitions override the global configuration.
+ 
+diff --git a/castgetrc.example b/castgetrc.example
+index 691aa6a..61e440e 100644
+--- a/castgetrc.example
++++ b/castgetrc.example
+@@ -6,46 +6,55 @@
+ # Global settings.
+ #
+ 
+-# This will set the ID3 tag "content type" to "Podcast"
+-# and use the directory /home/tom/podcasts for downloading
+-# enclosures.
++# This sets the default genre tag to "Podcast" and the default
++# download directory to /home/tom/podcasts. These settings can be
++# overriden per channel.
+ [*]
+-id3contenttype=Podcast
++genre=Podcast
+ spool=/home/tom/podcasts
+ 
+ #
+ # Per-channel settings.
+ #
+ 
+-# This will define a channel with the identifier "dsc", set the RSS
+-# feed URL for the channel, override the download directory defined
+-# in the global settings section, and append file names of downloaded
+-# enclosures to /home/tom/podcasts.m3u.
++# This defines a channel "dsc", sets the feed URL and overrides the
++# download directory.
+ [dsc]
+ url=http://radio.weblogs.com/0001014/categories/dailySourceCode/rss.xml
+ spool=/home/tom/podcasts/dsc
+-playlist=/home/tom/podcasts.m3u
+-
+-# This will define a channel with the identifier "yeast", set the RSS
+-# feed URL for the channel, and set several ID3 tags.
+-[yeast]
+-url=http://feeds.feedburner.com/YeastRadio
+-id3album=Yeast Radio
+-id3leadartist=Madge Weinstein
+-id3comment=
+-id3title=Yeast Radio
+-id3year=2005
+-
+-# castget will by default download files using the original filename in the RSS
+-# feed. This does not always work, e.g. if the RSS feed uses the same filename
+-# for all files or if they include broken filenames, or you may prefer your own
+-# way of naming downloads.
+-#
+-# The following configures the channel with filename patterns so that downloads
+-# use the date and title from the RSS as filenames. See castgetrc(5) for
+-# a list of supported patterns.
++
++# Spaces in values (including filenames) do not require quotation marks
++# or escaping.
++[hollywoodbabbleon]
++url=http://feeds.feedburner.com/HollywoodBabbleOnPod
++spool=/Users/joe/My Podcasts
++
++# Use keys like "album_tag" to set tags in media files.
++[newsquizextra]
++url=http://podcasts.files.bbci.co.uk/b010m2mj.rss
++album_tag=BBC News Quiz Extra
++
++# Setting a tag to an empty string will clear the tag. Tags that are
++# not set to any specific value in the channel configuration will
++# be left the way they are.
++[freakonomics]
++url=http://feeds.feedburner.com/freakonomicsradio
++comment_tag=
++
++# castget will by default use the filnames that appear in the RSS feed.
++# This does not work if, for example, the RSS feed uses the same filename
++# for all files. You can use "filename" to specify a filename pattern
++# for saving files. See See castgetrc(5) for a list of supported patterns.
++# Be careful which patterns you use --- including the raw title from the
++# RSS feed, for example, may not be a good idea.
++[alphachat]
++url=http://podcast.ft.com/s/ft-alphachat/feed
++album_tag=FT Alphachat
++filespec=alphachat-$(date)-%(title).mp3
++
++# Media files can be added to a playlist when downloaded.
+ [scientific_american]
+ url=http://rss.sciam.com/sciam/science-talk
+-spool=/home/joe/podcasts
+-id3album=Scientific American
++album_tag=Scientific American
+ filename=%(date)-%(title).mp3
++playlist=/home/tom/sciam.m3u
+diff --git a/configure.ac b/configure.ac
+index ca481f4..17f6c8e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1,7 +1,7 @@
+ #                                               -*- Autoconf -*-
+ # Process this file with autoconf to produce a configure script.
+ #
+-# Copyright (C) 2005-2019 Marius L. Jøhndal
++# Copyright (C) 2005-2021 Marius L. Jøhndal
+ #
+ # This library is free software; you can redistribute it and/or
+ # modify it under the terms of the GNU Lesser General Public
+@@ -24,13 +24,6 @@ AC_CONFIG_SRCDIR([src/castget.c])
+ AC_CONFIG_HEADER([config.h])
+ AC_CONFIG_MACRO_DIRS([m4])
+ 
+-AH_TEMPLATE([ENABLE_ID3LIB], [Define to 1 if you want to enable support for id3lib])
+-AC_ARG_ENABLE(id3lib,
+-              [AC_HELP_STRING([--disable-id3lib],
+-                              [disable support for id3lib [default=no]])],
+-              configure_enable_id3lib=$enableval,
+-              configure_enable_id3lib=yes)
+-
+ # Checks for programs.
+ AC_PROG_CC
+ AC_PROG_INSTALL
+@@ -53,16 +46,13 @@ else
+   AC_SUBST(CURL_LIBS)
+ fi
+ 
+-if test "x$configure_enable_id3lib" = "xyes"; then
+-  AC_SEARCH_LIBS(ID3Tag_Link,
+-    "id3" "id3 -lstdc++" "id3 -lz" "id3 -lz -lstdc++",
+-    ,
+-    AC_MSG_ERROR(Required library id3lib not found))
+-
+-  dnl Needed to link correctly with id3lib 3.8.0
+-  LIBS="-lz -lstdc++ $LIBS"
+-
+-  AC_DEFINE(ENABLE_ID3LIB, [1], [Define for id3lib support])
++#AC_ARG_WITH(taglib, [  --without-taglib        disable taglib support])
++AC_ARG_WITH(taglib, AC_HELP_STRING([--without-taglib], [disable taglib support])])
++if test "x$with_taglib" != "xno"; then
++  PKG_CHECK_MODULES(TAGLIB, [taglib_c])
++  AC_SUBST(TAGLIB_CFLAGS)
++  AC_SUBST(TAGLIB_LIBS)
++  AC_DEFINE(HAVE_TAGLIB, [1], [Define to 1 if you have taglib support])
+ fi
+ 
+ # Checks for header files.
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 5d514e6..1a47806 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -1,5 +1,5 @@
+ #
+-# Copyright (C) 2005-2017 Marius L. Jøhndal
++# Copyright (C) 2005-2021 Marius L. Jøhndal
+ #
+ # This library is free software; you can redistribute it and/or
+ # modify it under the terms of the GNU Lesser General Public
+@@ -45,5 +45,6 @@ castget_SOURCES = \
+   utils.h
+ 
+ castget_LDADD = \
++  $(CURL_LIBS) \
+   $(GLIBS_LIBS) \
+-  $(CURL_LIBS)
++  $(TAGLIB_LIBS)
+diff --git a/src/castget.c b/src/castget.c
+index 7d87c4c..417ec9d 100644
+--- a/src/castget.c
++++ b/src/castget.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2019 Marius L. Jøhndal
++  Copyright (C) 2005-2021 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,43 +21,35 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
++#include "channel.h"
++#include "configuration.h"
++
+ #define _GNU_SOURCE
++#include <errno.h>
+ #include <getopt.h>
+-#include <glib.h>
+ #include <glib/gprintf.h>
+ #include <glib/gstdio.h>
+-#include <errno.h>
++#include <libxml/parser.h>
+ #include <string.h>
+ #include <unistd.h>
+-#include <libxml/parser.h>
+-#ifdef ENABLE_ID3LIB
+-#include <id3.h>
+-#endif /* ENABLE_ID3LIB */
+-#include "configuration.h"
+-#include "channel.h"
++#ifdef HAVE_TAGLIB
++#include <taglib/tag_c.h>
++#endif /* HAVE_TAGLIB */
+ 
+-enum op {
+-  OP_UPDATE,
+-  OP_CATCHUP,
+-  OP_LIST
+-};
++enum op { OP_UPDATE, OP_CATCHUP, OP_LIST };
+ 
+-static int _process_channel(const gchar *channel_directory, GKeyFile *kf, const char *identifier,
+-                            enum op op, struct channel_configuration *defaults,
++static int _process_channel(const gchar *channel_directory, GKeyFile *kf,
++                            const char *identifier, enum op op,
++                            struct channel_configuration *defaults,
+                             enclosure_filter *filter);
+ static void version(void);
+ static GKeyFile *_configuration_file_open(const gchar *rcfile);
+ static void _configuration_file_close(GKeyFile *kf);
+-#ifdef ENABLE_ID3LIB
+-static int _id3_set(const gchar *filename, int clear, const gchar *lead_artist,
+-                    const gchar *content_group, const gchar *title,
+-                    const gchar *album, const gchar *content_type, const gchar *year,
+-                    const gchar *comment);
+-static int _id3_check_and_set(const gchar *filename,
+-                              const struct channel_configuration *cfg);
+-#endif /* ENABLE_ID3LIB */
+-static int playlist_add(const gchar *playlist_file,
+-                        const gchar *media_file);
++#ifdef HAVE_TAGLIB
++static void _set_tags(const gchar *filename,
++                      const struct channel_configuration *cfg);
++#endif /* HAVE_TAGLIB */
++static int playlist_add(const gchar *playlist_file, const gchar *media_file);
+ 
+ static gboolean verbose = FALSE;
+ static gboolean quiet = FALSE;
+@@ -86,23 +78,33 @@ int main(int argc, char **argv)
+   GError *error = NULL;
+   GOptionContext *context;
+ 
+-  static GOptionEntry options[] =
+-  {
+-    {"catchup",      'c', 0, G_OPTION_ARG_NONE,     &catchup,           "catch up with channels and exit"},
+-    {"list",         'l', 0, G_OPTION_ARG_NONE,     &list,              "list available enclosures that have not yet been downloaded and exit"},
+-    {"version",      'V', 0, G_OPTION_ARG_NONE,     &show_version,      "print version and exit"},
+-
+-    {"resume",       'r', 0, G_OPTION_ARG_NONE,     &resume,            "resume aborted downloads"},
+-    {"rcfile",       'C', 0, G_OPTION_ARG_FILENAME, &rcfile,            "override the default configuration file name"},
+-
+-    {"debug",        'd', 0, G_OPTION_ARG_NONE,     &show_debug_info,   "print connection debug information"},
+-    {"verbose",      'v', 0, G_OPTION_ARG_NONE,     &verbose,           "print detailed progress information"},
+-    {"progress-bar", 'p', 0, G_OPTION_ARG_NONE,     &show_progress_bar, "print progress bar"},
+-
+-    {"new-only",     'n', 0, G_OPTION_ARG_NONE,     &new_only,          "only process new channels"},
+-    {"quiet",        'q', 0, G_OPTION_ARG_NONE,     &quiet,             "only print error messages"},
+-    {"first-only",   '1', 0, G_OPTION_ARG_NONE,     &first_only,        "only process the most recent item from each channel"},
+-    {"filter",       'f', 0, G_OPTION_ARG_STRING,   &filter_regex,      "only process items whose enclosure names match a regular expression"},
++  static GOptionEntry options[] = {
++    { "catchup", 'c', 0, G_OPTION_ARG_NONE, &catchup,
++      "catch up with channels and exit" },
++    { "list", 'l', 0, G_OPTION_ARG_NONE, &list,
++      "list available enclosures that have not yet been downloaded and exit" },
++    { "version", 'V', 0, G_OPTION_ARG_NONE, &show_version,
++      "print version and exit" },
++
++    { "resume", 'r', 0, G_OPTION_ARG_NONE, &resume,
++      "resume aborted downloads" },
++    { "rcfile", 'C', 0, G_OPTION_ARG_FILENAME, &rcfile,
++      "override the default configuration file name" },
++
++    { "debug", 'd', 0, G_OPTION_ARG_NONE, &show_debug_info,
++      "print connection debug information" },
++    { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
++      "print detailed progress information" },
++    { "progress-bar", 'p', 0, G_OPTION_ARG_NONE, &show_progress_bar,
++      "print progress bar" },
++
++    { "new-only", 'n', 0, G_OPTION_ARG_NONE, &new_only,
++      "only process new channels" },
++    { "quiet", 'q', 0, G_OPTION_ARG_NONE, &quiet, "only print error messages" },
++    { "first-only", '1', 0, G_OPTION_ARG_NONE, &first_only,
++      "only process the most recent item from each channel" },
++    { "filter", 'f', 0, G_OPTION_ARG_STRING, &filter_regex,
++      "only process items whose enclosure names match a regular expression" },
+ 
+     { NULL }
+   };
+@@ -121,8 +123,11 @@ int main(int argc, char **argv)
+     exit(1);
+   }
+ 
+-  if ((catchup && list) || (catchup && show_version) || (list && show_version)) {
+-    g_print("option parsing failed: --catchup, --list and --version options are incompatible.\n");
++  if ((catchup && list) || (catchup && show_version) ||
++      (list && show_version)) {
++    g_print(
++        "option parsing failed: --catchup, --list and --version options are "
++        "incompatible.\n");
+     exit(1);
+   }
+ 
+@@ -179,15 +184,13 @@ int main(int argc, char **argv)
+     /* Perform actions. */
+     if (optind < argc) {
+       while (optind < argc)
+-        _process_channel(channeldir, kf, argv[optind++], op, defaults,
+-                         filter);
++        _process_channel(channeldir, kf, argv[optind++], op, defaults, filter);
+     } else {
+       groups = g_key_file_get_groups(kf, NULL);
+ 
+       for (i = 0; groups[i]; i++)
+         if (strcmp(groups[i], "*"))
+-          _process_channel(channeldir, kf, groups[i], op, defaults,
+-                           filter);
++          _process_channel(channeldir, kf, groups[i], op, defaults, filter);
+ 
+       g_strfreev(groups);
+     }
+@@ -217,16 +220,17 @@ int main(int argc, char **argv)
+ static void version(void)
+ {
+   g_printf("%s %s", PACKAGE, VERSION);
+-#ifdef ENABLE_ID3LIB
+-  g_printf(" with ID3 tag support\n");
++#ifdef HAVE_TAGLIB
++  g_printf(" with taglib support\n");
+ #else
+   g_printf("\n");
+ #endif
+ 
+-  g_printf("Copyright (C) 2005-2019 Marius L. Jøhndal <mariuslj at ifi.uio.no>\n");
++  g_printf("Copyright (C) 2005-2021 Marius L. Jøhndal\n");
+ }
+ 
+-static void _print_item_update(const enclosure *enclosure, const gchar *filename)
++static void _print_item_update(const enclosure *enclosure,
++                               const gchar *filename)
+ {
+   if (enclosure->length > 0) {
+     gchar *size = g_format_size(enclosure->length);
+@@ -265,28 +269,25 @@ static void update_callback(void *user_data, channel_action action,
+     g_assert(enclosure);
+     g_assert(filename);
+ 
+-    /* Set media tags. */
+-    if (enclosure->type && (!strcmp(enclosure->type, "audio/mpeg") || !strcmp(enclosure->type, "audio/mp3"))) {
+-#ifdef ENABLE_ID3LIB
+-      if (_id3_check_and_set(filename, c))
+-        fprintf(stderr, "Error setting ID3 tag for file %s.\n", filename);
+-#endif /* ENABLE_ID3LIB */
+-    }
++#ifdef HAVE_TAGLIB
++    _set_tags(filename, c);
++#endif /* HAVE_TAGLIB */
+ 
+     /* Update playlist. */
+     if (c->playlist) {
+       playlist_add(c->playlist, filename);
+ 
+       if (verbose)
+-        printf(" * Added downloaded enclosure %s to playlist %s.\n",
+-               filename, c->playlist);
++        printf(" * Added downloaded enclosure %s to playlist %s.\n", filename,
++               c->playlist);
+     }
+     break;
+   }
+ }
+ 
+-static void catchup_callback(void *user_data, channel_action action, channel_info *channel_info,
+-                             enclosure *enclosure, const gchar *filename)
++static void catchup_callback(void *user_data, channel_action action,
++                             channel_info *channel_info, enclosure *enclosure,
++                             const gchar *filename)
+ {
+   struct channel_configuration *c = (struct channel_configuration *)user_data;
+ 
+@@ -313,8 +314,9 @@ static void catchup_callback(void *user_data, channel_action action, channel_inf
+   }
+ }
+ 
+-static void list_callback(void *user_data, channel_action action, channel_info *channel_info,
+-                          enclosure *enclosure, const gchar *filename)
++static void list_callback(void *user_data, channel_action action,
++                          channel_info *channel_info, enclosure *enclosure,
++                          const gchar *filename)
+ {
+   struct channel_configuration *c = (struct channel_configuration *)user_data;
+ 
+@@ -340,8 +342,9 @@ static void list_callback(void *user_data, channel_action action, channel_info *
+   }
+ }
+ 
+-static int _process_channel(const gchar *channel_directory, GKeyFile *kf, const char *identifier,
+-                            enum op op, struct channel_configuration *defaults,
++static int _process_channel(const gchar *channel_directory, GKeyFile *kf,
++                            const char *identifier, enum op op,
++                            struct channel_configuration *defaults,
+                             enclosure_filter *filter)
+ {
+   channel *c;
+@@ -392,8 +395,7 @@ static int _process_channel(const gchar *channel_directory, GKeyFile *kf, const
+ 
+   c = channel_new(channel_configuration->url, channel_file,
+                   channel_configuration->spool_directory,
+-                  channel_configuration->filename_pattern,
+-                  resume);
++                  channel_configuration->filename_pattern, resume);
+   g_free(channel_file);
+ 
+   if (!c) {
+@@ -407,25 +409,25 @@ static int _process_channel(const gchar *channel_directory, GKeyFile *kf, const
+      line. */
+   if (!filter && channel_configuration->regex_filter) {
+     per_channel_filter =
+-      enclosure_filter_new(channel_configuration->regex_filter, FALSE);
++        enclosure_filter_new(channel_configuration->regex_filter, FALSE);
+ 
+     filter = per_channel_filter;
+   }
+ 
+   switch (op) {
+   case OP_UPDATE:
+-    channel_update(c, channel_configuration, update_callback, 0, 0,
+-                   first_only, resume, filter, debug, show_progress_bar);
++    channel_update(c, channel_configuration, update_callback, 0, 0, first_only,
++                   resume, filter, debug, show_progress_bar);
+     break;
+ 
+   case OP_CATCHUP:
+-    channel_update(c, channel_configuration, catchup_callback, 1, 0,
+-                   first_only, 0, filter, debug, show_progress_bar);
++    channel_update(c, channel_configuration, catchup_callback, 1, 0, first_only,
++                   0, filter, debug, show_progress_bar);
+     break;
+ 
+   case OP_LIST:
+-    channel_update(c, channel_configuration, list_callback, 1, 1, first_only,
+-                   0, filter, debug, show_progress_bar);
++    channel_update(c, channel_configuration, list_callback, 1, 1, first_only, 0,
++                   filter, debug, show_progress_bar);
+     break;
+   }
+ 
+@@ -447,7 +449,8 @@ static GKeyFile *_configuration_file_open(const gchar *rcfile)
+   kf = g_key_file_new();
+ 
+   if (!g_key_file_load_from_file(kf, rcfile, G_KEY_FILE_NONE, &error)) {
+-    fprintf(stderr, "Error reading configuration file %s: %s.\n", rcfile, error->message);
++    fprintf(stderr, "Error reading configuration file %s: %s.\n", rcfile,
++            error->message);
+     g_error_free(error);
+     g_key_file_free(kf);
+     kf = NULL;
+@@ -461,131 +464,84 @@ static void _configuration_file_close(GKeyFile *kf)
+   g_key_file_free(kf);
+ }
+ 
+-#ifdef ENABLE_ID3LIB
+-static int _id3_find_and_set_frame(ID3Tag *tag, ID3_FrameID id, const char *value)
++#ifdef HAVE_TAGLIB
++static void _set_tags(const gchar *filename,
++                      const struct channel_configuration *cfg)
+ {
+-  ID3Frame *frame;
+-  ID3Field *field;
+-
+-  /* Remove existing tag to avoid issues with trashed frames. */
+-  while ((frame = ID3Tag_FindFrameWithID(tag, id)))
+-    ID3Tag_RemoveFrame(tag, frame);
++  if (cfg->artist_tag || cfg->title_tag || cfg->album_tag || cfg->genre_tag ||
++      cfg->year_tag || cfg->comment_tag) {
++    TagLib_File *file;
++    TagLib_Tag *tag;
+ 
+-  if (value && strlen(value) > 0) {
+-    frame = ID3Frame_NewID(id);
+-    g_assert(frame);
++    file = taglib_file_new(filename);
+ 
+-    ID3Tag_AttachFrame(tag, frame);
+-
+-    field = ID3Frame_GetField(frame, ID3FN_TEXT);
+-
+-    if (field)
+-      ID3Field_SetASCII(field, value); //TODO: UTF8
+-    else
+-      return 1;
+-  }
+-
+-  return 0;
+-}
+-
+-static int _id3_set(const gchar *filename, int clear, const gchar *lead_artist,
+-                    const gchar *content_group, const gchar *title, const gchar *album,
+-                    const gchar *content_type, const gchar *year, const gchar *comment)
+-{
+-  int errors = 0;
+-  ID3Tag *tag;
+-
+-  tag = ID3Tag_New();
+-
+-  if (!tag)
+-    return 1;
+-
+-  ID3Tag_Link(tag, filename);
++    if (file == NULL) {
++      fprintf(stderr, "Error setting tags for file %s.\n", filename);
++      return;
++    }
+ 
+-  if (clear)
+-    ID3Tag_Clear(tag); // TODO
++    tag = taglib_file_tag(file);
+ 
+-  if (lead_artist) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_LEADARTIST, lead_artist);
++    if (cfg->artist_tag) {
++      taglib_tag_set_artist(tag, cfg->artist_tag);
+ 
+-    if (verbose)
+-      printf(" * Set ID3 tag lead artist to %s.\n", lead_artist);
+-  }
++      if (verbose)
++        printf(" * Set artist tag to %s.\n", cfg->artist_tag);
++    }
+ 
+-  if (content_group) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_CONTENTGROUP, content_group);
++    if (cfg->title_tag) {
++      taglib_tag_set_title(tag, cfg->title_tag);
+ 
+-    if (verbose)
+-      printf(" * Set ID3 tag content group to %s.\n", content_group);
+-  }
++      if (verbose)
++        printf(" * Set title tag to %s.\n", cfg->title_tag);
++    }
+ 
+-  if (title) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_TITLE, title);
++    if (cfg->album_tag) {
++      taglib_tag_set_album(tag, cfg->album_tag);
+ 
+-    if (verbose)
+-      printf(" * Set ID3 tag title to %s.\n", title);
+-  }
++      if (verbose)
++        printf(" * Set album tag to %s.\n", cfg->album_tag);
++    }
+ 
+-  if (album) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_ALBUM, album);
++    if (cfg->genre_tag) {
++      taglib_tag_set_genre(tag, cfg->genre_tag);
+ 
+-    if (verbose)
+-      printf(" * Set ID3 tag album to %s.\n", album);
+-  }
++      if (verbose)
++        printf(" * Set genre tag to %s.\n", cfg->genre_tag);
++    }
+ 
+-  if (content_type) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_CONTENTTYPE, content_type);
++    if (cfg->year_tag) {
++      taglib_tag_set_year(tag, g_ascii_strtoull(cfg->year_tag, NULL, 10));
+ 
+-    if (verbose)
+-      printf(" * Set ID3 tag content type to %s.\n", content_type);
+-  }
++      if (verbose)
++        printf(" * Set year tag to %s.\n", cfg->year_tag);
++    }
+ 
+-  if (year) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_YEAR, year);
++    if (cfg->comment_tag) {
++      taglib_tag_set_comment(tag, cfg->comment_tag);
+ 
+-    if (verbose)
+-      printf(" * Set ID3 title year to %s.\n", year);
+-  }
++      if (verbose)
++        printf(" * Set comment tag to %s.\n", cfg->comment_tag);
++    }
+ 
+-  if (comment) {
+-    errors += _id3_find_and_set_frame(tag, ID3FID_COMMENT, comment);
++    if (!taglib_file_save(file))
++      fprintf(stderr, "Error setting tags for file %s.\n", filename);
+ 
+-    if (verbose)
+-      printf(" * Set ID3 tag comment to %s.\n", comment);
++    taglib_tag_free_strings();
++    taglib_file_free(file);
+   }
+-
+-  if (!errors)
+-    ID3Tag_Update(tag);
+-
+-  ID3Tag_Delete(tag);
+-
+-  return errors;
+ }
++#endif /* HAVE_TAGLIB */
+ 
+-static int _id3_check_and_set(const gchar *filename,
+-                              const struct channel_configuration *cfg)
+-{
+-  if (cfg->id3_lead_artist || cfg->id3_content_group || cfg->id3_title ||
+-      cfg->id3_album || cfg->id3_content_type || cfg->id3_year || cfg->id3_comment)
+-    return _id3_set(filename, 0, cfg->id3_lead_artist, cfg->id3_content_group,
+-                    cfg->id3_title, cfg->id3_album, cfg->id3_content_type,
+-                    cfg->id3_year, cfg->id3_comment);
+-  else
+-    return 0;
+-}
+-
+-#endif /* ENABLE_ID3LIB */
+-
+-static int playlist_add(const gchar *playlist_file,
+-                        const gchar *media_file)
++static int playlist_add(const gchar *playlist_file, const gchar *media_file)
+ {
+   FILE *f;
+ 
+   f = fopen(playlist_file, "a");
+ 
+   if (!f) {
+-    fprintf(stderr, "Error opening playlist file %s: %s.\n",
+-            playlist_file, strerror(errno));
++    fprintf(stderr, "Error opening playlist file %s: %s.\n", playlist_file,
++            strerror(errno));
+     return -1;
+   }
+ 
+diff --git a/src/channel.c b/src/channel.c
+index 5d5484f..09b9335 100644
+--- a/src/channel.c
++++ b/src/channel.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2017 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,23 +21,24 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <string.h>
+-#include <sys/types.h>
+-#include <sys/stat.h>
+-#include <glib.h>
+-#include <glib/gprintf.h>
+-#include "libxmlutil.h"
+-#include "urlget.h"
+ #include "channel.h"
++#include "filenames.h"
++#include "libxmlutil.h"
++#include "progress.h"
+ #include "rss.h"
++#include "urlget.h"
+ #include "utils.h"
+-#include "progress.h"
+-#include "filenames.h"
++
++#include <glib/gprintf.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <sys/types.h>
+ 
+ static int _enclosure_pattern_match(enclosure_filter *filter,
+                                     const enclosure *enclosure);
+ 
+-static void _enclosure_iterator(const void *user_data, int i, const xmlNode *node)
++static void _enclosure_iterator(const void *user_data, int i,
++                                const xmlNode *node)
+ {
+   const char *downloadtime;
+ 
+@@ -56,8 +57,7 @@ static void _enclosure_iterator(const void *user_data, int i, const xmlNode *nod
+ }
+ 
+ channel *channel_new(const char *url, const char *channel_file,
+-                     const char *spool_directory,
+-                     const char *filename_pattern,
++                     const char *spool_directory, const char *filename_pattern,
+                      int resume)
+ {
+   channel *c;
+@@ -72,22 +72,25 @@ channel *channel_new(const char *url, const char *channel_file,
+   c->filename_pattern = g_strdup(filename_pattern);
+   //  c->resume = resume;
+   c->rss_last_fetched = NULL;
+-  c->downloaded_enclosures = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, g_free);
++  c->downloaded_enclosures =
++      g_hash_table_new_full(g_str_hash, g_str_equal, NULL, g_free);
+ 
+   if (g_file_test(c->channel_filename, G_FILE_TEST_EXISTS)) {
+     doc = xmlReadFile(c->channel_filename, NULL, 0);
+ 
+     if (!doc) {
+-      g_fprintf(stderr, "Error parsing channel file %s.\n", c->channel_filename);
++      g_fprintf(stderr, "Error parsing channel file %s.\n",
++                c->channel_filename);
+       return NULL;
+     }
+ 
+     root_element = xmlDocGetRootElement(doc);
+ 
+-    if (!root_element)  {
++    if (!root_element) {
+       xmlFreeDoc(doc);
+ 
+-      g_fprintf(stderr, "Error parsing channel file %s.\n", c->channel_filename);
++      g_fprintf(stderr, "Error parsing channel file %s.\n",
++                c->channel_filename);
+       return NULL;
+     }
+ 
+@@ -98,7 +101,8 @@ channel *channel_new(const char *url, const char *channel_file,
+       c->rss_last_fetched = g_strdup(s);
+ 
+     /* Iterate encolsure elements. */
+-    libxmlutil_iterate_by_tag_name(root_element, "enclosure", c, _enclosure_iterator);
++    libxmlutil_iterate_by_tag_name(root_element, "enclosure", c,
++                                   _enclosure_iterator);
+ 
+     xmlFreeDoc(doc);
+   }
+@@ -106,15 +110,16 @@ channel *channel_new(const char *url, const char *channel_file,
+   return c;
+ }
+ 
+-static void _cast_channel_save_downloaded_enclosure(gpointer key, gpointer value,
++static void _cast_channel_save_downloaded_enclosure(gpointer key,
++                                                    gpointer value,
+                                                     gpointer user_data)
+ {
+   FILE *f = (FILE *)user_data;
+   gchar *escaped_key = g_markup_escape_text(key, -1);
+ 
+   if (value)
+-    g_fprintf(f, "  <enclosure url=\"%s\" downloadtime=\"%s\"/>\n",
+-              escaped_key, (gchar *)value);
++    g_fprintf(f, "  <enclosure url=\"%s\" downloadtime=\"%s\"/>\n", escaped_key,
++              (gchar *)value);
+   else
+     g_fprintf(f, "  <enclosure url=\"%s\"/>\n", escaped_key);
+ 
+@@ -128,11 +133,13 @@ static int _cast_channel_save_channel(FILE *f, gpointer user_data, int debug)
+   g_fprintf(f, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+ 
+   if (c->rss_last_fetched)
+-    g_fprintf(f, "<channel version=\"1.0\" rsslastfetched=\"%s\">\n", c->rss_last_fetched);
++    g_fprintf(f, "<channel version=\"1.0\" rsslastfetched=\"%s\">\n",
++              c->rss_last_fetched);
+   else
+     g_fprintf(f, "<channel version=\"1.0\">\n");
+ 
+-  g_hash_table_foreach(c->downloaded_enclosures, _cast_channel_save_downloaded_enclosure, f);
++  g_hash_table_foreach(c->downloaded_enclosures,
++                       _cast_channel_save_downloaded_enclosure, f);
+ 
+   g_fprintf(f, "</channel>\n");
+ 
+@@ -141,7 +148,8 @@ static int _cast_channel_save_channel(FILE *f, gpointer user_data, int debug)
+ 
+ static void _cast_channel_save(channel *c, int debug)
+ {
+-  write_by_temporary_file(c->channel_filename, _cast_channel_save_channel, c, NULL, debug);
++  write_by_temporary_file(c->channel_filename, _cast_channel_save_channel, c,
++                          NULL, debug);
+ }
+ 
+ void channel_free(channel *c)
+@@ -154,22 +162,24 @@ void channel_free(channel *c)
+   free(c);
+ }
+ 
+-static size_t _enclosure_urlget_cb(void *buffer, size_t size, size_t nmemb, void *user_data)
++static size_t _enclosure_urlget_cb(void *buffer, size_t size, size_t nmemb,
++                                   void *user_data)
+ {
+   FILE *f = (FILE *)user_data;
+ 
+   return fwrite(buffer, size, nmemb, f);
+ }
+ 
+-static rss_file *_get_rss(channel *c, void *user_data, channel_callback cb, int debug)
++static rss_file *_get_rss(channel *c, void *user_data, channel_callback cb,
++                          int debug)
+ {
+   rss_file *f;
+ 
+   if (cb)
+     cb(user_data, CCA_RSS_DOWNLOAD_START, NULL, NULL, NULL);
+ 
+-  if (!strncmp("http://", c->url, strlen("http://"))
+-      || !strncmp("https://", c->url, strlen("https://")))
++  if (!strncmp("http://", c->url, strlen("http://")) ||
++      !strncmp("https://", c->url, strlen("https://")))
+     f = rss_open_url(c->url, debug);
+   else
+     f = rss_open_file(c->url);
+@@ -198,8 +208,8 @@ static int _do_download(channel *c, channel_info *channel_info, rss_item *item,
+   }
+ 
+   /* Build enclosure filename. */
+-  enclosure_full_filename = build_enclosure_filename(c->spool_directory,
+-    c->filename_pattern, channel_info, item);
++  enclosure_full_filename = build_enclosure_filename(
++      c->spool_directory, c->filename_pattern, channel_info, item);
+ 
+   if (g_file_test(enclosure_full_filename, G_FILE_TEST_EXISTS)) {
+     /* A file with the same filename already exists. If the user has asked us
+@@ -216,8 +226,10 @@ static int _do_download(channel *c, channel_info *channel_info, rss_item *item,
+       else
+         resume_from = 0;
+     } else {
+-      /* File exists but user does not allow us to append so we have to abort. */
+-      g_fprintf(stderr, "Enclosure file %s already exists.\n", enclosure_full_filename);
++      /* File exists but user does not allow us to append so we have to
++         abort. */
++      g_fprintf(stderr, "Enclosure file %s already exists.\n",
++                enclosure_full_filename);
+       g_free(enclosure_full_filename);
+       return 1;
+     }
+@@ -228,21 +240,25 @@ static int _do_download(channel *c, channel_info *channel_info, rss_item *item,
+   enclosure_file = fopen(enclosure_full_filename, resume_from ? "ab" : "wb");
+ 
+   if (!enclosure_file) {
+-    g_fprintf(stderr, "Error opening enclosure file %s.\n", enclosure_full_filename);
++    g_fprintf(stderr, "Error opening enclosure file %s.\n",
++              enclosure_full_filename);
+     g_free(enclosure_full_filename);
+     return 1;
+   }
+ 
+   if (cb)
+-    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_START, channel_info, item->enclosure, enclosure_full_filename);
++    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_START, channel_info, item->enclosure,
++       enclosure_full_filename);
+ 
+   if (show_progress_bar)
+     pb = progress_bar_new(resume_from);
+   else
+     pb = NULL;
+ 
+-  if (urlget_buffer(item->enclosure->url, enclosure_file, _enclosure_urlget_cb, resume_from, debug, pb)) {
+-    g_fprintf(stderr, "Error downloading enclosure from %s.\n", item->enclosure->url);
++  if (urlget_buffer(item->enclosure->url, enclosure_file, _enclosure_urlget_cb,
++                    resume_from, debug, pb)) {
++    g_fprintf(stderr, "Error downloading enclosure from %s.\n",
++              item->enclosure->url);
+ 
+     download_failed = 1;
+   } else
+@@ -254,7 +270,8 @@ static int _do_download(channel *c, channel_info *channel_info, rss_item *item,
+   fclose(enclosure_file);
+ 
+   if (cb)
+-    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_END, channel_info, item->enclosure, enclosure_full_filename);
++    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_END, channel_info, item->enclosure,
++       enclosure_full_filename);
+ 
+   g_free(enclosure_full_filename);
+ 
+@@ -265,9 +282,11 @@ static int _do_catchup(channel *c, channel_info *channel_info, rss_item *item,
+                        void *user_data, channel_callback cb)
+ {
+   if (cb) {
+-    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_START, channel_info, item->enclosure, NULL);
++    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_START, channel_info, item->enclosure,
++       NULL);
+ 
+-    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_END, channel_info, item->enclosure, NULL);
++    cb(user_data, CCA_ENCLOSURE_DOWNLOAD_END, channel_info, item->enclosure,
++       NULL);
+   }
+ 
+   return 0;
+@@ -290,16 +309,21 @@ int channel_update(channel *c, void *user_data, channel_callback cb,
+   /* Check enclosures in RSS file. */
+   for (i = 0; i < f->num_items; i++)
+     if (f->items[i]->enclosure) {
+-      if (!g_hash_table_lookup_extended(c->downloaded_enclosures, f->items[i]->enclosure->url, NULL, NULL)) {
++      if (!g_hash_table_lookup_extended(c->downloaded_enclosures,
++                                        f->items[i]->enclosure->url, NULL,
++                                        NULL)) {
+         rss_item *item;
+ 
+         item = f->items[i];
+ 
+         if (!filter || _enclosure_pattern_match(filter, item->enclosure)) {
+           if (no_download)
+-            download_failed = _do_catchup(c, &(f->channel_info), item, user_data, cb);
++            download_failed =
++                _do_catchup(c, &(f->channel_info), item, user_data, cb);
+           else
+-            download_failed = _do_download(c, &(f->channel_info), item, user_data, cb, resume, debug, show_progress_bar);
++            download_failed =
++                _do_download(c, &(f->channel_info), item, user_data, cb, resume,
++                             debug, show_progress_bar);
+ 
+           if (download_failed)
+             break;
+@@ -307,7 +331,8 @@ int channel_update(channel *c, void *user_data, channel_callback cb,
+           if (!no_mark_read) {
+             /* Mark enclosure as downloaded and immediately save channel
+                file to ensure that it reflects the change. */
+-            g_hash_table_insert(c->downloaded_enclosures, f->items[i]->enclosure->url,
++            g_hash_table_insert(c->downloaded_enclosures,
++                                f->items[i]->enclosure->url,
+                                 (gpointer)get_rfc822_time());
+ 
+             _cast_channel_save(c, debug);
+@@ -357,8 +382,7 @@ static gboolean _enclosure_pattern_match(enclosure_filter *filter,
+   if (filter->caseless)
+     compile_options |= G_REGEX_CASELESS;
+ 
+-  regex = g_regex_new(filter->pattern, compile_options, match_options,
+-                      &error);
++  regex = g_regex_new(filter->pattern, compile_options, match_options, &error);
+ 
+   if (error) {
+     fprintf(stderr, "Error compiling regular expression %s: %s\n",
+@@ -374,8 +398,7 @@ static gboolean _enclosure_pattern_match(enclosure_filter *filter,
+   return match;
+ }
+ 
+-enclosure_filter *enclosure_filter_new(const gchar *pattern,
+-                                       gboolean caseless)
++enclosure_filter *enclosure_filter_new(const gchar *pattern, gboolean caseless)
+ {
+   enclosure_filter *e = g_malloc(sizeof(struct _enclosure_filter));
+ 
+diff --git a/src/channel.h b/src/channel.h
+index 7aae538..786577a 100644
+--- a/src/channel.h
++++ b/src/channel.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2017 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -20,6 +20,8 @@
+ #ifndef CHANNEL_H
+ #define CHANNEL_H
+ 
++#include <glib.h>
++
+ typedef enum {
+   CCA_RSS_DOWNLOAD_START,
+   CCA_RSS_DOWNLOAD_END,
+diff --git a/src/configuration.c b/src/configuration.c
+index 8bd091f..5eb00e7 100644
+--- a/src/configuration.c
++++ b/src/configuration.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2018 Marius L. Jøhndal
++  Copyright (C) 2005-2021 Marius L. Jøhndal
+   Copyright (C) 2010 Tony Armitstead
+ 
+   This library is free software; you can redistribute it and/or
+@@ -21,13 +21,15 @@
+ #ifdef HAVE_CONFIG_H
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+-#include <string.h>
+-#include <stdlib.h>
+-#include <glib/gstdio.h>
+ 
+ #include "configuration.h"
+ 
+-static gchar *_read_channel_configuration_key(GKeyFile *kf, const gchar *identifier,
++#include <glib/gstdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++static gchar *_read_channel_configuration_key(GKeyFile *kf,
++                                              const gchar *identifier,
+                                               const gchar *key)
+ {
+   GError *error = NULL;
+@@ -54,26 +56,23 @@ void channel_configuration_free(struct channel_configuration *c)
+   if (c->playlist)
+     g_free(c->playlist);
+ 
+-  if (c->id3_lead_artist)
+-    g_free(c->id3_lead_artist);
++  if (c->artist_tag)
++    g_free(c->artist_tag);
+ 
+-  if (c->id3_content_group)
+-    g_free(c->id3_content_group);
++  if (c->title_tag)
++    g_free(c->title_tag);
+ 
+-  if (c->id3_title)
+-    g_free(c->id3_title);
++  if (c->album_tag)
++    g_free(c->album_tag);
+ 
+-  if (c->id3_album)
+-    g_free(c->id3_album);
++  if (c->genre_tag)
++    g_free(c->genre_tag);
+ 
+-  if (c->id3_content_type)
+-    g_free(c->id3_content_type);
++  if (c->year_tag)
++    g_free(c->year_tag);
+ 
+-  if (c->id3_year)
+-    g_free(c->id3_year);
+-
+-  if (c->id3_comment)
+-    g_free(c->id3_comment);
++  if (c->comment_tag)
++    g_free(c->comment_tag);
+ 
+   if (c->regex_filter)
+     g_free(c->regex_filter);
+@@ -81,30 +80,33 @@ void channel_configuration_free(struct channel_configuration *c)
+   g_free(c);
+ }
+ 
+-struct channel_configuration *channel_configuration_new(GKeyFile *kf, const gchar *identifier,
+-                                                        struct channel_configuration *defaults)
++struct channel_configuration *channel_configuration_new(
++    GKeyFile *kf, const gchar *identifier,
++    struct channel_configuration *defaults)
+ {
+   struct channel_configuration *c;
+ 
+   g_assert(g_key_file_has_group(kf, identifier));
+ 
+   /* Allocate new structure and save identifierr. */
+-  c = (struct channel_configuration *)g_malloc(sizeof(struct channel_configuration));
++  c = (struct channel_configuration *)g_malloc(
++      sizeof(struct channel_configuration));
+ 
+   c->identifier = g_strdup(identifier);
+ 
+   /* Read keys from configuration file. */
+   c->url = _read_channel_configuration_key(kf, identifier, "url");
+   c->spool_directory = _read_channel_configuration_key(kf, identifier, "spool");
+-  c->filename_pattern = _read_channel_configuration_key(kf, identifier, "filename");
++  c->filename_pattern =
++      _read_channel_configuration_key(kf, identifier, "filename");
+   c->playlist = _read_channel_configuration_key(kf, identifier, "playlist");
+-  c->id3_lead_artist = _read_channel_configuration_key(kf, identifier, "id3leadartist");
+-  c->id3_content_group = _read_channel_configuration_key(kf, identifier, "id3contentgroup");
+-  c->id3_title = _read_channel_configuration_key(kf, identifier, "id3title");
+-  c->id3_album = _read_channel_configuration_key(kf, identifier, "id3album");
+-  c->id3_content_type = _read_channel_configuration_key(kf, identifier, "id3contenttype");
+-  c->id3_year = _read_channel_configuration_key(kf, identifier, "id3year");
+-  c->id3_comment = _read_channel_configuration_key(kf, identifier, "id3comment");
++  c->artist_tag = _read_channel_configuration_key(kf, identifier, "artist_tag");
++  c->title_tag = _read_channel_configuration_key(kf, identifier, "title_tag");
++  c->album_tag = _read_channel_configuration_key(kf, identifier, "album_tag");
++  c->genre_tag = _read_channel_configuration_key(kf, identifier, "genre_tag");
++  c->year_tag = _read_channel_configuration_key(kf, identifier, "year_tag");
++  c->comment_tag =
++      _read_channel_configuration_key(kf, identifier, "comment_tag");
+   c->regex_filter = _read_channel_configuration_key(kf, identifier, "filter");
+ 
+   /* Populate with defaults if necessary. */
+@@ -121,26 +123,23 @@ struct channel_configuration *channel_configuration_new(GKeyFile *kf, const gcha
+     if (!c->playlist && defaults->playlist)
+       c->playlist = g_strdup(defaults->playlist);
+ 
+-    if (!c->id3_lead_artist && defaults->id3_lead_artist)
+-      c->id3_lead_artist = g_strdup(defaults->id3_lead_artist);
+-
+-    if (!c->id3_content_group && defaults->id3_content_group)
+-      c->id3_content_group = g_strdup(defaults->id3_content_group);
++    if (!c->artist_tag && defaults->artist_tag)
++      c->artist_tag = g_strdup(defaults->artist_tag);
+ 
+-    if (!c->id3_title && defaults->id3_title)
+-      c->id3_title = g_strdup(defaults->id3_title);
++    if (!c->title_tag && defaults->title_tag)
++      c->title_tag = g_strdup(defaults->title_tag);
+ 
+-    if (!c->id3_album && defaults->id3_album)
+-      c->id3_album = g_strdup(defaults->id3_album);
++    if (!c->album_tag && defaults->album_tag)
++      c->album_tag = g_strdup(defaults->album_tag);
+ 
+-    if (!c->id3_content_type && defaults->id3_content_type)
+-      c->id3_content_type = g_strdup(defaults->id3_content_type);
++    if (!c->genre_tag && defaults->genre_tag)
++      c->genre_tag = g_strdup(defaults->genre_tag);
+ 
+-    if (!c->id3_year && defaults->id3_year)
+-      c->id3_year = g_strdup(defaults->id3_year);
++    if (!c->year_tag && defaults->year_tag)
++      c->year_tag = g_strdup(defaults->year_tag);
+ 
+-    if (!c->id3_comment && defaults->id3_comment)
+-      c->id3_comment = g_strdup(defaults->id3_comment);
++    if (!c->comment_tag && defaults->comment_tag)
++      c->comment_tag = g_strdup(defaults->comment_tag);
+ 
+     if (!c->regex_filter && defaults->regex_filter)
+       c->regex_filter = g_strdup(defaults->regex_filter);
+@@ -157,25 +156,51 @@ int channel_configuration_verify_keys(GKeyFile *kf, const char *identifier)
+   key_list = g_key_file_get_keys(kf, identifier, NULL, NULL);
+ 
+   if (!key_list) {
+-    fprintf(stderr, "Error reading keys in configuration of channel %s.\n", identifier);
++    fprintf(stderr, "Error reading keys in configuration of channel %s.\n",
++            identifier);
+ 
+     return -1;
+   }
+ 
+   for (i = 0; key_list[i]; i++) {
+-    if (! (!strcmp(key_list[i], "url") ||
+-           !strcmp(key_list[i], "spool") ||
+-           !strcmp(key_list[i], "filename") ||
+-           !strcmp(key_list[i], "playlist") ||
+-           !strcmp(key_list[i], "id3leadartist") ||
+-           !strcmp(key_list[i], "id3contentgroup") ||
+-           !strcmp(key_list[i], "id3title") ||
+-           !strcmp(key_list[i], "id3album") ||
+-           !strcmp(key_list[i], "id3contenttype") ||
+-           !strcmp(key_list[i], "id3year") ||
+-           !strcmp(key_list[i], "id3comment") ||
+-           !strcmp(key_list[i], "filter"))) {
+-      fprintf(stderr, "Invalid key %s in configuration of channel %s.\n", key_list[i], identifier);
++    if (!strcmp(key_list[i], "id3contentgroup"))
++      fprintf(stderr, "Key id3contentgroup no longer supported.\n");
++    else if (!strcmp(key_list[i], "id3leadartist"))
++      fprintf(stderr,
++              "Key id3leadartist no longer supported. Please use artist_tag "
++              "instead.\n");
++    else if (!strcmp(key_list[i], "id3title"))
++      fprintf(
++          stderr,
++          "Key id3title no longer supported. Please use title_tag instead.\n");
++    else if (!strcmp(key_list[i], "id3album"))
++      fprintf(
++          stderr,
++          "Key id3album no longer supported. Please use album_tag instead.\n");
++    else if (!strcmp(key_list[i], "id3contenttype"))
++      fprintf(stderr,
++              "Key id3contenttype no longer supported. Please use genre_tag "
++              "instead.\n");
++    else if (!strcmp(key_list[i], "id3year"))
++      fprintf(
++          stderr,
++          "Key id3year no longer supported. Please use year_tag instead.\n");
++    else if (!strcmp(key_list[i], "id3comment"))
++      fprintf(stderr,
++              "Key id3comment no longer supported. Please use comment_tag "
++              "instead.\n");
++    else if (!(!strcmp(key_list[i], "url") || !strcmp(key_list[i], "spool") ||
++               !strcmp(key_list[i], "filename") ||
++               !strcmp(key_list[i], "playlist") ||
++               !strcmp(key_list[i], "artist_tag") ||
++               !strcmp(key_list[i], "title_tag") ||
++               !strcmp(key_list[i], "album_tag") ||
++               !strcmp(key_list[i], "genre_tag") ||
++               !strcmp(key_list[i], "year_tag") ||
++               !strcmp(key_list[i], "comment_tag") ||
++               !strcmp(key_list[i], "filter"))) {
++      fprintf(stderr, "Invalid key %s in configuration of channel %s.\n",
++              key_list[i], identifier);
+       return -1;
+     }
+   }
+diff --git a/src/configuration.h b/src/configuration.h
+index edf03b0..7c2ca40 100644
+--- a/src/configuration.h
++++ b/src/configuration.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2017 Marius L. Jøhndal
++  Copyright (C) 2005-2021 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -28,18 +28,18 @@ struct channel_configuration {
+   gchar *spool_directory;
+   gchar *filename_pattern;
+   gchar *playlist;
+-  gchar *id3_lead_artist;
+-  gchar *id3_content_group;
+-  gchar *id3_title;
+-  gchar *id3_album;
+-  gchar *id3_content_type;
+-  gchar *id3_year;
+-  gchar *id3_comment;
++  gchar *artist_tag;
++  gchar *title_tag;
++  gchar *album_tag;
++  gchar *genre_tag;
++  gchar *year_tag;
++  gchar *comment_tag;
+   gchar *regex_filter;
+ };
+ 
+-struct channel_configuration *channel_configuration_new(GKeyFile *kf, const gchar *identifier,
+-                                                        struct channel_configuration *defaults);
++struct channel_configuration *channel_configuration_new(
++    GKeyFile *kf, const gchar *identifier,
++    struct channel_configuration *defaults);
+ void channel_configuration_free(struct channel_configuration *c);
+ int channel_configuration_verify_keys(GKeyFile *kf, const char *identifier);
+ 
+diff --git a/src/date_parsing.c b/src/date_parsing.c
+index f359049..270cc81 100644
+--- a/src/date_parsing.c
++++ b/src/date_parsing.c
+@@ -1,6 +1,6 @@
+ /*
+   Copyright (C) 2010 Tony Armitstead
+-  Copyright (C) 2017 Marius L. Jøhndal
++  Copyright (C) 2017-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -22,20 +22,18 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <string.h>
+-#include <stdio.h>
+-#include <ctype.h>
+-#include <glib.h>
+ #include "date_parsing.h"
+ 
++#include <ctype.h>
++#include <stdio.h>
++#include <string.h>
++
+ static const char *days[7] = {
+   "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+ };
+ 
+-static const char *months[12] = {
+-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+-};
++static const char *months[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
++                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+ 
+ GDate *parse_rfc822_date(const char *rfc822_date_str)
+ {
+@@ -51,12 +49,12 @@ GDate *parse_rfc822_date(const char *rfc822_date_str)
+     return NULL;
+ 
+   /* Skip past any valid day, field */
+-  for (i = 0; i < sizeof(days)/sizeof(days[0]); i++) {
++  for (i = 0; i < sizeof(days) / sizeof(days[0]); i++) {
+     if (strncmp(dstr, days[i], 3) == 0)
+       break;
+   }
+ 
+-  if (i < sizeof(days)/sizeof(days[0])) {
++  if (i < sizeof(days) / sizeof(days[0])) {
+     dstr += 3;
+ 
+     while (isspace(*dstr))
+@@ -79,12 +77,12 @@ GDate *parse_rfc822_date(const char *rfc822_date_str)
+   if (sscanf(dstr, "%d %s %d", &day, mstr, &year) != 3)
+     return NULL;
+ 
+-  for (i=0; i < sizeof(months)/sizeof(months[0]); i++) {
++  for (i = 0; i < sizeof(months) / sizeof(months[0]); i++) {
+     if (strncmp(mstr, months[i], 3) == 0)
+       break;
+   }
+ 
+-  if (i == sizeof(months)/sizeof(months[0]))
++  if (i == sizeof(months) / sizeof(months[0]))
+     return NULL;
+ 
+   month = i + 1;
+diff --git a/src/date_parsing.h b/src/date_parsing.h
+index 4bc9c21..cffd00b 100644
+--- a/src/date_parsing.h
++++ b/src/date_parsing.h
+@@ -1,6 +1,6 @@
+ /*
+   Copyright (C) 2010 Tony Armitstead
+-  Copyright (C) 2017 Marius L. Jøhndal
++  Copyright (C) 2017-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,6 +21,8 @@
+ #ifndef DATE_PARSING_H
+ #define DATE_PARSING_H
+ 
++#include <glib.h>
++
+ GDate *parse_rfc822_date(const char *rfc822_date_str);
+ 
+ #endif /* DATE_PARSING_H */
+diff --git a/src/filenames.c b/src/filenames.c
+index aa5c965..bf6ef33 100644
+--- a/src/filenames.c
++++ b/src/filenames.c
+@@ -1,6 +1,6 @@
+ /*
+   Copyright (C) 2010 Tony Armistead
+-  Copyright (C) 2017 Marius L. Jøhndal
++  Copyright (C) 2017-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -22,10 +22,9 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <glib.h>
++#include "date_parsing.h"
+ #include "filenames.h"
+ #include "patterns.h"
+-#include "date_parsing.h"
+ 
+ static gchar *guess_filename_from_url(const gchar *url);
+ static gchar *sanitise_filename(const gchar *filename);
+@@ -55,15 +54,18 @@ static gchar *sanitise_filename(const gchar *filename)
+   return new_filename;
+ }
+ 
+-gchar *build_enclosure_filename(const char *spool_directory, const char *filename_pattern,
+-    const channel_info *channel_info, const rss_item *item)
++gchar *build_enclosure_filename(const char *spool_directory,
++                                const char *filename_pattern,
++                                const channel_info *channel_info,
++                                const rss_item *item)
+ {
+   gchar *filename;
+   gchar *sanitised_filename;
+   gchar *pathname;
+ 
+   if (filename_pattern)
+-    filename = expand_string_with_patterns(filename_pattern, channel_info, item);
++    filename =
++        expand_string_with_patterns(filename_pattern, channel_info, item);
+   else
+     filename = guess_filename_from_url(item->enclosure->url);
+ 
+diff --git a/src/filenames.h b/src/filenames.h
+index 4d2db24..8cc82ba 100644
+--- a/src/filenames.h
++++ b/src/filenames.h
+@@ -1,6 +1,6 @@
+ /*
+   Copyright (C) 2010 Tony Armitstead
+-  Copyright (C) 2017-2018 Marius L. Jøhndal
++  Copyright (C) 2017-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+diff --git a/src/htmlent.c b/src/htmlent.c
+index bb51676..d10af8f 100644
+--- a/src/htmlent.c
++++ b/src/htmlent.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2006, 2011 Marius L. Jøhndal
++  Copyright (C) 2006-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+diff --git a/src/htmlent.h b/src/htmlent.h
+index 1ba029b..2776c82 100644
+--- a/src/htmlent.h
++++ b/src/htmlent.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2006, 2011 Marius L. Jøhndal
++  Copyright (C) 2006-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+diff --git a/src/libxmlutil.c b/src/libxmlutil.c
+index 74d1b25..e688001 100644
+--- a/src/libxmlutil.c
++++ b/src/libxmlutil.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005, 2006, 2011 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,9 +21,10 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <string.h>
+ #include "libxmlutil.h"
+ 
++#include <string.h>
++
+ char *libxmlutil_dup_attr(const xmlNode *node, const char *name)
+ {
+   xmlChar *s;
+@@ -81,8 +82,10 @@ int libxmlutil_count_by_tag_name(const xmlNode *node, const char *name)
+   return n;
+ }
+ 
+-void libxmlutil_iterate_by_tag_name(const xmlNode *node, const char *name, void *user_data,
+-                                     void(*f)(const void *user_data, int i, const xmlNode *node))
++void libxmlutil_iterate_by_tag_name(const xmlNode *node, const char *name,
++                                    void *user_data,
++                                    void (*f)(const void *user_data, int i,
++                                              const xmlNode *node))
+ {
+   int i = 0;
+ 
+@@ -93,12 +96,12 @@ void libxmlutil_iterate_by_tag_name(const xmlNode *node, const char *name, void
+     }
+ }
+ 
+-const xmlNode *libxmlutil_child_node_by_name(const xmlNode *node, const char *ns,
+-                                             const char *name)
++const xmlNode *libxmlutil_child_node_by_name(const xmlNode *node,
++                                             const char *ns, const char *name)
+ {
+   for (node = node->children; node; node = node->next)
+-    if (node->type == XML_ELEMENT_NODE && !strcmp((char *)node->name, name)
+-        && (!ns || !strcmp((char *)node->ns->href, ns)))
++    if (node->type == XML_ELEMENT_NODE && !strcmp((char *)node->name, name) &&
++        (!ns || !strcmp((char *)node->ns->href, ns)))
+       return node;
+ 
+   return NULL;
+diff --git a/src/libxmlutil.h b/src/libxmlutil.h
+index be0fb2b..af546e5 100644
+--- a/src/libxmlutil.h
++++ b/src/libxmlutil.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005, 2006, 2011 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -29,9 +29,11 @@ long libxmlutil_attr_as_long(const xmlNode *node, const char *name);
+ int libxmlutil_attr_as_int(const xmlNode *node, const char *name);
+ char *libxmlutil_dup_value(const xmlNode *node);
+ int libxmlutil_count_by_tag_name(const xmlNode *node, const char *name);
+-void libxmlutil_iterate_by_tag_name(const xmlNode *node, const char *name, void *user_data,
+-                                    void(*f)(const void *user_data, int i, const xmlNode *node));
+-const xmlNode *libxmlutil_child_node_by_name(const xmlNode *node, const char *ns,
+-                                             const char *name);
++void libxmlutil_iterate_by_tag_name(const xmlNode *node, const char *name,
++                                    void *user_data,
++                                    void (*f)(const void *user_data, int i,
++                                              const xmlNode *node));
++const xmlNode *libxmlutil_child_node_by_name(const xmlNode *node,
++                                             const char *ns, const char *name);
+ 
+ #endif /* LIBXMLUTIL_H */
+diff --git a/src/patterns.c b/src/patterns.c
+index cfb3dc9..f1ed3b0 100644
+--- a/src/patterns.c
++++ b/src/patterns.c
+@@ -1,6 +1,6 @@
+ /*
+   Copyright (C) 2010 Tony Armistead
+-  Copyright (C) 2017-2018 Marius L. Jøhndal
++  Copyright (C) 2017-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -22,22 +22,21 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <glib.h>
+-#include "patterns.h"
+ #include "date_parsing.h"
++#include "patterns.h"
+ 
+ static gchar *expand_date_pattern(const rss_item *item);
+ static gchar *expand_title_pattern(const rss_item *item);
+ static gchar *expand_channel_title_pattern(const channel_info *info);
+ static gchar *expand_pattern(const channel_info *channel_info,
+-  const rss_item *item, const gchar *pattern);
++                             const rss_item *item, const gchar *pattern);
+ 
+ /* Expands a 'date' pattern to the value of the item's pub_date. Returns
+    an empty string if pub_date is absent or invalid. Formats the date
+    on the format 'YYYY-MM-DD'. Caller must free returned string with g_free. */
+ static gchar *expand_date_pattern(const rss_item *item)
+ {
+-  gchar str_date[20]; // FIXME: suspicious
++  gchar str_date[20];  // FIXME: suspicious
+ 
+   if (item->pub_date) {
+     GDate *rfc822_date = parse_rfc822_date(item->pub_date);
+@@ -78,7 +77,7 @@ static gchar *expand_channel_title_pattern(const channel_info *info)
+    string if pattern is invalid or if it cannot be expanded. Caller must free
+    returned string with g_free. */
+ static gchar *expand_pattern(const channel_info *channel_info,
+-  const rss_item *item, const gchar *pattern)
++                             const rss_item *item, const gchar *pattern)
+ {
+   if (g_ascii_strcasecmp(pattern, "date") == 0)
+     return expand_date_pattern(item);
+@@ -90,10 +89,11 @@ static gchar *expand_pattern(const channel_info *channel_info,
+     return g_strdup("");
+ }
+ 
+-#define DIM(a) sizeof(a)/sizeof(a[0])
++#define DIM(a) sizeof(a) / sizeof(a[0])
+ 
+ gchar *expand_string_with_patterns(const gchar *string,
+-  const channel_info *channel_info, const rss_item *item)
++                                   const channel_info *channel_info,
++                                   const rss_item *item)
+ {
+   enum { STATE_COPY, STATE_FIELD, STATE_DONE } state = STATE_COPY;
+   GString *parts;
+@@ -127,8 +127,7 @@ gchar *expand_string_with_patterns(const gchar *string,
+         expanded_field = expand_pattern(channel_info, item, fieldname);
+         g_string_append(parts, expanded_field);
+         g_free(expanded_field);
+-      }
+-      else if ((*cp_end != '(') && (fieldname_idx < DIM(fieldname)-1))
++      } else if ((*cp_end != '(') && (fieldname_idx < DIM(fieldname) - 1))
+         fieldname[fieldname_idx++] = *cp_end;
+       /* State update */
+       if (*cp_end == '\0')
+@@ -144,6 +143,7 @@ gchar *expand_string_with_patterns(const gchar *string,
+     ++cp_end;
+   }
+ 
+-  /* Free GString but keep actual string data. Caller must free this using g_free() */
++  /* Free GString but keep actual string data. Caller must free this using
++     g_free() */
+   return g_string_free(parts, FALSE);
+ }
+diff --git a/src/patterns.h b/src/patterns.h
+index e2ec5ca..ff8539a 100644
+--- a/src/patterns.h
++++ b/src/patterns.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2017-2018 Marius L. Jøhndal
++  Copyright (C) 2017-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+diff --git a/src/progress.c b/src/progress.c
+index 39afaca..b4f9a24 100644
+--- a/src/progress.c
++++ b/src/progress.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2016 Marius L. Jøhndal
++  Copyright (C) 2013-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,18 +21,18 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <stdio.h>
+-#include <string.h>
+-#include <stdlib.h>
+-#include <math.h>
+-#include <glib.h>
+ #include "progress.h"
+ 
+-/* This code was inspired/guided by the progress-bar implementation found in
+- * curl (src/tool_cb_prg.c) by Daniel Stenberg, in turn building on an
+- * implementation by Lars Aas. */
++#include <glib.h>
++#include <math.h>
++#include <stdlib.h>
++#include <string.h>
+ 
+-int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
++/* This code was inspired/guided by the progress-bar implementation found in
++   curl (src/tool_cb_prg.c) by Daniel Stenberg, in turn building on an
++   implementation by Lars Aas. */
++int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal,
++                    double ulnow)
+ {
+   double fraction;
+   int num;
+@@ -55,7 +55,7 @@ int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal,
+       total = (long)dltotal + pb->resume_from;
+       position = MIN((long)dlnow + pb->resume_from, total);
+ 
+-      fraction = (double)position/(double)total;
++      fraction = (double)position / (double)total;
+       num = (int)((double)pb->width * fraction);
+     }
+ 
+@@ -87,21 +87,26 @@ progress_bar *progress_bar_new(long resume_from)
+   pb->width = 79;
+   pb->previous_num = -1;
+ 
+-  /* Try to grab the COLUMNS environment variable to initialize pb->with with a suitable value. */
++  /* Try to grab the COLUMNS environment variable to initialize pb->with with a
++     suitable value. */
+   environ = g_get_environ();
+   columns = g_environ_getenv(environ, "COLUMNS");
+ 
+   if (columns) {
+     char *endptr;
+     long num = strtol(columns, &endptr, 10);
+-    if ((endptr != columns) && (endptr == columns + strlen(columns)) && (num > 0)) {
+-      pb->width = MIN(pb->width, (int)num); /* restrict width of progress bar to avoid insane values */
++    if ((endptr != columns) && (endptr == columns + strlen(columns)) &&
++        (num > 0)) {
++      pb->width = MIN(
++          pb->width,
++          (int)num);  // restrict width of progress bar to avoid insane values
+     }
+   }
+ 
+   g_strfreev(environ);
+ 
+-  /* Leave a margin for printing the percentages (the longest string is " 100%") */
++  /* Leave a margin for printing the percentages (the longest string is
++     " 100%"). */
+   pb->width = MAX(0, pb->width - 5);
+ 
+   /* Allocate space for progress bar string + terminating zero. */
+@@ -112,7 +117,7 @@ progress_bar *progress_bar_new(long resume_from)
+ 
+ void progress_bar_free(progress_bar *pb)
+ {
+-  fprintf(pb->f, "\n"); /* Make sure that we will start output on a new line. */
++  fprintf(pb->f, "\n");  // Make sure that we will start output on a new line.
+   g_free(pb->buffer);
+   g_free(pb);
+ }
+diff --git a/src/progress.h b/src/progress.h
+index 18910f7..0d43d48 100644
+--- a/src/progress.h
++++ b/src/progress.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2016 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -20,6 +20,8 @@
+ #ifndef PROGRESS_H
+ #define PROGRESS_H
+ 
++#include <stdio.h>
++
+ typedef struct _progress_bar {
+   FILE *f;
+   long resume_from;
+@@ -30,6 +32,7 @@ typedef struct _progress_bar {
+ 
+ progress_bar *progress_bar_new(long resume_from);
+ void progress_bar_free(progress_bar *pb);
+-int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow);
++int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal,
++                    double ulnow);
+ 
+ #endif /* PROGRESS_H */
+diff --git a/src/rss.c b/src/rss.c
+index 7c795e2..5eae5aa 100644
+--- a/src/rss.c
++++ b/src/rss.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2017 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,17 +21,17 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
++#include "htmlent.h"
++#include "libxmlutil.h"
++#include "rss.h"
++#include "urlget.h"
++#include "utils.h"
++
+ #include <assert.h>
++#include <glib/gprintf.h>
+ #include <stdio.h>
+ #include <string.h>
+-#include <glib.h>
+-#include <glib/gprintf.h>
+ #include <unistd.h>
+-#include "libxmlutil.h"
+-#include "urlget.h"
+-#include "htmlent.h"
+-#include "rss.h"
+-#include "utils.h"
+ 
+ #define MRSS_NAMESPACE "http://search.yahoo.com/mrss"
+ 
+@@ -66,16 +66,14 @@ static void _item_iterator(const void *user_data, int i, const xmlNode *node)
+   /* Look for mrss information first, if there is any. It may be
+      located either directly under the "item" tag, or inside an mrss
+      "group" tag. */
+-  mrss_content = libxmlutil_child_node_by_name(node, MRSS_NAMESPACE,
+-                                               "content");
++  mrss_content = libxmlutil_child_node_by_name(node, MRSS_NAMESPACE, "content");
+ 
+   if (!mrss_content) {
+-    mrss_group = libxmlutil_child_node_by_name(node, MRSS_NAMESPACE,
+-                                               "group");
++    mrss_group = libxmlutil_child_node_by_name(node, MRSS_NAMESPACE, "group");
+ 
+     if (mrss_group)
+-      mrss_content = libxmlutil_child_node_by_name(mrss_group,
+-                                                   MRSS_NAMESPACE, "content");
++      mrss_content =
++          libxmlutil_child_node_by_name(mrss_group, MRSS_NAMESPACE, "content");
+   }
+ 
+   /* Figure out if there is an "enclosure" tag here. */
+@@ -92,7 +90,8 @@ static void _item_iterator(const void *user_data, int i, const xmlNode *node)
+     /* Now read attributes. Prefer mrss over enclosure. */
+     if (mrss_content) {
+       f->items[i]->enclosure->url = libxmlutil_dup_attr(mrss_content, "url");
+-      f->items[i]->enclosure->length = libxmlutil_attr_as_long(mrss_content, "fileSize");
++      f->items[i]->enclosure->length =
++          libxmlutil_attr_as_long(mrss_content, "fileSize");
+       f->items[i]->enclosure->type = libxmlutil_dup_attr(encl, "type");
+     }
+ 
+@@ -101,7 +100,8 @@ static void _item_iterator(const void *user_data, int i, const xmlNode *node)
+         f->items[i]->enclosure->url = libxmlutil_dup_attr(encl, "url");
+ 
+       if (!f->items[i]->enclosure->length)
+-        f->items[i]->enclosure->length = libxmlutil_attr_as_long(encl, "length");
++        f->items[i]->enclosure->length =
++            libxmlutil_attr_as_long(encl, "length");
+ 
+       if (!f->items[i]->enclosure->type)
+         f->items[i]->enclosure->type = libxmlutil_dup_attr(encl, "type");
+@@ -114,7 +114,8 @@ static void _item_iterator(const void *user_data, int i, const xmlNode *node)
+     f->items[i]->enclosure = NULL;
+ }
+ 
+-static rss_file *rss_parse(const gchar *url, const xmlNode *root_element, gchar *fetched_time)
++static rss_file *rss_parse(const gchar *url, const xmlNode *root_element,
++                           gchar *fetched_time)
+ {
+   const char *version_string;
+   const xmlNode *channel;
+@@ -123,7 +124,8 @@ static rss_file *rss_parse(const gchar *url, const xmlNode *root_element, gchar
+ 
+   /* Do some sanity checking and extract the RSS version number. */
+   if (strcmp((char *)root_element->name, "rss")) {
+-    fprintf(stderr, "Error parsing RSS file %s: Unrecognized top-level element %s.\n",
++    fprintf(stderr,
++            "Error parsing RSS file %s: Unrecognized top-level element %s.\n",
+             url, (char *)root_element->name);
+     return NULL;
+   }
+@@ -222,7 +224,7 @@ rss_file *rss_open_file(const char *filename)
+ 
+   root_element = xmlDocGetRootElement(doc);
+ 
+-  if (!root_element)  {
++  if (!root_element) {
+     xmlFreeDoc(doc);
+     xmlFreeParserCtxt(ctxt);
+ 
+@@ -262,7 +264,8 @@ rss_file *rss_open_url(const char *url, int debug)
+   rss_file *f;
+   gchar *rss_filename;
+ 
+-  if (write_by_temporary_file(NULL, _rss_open_url_cb, (gpointer)url, &rss_filename, debug))
++  if (write_by_temporary_file(NULL, _rss_open_url_cb, (gpointer)url,
++                              &rss_filename, debug))
+     return NULL;
+ 
+   f = rss_open_file(rss_filename);
+diff --git a/src/rss.h b/src/rss.h
+index f7a789f..571e386 100644
+--- a/src/rss.h
++++ b/src/rss.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+diff --git a/src/urlget.c b/src/urlget.c
+index b484234..3a6a45f 100644
+--- a/src/urlget.c
++++ b/src/urlget.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005-2017 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -21,12 +21,13 @@
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+ 
+-#include <string.h>
+-#include <stdlib.h>
+-#include <glib.h>
+-#include <curl/curl.h>
+-#include "urlget.h"
+ #include "progress.h"
++#include "urlget.h"
++
++#include <curl/curl.h>
++#include <glib.h>
++#include <stdlib.h>
++#include <string.h>
+ 
+ int urlget_file(const char *url, FILE *f, int debug)
+ {
+@@ -34,7 +35,8 @@ int urlget_file(const char *url, FILE *f, int debug)
+ }
+ 
+ int urlget_buffer(const char *url, void *user_data,
+-                  size_t (*write_buffer)(void *buffer, size_t size, size_t nmemb, void *user_data),
++                  size_t (*write_buffer)(void *buffer, size_t size,
++                                         size_t nmemb, void *user_data),
+                   long resume_from, int debug, progress_bar *pb)
+ {
+   CURL *easyhandle;
+@@ -44,7 +46,8 @@ int urlget_buffer(const char *url, void *user_data,
+   gchar *user_agent;
+ 
+   /* Construct user agent string. */
+-  user_agent = g_strdup_printf("%s (%s rss enclosure downloader)", PACKAGE_STRING, PACKAGE);
++  user_agent = g_strdup_printf("%s (%s rss enclosure downloader)",
++                               PACKAGE_STRING, PACKAGE);
+ 
+   /* Initialise curl. */
+   easyhandle = curl_easy_init();
+@@ -66,7 +69,8 @@ int urlget_buffer(const char *url, void *user_data,
+       curl_easy_setopt(easyhandle, CURLOPT_NOPROGRESS, 1);
+ 
+     if (resume_from)
+-      curl_easy_setopt(easyhandle, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)resume_from);
++      curl_easy_setopt(easyhandle, CURLOPT_RESUME_FROM_LARGE,
++                       (curl_off_t)resume_from);
+ 
+     curl_easy_setopt(easyhandle, CURLOPT_VERBOSE, debug);
+ 
+@@ -76,7 +80,8 @@ int urlget_buffer(const char *url, void *user_data,
+ 
+     if (success != CURLE_OK) {
+       if (pb)
+-        /* Insert an extra CR on stdout as we may have started printing a progress bar there. */
++        /* Insert an extra CR on stdout as we may have started printing a
++           progress bar there. */
+         fprintf(stdout, "\n");
+ 
+       if (success == CURLE_WRITE_ERROR) {
+diff --git a/src/urlget.h b/src/urlget.h
+index 618a686..512d2af 100644
+--- a/src/urlget.h
++++ b/src/urlget.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -24,7 +24,8 @@
+ 
+ int urlget_file(const char *url, FILE *f, int debug);
+ int urlget_buffer(const char *url, void *user_data,
+-                  size_t (*write_buffer)(void *buffer, size_t size, size_t nmemb, void *user_data),
++                  size_t (*write_buffer)(void *buffer, size_t size,
++                                         size_t nmemb, void *user_data),
+                   long resume_from, int debug, progress_bar *pb);
+ 
+ #endif /* URLGET_H */
+diff --git a/src/utils.c b/src/utils.c
+index 3453e13..778472d 100644
+--- a/src/utils.c
++++ b/src/utils.c
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -20,17 +20,21 @@
+ #ifdef HAVE_CONFIG_H
+ #include "config.h"
+ #endif /* HAVE_CONFIG_H */
+-#include <time.h>
++
++#include "utils.h"
++
+ #include <errno.h>
+-#include <unistd.h>
+-#include <string.h>
+ #include <glib/gprintf.h>
+ #include <glib/gstdio.h>
+-#include "utils.h"
++#include <string.h>
++#include <time.h>
++#include <unistd.h>
+ 
+ int write_by_temporary_file(const gchar *filename,
+-                            int(*writer)(FILE *f, gpointer user_data, int debug),
+-                            gpointer user_data, gchar **used_filename, int debug)
++                            int (*writer)(FILE *f, gpointer user_data,
++                                          int debug),
++                            gpointer user_data, gchar **used_filename,
++                            int debug)
+ {
+   int retval;
+   FILE *f;
+@@ -110,7 +114,8 @@ gchar *get_rfc822_time(void)
+ 
+   now = time(NULL);
+ 
+-  if (strftime(rfc822_time_buffer, RFC822_TIME_BUFFER_LEN, "%a, %d-%b-%Y %X GMT", gmtime(&now)))
++  if (strftime(rfc822_time_buffer, RFC822_TIME_BUFFER_LEN,
++               "%a, %d-%b-%Y %X GMT", gmtime(&now)))
+     return g_strdup(rfc822_time_buffer);
+   else
+     return NULL;
+diff --git a/src/utils.h b/src/utils.h
+index d9e39bd..7c3f176 100644
+--- a/src/utils.h
++++ b/src/utils.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013 Marius L. Jøhndal
++  Copyright (C) 2005-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+@@ -20,11 +20,12 @@
+ #ifndef UTILS_H
+ #define UTILS_H
+ 
+-#include <stdio.h>
+ #include <glib.h>
++#include <stdio.h>
+ 
+ int write_by_temporary_file(const gchar *filename,
+-                            int(*writer)(FILE *f, gpointer user_data, int debug),
++                            int (*writer)(FILE *f, gpointer user_data,
++                                          int debug),
+                             gpointer user_data, gchar **used_filename,
+                             int debug);
+ gchar *get_rfc822_time(void);
+diff --git a/tests/mocks.c b/tests/mocks.c
+index 2ad94b2..4c2e624 100644
+--- a/tests/mocks.c
++++ b/tests/mocks.c
+@@ -1,8 +1,7 @@
+-#include <glib.h>
+-//#include <stdlib.h>
+-//#include <stdio.h>
+ #include "mocks.h"
+ 
++#include <glib.h>
++
+ rss_item *mock_rss_item_new(char *item_title, char *item_pub_date)
+ {
+   rss_item *mock_item;
+diff --git a/tests/mocks.h b/tests/mocks.h
+index 8161d18..5fd0287 100644
+--- a/tests/mocks.h
++++ b/tests/mocks.h
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2018 Marius L. Jøhndal
++  Copyright (C) 2018-2020 Marius L. Jøhndal
+ 
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+diff --git a/tests/test_filenames.c b/tests/test_filenames.c
+index 6874d26..e8d94bd 100644
+--- a/tests/test_filenames.c
++++ b/tests/test_filenames.c
+@@ -1,16 +1,18 @@
++#include "../src/filenames.h"
++#include "mocks.h"
++
+ #include <glib.h>
+-#include <stdlib.h>
+ #include <stdio.h>
++#include <stdlib.h>
+ 
+-#include "mocks.h"
+-#include "../src/filenames.h"
+-
+-static void filename_helper(const char *pattern, char *channel_title, char *item_title,
+-  char *item_pub_date, const char *expected_filename)
++static void filename_helper(const char *pattern, char *channel_title,
++                            char *item_title, char *item_pub_date,
++                            const char *expected_filename)
+ {
+   channel_info *mock_channel_info = mock_channel_info_new(channel_title);
+   rss_item *mock_item = mock_rss_item_new(item_title, item_pub_date);
+-  gchar *filename = build_enclosure_filename("/spool", pattern, mock_channel_info, mock_item);
++  gchar *filename =
++      build_enclosure_filename("/spool", pattern, mock_channel_info, mock_item);
+ 
+   g_assert_cmpstr(filename, ==, expected_filename);
+ 
+@@ -22,25 +24,35 @@ static void filename_helper(const char *pattern, char *channel_title, char *item
+ static void test_build_enclosure_filename()
+ {
+   filename_helper("", NULL, NULL, NULL, "/spool");
+-  filename_helper("static_name.mp3", NULL, NULL, NULL, "/spool/static_name.mp3");
++  filename_helper("static_name.mp3", NULL, NULL, NULL,
++                  "/spool/static_name.mp3");
+ 
+-  filename_helper("%(title).mp3", NULL, "Test Title", NULL, "/spool/Test Title.mp3");
+-  filename_helper("foo %(title) bar.mp3", NULL, "Test Title", NULL, "/spool/foo Test Title bar.mp3");
++  filename_helper("%(title).mp3", NULL, "Test Title", NULL,
++                  "/spool/Test Title.mp3");
++  filename_helper("foo %(title) bar.mp3", NULL, "Test Title", NULL,
++                  "/spool/foo Test Title bar.mp3");
+ 
+-  filename_helper("%(date).mp3", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT", "/spool/2015-10-01.mp3");
+-  filename_helper("foo %(date) bar.mp3", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT", "/spool/foo 2015-10-01 bar.mp3");
++  filename_helper("%(date).mp3", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT",
++                  "/spool/2015-10-01.mp3");
++  filename_helper("foo %(date) bar.mp3", NULL, NULL,
++                  "Thu, 01 Oct 2015 09:53:38 GMT",
++                  "/spool/foo 2015-10-01 bar.mp3");
+ 
+   /* Suspicious values */
+-  filename_helper("%(title).mp3", NULL, "Test/Title", NULL, "/spool/TestTitle.mp3");
+-  filename_helper("foo/%(title)/bar.mp3", NULL, "Test Title", NULL, "/spool/fooTest Titlebar.mp3");
+-  filename_helper("invalid/name.mp3", NULL, NULL, NULL, "/spool/invalidname.mp3");
++  filename_helper("%(title).mp3", NULL, "Test/Title", NULL,
++                  "/spool/TestTitle.mp3");
++  filename_helper("foo/%(title)/bar.mp3", NULL, "Test Title", NULL,
++                  "/spool/fooTest Titlebar.mp3");
++  filename_helper("invalid/name.mp3", NULL, NULL, NULL,
++                  "/spool/invalidname.mp3");
+ }
+ 
+-int main (int argc, char *argv[])
++int main(int argc, char *argv[])
+ {
+   g_test_init(&argc, &argv, NULL);
+ 
+-  g_test_add_func("/filename_patterns/build_enclosure_filename", test_build_enclosure_filename);
++  g_test_add_func("/filename_patterns/build_enclosure_filename",
++                  test_build_enclosure_filename);
+ 
+   return g_test_run();
+ }
+diff --git a/tests/test_patterns.c b/tests/test_patterns.c
+index c13a366..0ea7446 100644
+--- a/tests/test_patterns.c
++++ b/tests/test_patterns.c
+@@ -1,16 +1,18 @@
++#include "mocks.h"
++
+ #include <glib.h>
+-#include <stdlib.h>
+ #include <stdio.h>
++#include <stdlib.h>
+ 
+-#include "mocks.h"
+-
+-static void pattern_helper(const char *pattern, char *channel_title, char *item_title,
+-  char *item_pub_date, const char *expected_string)
++static void pattern_helper(const char *pattern, char *channel_title,
++                           char *item_title, char *item_pub_date,
++                           const char *expected_string)
+ {
+   channel_info *mock_channel_info = mock_channel_info_new(channel_title);
+   rss_item *mock_item = mock_rss_item_new(item_title, item_pub_date);
+ 
+-  gchar *string = expand_string_with_patterns(pattern, mock_channel_info, mock_item);
++  gchar *string =
++      expand_string_with_patterns(pattern, mock_channel_info, mock_item);
+ 
+   g_assert_cmpstr(string, ==, expected_string);
+ 
+@@ -31,39 +33,51 @@ static void test_expand_string_with_static_pattern()
+ 
+ static void test_expand_string_with_date_pattern()
+ {
+-  pattern_helper("%(date)", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT", "2015-10-01");
+-  pattern_helper("foo %(date) bar", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT", "foo 2015-10-01 bar");
++  pattern_helper("%(date)", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT",
++                 "2015-10-01");
++  pattern_helper("foo %(date) bar", NULL, NULL, "Thu, 01 Oct 2015 09:53:38 GMT",
++                 "foo 2015-10-01 bar");
+ }
+ 
+ static void test_expand_string_with_item_title_pattern()
+ {
+   pattern_helper("%(title)", "Channel Title", "Item Title", NULL, "Item Title");
+-  pattern_helper("foo %(title) bar", "Channel Title", "Item Title", NULL, "foo Item Title bar");
++  pattern_helper("foo %(title) bar", "Channel Title", "Item Title", NULL,
++                 "foo Item Title bar");
+ }
+ 
+ static void test_expand_string_with_channel_title_pattern()
+ {
+-  pattern_helper("%(channel_title)", "Channel Title", "Item Title", NULL, "Channel Title");
+-  pattern_helper("foo %(channel_title) bar", "Channel Title", "Item Title", NULL, "foo Channel Title bar");
++  pattern_helper("%(channel_title)", "Channel Title", "Item Title", NULL,
++                 "Channel Title");
++  pattern_helper("foo %(channel_title) bar", "Channel Title", "Item Title",
++                 NULL, "foo Channel Title bar");
+ }
+ 
+ static void test_expand_string_with_pattern_with_slashes()
+ {
+   pattern_helper("%(title)", "Channel Title", "Test/Title", NULL, "Test/Title");
+-  pattern_helper("foo/%(title)/bar", "Channel Title", "Test Title", NULL, "foo/Test Title/bar");
++  pattern_helper("foo/%(title)/bar", "Channel Title", "Test Title", NULL,
++                 "foo/Test Title/bar");
+   pattern_helper("invalid/name", "Channel Title", NULL, NULL, "invalid/name");
+ }
+ 
+-int main (int argc, char *argv[])
++int main(int argc, char *argv[])
+ {
+   g_test_init(&argc, &argv, NULL);
+ 
+-  g_test_add_func("/patterns/expand_string_with_empty_pattern", test_expand_string_with_empty_pattern);
+-  g_test_add_func("/patterns/expand_string_with_static_pattern", test_expand_string_with_static_pattern);
+-  g_test_add_func("/patterns/expand_string_with_date_pattern", test_expand_string_with_date_pattern);
+-  g_test_add_func("/patterns/expand_string_with_item_title_pattern", test_expand_string_with_item_title_pattern);
+-  g_test_add_func("/patterns/expand_string_with_channel_title_pattern", test_expand_string_with_channel_title_pattern);
+-  g_test_add_func("/patterns/expand_string_with_pattern_with_slashes", test_expand_string_with_pattern_with_slashes);
++  g_test_add_func("/patterns/expand_string_with_empty_pattern",
++                  test_expand_string_with_empty_pattern);
++  g_test_add_func("/patterns/expand_string_with_static_pattern",
++                  test_expand_string_with_static_pattern);
++  g_test_add_func("/patterns/expand_string_with_date_pattern",
++                  test_expand_string_with_date_pattern);
++  g_test_add_func("/patterns/expand_string_with_item_title_pattern",
++                  test_expand_string_with_item_title_pattern);
++  g_test_add_func("/patterns/expand_string_with_channel_title_pattern",
++                  test_expand_string_with_channel_title_pattern);
++  g_test_add_func("/patterns/expand_string_with_pattern_with_slashes",
++                  test_expand_string_with_pattern_with_slashes);
+ 
+   return g_test_run();
+ }
+diff --git a/tests/test_progress.c b/tests/test_progress.c
+index 60e709a..3d865e3 100644
+--- a/tests/test_progress.c
++++ b/tests/test_progress.c
+@@ -1,8 +1,8 @@
++#include "../src/progress.h"
++
+ #include <glib.h>
+-#include <stdlib.h>
+ #include <stdio.h>
+-
+-#include "../src/progress.h"
++#include <stdlib.h>
+ 
+ static void test_progress_bar_new()
+ {
+@@ -40,16 +40,26 @@ static void test_progress_bar_cb()
+   pb->f = tmpfile();
+ 
+   progress_bar_cb(pb, 300, 0, 0, 0);
+-  g_assert_cmpstr(pb->buffer, ==, "                                                                         ");
++  g_assert_cmpstr(pb->buffer, ==,
++                  "                                                            "
++                  "             ");
+   progress_bar_cb(pb, 300, 150, 0, 0);
+-  g_assert_cmpstr(pb->buffer, ==, "####################################                                     ");
++  g_assert_cmpstr(pb->buffer, ==,
++                  "####################################                        "
++                  "             ");
+   progress_bar_cb(pb, 300, 450, 0, 0);
+-  g_assert_cmpstr(pb->buffer, ==, "#########################################################################");
++  g_assert_cmpstr(pb->buffer, ==,
++                  "############################################################"
++                  "#############");
+   progress_bar_cb(pb, 300, -1, 0, 0);
+-  g_assert_cmpstr(pb->buffer, ==, "                                                                         ");
++  g_assert_cmpstr(pb->buffer, ==,
++                  "                                                            "
++                  "             ");
+   pb->resume_from = 150;
+   progress_bar_cb(pb, 150, 0, 0, 0);
+-  g_assert_cmpstr(pb->buffer, ==, "####################################                                     ");
++  g_assert_cmpstr(pb->buffer, ==,
++                  "####################################                        "
++                  "             ");
+ 
+   fclose(pb->f);
+   progress_bar_free(pb);
+@@ -59,7 +69,7 @@ static void test_progress_bar_cb()
+   }
+ }
+ 
+-int main (int argc, char *argv[])
++int main(int argc, char *argv[])
+ {
+   g_test_init(&argc, &argv, NULL);
+ 
