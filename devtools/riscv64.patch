@@ -1,59 +1,59 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 422645)
-+++ PKGBUILD	(working copy)
+diff --git PKGBUILD.orig PKGBUILD
+index 1046d6a..0e9938c 100644
+--- PKGBUILD.orig
++++ PKGBUILD
 @@ -3,9 +3,9 @@
  
  pkgname=devtools
  pkgver=20210202
--pkgrel=2
-+pkgrel=2.3
+-pkgrel=3
++pkgrel=3.1
  pkgdesc='Tools for Arch Linux package maintainers'
 -arch=('any')
 +arch=('x86_64')
  license=('GPL')
  url='https://github.com/archlinux/devtools'
  depends=('bash' 'openssh' 'subversion' 'rsync' 'arch-install-scripts'
-@@ -12,7 +12,10 @@
-          'git' 'bzr' 'mercurial' 'diffutils' 'util-linux' 'awk')
+@@ -13,7 +13,10 @@ depends=('bash' 'openssh' 'subversion' 'rsync' 'arch-install-scripts'
  makedepends=('asciidoc')
  optdepends=('btrfs-progs: btrfs support')
--source=(https://sources.archlinux.org/other/${pkgname}/${pkgname}-${pkgver}.tar.gz{,.sig})
-+source=(https://sources.archlinux.org/other/${pkgname}/${pkgname}-${pkgver}.tar.gz{,.sig}
+ source=(https://sources.archlinux.org/other/${pkgname}/${pkgname}-${pkgver}.tar.gz{,.sig}
+-        fix-curlrc-disabling.patch)
++        fix-curlrc-disabling.patch
 +        https://github.com/archlinux/devtools/commit/30ed6920c7e7962b7161bc2405c63e9a1ab95be2.patch
 +        https://github.com/archlinux/devtools/pull/64.patch
 +        makepkg-riscv64.conf pacman-extra-riscv64.conf)
  validpgpkeys=('487EACC08557AD082088DABA1EB2638FF56C0C53'
                '4AA4767BBC9C4B1D18AE28B77F2D434B9741E8AC'
                '86CFFCA918CF3AF47147588051E8B148A9999C34'
-@@ -23,10 +26,24 @@
-               '6645B0A8C7005E78DB1D7864F99FFE0FEAE999BD'
+@@ -25,14 +28,24 @@ validpgpkeys=('487EACC08557AD082088DABA1EB2638FF56C0C53'
                'E240B57E2C4630BA768E2F26FC1B547C8D8172C8')
  sha256sums=('ad1a65f0f349093b557bd6f45fd5f84ba2be246702908193ae7351457a218d6e'
--            'SKIP')
-+            'SKIP'
+             'SKIP'
+-            'cfb48e2aec7b4b811e878bf918ca719b7e956556ba20cf71295617a67ed31338')
++            'cfb48e2aec7b4b811e878bf918ca719b7e956556ba20cf71295617a67ed31338'
 +            '97a46d679f3024613894038f2f7fc9dde1611fc2092fcb747880c841c7fca644'
 +            '59abf3913a3fdc06bc02a61c51a1b1ac1373ec0c0ce0ad309053cc0102f289fc'
 +            'b235f5367504aee159c0261ee296c1f80bfb309f12ce3c0e42fbf66d87b0de47'
 +            'fc933f164d21774e7a1435d9fccf87cb05f7b601e89a2ba54b899b2ce1e809df')
  b2sums=('b3f388b928f91a230e0fbc406cdeccd81d3688d5f5a6e9c7928994c680f22b4162e0cce07bb7d84e0c5bb2850cd92b35a531ca5bc8ca9b7d97a278e9f3787f45'
--        'SKIP')
-+        'SKIP'
+         'SKIP'
+-        'f2c771da57ae9f4ddada031c881345a6aced684bab7435a074b96be5000cdae0ed042740ab845aa612d17860e6c1ebd9d351979f62061f62477588446c302ae8')
++        'f2c771da57ae9f4ddada031c881345a6aced684bab7435a074b96be5000cdae0ed042740ab845aa612d17860e6c1ebd9d351979f62061f62477588446c302ae8'
 +        'f08297262b48c0a387dedb6c0056875931e55a05d9605b6ded30c6e44fb7781673206d2dc67a84165455db855b12707cc9dbeb064d1c81ff94b10ddd662a65f4'
 +        '7d6bda662a96184262a55d0128da640b52346aa61d47de2e7b04ae85af851c77a9491b866fd28a6deaf49868ac3284ba601b214162ce14ca50bdbc9543268c84'
 +        '0997b8e37a27edeb9142806d75ff2250134a4e158b3625e3cd93762c83b31bd05a05c33f93c1acf79e7d12125bd8921019ba46970df6626a3986fb3a48bee5f1'
 +        'fbfb852a217879e37a4d19c6c3edc84e25591cfa15b51ef6c736d7fa924ad5b7d3b6063e4820c99eeab05e1aa57179bb31c83197858faca0a966c8fb515ff5cf')
  
-+prepare() {
-+  cd ${pkgname}-${pkgver}
-+  patch -p1 -i ../30ed6920c7e7962b7161bc2405c63e9a1ab95be2.patch
-+  patch -p1 -i ../64.patch
-+}
-+
- build() {
+ prepare() {
    cd ${pkgname}-${pkgver}
-   make PREFIX=/usr
-@@ -35,6 +52,14 @@
+   patch -Np1 -i ../fix-curlrc-disabling.patch
++  patch -Np1 -i ../30ed6920c7e7962b7161bc2405c63e9a1ab95be2.patch
++  patch -Np1 -i ../64.patch
+ }
+ 
+ build() {
+@@ -43,6 +56,14 @@ build() {
  package() {
    cd ${pkgname}-${pkgver}
    make PREFIX=/usr DESTDIR="${pkgdir}" install
