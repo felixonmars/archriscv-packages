@@ -1,0 +1,47 @@
+diff --git a/console/fbtools.c b/console/fbtools.c
+index 9f876df..07739ff 100644
+--- a/console/fbtools.c
++++ b/console/fbtools.c
+@@ -520,6 +520,6 @@ fb_catch_exit_signals(void)
+ 
+     /* cleanup */
+     fb_cleanup();
+-    fprintf(stderr,"Oops: %s\n",sys_siglist[termsig]);
++    fprintf(stderr,"Oops: %s\n",strsignal(termsig));
+     exit(42);
+ }
+diff --git a/console/record.c b/console/record.c
+index 685221b..90f0c85 100644
+--- a/console/record.c
++++ b/console/record.c
+@@ -429,7 +429,7 @@ ctrlc(int signal)
+ {
+     if (verbose)
+ 	fprintf(stderr,"\n%s - exiting\n",
+-		sys_siglist[signal]);
++		strsignal(signal));
+     stop = 1;
+ }
+ 
+diff --git a/x11/rootv.c b/x11/rootv.c
+index 60a8406..4bf458b 100644
+--- a/x11/rootv.c
++++ b/x11/rootv.c
+@@ -133,7 +133,7 @@ catch_sig(int signal)
+     termsig = signal;
+     if (verbose)
+ 	fprintf(stderr,"received signal %d [%s]\n",
+-		termsig,sys_siglist[termsig]);
++		termsig,strsignal(termsig));
+ }
+ 
+ static void usage(FILE *fp)
+@@ -422,7 +422,7 @@ main(int argc, char *argv[])
+     }
+     if (verbose && termsig)
+ 	fprintf(stderr,"exiting on signal %d [%s]\n",
+-		termsig,sys_siglist[termsig]);
++		termsig,strsignal(termsig));
+     if (do_mute && have_mute)
+ 	XvSetPortAttribute(dpy,port,XV_MUTE,1);
+     XvStopVideo(dpy,port,win);

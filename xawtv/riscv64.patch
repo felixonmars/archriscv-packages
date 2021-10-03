@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index a6e7bfd..554d813 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,10 @@ license=('GPL')
+ depends=('aalib' 'v4l-utils' 'libxv' 'libxrandr' 'libgl' 'libdv' 'zvbi' 'libxinerama' 'lirc' 'libxft' 'libxaw' 'xorg-fonts-misc' 'libxxf86vm')
+ makedepends=('mesa' 'git' 'xorgproto')
+ _commit=8e3feea862db68d3ca0886f46cd99fab45d2db7c
+-source=("git+https://git.linuxtv.org/cgit.cgi/xawtv3.git#commit=$_commit")
+-md5sums=('SKIP')
++source=("git+https://git.linuxtv.org/xawtv3.git#commit=$_commit"
++        "replace-removed-sys_siglist-with-strsignal.patch")
++md5sums=('SKIP'
++         '7e62aa030f54503960a1149315e5eeb8')
+ 
+ pkgver() {
+   cd xawtv3
+@@ -27,6 +29,7 @@ prepare() {
+ 
+ build() {
+   cd "${srcdir}/xawtv3"
++  patch -Np1 -i ../replace-removed-sys_siglist-with-strsignal.patch
+   CFLAGS+=' -fcommon' # https://wiki.gentoo.org/wiki/Gcc_10_porting_notes/fno_common
+   ./configure --prefix=/usr --disable-motif --disable-quicktime
+   make
