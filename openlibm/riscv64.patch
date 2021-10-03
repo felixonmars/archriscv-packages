@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index fc68572..fe772c6 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,12 +10,15 @@ arch=(x86_64)
+ url='https://openlibm.org/'
+ license=(BSD)
+ depends=(glibc)
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/JuliaLang/$pkgname/archive/v$pkgver.tar.gz")
+-sha256sums=('03620768df4ca526a63dd675c6de95a5c9d167ff59555ce57a61c6bf49e400ee')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/JuliaLang/$pkgname/archive/v$pkgver.tar.gz"
++        "support-riscv64.patch::https://github.com/JuliaMath/openlibm/pull/254.patch")
++sha256sums=('03620768df4ca526a63dd675c6de95a5c9d167ff59555ce57a61c6bf49e400ee'
++            '74c2e9cc7d1e602a4bff9272d72784aa097b2e6f8bcb67b0982b849608fe5211')
+
+ prepare() {
+   cd $pkgname-$pkgver
+   sed -e 's|/usr/local|/usr|' -i Make.inc
++  patch -Np1 -i ../support-riscv64.patch
+ }
+
+ build() {
