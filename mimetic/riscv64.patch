@@ -1,0 +1,33 @@
+diff --git PKGBUILD PKGBUILD
+index d7edbe9..59daeed 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,14 +9,25 @@ url="http://www.codesink.org/mimetic_mime_library.html"
+ arch=(x86_64)
+ license=(MIT)
+ depends=(gcc-libs)
+-source=(http://www.codesink.org/download/$pkgname-$pkgver.tar.gz)
+-sha256sums=('3a07d68d125f5e132949b078c7275d5eb0078dd649079bd510dd12b969096700')
++source=(http://www.codesink.org/download/$pkgname-$pkgver.tar.gz
++        fix-ordered-comparison-of-pointer-with-integer-zero.patch)
++sha256sums=('3a07d68d125f5e132949b078c7275d5eb0078dd649079bd510dd12b969096700'
++            'SKIP')
+ 
+ build() {
+   cd $pkgname-$pkgver
+ 
++  CXXFLAGS="-Wno-error=narrowing "
++  CXXFLAGS+="-DHAVE_UNISTD_H "
++  CXXFLAGS+="-DHAVE_SYS_STAT_H "
++  CXXFLAGS+="-DHAVE_SYS_TYPES_H "
++  CXXFLAGS+="-DHAVE_MMAP "
++  CXXFLAGS+="-DHAVE_DIRENT_H "
++  patch -Np1 -i ../fix-ordered-comparison-of-pointer-with-integer-zero.patch
++  sed -i 's|VERSION|"$pkgver"|g' mimetic/version.cxx
++
+   ./configure --prefix=/usr
+-  make
++  make CXXFLAGS="$CXXFLAGS"
+ }
+ 
+ package() {
