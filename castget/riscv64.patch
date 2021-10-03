@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index 4747190..34ddc6a 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,16 +8,22 @@ pkgdesc="Command-line based RSS enclosure downloader primarily intended for down
+ arch=('x86_64')
+ url="https://johndal.com/castget/"
+ license=('GPL')
+-depends=('glib2' 'libxml2' 'curl' 'id3lib')
++depends=('glib2' 'libxml2' 'curl' 'taglib')
++makedepends=('ruby-ronn-ng')
+ changelog=$pkgname.changelog
+-source=(https://download.savannah.gnu.org/releases/$pkgname/$pkgname-$pkgver.tar.bz2{,.sig})
++source=(https://download.savannah.gnu.org/releases/$pkgname/$pkgname-$pkgver.tar.bz2{,.sig}
++        port-to-taglib.patch) # https://github.com/mlj/castget/commit/6ad0c9d791f646e310b733a9d4d4f7797e92c79c.patch
+ validpgpkeys=('561BCBC3DF8A53503A62416EA7DE43E1D881FF60') # Marius Larsen Jøhndal <mariuslj@ifi.uio.no>
+ sha256sums=('438b5f7ec7e31a45ed3756630fe447f42015acda53ec09202f48628726b5e875'
+-            'SKIP')
++            'SKIP'
++            '3e8e812983cc527983e1610eff24227c35d405c12df069d8be27ce0b01d44692')
+ 
+ build() {
+   cd "${srcdir}"/$pkgname-$pkgver
+ 
++  patch -Np1 -i ../port-to-taglib.patch
++  
++  autoreconf -fi
+   ./configure --prefix=/usr
+   make
+ }
