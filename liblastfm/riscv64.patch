@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index 0f539b3..5eed3b9 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,15 +13,18 @@ license=('GPL3')
+ depends=('qt5-base' 'fftw' 'libsamplerate')
+ makedepends=('cmake')
+ source=(${pkgbase}-${pkgver}.tar.gz::"https://github.com/lastfm/${pkgbase}/tarball/${pkgver}" liblastfm-qt5.11.patch
+-        liblastfm-include-suffix.patch::"https://github.com/lastfm/liblastfm/commit/480e2ec6.patch")
++        liblastfm-include-suffix.patch::"https://github.com/lastfm/liblastfm/commit/480e2ec6.patch"
++        rm-dynamic-exception-specification.patch::"https://github.com/lastfm/liblastfm/commit/d51ad3e7.patch")
+ sha1sums=('cd8c6f160529dbf9e0566973a8f37130c83a78c0'
+           '40d84032eaeae32072715732b9fe67295483ffad'
+-          '8c36936b2259771db4cf6ac55cd2201800a4623e')
++          '8c36936b2259771db4cf6ac55cd2201800a4623e'
++          '3c08a2f28202c1332132d2436016788451e50890')
+ 
+ prepare() {
+   cd lastfm-${pkgbase}-*
+   patch -p1 -i ../liblastfm-qt5.11.patch # Fix build with Qt 5.11
+   patch -p1 -i ../liblastfm-include-suffix.patch # add suffix to Qt5 include dir
++  patch -p1 -i ../rm-dynamic-exception-specification.patch # remove dynamic exception specifications
+ }
+ 
+ build() {
+@@ -39,4 +42,3 @@ package_liblastfm-qt5() {
+   cd build
+   make DESTDIR="${pkgdir}" install
+ } 
+-
