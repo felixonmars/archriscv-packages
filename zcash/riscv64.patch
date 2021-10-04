@@ -1,0 +1,31 @@
+diff --git PKGBUILD PKGBUILD
+index 4ac622b..cb688b7 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -49,7 +49,7 @@ build() {
+ 
+     CPPFLAGS="${CPPFLAGS} -I${srcdir}/db-root/include -I/usr/include/utf8cpp"
+     LDFLAGS="${LDFLAGS} -L${srcdir}/db-root/lib"
+-    rust_target=$(RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json | python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["llvm-target"])')
++    rust_target="riscv64gc-unknown-linux-gnu"
+ 
+     ./autogen.sh
+     ./configure --prefix=/usr \
+@@ -62,7 +62,7 @@ check() {
+ 
+     ./zcutil/fetch-params.sh
+ 
+-    rust_target=$(RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json | python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["llvm-target"])')
++    rust_target="riscv64gc-unknown-linux-gnu"
+     export RUST_TARGET="${rust_target}"
+     ./qa/zcash/full_test_suite.py || true
+ }
+@@ -70,7 +70,7 @@ check() {
+ package() {
+     cd ${pkgname}
+ 
+-    rust_target=$(RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json | python -c 'import json,sys;obj=json.load(sys.stdin);print(obj["llvm-target"])')
++    rust_target="riscv64gc-unknown-linux-gnu"
+     make DESTDIR="${pkgdir}" RUST_TARGET="${rust_target}" install
+ 
+     for ext in '-cli' '-tx' 'd'; do
