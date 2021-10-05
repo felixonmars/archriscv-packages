@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index 3ec22be..7a6f19b 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,11 +14,13 @@ makedepends=('git' 'cmake' 'qt5-base')
+ source=("git+${url}#commit=${_gitcommit}"
+         "git+https://github.com/rizinorg/cutter#commit=${_gitcutter}"
+         rizin-ghidra::git+https://github.com/rizinorg/ghidra.git
+-        git+https://github.com/zeux/pugixml.git)
++        git+https://github.com/zeux/pugixml.git
++        add-riscv64-to-types.patch::https://github.com/rizinorg/ghidra/commit/e782040be4c3ede346677c605fe71df24814fefc.patch)
+ sha512sums=('SKIP'
+             'SKIP'
+             'SKIP'
+-            'SKIP')
++            'SKIP'
++            'ff16ef8ae6ada822a7693714da05b79ba6b5d74a7bc847b97501c4359191cd6594d5323617c39a9dd26883dbbc952ef2b729da662833b79cc57adb8130f7d88c')
+ 
+ pkgver() {
+   cd ${pkgname}
+@@ -32,6 +34,9 @@ prepare() {
+   git config submodule."third-party/pugixml".url "${srcdir}/pugixml"
+   git config submodule."ghidra/ghidra".url "${srcdir}/rizin-ghidra"
+   git submodule update --recursive
++
++  cd ghidra/ghidra
++  patch -Np1 -i "${srcdir}/add-riscv64-to-types.patch"
+ }
+ 
+ build() {
