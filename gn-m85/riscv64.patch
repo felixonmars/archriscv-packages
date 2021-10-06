@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index c6f3a93..44cbc2c 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,8 +11,10 @@ url="https://gn.googlesource.com/gn/"
+ license=('BSD')
+ depends=('gcc-libs')
+ makedepends=('clang' 'ninja' 'python' 'git')
+-source=(git+https://gn.googlesource.com/gn#commit=$_commit)
+-md5sums=('SKIP')
++source=(git+https://gn.googlesource.com/gn#commit=$_commit
++        fix-build-for-riscv64-arch.patch) # https://gn.googlesource.com/gn/+/335dd456f93d9817210a537bb847ad2bc4f66803%5E%21/
++md5sums=('SKIP'
++         'ca5e39fe98c68445610281a191874a70')
+ 
+ pkgver() {
+   cd gn
+@@ -21,6 +23,9 @@ pkgver() {
+ 
+ build() {
+   cd gn
++
++  patch -Np1 -i ../fix-build-for-riscv64-arch.patch
++
+   ./build/gen.py
+   ninja -C out
+ }
