@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 79f433f..ff37b0b 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,12 +11,16 @@ url='http://gittup.org/tup/index.html'
+ license=(GPL2)
+ depends=(fuse3 pcre)
+ install=tup.install
+-source=($pkgname-$pkgver.tar.gz::https://github.com/gittup/tup/archive/v$pkgver.tar.gz)
+-sha256sums=('be24dff5f1f32cc85c73398487a756b4a393adab5e4d8500fd5164909d3e85b9')
++source=($pkgname-$pkgver.tar.gz::https://github.com/gittup/tup/archive/v$pkgver.tar.gz
++        add-riscv64-arch.patch::https://patch-diff.githubusercontent.com/raw/gittup/tup/pull/436.patch)
++sha256sums=('be24dff5f1f32cc85c73398487a756b4a393adab5e4d8500fd5164909d3e85b9'
++            '8eb354b3daf23ebf89c856b91c24bb97ce1ed6c8f517d5d27f4a708882b4d852')
+ 
+ prepare() {
+   cd tup-$pkgver
+ 
++  patch -Np1 < ../add-riscv64-arch.patch
++
+   sed "s/\`git describe\`/$pkgver/" -i src/tup/link.sh
+   echo "CFLAGS += $CFLAGS" >> Tuprules.tup
+   echo "LDFLAGS += $LDFLAGS" >> Tuprules.tup
