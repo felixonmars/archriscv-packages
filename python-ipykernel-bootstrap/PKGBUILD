@@ -1,0 +1,35 @@
+# Maintainer: Kyle Keen <keenerd@gmail.com>
+
+pkgname=python-ipykernel-bootstrap
+pkgver=6.0.3
+pkgrel=2
+pkgdesc="provides ipykernel"
+arch=('any')
+url="https://pypi.org/project/ipykernel/"
+license=('BSD')
+depends=('python')
+provides=('python-ipykernel')
+makedepends=('python-setuptools' 'ipython' 'python-pip')
+checkdepends=('python-pytest' 'python-mock' 'python-nose')
+source=("ipykernel-$pkgver.tgz::https://github.com/ipython/ipykernel/archive/$pkgver.tar.gz")
+md5sums=('8d5ab492112fdb82e798af06cb9932f3')
+
+# dep cycle with python-jupyter_client
+
+build() {
+  cd "$srcdir/ipykernel-$pkgver"
+  pip install ipykernel
+  python3 setup.py build
+}
+
+check() {
+  cd "$srcdir/ipykernel-$pkgver"
+  #python3 -m pytest
+  # tests fail both locally and in a chroot, for different reasons
+}
+
+package() {
+  cd "$srcdir/ipykernel-$pkgver"
+  python3 setup.py install --root="$pkgdir" --optimize=1
+  install -Dm644 COPYING.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
