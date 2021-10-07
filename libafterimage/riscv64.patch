@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index aa43cc4..0aef92d 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,11 +13,13 @@ arch=('x86_64')
+ source=("https://downloads.sourceforge.net/project/afterstep/libAfterImage/$pkgver/libAfterImage-$pkgver.tar.bz2"
+         libafterimage-libpng15.patch
+         libafterimage-ldflags.patch
+-        header-install.patch)
++        header-install.patch
++        libafterimage-ar.patch::"https://gitweb.gentoo.org/repo/gentoo.git/plain/media-libs/libafterimage/files/libafterimage-ar.patch?id=b22db36af30264f2cde7c55e627cae4a125c0af9")
+ sha256sums=('6e233253f4d1dd22dfce9f9a245cc036d814fc99ba7f6732f4e345de62cfe458'
+             'bbf95bcddc4c48dcde88745dc9cb772ca53b625e8e466b9d565e4183ce71dbe3'
+             'a38f2e46bb69f6749c5e48cff60f51fae6bda19d268f0c7f16dfbd74d34d2f64'
+-            '6e1c5fd8acbbbc1c83f0ca490f08b7602d37a2295cb4741eef6f3b88fb638203')
++            '6e1c5fd8acbbbc1c83f0ca490f08b7602d37a2295cb4741eef6f3b88fb638203'
++            '50dfe442abcdf68843f0d83309e9cbeb886d30414c88bed2e8ff072da0034749')
+ 
+ prepare() {
+   cd libAfterImage-$pkgver
+@@ -30,6 +32,9 @@ prepare() {
+ 
+   # Make sure LDFLAGS are passed to lib
+   patch < ../libafterimage-ldflags.patch
++
++  # Drop non-standard 'l' from ar args (https://bugs.gentoo.org/784182)
++  patch -p1 -i ../libafterimage-ar.patch
+ }
+ 
+ build() {
