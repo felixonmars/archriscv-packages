@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index 5473391..a2717ad 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,14 +12,17 @@ arch=('x86_64')
+ license=('custom')
+ depends=('glibc')
+ source=("https://src.fedoraproject.org/repo/pkgs/${pkgname}/${pkgname}-${pkgver}.tar.gz/c6fe45db1741f97155c7def322aa74aa/${pkgname}-${pkgver}.tar.gz"
+-        'LICENSE')
++        'LICENSE'
++        'fix-printf-format.patch')
+ sha512sums=('747bdc940fcb8ac28207a90cec8011deb93fe26064a44c94de44d7dfc82cb1cc6db2d1a648af3626283fc4f5d608ec312900455827fd1b7835ccfb89e71a7ac7'
+-            '89a2a8ed1bfbbb30ed32a55b30a5d98c1f58233603de1c1c1a6756bdae1258e810f2d0f386961bee606c31e38558dda4868c522c0c60c5ce0061ab31a97f29cb')
++            '89a2a8ed1bfbbb30ed32a55b30a5d98c1f58233603de1c1c1a6756bdae1258e810f2d0f386961bee606c31e38558dda4868c522c0c60c5ce0061ab31a97f29cb'
++            '336101fac9a808cc82d441e4c0e7d0db07c2d0033a58f4736d6c1c0896698c54b1fc701a3e4a3a29cd78bef402d9302fda15a51f1e79cea7b2cfd554764e75ef')
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
+   sed 's|CFLAGS =|CFLAGS +=|' -i Makefile
+   sed 's|-o unarj|$(LDFLAGS) -o unarj|' -i Makefile
++  patch -Np1 -i ../fix-printf-format.patch
+ }
+ 
+ build() {
