@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,17 +13,21 @@ depends=('gcc-libs' 'glibc' 'hicolor-icon-theme' 'libglvnd' 'sdl' 'tcl')
+ makedepends=('boost' 'glu' 'rtaudio' 'rtmidi')
+ source=("https://archive.org/download/dinisnoise_source_code/${pkgname}-${pkgver}.tar.gz"
+         "${pkgname}-51.1.1-devendor_rtaudio_rtmidi.patch"
+-)
++        "fix-line-ce.patch")
+ sha512sums=('ea5e1ab79cbc24abb80a9fd25d8304f36ab2345505ee98132196685cda73b31dd7db3f62cb1821cbdc9694703d3454bd58d733833710d492ecebffee23732a0f'
+-            '27369918476a2de2f84559bd295107841bee8ebed91223d13f2fab0662786cb6338717d98efd5d297c0ddcf1d8383016779f0afed50f06164d71fc997a8ab021')
++            '27369918476a2de2f84559bd295107841bee8ebed91223d13f2fab0662786cb6338717d98efd5d297c0ddcf1d8383016779f0afed50f06164d71fc997a8ab021'
++            '80aa3e18a5ce9b4925ecdf9105d2b80330e8540e150bf8b45c6c0019a06b8578c835a6f6fb00db52f0ed24e78504114122b043bc4fefbd7e7dedaa0d1000a13f')
+ b2sums=('559a4476188ac6d9da596be011bdaa8b379bb336220b3f94edf04e3eeb9ca0100fbaaa0fc10f9a9f37d3efa436acddac5c06435c6b3ebb4d21afdbd7c65b2dc8'
+-        'abeaca3e7b69ae02904e40801e3912ff57ed7cfee4309a205bbafe43bd200351e18869a67ccd057f307c76c60a2d5d0044d8cb8e767c12d03e548cd1a5b3c50e')
++        'abeaca3e7b69ae02904e40801e3912ff57ed7cfee4309a205bbafe43bd200351e18869a67ccd057f307c76c60a2d5d0044d8cb8e767c12d03e548cd1a5b3c50e'
++        '96c8b27d5693d641bae3b99f34e3d467b8350a5d4c4add33f4a17b78179a9e7338dca4a8959ddb83454e21351774195ffdf212e435243dbf4e540d88fd59bfd2')
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
+   # use system rtaudio/rtmidi, instead of vendored versions
+   patch -Np1 -i "../${pkgname}-51.1.1-devendor_rtaudio_rtmidi.patch"
+   rm -fv src/{RtAudio,RtMidi}.*
++
++  patch -Np0 -d .. -i "fix-line-ce.patch"
+   autoreconf -fiv
+ }
+ 
