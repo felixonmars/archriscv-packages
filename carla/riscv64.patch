@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 6565070..d77293a 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,11 +20,19 @@ optdepends=(
+   'vst-host: for the VST plugin'
+ )
+ provides=('dssi-host' 'ladspa-host' 'lv2-host' 'vst-host' 'vst3-host')
+-source=("git+https://github.com/falkTX/${pkgname}#tag=v${pkgver}?signed")
+-sha512sums=('SKIP')
+-b2sums=('SKIP')
++source=("git+https://github.com/falkTX/${pkgname}#tag=v${pkgver}?signed"
++        "fix-pthread-use.patch::https://patch-diff.githubusercontent.com/raw/falkTX/Carla/pull/1485.patch")
++sha512sums=('SKIP'
++            '7053a4f3d7a94ca8a260ef0a4822141a77390c53b14933d1f2e4edfbbb66583a797682a68e9449e63ea2efca1363a570644a70c9a05e9e1715e2efeb6c5c026e')
++b2sums=('SKIP'
++        'f48ceafbaa801a704d92569046f7f465ae7bfc27065f4e730867d0626b4207cedfebf0fc5b1d78334c003dba72af4f4e1e1d646df0391c9be09c685f8fadf78a')
+ validpgpkeys=('62B11043D2F6EB6672D93103CDBAA37ABC74FBA0')  # falkTX <falktx@falktx.com>
+ 
++prepare() {
++  cd "${pkgname}"
++  patch -Np1 -i ../fix-pthread-use.patch
++}
++
+ build() {
+   cd "${pkgname}"
+   make features
