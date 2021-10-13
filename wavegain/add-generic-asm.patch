@@ -1,0 +1,35 @@
+diff --git a/audio.c b/audio.c
+index ea2e824..0a650fd 100644
+--- a/audio.c
++++ b/audio.c
+@@ -122,7 +122,7 @@ __inline long int lrint(double flt)
+ 
+ 	return intgr;
+ }
+-#elif (defined (__MACOSX__))
++#elif (defined (__powerpc__))
+ #define lrint	double2int
+ inline static long
+ double2int (register double in)
+@@ -138,7 +138,7 @@ double2int (register double in)
+ 
+ 	return res [1] ;
+ }
+-#else
++#elif (defined(__x86_64__) || defined(__i386__))
+ #define	lrint	double2int
+ static inline long double2int (double in)
+ {	long retval ;
+@@ -152,6 +152,12 @@ static inline long double2int (double in)
+ 
+ 	return retval ;
+ }
++#else
++#define lrint double2int
++static inline long double2int(double in)
++{
++	return (long)in;
++}
+ #endif
+ 
+ double read_d64_be(unsigned char *cptr)
