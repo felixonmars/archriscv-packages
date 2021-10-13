@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 40789dd..26d8f54 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,20 @@ arch=('x86_64')
+ url="http://rarewares.org/others.php"
+ license=('LGPL')
+ depends=('libsndfile')
+-source=(http://www.rarewares.org/files/others/$pkgname-${pkgver}srcs.zip)
+-sha512sums=('6ce78c3fd238d49f47df5108c050f7be222778ab4cc8cbe7aeef518a0f925950c527c513a38d8c044b88157e22e581b496d9415f2c76f71010a412789165dd59')
++source=(http://www.rarewares.org/files/others/$pkgname-${pkgver}srcs.zip
++        fix-io-header.patch
++        add-generic-asm.patch
++        fix-werror-format-security.patch)
++sha512sums=('6ce78c3fd238d49f47df5108c050f7be222778ab4cc8cbe7aeef518a0f925950c527c513a38d8c044b88157e22e581b496d9415f2c76f71010a412789165dd59'
++            'cf73edf731a48f476bb95218b5a76195993f19cdba4bc9893a500cfa1747e186d9e8cb444645bcba46d738d9a93bfed8b165efae6f7926d5b1806992a602959a'
++            '8875c4313f331e4ca692c631e3cbf12cc7b8c7471aa505c18e725aa561a32654cee56a324cf212ef677b4cf0c7e0e72a2d895fe89cbe6878c3e82eb67d26e601'
++            '11b4bb6646e6dd2ffa5fc03454ff037ce8c7c380824d41de6558dba2a7777bea849a9ca02091ef3e6c51150f707d476b6433036fdc013145353c480f0db60cbf')
++
++prepare() {
++  patch -Np1 < fix-io-header.patch -d "$srcdir/$_realname-$pkgver"
++  patch -Np1 < add-generic-asm.patch -d "$srcdir/$_realname-$pkgver"
++  patch -Np1 < fix-werror-format-security.patch -d "$srcdir/$_realname-$pkgver"
++}
+ 
+ build() {
+   cd "$srcdir/$_realname-$pkgver"
