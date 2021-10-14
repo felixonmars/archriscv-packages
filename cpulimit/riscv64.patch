@@ -1,0 +1,21 @@
+diff --git PKGBUILD PKGBUILD
+index ca3769d..731b9dd 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,11 +10,14 @@ arch=('x86_64')
+ url="https://github.com/opsengine/cpulimit"
+ license=('GPL')
+ depends=('glibc')
+-source=($pkgname-$pkgver.tar.gz::https://github.com/opsengine/$pkgname/archive/v$pkgver.tar.gz)
+-sha256sums=('64312f9ac569ddcadb615593cd002c94b76e93a0d4625d3ce1abb49e08e2c2da')
++source=($pkgname-$pkgver.tar.gz::https://github.com/opsengine/$pkgname/archive/v$pkgver.tar.gz
++        fix-sysctl.h.patch)
++sha256sums=('64312f9ac569ddcadb615593cd002c94b76e93a0d4625d3ce1abb49e08e2c2da'
++            'eb7433ef972be6842735f2ec012f7ca486e80c1322607de2b620419da710ee04')
+ 
+ prepare() {
+   cd $pkgname-$pkgver
++  patch -Np1 -i ${srcdir}/fix-sysctl.h.patch
+   sed -i 's/#ifdef __APPLE__ || __FREEBSD__/#if defined(__APPLE__) || defined(__FREEBSD__)/' \
+     src/cpulimit.c tests/process_iterator_test.c
+ }
