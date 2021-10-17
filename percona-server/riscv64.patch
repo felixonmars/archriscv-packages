@@ -1,0 +1,20 @@
+diff --git PKGBUILD.orig PKGBUILD
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -9,7 +9,7 @@ _myver=${pkgver/_rel*}
+ pkgrel=2
+ arch=('x86_64')
+ makedepends=('cmake' 'zlib' 'lz4' 'zstd' 'libaio' 'systemd-tools' 'pam' 'numactl' 'jemalloc' 'openssl'
+-             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf') # 'boost'
++             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'clang') # 'boost'
+ license=('GPL')
+ url="https://www.percona.com/software/mysql-database/percona-server"
+ source=("https://www.percona.com/downloads/Percona-Server-${pkgver%.*_*}/Percona-Server-$_pkgver/source/tarball/percona-server-$_pkgver.tar.gz"
+@@ -52,6 +52,7 @@ build() {
+ 	mkdir -p build
+ 	cd build
+ 
++	export CC=clang CXX=clang++ CFLAGS="${CFLAGS//-fstack-clash-protection/}" CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
+ 	cmake ../$pkgbase-$_pkgver \
+ 		-DCMAKE_C_FLAGS_RELWITHDEBINFO="${CFLAGS} -DNDEBUG" \
+ 		-DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${CXXFLAGS} -DNDEBUG" \
