@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index cb7c0ee..3ae6e80 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,11 +10,16 @@ url="https://github.com/not-an-aardvark/lucky-commit"
+ license=('MIT')
+ depends=('gcc-libs' 'ocl-icd')
+ makedepends=('rust')
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+-sha512sums=('0d830d49535c641a77d446d46a5a0fede941b03bbdf7bacff3bc44a2438aff9f349c8c657fb3642ffbdaea88c254e8fc516405a964f44591452067cfe0988c69')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
++        "disable-asm-feature.patch")
++sha512sums=('0d830d49535c641a77d446d46a5a0fede941b03bbdf7bacff3bc44a2438aff9f349c8c657fb3642ffbdaea88c254e8fc516405a964f44591452067cfe0988c69'
++            'f33ebb1d73928d3862a7c2826cf29b972bdf01401548280bc53febad2f33d7bbf4db442540031a1d1d218f840e873293dda28948d9d787baab0d72db7b8d0b19')
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
++  patch -Np1 < ${srcdir}/disable-asm-feature.patch
++  cargo update --package sha-1:0.9.8
++  cargo update --package sha2:0.9.8
+   cargo fetch --locked
+ }
+ 
