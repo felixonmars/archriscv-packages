@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 0a52cc4..80a59d7 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,12 +11,15 @@ arch=('any')
+ license=('Apache')
+ depends=('python' 'python-gevent' 'gunicorn' 'python-ujson')
+ makedepends=('cython' 'python-setuptools' 'python-sphinx')
+-source=(https://gitlab.com/noppo/gevent-websocket/-/archive/${pkgver}/gevent-websocket-${pkgver}.tar.gz)
+-sha512sums=('33473bd20bf8bdab95784bc46093c4f3567d61290731e1980de3b8bf96d71976dca658547320329d5ee5291f54e423a1c7ae8300358bc641eae3c71a1943ea84')
++source=(https://gitlab.com/noppo/gevent-websocket/-/archive/${pkgver}/gevent-websocket-${pkgver}.tar.gz
++        "fix_docs_conf_py_syntax.patch")
++sha512sums=('33473bd20bf8bdab95784bc46093c4f3567d61290731e1980de3b8bf96d71976dca658547320329d5ee5291f54e423a1c7ae8300358bc641eae3c71a1943ea84'
++            'c5ec0ce6c202e6fc05f5258cb52f21db2b010bc9a1dbaac21bd067438f603d335050d0280a7134433ae6c2c30fc7704e27e97b3fe8a2d803484a59326407f6d5')
+ 
+ prepare() {
+   cd ${_pkgname}-${pkgver}
+   sed -E "s|release = .*|release = '${pkgver}'|" -i docs/conf.py
++  patch -Np1 -i "${srcdir}/fix_docs_conf_py_syntax.patch"
+ }
+ 
+ build() {
