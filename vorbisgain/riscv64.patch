@@ -1,0 +1,22 @@
+--- PKGBUILD.orig	2021-10-23 17:53:14.887779514 +0800
++++ PKGBUILD	2021-10-23 17:55:01.195865569 +0800
+@@ -8,8 +8,17 @@
+ url="https://sjeng.org/vorbisgain.html"
+ license=('GPL')
+ depends=('libvorbis')
+-source=(https://sjeng.org/ftp/vorbis/${pkgname}-${pkgver}.tar.gz)
+-sha512sums=('67181834e1a0d7c6e1ccd984e2d30ebf1dcdff84caa77f75e5e771de8414904810e966a43852b7184e075d2428fd8b431124835efc370ce6504b8b2756746e04')
++makedepends=('dos2unix')
++source=(https://sjeng.org/ftp/vorbis/${pkgname}-${pkgver}.tar.gz fix-format-string.patch)
++sha512sums=('67181834e1a0d7c6e1ccd984e2d30ebf1dcdff84caa77f75e5e771de8414904810e966a43852b7184e075d2428fd8b431124835efc370ce6504b8b2756746e04'
++            '8c50afdff51faacbbf218768dcce70f20359b155d106769a8da2247ae8d20793d2fc219de1648ea9d3bb30cc0983af043b598d8ba46e05ad68817d5f284a0505')
++
++prepare() {
++  cd ${pkgname}-${pkgver}
++  dos2unix misc.c
++  patch -Np0 < ../fix-format-string.patch
++  unix2dos misc.c
++}
+ 
+ build() {
+   cd ${pkgname}-${pkgver}
