@@ -1,0 +1,23 @@
+--- PKGBUILD.orig	2021-10-23 23:43:03.953898468 +0000
++++ PKGBUILD	2021-10-23 23:50:39.710571342 +0000
+@@ -12,11 +12,18 @@
+ makedepends=(extra-cmake-modules python-sphinx qt5-tools doxygen kio)
+ optdepends=('python-nautilus: integration with Nautilus' 'nemo-python: integration with Nemo' 'python-caja: integration with Caja')
+ backup=('etc/ownCloud/sync-exclude.lst')
+-source=(https://download.owncloud.com/desktop/ownCloud/stable/$pkgver/source/ownCloud-$pkgver.tar.xz{,.asc})
++source=(https://download.owncloud.com/desktop/ownCloud/stable/$pkgver/source/ownCloud-$pkgver.tar.xz{,.asc}
++	0001-Fix-gcc-format-string-error.patch)
+ sha256sums=('9bd0b0d0ad60886b62338cbc0a30411c7b48cdf87d731446afb04e933b658d40'
+-            'SKIP')
++            'SKIP'
++            '09fe477c042159de66bb6ddf0936470a1757b44968119f0446f1bbbaac484451')
+ validpgpkeys=(F05F7DD7953A07DF36579DAA498C45EBE94E7B37) # ownCloud Client Team (Signing Key) <info@owncloud.com>
+ 
++prepare() {
++  cd ownCloud-$pkgver 
++  patch -Np1 < ../0001-Fix-gcc-format-string-error.patch
++}
++
+ build() {
+   cmake -B build -S ownCloud-$pkgver \
+     -DCMAKE_INSTALL_PREFIX=/usr \
