@@ -1,0 +1,43 @@
+diff --git PKGBUILD PKGBUILD
+index 73036df..5f3cd05 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,7 +10,7 @@ url="https://surge-synthesizer.github.io/"
+ license=('GPL3')
+ groups=('lv2-plugins' 'pro-audio' 'vst3-plugins')
+ depends=('cairo' 'fontconfig' 'gcc-libs' 'glibc' 'libx11' 'libxcb'
+-'libxkbcommon-x11' 'xcb-util' 'xcb-util-cursor' 'xcb-util-image'
++'libxkbcommon-x11' 'simde' 'xcb-util' 'xcb-util-cursor' 'xcb-util-image'
+ 'xcb-util-keysyms' 'xcb-util-renderutil' 'xdg-utils')
+ makedepends=('cmake' 'freetype2' 'libsndfile' 'lv2' 'python')
+ optdepends=(
+@@ -20,11 +20,17 @@ optdepends=(
+ checkdepends=('lv2lint')
+ replaces=('surge-synthesizer')
+ source=("${pkgname}-${pkgver}.tgz::https://github.com/surge-synthesizer/releases/releases/download/${pkgver}/SurgeSrc_${pkgver}.tgz"
+-        "${pkgname}-1.9.0-test.patch::https://github.com/surge-synthesizer/surge/pull/4397/commits/077fbdda1c70413b6ff1af26f5ee0a7b814aa934.patch")
++        "${pkgname}-1.9.0-test.patch::https://github.com/surge-synthesizer/surge/pull/4397/commits/077fbdda1c70413b6ff1af26f5ee0a7b814aa934.patch"
++        "fix_pthread.patch"
++        "fix_simde.patch")
+ sha512sums=('f06caae297026e9bbccdb097a47341dc1abd17dc7988d8d46368bec202fe701b1b7c9614b441f8d00a5a3a4f386d870a2da86c422ddd7324db216de7baa00836'
+-            '90d5760b64bcbd782c6318d92ac19a89f84eb63bfe96c5122830cbdd1a78806e8422d1969bc1a8888e20fa2fd0872c69c0d298b909b3006067993fb2177ab2d5')
++            '4e187762df66acdf5fd76f0e21847eedcc15239b9251f7a7245b8619abcc812da2e89eed33e541feb4de2a07eab9a67ef5b8f592f98cec67fbb37ba38eca3416'
++            '56ac3752fbc1f6d83adf560e31ce84bbaa09163e9a49f391177ae8a986d90e83408b5c1e4a1ca33e3360a85eb5ba434152d2ebeebeb28ecdade27bd300bb9273'
++            '33a141883d271021b369c5f48d347d3d5acca3e9491505b1344dc56791253f36006afc2dffc7adb7ebaea1c71221acaef44ecfc69293cb2fe43a816ca3a2c0a0')
+ b2sums=('b6574a48feefe6173afb2185be64423bb70d51d7376e9b5c44c4882d8e3e078c6b0430cb33aa23f9858a21db0be7b0dddfeebb57625149d79f066bb23639882e'
+-        '7ca2599f7340e63f0f5f5e4d097c28fbc4d68d06c4de33da63b55b50404ebf14007717aa803dea28c0d124b70887848d4479ff19a640f752e13839fbf6f0a7f3')
++        '4f1c289bb50595292ad77feb1e0ee1d1a145d1d41fac5776b9c9dda5d74cb77777d8bb15060a99d75d9a8a07bf771ceec076e9718b29e08bf02c709400af793c'
++        '7873d032c51365bcec51f590bb039ab2751819b7b1512661a80e103cb6318a21edaa028f60e84813395f53abd0be374bd32792d3759fdaa5008a09af629f5447'
++        '46eca2a9e2a540f3ad9e732909618eff9258e974feacc7681f20140310df72a4d199a3d61a78bc58487ee2fd5a41ef3487206f98a45a43f62c84432f865364fa')
+ 
+ prepare() {
+   mv -v "$pkgname" "$pkgname-$pkgver"
+@@ -41,6 +47,8 @@ prepare() {
+   # fix issue with a unit test:
+   # https://github.com/surge-synthesizer/surge/issues/4387
+   patch -Np1 -i ../"${pkgname}-1.9.0-test.patch"
++  patch -Np1 -i ../"fix_pthread.patch"
++  patch -Np1 -i ../"fix_simde.patch"
+ }
+ 
+ build() {

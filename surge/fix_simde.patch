@@ -1,0 +1,50 @@
+diff --git a/src/common/util/FpuState.cpp b/src/common/util/FpuState.cpp
+index 2c10a05..766a13a 100644
+--- a/src/common/util/FpuState.cpp
++++ b/src/common/util/FpuState.cpp
+@@ -1,7 +1,13 @@
+ #include "globals.h"
+ #include "FpuState.h"
+ #ifndef ARM_NEON
++#if defined(__SSE2__) || defined(_M_AMD64) || defined(_M_X64) ||                                   \
++    (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+ #include <emmintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include "simde/x86/sse2.h"
++#endif
+ #endif
+ #include <float.h>
+ 
+@@ -23,8 +29,13 @@ void FpuState::set()
+     }
+     // FTZ/DAZ + ignore all exceptions (1 means ignored)
+ 
++#if defined(SIMDE_ENABLE_NATIVE_ALIASES)
++    SIMDE_MM_SET_ROUNDING_MODE(SIMDE_MM_ROUND_NEAREST);
++#else
+     _MM_SET_ROUNDING_MODE(_MM_ROUND_NEAREST);
+ #endif
++
++#endif
+ }
+ 
+ void FpuState::restore()
+diff --git a/src/common/vt_dsp/portable_intrinsics.h b/src/common/vt_dsp/portable_intrinsics.h
+index baf4f5b..93d4ec8 100644
+--- a/src/common/vt_dsp/portable_intrinsics.h
++++ b/src/common/vt_dsp/portable_intrinsics.h
+@@ -1,7 +1,13 @@
+ #pragma once
+ 
+ #if LINUX && !ARM_NEON
++#if defined(__AVX__) || defined(_M_AMD64) || defined(_M_X64) ||                                   \
++    (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+ #include <immintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include "simde/x86/avx.h"
++#endif
+ #endif
+ 
+ #define vFloat __m128
