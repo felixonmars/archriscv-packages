@@ -1,0 +1,93 @@
+diff --git a/hack/lib/golang.sh b/hack/lib/golang.sh
+index a50a64af..326e30fd 100755
+--- a/hack/lib/golang.sh
++++ b/hack/lib/golang.sh
+@@ -25,6 +25,7 @@ readonly KUBE_SUPPORTED_SERVER_PLATFORMS=(
+   linux/amd64
+   linux/arm
+   linux/arm64
++  linux/riscv64
+   linux/s390x
+   linux/ppc64le
+ )
+@@ -34,6 +35,7 @@ readonly KUBE_SUPPORTED_NODE_PLATFORMS=(
+   linux/amd64
+   linux/arm
+   linux/arm64
++  linux/riscv64
+   linux/s390x
+   linux/ppc64le
+   windows/amd64
+@@ -46,6 +48,7 @@ readonly KUBE_SUPPORTED_CLIENT_PLATFORMS=(
+   linux/386
+   linux/arm
+   linux/arm64
++  linux/riscv64
+   linux/s390x
+   linux/ppc64le
+   darwin/amd64
+@@ -60,6 +63,7 @@ readonly KUBE_SUPPORTED_TEST_PLATFORMS=(
+   linux/amd64
+   linux/arm
+   linux/arm64
++  linux/riscv64
+   linux/s390x
+   linux/ppc64le
+   darwin/amd64
+@@ -428,6 +432,10 @@ kube::golang::set_platform_envs() {
+         export CGO_ENABLED=1
+         export CC=${KUBE_LINUX_PPC64LE_CC:-powerpc64le-linux-gnu-gcc}
+         ;;
++      "linux/riscv64")
++        export CGO_ENABLED=1
++        export CC=${KUBE_LINUX_RISCV64_CC:-riscv64-linux-gnu-gcc}
++        ;;
+       "linux/s390x")
+         export CGO_ENABLED=1
+         export CC=${KUBE_LINUX_S390X_CC:-s390x-linux-gnu-gcc}
+diff --git a/hack/lib/util.sh b/hack/lib/util.sh
+index 1e6e80ba..7a1d127f 100755
+--- a/hack/lib/util.sh
++++ b/hack/lib/util.sh
+@@ -179,6 +179,9 @@ kube::util::host_arch() {
+     i?86*)
+       host_arch=x86
+       ;;
++    riscv64*)
++      host_arch=riscv64
++      ;;
+     s390x*)
+       host_arch=s390x
+       ;;
+@@ -186,7 +189,7 @@ kube::util::host_arch() {
+       host_arch=ppc64le
+       ;;
+     *)
+-      kube::log::error "Unsupported host arch. Must be x86_64, 386, arm, arm64, s390x or ppc64le."
++      kube::log::error "Unsupported host arch. Must be x86_64, 386, arm, arm64, riscv64, s390x or ppc64le."
+       exit 1
+       ;;
+   esac
+diff --git a/hack/local-up-cluster.sh b/hack/local-up-cluster.sh
+index 32eca86a..92481659 100755
+--- a/hack/local-up-cluster.sh
++++ b/hack/local-up-cluster.sh
+@@ -324,6 +324,9 @@ function detect_binary {
+       i?86*)
+         host_arch=x86
+         ;;
++      riscv64*)
++        host_arch=riscv64
++        ;;
+       s390x*)
+         host_arch=s390x
+         ;;
+@@ -331,7 +334,7 @@ function detect_binary {
+         host_arch=ppc64le
+         ;;
+       *)
+-        echo "Unsupported host arch. Must be x86_64, 386, arm, arm64, s390x or ppc64le." >&2
++        echo "Unsupported host arch. Must be x86_64, 386, arm, arm64, riscv64, s390x or ppc64le." >&2
+         exit 1
+         ;;
+     esac
