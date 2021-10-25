@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index e4005b8..09017ce 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,13 +12,16 @@ license=('LGPL')
+ depends=('glib2' 'sqlite' 'util-linux')
+ makedepends=('git' 'doxygen' 'gnome-common' 'python')
+ source=("git://github.com/pyzy/pyzy.git#commit=$_commit"
+-        pyzy-python3.patch)
++        pyzy-python3.patch
++        "fix_narrowing_conversion.patch")
+ sha512sums=('SKIP'
+-            '901900d6b7f40bd9910bb7a200dcb53096169cc6501d0ab34faf25b3e279b8dd0f41702bb48c9554803d2089ab43f245ca7ba98137462572f7625fb7992ec618')
++            '901900d6b7f40bd9910bb7a200dcb53096169cc6501d0ab34faf25b3e279b8dd0f41702bb48c9554803d2089ab43f245ca7ba98137462572f7625fb7992ec618'
++            'ea0080c975aab02443cbfeef56b6b62f435d7171beeea9922e188d5a87950be0fc943f4b9339e30bfe29553c1b96cffa3d39975ae529648ddc1a753bb9e20aff')
+ 
+ build() {
+   cd $pkgname
+   patch -p1 -i ../pyzy-python3.patch
++  patch -Np1 -i ../fix_narrowing_conversion.patch
+ 
+   ./autogen.sh --prefix=/usr
+   sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
