@@ -1,0 +1,30 @@
+diff --git a/vendor/boringssl/CMakeLists.txt b/vendor/boringssl/CMakeLists.txt
+index f58e853..d69caf4 100644
+--- a/vendor/boringssl/CMakeLists.txt
++++ b/vendor/boringssl/CMakeLists.txt
+@@ -498,6 +498,10 @@ elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "mips")
+   set(ARCH "generic")
+ elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ppc64le")
+   set(ARCH "ppc64le")
++elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "riscv64")
++  set(ARCH "riscv64")
++elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "riscv32")
++  set(ARCH "riscv32")
+ else()
+   message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
+ endif()
+diff --git a/vendor/boringssl/include/openssl/base.h b/vendor/boringssl/include/openssl/base.h
+index 90924e6..3e03914 100644
+--- a/vendor/boringssl/include/openssl/base.h
++++ b/vendor/boringssl/include/openssl/base.h
+@@ -114,6 +114,10 @@ extern "C" {
+ #define OPENSSL_32_BIT
+ #elif defined(__myriad2__)
+ #define OPENSSL_32_BIT
++#elif defined(__riscv) && __riscv_xlen == 64
++#define OPENSSL_64_BIT
++#elif defined(__riscv) && __riscv_xlen == 32
++#define OPENSSL_32_BIT
+ #else
+ // Note BoringSSL only supports standard 32-bit and 64-bit two's-complement,
+ // little-endian architectures. Functions will not produce the correct answer

@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index 002724a..12faf5f 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,18 @@ url='http://tools.android.com/'
+ license=(Apache MIT)
+ depends=(libusb protobuf brotli zstd android-udev)
+ makedepends=(pcre2 gtest cmake go ninja git)
+-source=(https://github.com/nmeum/android-tools/releases/download/$_tag/android-tools-$_tag.tar.xz)
+-sha256sums=('d7d2d945b6e1a7ba0c7d0b68a6d21ada6914155bf3ca02ff06c9db628ae6b029')
++source=(https://github.com/nmeum/android-tools/releases/download/$_tag/android-tools-$_tag.tar.xz
++        'add_boringssl_riscv_support.patch'
++        'fix_linking_pthread.patch')
++sha256sums=('d7d2d945b6e1a7ba0c7d0b68a6d21ada6914155bf3ca02ff06c9db628ae6b029'
++            'b71e966c2cd3f3657523fa71e01c2fb73e34afd66028c9476925bdd82d7abe1d'
++            'd1095fa535c5231984c53beb9a8669fb6d0219b9451eaab9dcde318dcc78d276')
++
++prepare() {
++  cd android-tools-$_tag
++  patch -Np1 -i ../add_boringssl_riscv_support.patch
++  patch -Np1 -i ../fix_linking_pthread.patch
++}
+ 
+ build() {
+   cd android-tools-$_tag
