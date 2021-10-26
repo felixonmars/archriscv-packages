@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 1c0f373..7adf7bd 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,10 +12,15 @@ depends=('glibc')
+ optdepends=('net-tools: for VirtualBox support')
+ makedepends=('go')
+ optdepends=('net-tools: required for VirtualBox driver')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/docker/machine/archive/v$pkgver.tar.gz")
+-sha512sums=('92408c18be23cee040e96412dafeff16415834c3141b0a9c1f82cb9d6b1e0700344a158a44ffac24fed2c244d3fa5c531d9f13ffffaa4be1f4fcbd79104f899e')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/docker/machine/archive/v$pkgver.tar.gz"
++        "update_vendor.patch")
++sha512sums=('92408c18be23cee040e96412dafeff16415834c3141b0a9c1f82cb9d6b1e0700344a158a44ffac24fed2c244d3fa5c531d9f13ffffaa4be1f4fcbd79104f899e'
++            'c7d60b5e1f6dce203ef5d8d407e16f08e597341e3a32e60cf0fd50f5b53c5716138c78a55b37aaea51ea18c9d315369c9bb9b67fb6217c79cf753c0aa700789f')
+ 
+ prepare() {
++  cd machine-$pkgver
++  patch -Np1 -i ../update_vendor.patch
++  cd ..
+   mkdir -p build/src
+   mv machine-$pkgver/vendor/* build/src/
+   mkdir -p build/src/github.com/docker
