@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 5bfdefe..52f6807 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,13 +12,20 @@ depends=(libxp libxft libxmu libpng libjpeg)
+ makedepends=(xbitmaps xorgproto)
+ conflicts=(lesstif)
+ source=("https://downloads.sourceforge.net/project/motif/Motif%20$pkgver%20Source%20Code/motif-$pkgver.tar.gz"
+-         no-demos.patch)
++         no-demos.patch
++         "fix_not_literal_format.patch"
++         "add_option_main.patch")
+ sha256sums=('859b723666eeac7df018209d66045c9853b50b4218cecadb794e2359619ebce7'
+-            'ff55064ab36dba411599c9abef122b26d694ee11fd1d371378be08497448668c')
++            'ff55064ab36dba411599c9abef122b26d694ee11fd1d371378be08497448668c'
++            '23b6750d6c8c4ed3fb9bb448eaaf1f5b008065992b999895b77c12309ded3724'
++            '8a82c4e55d0a7855db50c91fe0daab49a01800d85462e92ffad1e0e4f0ce8d80')
+ 
+ prepare() {
+   cd motif-$pkgver
+   patch -p1 -i ../no-demos.patch # Don't build demos
++  patch -Np1 -i ../fix_not_literal_format.patch
++  patch -Np1 -i ../add_option_main.patch
++  rm -f tools/wml/wmluiltok.c # force regenerating this file
+   touch NEWS AUTHORS
+   autoreconf -if
+ }
