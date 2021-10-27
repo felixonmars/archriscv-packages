@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index 67d1efb..ff61418 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -52,13 +52,16 @@ _commit=207c931a04c8e2629a735bc2b3f36b5c89365ca7
+ source=(
+   dolphin-emu::git+https://github.com/dolphin-emu/dolphin.git#commit=${_commit}
+   dolphin-emu-system-libmgba.patch
++  "fix_pthread_linking.patch"
+ )
+ b2sums=('SKIP'
+-        '004692abcfa3a0a10996afba3a8fe71627300224a6f96cc5b6c6183c32d5f7bd1ece36775cd2642a0c4d7fc9225f72da39063cc68ff089e8d01685a2fbbd6957')
++        '004692abcfa3a0a10996afba3a8fe71627300224a6f96cc5b6c6183c32d5f7bd1ece36775cd2642a0c4d7fc9225f72da39063cc68ff089e8d01685a2fbbd6957'
++        'e61bd06cb4cc431fa8ce64fa5a57ba596e9e1c39cfece91cbdb8ed9a45b1bfec5012a29462d09ebac08c9594428d3732a36e8da7bf7f851efa56cfab6e8126b0')
+ 
+ prepare() {
+   cd dolphin-emu
+   #patch -Np1 -i ../dolphin-emu-system-libmgba.patch
++  patch -Np1 -i ../fix_pthread_linking.patch
+ }
+ 
+ pkgver() {
+@@ -71,6 +74,7 @@ build() {
+     -DCMAKE_BUILD_TYPE=None \
+     -DCMAKE_INSTALL_PREFIX=/usr \
+     -DDISTRIBUTOR=archlinux.org \
++    -DENABLE_GENERIC=ON \
+     -DUSE_MGBA=OFF \
+     -DUSE_SHARED_ENET=ON
+   cmake --build build
