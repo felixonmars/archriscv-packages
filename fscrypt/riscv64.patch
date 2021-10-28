@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 8cab330..f95f4bf 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,9 +11,16 @@ license=('Apache')
+ makedepends=('go')
+ depends=('pam')
+ source=("fscrypt-$pkgver.zip::https://github.com/google/fscrypt/archive/v$pkgver.zip"
+-        "pam_config")
++        "pam_config"
++        "disable_c_shared_build.patch")
+ sha512sums=('9b8ca50363f1fc95ac6f69f46255e77ca7755830f6f4456e67c4b4731c08d7ae0c1faa33c86135a87e7e28cd87f769d59751a330e7636ac7d961bd37421c4744'
+-            '56f443cd2fbed9c164693c800cd8dc08bb35b88bb9c912fb35eb43cc6c6bc3b966d22d9810f43580d12b9faa8d753419a06336f08c47a0e602c48a103a705299')
++            '56f443cd2fbed9c164693c800cd8dc08bb35b88bb9c912fb35eb43cc6c6bc3b966d22d9810f43580d12b9faa8d753419a06336f08c47a0e602c48a103a705299'
++            '892f79a746cdf589a3bbae78f8b28087249d50a61f7749124f86e7563c39394154081a79fce9c9ad56cf55162900893b76cd4081eec07af0853811bd64dfbcd2')
++
++prepare() {
++  cd "fscrypt-$pkgver"
++  patch -Np1 -i "../disable_c_shared_build.patch"
++}
+ 
+ build() {
+   export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
