@@ -1,0 +1,28 @@
+pkgname='simde'
+pkgver=0.7.2
+pkgrel=1
+pkgdesc='Implementations of SIMD instruction sets for systems which do not natively support them.'
+url='https://simd-everywhere.github.io/blog/'
+arch=('any')
+license=('MIT')
+makedepends=('git' 'meson')
+source=("${pkgname}::git+https://github.com/simd-everywhere/simde.git#tag=v${pkgver}")
+sha512sums=('SKIP')
+
+build() {
+	cd "${srcdir}/${pkgname}"
+	mkdir build
+	meson --prefix /usr --buildtype=plain build
+	meson compile -C build
+}
+
+check() {
+	cd "${srcdir}/${pkgname}"
+	meson test --no-rebuild -C build
+}
+
+package() {
+	cd "${srcdir}/${pkgname}"
+	DESTDIR="${pkgdir}" meson install --no-rebuild -C build
+	install -Dm644 -t "$pkgdir/usr/share/licenses/simde/" COPYING
+}
