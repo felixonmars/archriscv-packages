@@ -1,13 +1,24 @@
 diff --git PKGBUILD PKGBUILD
-index 0e3fdcf..db0affa 100644
+index 0e3fdcf..c24779f 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,6 +22,8 @@ build() {
+@@ -10,9 +10,9 @@ license=('GPL')
+ depends=('gtk2' 'glib2' 'libxml2')
+ makedepends=('gettext' 'intltool')
+ source=(https://downloads.sourceforge.net/sourceforge/gdmap/${pkgname}-${pkgver}.tar.gz \
+-	gtk-fix.patch)
++	gtk-fix.patch fix-format-not-a-string-literal.patch)
+ sha512sums=('3aaf4da393aaafc350703962c05bdc2ecd8f244a9a1d614011d2073dbbd3c6bd01b77e3794068f5fc0ce2e7adb39c75a8856f2df070c7bbb685c03b976df0cf5'
+-            'e36f6e0affe1bc6268a1902fe3c465e086cc76f51b76814a350df3a3965c261df8931ba9f30edc8b0eda8125256c4b2f7c5278aff241aeaf844f3f09a34e6664')
++            'e36f6e0affe1bc6268a1902fe3c465e086cc76f51b76814a350df3a3965c261df8931ba9f30edc8b0eda8125256c4b2f7c5278aff241aeaf844f3f09a34e6664' 'e086d11e4a8546b57b1fa0b3dc6d2e4fb897d8fff140017e825df93ba1d70f3ac5d32b1e0f99450b0b93d8669331099f09da7b7836f2d50b67ca68600e841703')
+ 
+ build() {
+   cd gdmap-${pkgver}
+@@ -20,6 +20,7 @@ build() {
+   cd src
+   # fix deprecated gtk macros call
    patch -Np0 -i ../../gtk-fix.patch
++  patch -Np0 -i ../../fix-format-not-a-string-literal.patch
    # fix linking
    sed -i -e 's/@LIBXML_LIBS@/@LIBXML_LIBS@ -lm/g' Makefile.in
-+  sed -i -e 's/g_warning(error->message);/g_warning("%s",error->message);/g' main.c
-+  sed -i -e 's/g_message(error->message);/g_message("%s",error->message);/g' preferences.c
    cd ..
- 
-   ./configure --prefix=/usr
