@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthew Pickering <matthewtpickering@gmail.com>
+Date: Mon, 13 Sep 2021 12:02:14 +0100
+Subject: [PATCH] Stop leaking <defunct> llc processes
+
+We needed to wait for the process to exit in the clean-up script as
+otherwise the `llc` process will not be killed until compilation
+finishes. This leads to running out of process spaces on some OSs.
+
+Thanks to Edsko de Vries for suggesting this fix.
+
+Fixes #20305
+
+(cherry picked from commit bfddee13d10b183452508fa00116b6449ffeb757)
+---
+ compiler/GHC/SysTools/Tasks.hs | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/compiler/GHC/SysTools/Tasks.hs b/compiler/GHC/SysTools/Tasks.hs
+index 4d5158e940..4d28f962c7 100644
+--- a/compiler/GHC/SysTools/Tasks.hs
++++ b/compiler/GHC/SysTools/Tasks.hs
+@@ -212,7 +212,7 @@ figureLlvmVersion dflags = traceToolCommand dflags "llc" $ do
+       -- options are specified when '-version' is used.
+       args' = args ++ ["-version"]
+   catchIO (do
+-              (pin, pout, perr, _) <- runInteractiveProcess pgm args'
++              (pin, pout, perr, p) <- runInteractiveProcess pgm args'
+                                               Nothing Nothing
+               {- > llc -version
+                   LLVM (http://llvm.org/):
+@@ -226,6 +226,7 @@ figureLlvmVersion dflags = traceToolCommand dflags "llc" $ do
+               hClose pin
+               hClose pout
+               hClose perr
++              _ <- waitForProcess p
+               return mb_ver
+             )
+             (\err -> do
+-- 
+2.33.1
+

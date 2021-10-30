@@ -1,0 +1,107 @@
+_pkgname=ghc
+pkgname=ghc-bindist-riscv64
+pkgver=9.0.1
+pkgrel=1
+pkgdesc='The Glasgow Haskell Compiler (bootstrapping)'
+arch=('any')
+url='https://www.haskell.org/ghc/'
+license=('custom')
+makedepends=(
+    'python3' 'ghc' 'ghc-static' 'perl' 'happy' 'alex' 'llvm'
+    'riscv64-linux-gnu-'{gcc,glibc,binutils}
+)
+source=("https://downloads.haskell.org/~ghc/$pkgver/$_pkgname-${pkgver}-src.tar.xz"
+        https://archriscv.felixc.at/repo/core/gcc-libs-11.1.0-1-riscv64.pkg.tar.zst
+        0001-Replace-more-autotools-obsolete-macros-19189.patch
+        0002-configure-fix-the-use-of-some-obsolete-macros-19189.patch
+        0003-llvmGen-Accept-range-of-LLVM-versions.patch
+        0004-Fix-FIND_LLVM_PROG-arguments-after-6d6edb1bbb.patch
+        0005-Set-min-LLVM-version-to-9-and-make-version-checking-.patch
+        0006-Optimiser-Correctly-deal-with-strings-starting-with-.patch
+        0007-Limit-upper-version-of-Happy-for-ghc-9.2-18620.patch
+        0008-Check-for-libatomic-dependency-for-atomic-operations.patch
+        0009-Implement-riscv64-LLVM-backend.patch
+        0010-Enable-tables-next-to-code-for-riscv64.patch
+        0011-Stop-leaking-defunct-llc-processes.patch
+        0012-Allow-bootstrapping-with-unregisterised-compiler.patch
+        0013-compiler-allow-LLVM-backend-in-unregisterised-compil.patch)
+noextract=("$_pkgname-${pkgver}-src.tar.xz" "gcc-libs-11.1.0-1-riscv64.pkg.tar.zst")
+sha512sums=('bee7950a5118be8d8cefe0db5070139a5a93ca21c5bc6f8bf453429831f0c44f5e0fb5ee569865d6b8b92749044ee4123be06920928ac7a1ec9cffa9404a3e53'
+            '7b1eaf2803271bf157c85c2ce68ebba3b094f3fa880d926a61f82aef872d8daefb40e19d56a35dc1d5237061273d2e2f5807a7e85941e0fa7affcf659dc1b51d'
+            '8ac40e409fd159ff30bfdd312c07a33d57630a30bfa28159f01c6e6024f1517ad4c426d7b565ff96b0bb99aab19a64461a58793e5f1000b15ca67b00280c1bae'
+            '720f740ac2339607319b5e253efb587c1a6520bc8eb87857206d00512f2a60b2b2f4f9c2681de476cfb1458354289fdd3a04b0d1ab4602cb87e8f2c1ae9ee555'
+            'c2a5744b998a472ca193cb84fd3db0c899e02a27722e5d27528bb61f7845d668ef9c298f084f4320eb74c304fc1685463cab51a28843b4612c35b0defabb8f7e'
+            'e424ad3cfec24cfc6aa1c20d44cda3ae069c6483e7f0b0fb27960a96d1923a42ff466a1f50c83b69bdd849208e02b1ab4f9ae013290f8544384e5b7083b92557'
+            '7a9ceed46da987bea55ea60c91fc82632d64115731ee61a65cf06037b50b75151f9b8954fddfcbf51bada31ea965950698901fdb80e06ccac789f76ddff6d358'
+            '739204d6806f69bf8e176a169fa448b036fc7ccd0d9fd42ce99373a174057fdc11d66983fd73b77c774a979e99d802ebc6d0cffd0dc1fdd9410ab6b367193441'
+            '7c04b24d8dce37a59abb05a87ca8a3e13340f0d4fb77aad6e54e4da83b631c652f52679f405ea8b50a7489ef17804c7224a3fac8077515beb562c46710939a91'
+            'bb99e27972d607df924682c315c8d29b90a57c08c020c7e276096e13bdb73bb01b3cf61b64c5f22dce4d73baba874759b1c01a0199fb7c4d16274fd9b307a4c2'
+            '7ba5e2d02302aacbfbce1b9f1395c3f4c18d2be5a508927629378351a67f2e2ff9406b4d2c85e55963636607ad8bc76759eab58b6d88a7b68feea8280556eceb'
+            '18983fd13faba1c7e4bebc930e3ffb0f88f17592f5f5d2cfbf5f016163bfa7b70a4f7f01d5a7a61118194e63717f2c5abea02b49136c5f3e5348cc71099725fc'
+            'ed7fb9a34f0b0b4428ef04fd0318bdc26aea85cb3d5b54eb2e1721a3de18390c1fcd566a94caf4fafe6a04ee77c2bf7618282e26e93b902cf54f517e38216601'
+            'd2c021dcd41402fe148e9b9e53e680d57478addaea11626032c94228a93f2214315d5d50ccecd3cd14bc7934f72ba90ed3810e6fc85505b45daf3cb9567910b5'
+            'c9e0c1fe3322f81547227fce4ba9391fcbe09e3b1b2b1bcb0154b22e3315ad8a48fbed6b881a278f1904e0125ae51cb1f9bcd477499434b859a6e4fa22635ff4')
+
+prepare() {
+    # Need to extract this tarball with a UTF-8 locale instead of a chroot's "C"
+    # locale; otherwise we get:
+    #   bsdtar: Pathname can't be converted from UTF-8 to current locale.
+    LANG=en_US.UTF-8 bsdtar xf $_pkgname-${pkgver}-src.tar.xz
+
+    mkdir sysroot
+    bsdtar -xf gcc-libs-11.1.0-1-riscv64.pkg.tar.zst -C sysroot
+
+    mkdir crossbin
+    cat >crossbin/riscv64-linux-gnu-gcc <<EOF
+#!/bin/bash
+exec /usr/bin/riscv64-linux-gnu-gcc -L"$srcdir/sysroot/usr/lib" "\$@"
+EOF
+    chmod +x crossbin/riscv64-linux-gnu-gcc
+
+    cd ghc-$pkgver
+    patch -Np1 -i ../0001-Replace-more-autotools-obsolete-macros-19189.patch
+    patch -Np1 -i ../0002-configure-fix-the-use-of-some-obsolete-macros-19189.patch
+    patch -Np1 -i ../0003-llvmGen-Accept-range-of-LLVM-versions.patch
+    patch -Np1 -i ../0004-Fix-FIND_LLVM_PROG-arguments-after-6d6edb1bbb.patch
+    patch -Np1 -i ../0005-Set-min-LLVM-version-to-9-and-make-version-checking-.patch
+    patch -Np1 -i ../0006-Optimiser-Correctly-deal-with-strings-starting-with-.patch
+    patch -Np1 -i ../0007-Limit-upper-version-of-Happy-for-ghc-9.2-18620.patch
+    patch -Np1 -i ../0008-Check-for-libatomic-dependency-for-atomic-operations.patch
+    patch -Np1 -i ../0009-Implement-riscv64-LLVM-backend.patch
+    patch -Np1 -i ../0010-Enable-tables-next-to-code-for-riscv64.patch
+    patch -Np1 -i ../0011-Stop-leaking-defunct-llc-processes.patch
+    patch -Np1 -i ../0012-Allow-bootstrapping-with-unregisterised-compiler.patch
+    patch -Np1 -i ../0013-compiler-allow-LLVM-backend-in-unregisterised-compil.patch
+
+    cp mk/build.mk{.sample,}
+    sed -i '1iBuildFlavour = perf-llvm' mk/build.mk
+    cat >>mk/build.mk <<EOF
+WITH_TERMINFO         = NO
+HADDOCK_DOCS          = NO
+BUILD_MAN             = NO
+BUILD_SPHINX_HTML     = NO
+BUILD_SPHINX_PDF      = NO
+DYNAMIC_GHC_PROGRAMS  = NO
+GhcLibWays            = v
+EOF
+
+    ./boot
+}
+
+build() {
+    cd ghc-$pkgver
+    export PATH="$srcdir/crossbin:$PATH"
+    export CFLAGS="-march=rv64gc -mabi=lp64d -O2 -pipe -fexceptions \
+        -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security \
+        -fstack-clash-protection"
+    export LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now"
+    ./configure --target=riscv64-linux-gnu --enable-unregisterised
+    make
+}
+
+package() {
+    cd ghc-$pkgver
+    make binary-dist TAR_COMP_OPTS="-0 -T0"
+    install -Dm644 "ghc-9.0.1-riscv64-unknown-linux.tar.xz" -t "$pkgdir"/usr/share/$pkgname/
+    install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}

@@ -1,0 +1,775 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Fri, 2 Oct 2020 23:49:01 +0200
+Subject: [PATCH] Implement riscv64 LLVM backend
+
+This enables a registerised build for the riscv64 architecture.
+
+(cherry picked from commit 31e265c1df948d1bcc82d08affe995fd1d1c1438)
+---
+ aclocal.m4                                    |   5 +-
+ compiler/GHC/CmmToAsm.hs                      |   1 +
+ .../GHC/CmmToAsm/Reg/Graph/TrivColorable.hs   |   3 +
+ compiler/GHC/CmmToAsm/Reg/Linear.hs           |   1 +
+ compiler/GHC/CmmToAsm/Reg/Linear/FreeRegs.hs  |   1 +
+ compiler/GHC/CmmToAsm/Reg/Target.hs           |   5 +
+ compiler/GHC/Driver/Pipeline.hs               |   6 +
+ compiler/GHC/Platform/RISCV64.hs              |  10 ++
+ compiler/GHC/Platform/Regs.hs                 |   6 +
+ compiler/ghc.cabal.in                         |   1 +
+ configure.ac                                  |   6 +-
+ hadrian/src/Oracles/Flag.hs                   |   2 +-
+ includes/CodeGen.Platform.hs                  |  70 ++++++++-
+ includes/stg/MachRegs.h                       |  62 ++++++++
+ includes/stg/MachRegsForHost.h                |   4 +
+ includes/stg/SMP.h                            |   6 +
+ libraries/ghc-boot/GHC/Platform.hs            |   2 +
+ llvm-targets                                  |   2 +
+ mk/config.mk.in                               |   2 +-
+ rts/StgCRunAsm.S                              | 144 ++++++++++++++++++
+ rts/ghc.mk                                    |   2 +-
+ rts/linker/Elf.c                              |   6 +
+ rts/rts.cabal.in                              |   2 +-
+ utils/llvm-targets/gen-data-layout.sh         |   3 +
+ 24 files changed, 343 insertions(+), 9 deletions(-)
+ create mode 100644 compiler/GHC/Platform/RISCV64.hs
+
+diff --git a/aclocal.m4 b/aclocal.m4
+index b16f57e879..8ed0dca2f4 100644
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -231,7 +231,10 @@ AC_DEFUN([FPTOOLS_SET_HASKELL_PLATFORM_VARS],
+         mipsel)
+             test -z "[$]2" || eval "[$]2=ArchMipsel"
+             ;;
+-        hppa|hppa1_1|ia64|m68k|nios2|riscv32|riscv64|rs6000|s390|sh4|vax)
++        riscv64)
++            test -z "[$]2" || eval "[$]2=ArchRISCV64"
++            ;;
++        hppa|hppa1_1|ia64|m68k|nios2|riscv32|rs6000|s390|sh4|vax)
+             test -z "[$]2" || eval "[$]2=ArchUnknown"
+             ;;
+         *)
+diff --git a/compiler/GHC/CmmToAsm.hs b/compiler/GHC/CmmToAsm.hs
+index 23175a1cd2..3f77573495 100644
+--- a/compiler/GHC/CmmToAsm.hs
++++ b/compiler/GHC/CmmToAsm.hs
+@@ -182,6 +182,7 @@ nativeCodeGen dflags this_mod modLoc h us cmms
+       ArchAlpha     -> panic "nativeCodeGen: No NCG for Alpha"
+       ArchMipseb    -> panic "nativeCodeGen: No NCG for mipseb"
+       ArchMipsel    -> panic "nativeCodeGen: No NCG for mipsel"
++      ArchRISCV64   -> panic "nativeCodeGen: No NCG for RISCV64"
+       ArchUnknown   -> panic "nativeCodeGen: No NCG for unknown arch"
+       ArchJavaScript-> panic "nativeCodeGen: No NCG for JavaScript"
+ 
+diff --git a/compiler/GHC/CmmToAsm/Reg/Graph/TrivColorable.hs b/compiler/GHC/CmmToAsm/Reg/Graph/TrivColorable.hs
+index 105e2ebdf9..07eca93ac3 100644
+--- a/compiler/GHC/CmmToAsm/Reg/Graph/TrivColorable.hs
++++ b/compiler/GHC/CmmToAsm/Reg/Graph/TrivColorable.hs
+@@ -120,6 +120,7 @@ trivColorable platform virtualRegSqueeze realRegSqueeze RcInteger conflicts excl
+                             ArchMipseb    -> panic "trivColorable ArchMipseb"
+                             ArchMipsel    -> panic "trivColorable ArchMipsel"
+                             ArchS390X     -> panic "trivColorable ArchS390X"
++                            ArchRISCV64   -> panic "trivColorable ArchRISCV64"
+                             ArchJavaScript-> panic "trivColorable ArchJavaScript"
+                             ArchUnknown   -> panic "trivColorable ArchUnknown")
+         , count2        <- accSqueeze 0 cALLOCATABLE_REGS_INTEGER
+@@ -151,6 +152,7 @@ trivColorable platform virtualRegSqueeze realRegSqueeze RcFloat conflicts exclus
+                             ArchMipseb    -> panic "trivColorable ArchMipseb"
+                             ArchMipsel    -> panic "trivColorable ArchMipsel"
+                             ArchS390X     -> panic "trivColorable ArchS390X"
++                            ArchRISCV64   -> panic "trivColorable ArchRISCV64"
+                             ArchJavaScript-> panic "trivColorable ArchJavaScript"
+                             ArchUnknown   -> panic "trivColorable ArchUnknown")
+         , count2        <- accSqueeze 0 cALLOCATABLE_REGS_FLOAT
+@@ -184,6 +186,7 @@ trivColorable platform virtualRegSqueeze realRegSqueeze RcDouble conflicts exclu
+                             ArchMipseb    -> panic "trivColorable ArchMipseb"
+                             ArchMipsel    -> panic "trivColorable ArchMipsel"
+                             ArchS390X     -> panic "trivColorable ArchS390X"
++                            ArchRISCV64   -> panic "trivColorable ArchRISCV64"
+                             ArchJavaScript-> panic "trivColorable ArchJavaScript"
+                             ArchUnknown   -> panic "trivColorable ArchUnknown")
+         , count2        <- accSqueeze 0 cALLOCATABLE_REGS_DOUBLE
+diff --git a/compiler/GHC/CmmToAsm/Reg/Linear.hs b/compiler/GHC/CmmToAsm/Reg/Linear.hs
+index 6acd34c9be..fb76aa2a16 100644
+--- a/compiler/GHC/CmmToAsm/Reg/Linear.hs
++++ b/compiler/GHC/CmmToAsm/Reg/Linear.hs
+@@ -226,6 +226,7 @@ linearRegAlloc config entry_ids block_live sccs
+       ArchAlpha      -> panic "linearRegAlloc ArchAlpha"
+       ArchMipseb     -> panic "linearRegAlloc ArchMipseb"
+       ArchMipsel     -> panic "linearRegAlloc ArchMipsel"
++      ArchRISCV64    -> panic "linearRegAlloc ArchRISCV64"
+       ArchJavaScript -> panic "linearRegAlloc ArchJavaScript"
+       ArchUnknown    -> panic "linearRegAlloc ArchUnknown"
+  where
+diff --git a/compiler/GHC/CmmToAsm/Reg/Linear/FreeRegs.hs b/compiler/GHC/CmmToAsm/Reg/Linear/FreeRegs.hs
+index b89c056a82..1768422f5c 100644
+--- a/compiler/GHC/CmmToAsm/Reg/Linear/FreeRegs.hs
++++ b/compiler/GHC/CmmToAsm/Reg/Linear/FreeRegs.hs
+@@ -83,5 +83,6 @@ maxSpillSlots config = case platformArch (ncgPlatform config) of
+    ArchAlpha     -> panic "maxSpillSlots ArchAlpha"
+    ArchMipseb    -> panic "maxSpillSlots ArchMipseb"
+    ArchMipsel    -> panic "maxSpillSlots ArchMipsel"
++   ArchRISCV64   -> panic "maxSpillSlots ArchRISCV64"
+    ArchJavaScript-> panic "maxSpillSlots ArchJavaScript"
+    ArchUnknown   -> panic "maxSpillSlots ArchUnknown"
+diff --git a/compiler/GHC/CmmToAsm/Reg/Target.hs b/compiler/GHC/CmmToAsm/Reg/Target.hs
+index ba249801ba..284df45983 100644
+--- a/compiler/GHC/CmmToAsm/Reg/Target.hs
++++ b/compiler/GHC/CmmToAsm/Reg/Target.hs
+@@ -51,6 +51,7 @@ targetVirtualRegSqueeze platform
+       ArchAlpha     -> panic "targetVirtualRegSqueeze ArchAlpha"
+       ArchMipseb    -> panic "targetVirtualRegSqueeze ArchMipseb"
+       ArchMipsel    -> panic "targetVirtualRegSqueeze ArchMipsel"
++      ArchRISCV64   -> panic "targetVirtualRegSqueeze ArchRISCV64"
+       ArchJavaScript-> panic "targetVirtualRegSqueeze ArchJavaScript"
+       ArchUnknown   -> panic "targetVirtualRegSqueeze ArchUnknown"
+ 
+@@ -70,6 +71,7 @@ targetRealRegSqueeze platform
+       ArchAlpha     -> panic "targetRealRegSqueeze ArchAlpha"
+       ArchMipseb    -> panic "targetRealRegSqueeze ArchMipseb"
+       ArchMipsel    -> panic "targetRealRegSqueeze ArchMipsel"
++      ArchRISCV64   -> panic "targetRealRegSqueeze ArchRISCV64"
+       ArchJavaScript-> panic "targetRealRegSqueeze ArchJavaScript"
+       ArchUnknown   -> panic "targetRealRegSqueeze ArchUnknown"
+ 
+@@ -88,6 +90,7 @@ targetClassOfRealReg platform
+       ArchAlpha     -> panic "targetClassOfRealReg ArchAlpha"
+       ArchMipseb    -> panic "targetClassOfRealReg ArchMipseb"
+       ArchMipsel    -> panic "targetClassOfRealReg ArchMipsel"
++      ArchRISCV64   -> panic "targetClassOfRealReg ArchRISCV64"
+       ArchJavaScript-> panic "targetClassOfRealReg ArchJavaScript"
+       ArchUnknown   -> panic "targetClassOfRealReg ArchUnknown"
+ 
+@@ -106,6 +109,7 @@ targetMkVirtualReg platform
+       ArchAlpha     -> panic "targetMkVirtualReg ArchAlpha"
+       ArchMipseb    -> panic "targetMkVirtualReg ArchMipseb"
+       ArchMipsel    -> panic "targetMkVirtualReg ArchMipsel"
++      ArchRISCV64   -> panic "targetMkVirtualReg ArchRISCV64"
+       ArchJavaScript-> panic "targetMkVirtualReg ArchJavaScript"
+       ArchUnknown   -> panic "targetMkVirtualReg ArchUnknown"
+ 
+@@ -124,6 +128,7 @@ targetRegDotColor platform
+       ArchAlpha     -> panic "targetRegDotColor ArchAlpha"
+       ArchMipseb    -> panic "targetRegDotColor ArchMipseb"
+       ArchMipsel    -> panic "targetRegDotColor ArchMipsel"
++      ArchRISCV64   -> panic "targetRegDotColor ArchRISCV64"
+       ArchJavaScript-> panic "targetRegDotColor ArchJavaScript"
+       ArchUnknown   -> panic "targetRegDotColor ArchUnknown"
+ 
+diff --git a/compiler/GHC/Driver/Pipeline.hs b/compiler/GHC/Driver/Pipeline.hs
+index f596593419..470598ba42 100644
+--- a/compiler/GHC/Driver/Pipeline.hs
++++ b/compiler/GHC/Driver/Pipeline.hs
+@@ -932,6 +932,7 @@ llvmOptions dflags =
+     ++ [("", "-mcpu=" ++ mcpu)   | not (null mcpu)
+                                  , not (any (isInfixOf "-mcpu") (getOpts dflags opt_lc)) ]
+     ++ [("", "-mattr=" ++ attrs) | not (null attrs) ]
++    ++ [("", "-target-abi=" ++ abi) | not (null abi) ]
+ 
+   where target = platformMisc_llvmTarget $ platformMisc dflags
+         Just (LlvmTarget _ mcpu mattr) = lookup target (llvmTargets $ llvmConfig dflags)
+@@ -961,6 +962,11 @@ llvmOptions dflags =
+               ++ ["+bmi"     | isBmiEnabled dflags      ]
+               ++ ["+bmi2"    | isBmi2Enabled dflags     ]
+ 
++        abi :: String
++        abi = case platformArch (targetPlatform dflags) of
++                ArchRISCV64 -> "lp64d"
++                _           -> ""
++
+ -- -----------------------------------------------------------------------------
+ -- | Each phase in the pipeline returns the next phase to execute, and the
+ -- name of the file in which the output was placed.
+diff --git a/compiler/GHC/Platform/RISCV64.hs b/compiler/GHC/Platform/RISCV64.hs
+new file mode 100644
+index 0000000000..88754d4838
+--- /dev/null
++++ b/compiler/GHC/Platform/RISCV64.hs
+@@ -0,0 +1,10 @@
++{-# LANGUAGE CPP #-}
++
++module GHC.Platform.RISCV64 where
++
++import GHC.Prelude
++
++#define MACHREGS_NO_REGS 0
++#define MACHREGS_riscv64 1
++#include "../../../includes/CodeGen.Platform.hs"
++
+diff --git a/compiler/GHC/Platform/Regs.hs b/compiler/GHC/Platform/Regs.hs
+index 1bf21370c7..e0bdf5d6e5 100644
+--- a/compiler/GHC/Platform/Regs.hs
++++ b/compiler/GHC/Platform/Regs.hs
+@@ -15,6 +15,7 @@ import qualified GHC.Platform.S390X      as S390X
+ import qualified GHC.Platform.SPARC      as SPARC
+ import qualified GHC.Platform.X86        as X86
+ import qualified GHC.Platform.X86_64     as X86_64
++import qualified GHC.Platform.RISCV64    as RISCV64
+ import qualified GHC.Platform.NoRegs     as NoRegs
+ 
+ -- | Returns 'True' if this global register is stored in a caller-saves
+@@ -31,6 +32,7 @@ callerSaves platform
+    ArchSPARC   -> SPARC.callerSaves
+    ArchARM {}  -> ARM.callerSaves
+    ArchAArch64 -> AArch64.callerSaves
++   ArchRISCV64 -> RISCV64.callerSaves
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.callerSaves
+@@ -53,6 +55,7 @@ activeStgRegs platform
+    ArchSPARC   -> SPARC.activeStgRegs
+    ArchARM {}  -> ARM.activeStgRegs
+    ArchAArch64 -> AArch64.activeStgRegs
++   ArchRISCV64 -> RISCV64.activeStgRegs
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.activeStgRegs
+@@ -70,6 +73,7 @@ haveRegBase platform
+    ArchSPARC   -> SPARC.haveRegBase
+    ArchARM {}  -> ARM.haveRegBase
+    ArchAArch64 -> AArch64.haveRegBase
++   ArchRISCV64 -> RISCV64.haveRegBase
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.haveRegBase
+@@ -87,6 +91,7 @@ globalRegMaybe platform
+    ArchSPARC   -> SPARC.globalRegMaybe
+    ArchARM {}  -> ARM.globalRegMaybe
+    ArchAArch64 -> AArch64.globalRegMaybe
++   ArchRISCV64 -> RISCV64.globalRegMaybe
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.globalRegMaybe
+@@ -104,6 +109,7 @@ freeReg platform
+    ArchSPARC   -> SPARC.freeReg
+    ArchARM {}  -> ARM.freeReg
+    ArchAArch64 -> AArch64.freeReg
++   ArchRISCV64 -> RISCV64.freeReg
+    arch
+     | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
+         PPC.freeReg
+diff --git a/compiler/ghc.cabal.in b/compiler/ghc.cabal.in
+index dfe7587b88..af945c29e0 100644
+--- a/compiler/ghc.cabal.in
++++ b/compiler/ghc.cabal.in
+@@ -262,6 +262,7 @@ Library
+         GHC.Platform.AArch64
+         GHC.Platform.NoRegs
+         GHC.Platform.PPC
++        GHC.Platform.RISCV64
+         GHC.Platform.S390X
+         GHC.Platform.SPARC
+         GHC.Platform.X86
+diff --git a/configure.ac b/configure.ac
+index e0bf1dcc14..28c2bec130 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -281,7 +281,7 @@ dnl --------------------------------------------------------------
+ 
+ AC_MSG_CHECKING(whether target supports a registerised ABI)
+ case "$TargetArch" in
+-    i386|x86_64|powerpc|powerpc64|powerpc64le|s390x|arm|aarch64)
++    i386|x86_64|powerpc|powerpc64|powerpc64le|s390x|arm|aarch64|riscv64)
+         UnregisterisedDefault=NO
+         AC_MSG_RESULT([yes])
+         ;;
+@@ -316,7 +316,7 @@ AC_MSG_CHECKING(whether target supports tables next to code)
+ case "$Unregisterised" in
+     NO)
+         case "$TargetArch" in
+-            ia64|powerpc64|powerpc64le|s390x)
++            ia64|powerpc64|powerpc64le|s390x|riscv64)
+                 TablesNextToCodeDefault=NO
+                 AC_MSG_RESULT([no])
+                 ;;
+@@ -345,7 +345,7 @@ AC_SUBST(TablesNextToCode)
+ dnl ** Does target have runtime linker support?
+ dnl --------------------------------------------------------------
+ case "$target" in
+-    powerpc64-*|powerpc64le-*|powerpc-ibm-aix*|s390x-ibm-linux)
++    powerpc64-*|powerpc64le-*|powerpc-ibm-aix*|s390x-ibm-linux|riscv64-*)
+         TargetHasRTSLinker=NO
+         ;;
+     *)
+diff --git a/hadrian/src/Oracles/Flag.hs b/hadrian/src/Oracles/Flag.hs
+index 960036fa89..86521e4aa8 100644
+--- a/hadrian/src/Oracles/Flag.hs
++++ b/hadrian/src/Oracles/Flag.hs
+@@ -70,7 +70,7 @@ targetSupportsSMP :: Action Bool
+ targetSupportsSMP = do
+   unreg <- flag GhcUnregisterised
+   armVer <- targetArmVersion
+-  goodArch <- anyTargetArch ["i386", "x86_64", "sparc", "powerpc", "arm", "aarch64", "s390x"]
++  goodArch <- anyTargetArch ["i386", "x86_64", "sparc", "powerpc", "arm", "aarch64", "s390x", "riscv64"]
+   if   -- The THREADED_RTS requires `BaseReg` to be in a register and the
+        -- Unregisterised mode doesn't allow that.
+      | unreg                -> return False
+diff --git a/includes/CodeGen.Platform.hs b/includes/CodeGen.Platform.hs
+index b00acfa38a..8c942662e6 100644
+--- a/includes/CodeGen.Platform.hs
++++ b/includes/CodeGen.Platform.hs
+@@ -380,6 +380,74 @@ import GHC.Platform.Reg
+ # define f14 30
+ # define f15 31
+ 
++#elif defined(MACHREGS_riscv64)
++
++# define zero 0
++# define ra   1
++# define sp   2
++# define gp   3
++# define tp   4
++# define t0   5
++# define t1   6
++# define t2   7
++# define s0   8
++# define s1   9
++# define a0  10
++# define a1  11
++# define a2  12
++# define a3  13
++# define a4  14
++# define a5  15
++# define a6  16
++# define a7  17
++# define s2  18
++# define s3  19
++# define s4  20
++# define s5  21
++# define s6  22
++# define s7  23
++# define s8  24
++# define s9  25
++# define s10 26
++# define s11 27
++# define t3  28
++# define t4  29
++# define t5  30
++# define t6  31
++
++# define ft0  32
++# define ft1  33
++# define ft2  34
++# define ft3  35
++# define ft4  36
++# define ft5  37
++# define ft6  38
++# define ft7  39
++# define fs0  40
++# define fs1  41
++# define fa0  42
++# define fa1  43
++# define fa2  44
++# define fa3  45
++# define fa4  46
++# define fa5  47
++# define fa6  48
++# define fa7  49
++# define fs2  50
++# define fs3  51
++# define fs4  52
++# define fs5  53
++# define fs6  54
++# define fs7  55
++# define fs8  56
++# define fs9  57
++# define fs10 58
++# define fs11 59
++# define ft8  60
++# define ft9  61
++# define ft10 62
++# define ft11 63
++
+ #endif
+ 
+ callerSaves :: GlobalReg -> Bool
+@@ -667,7 +735,7 @@ globalRegMaybe :: GlobalReg -> Maybe RealReg
+ #if defined(MACHREGS_i386) || defined(MACHREGS_x86_64) \
+     || defined(MACHREGS_sparc) || defined(MACHREGS_powerpc) \
+     || defined(MACHREGS_arm) || defined(MACHREGS_aarch64) \
+-    || defined(MACHREGS_s390x)
++    || defined(MACHREGS_s390x) || defined(MACHREGS_riscv64)
+ # if defined(REG_Base)
+ globalRegMaybe BaseReg                  = Just (RealRegSingle REG_Base)
+ # endif
+diff --git a/includes/stg/MachRegs.h b/includes/stg/MachRegs.h
+index be7b7d60b4..1a9012e7ef 100644
+--- a/includes/stg/MachRegs.h
++++ b/includes/stg/MachRegs.h
+@@ -663,6 +663,68 @@ the stack. See Note [Overlapping global registers] for implications.
+ #define CALLER_SAVES_D5
+ #define CALLER_SAVES_D6
+ 
++/* -----------------------------------------------------------------------------
++   The riscv64 register mapping
++
++   Register    | Role(s)                                 | Call effect
++   ------------+-----------------------------------------+-------------
++   zero        | Hard-wired zero                         | -
++   ra          | Return address                          | caller-saved
++   sp          | Stack pointer                           | callee-saved
++   gp          | Global pointer                          | callee-saved
++   tp          | Thread pointer                          | callee-saved
++   t0,t1,t2    | -                                       | caller-saved
++   s0          | Frame pointer                           | callee-saved
++   s1          | -                                       | callee-saved
++   a0,a1       | Arguments / return values               | caller-saved
++   a2..a7      | Arguments                               | caller-saved
++   s2..s11     | -                                       | callee-saved
++   t3..t6      | -                                       | caller-saved
++   ft0..ft7    | -                                       | caller-saved
++   fs0,fs1     | -                                       | callee-saved
++   fa0,fa1     | Arguments / return values               | caller-saved
++   fa2..fa7    | Arguments                               | caller-saved
++   fs2..fs11   | -                                       | callee-saved
++   ft8..ft11   | -                                       | caller-saved
++
++   Each general purpose register as well as each floating-point
++   register is 64 bits wide.
++
++   -------------------------------------------------------------------------- */
++
++#elif defined(MACHREGS_riscv64)
++
++#define REG(x) __asm__(#x)
++
++#define REG_Base        s1
++#define REG_Sp          s2
++#define REG_Hp          s3
++#define REG_R1          s4
++#define REG_R2          s5
++#define REG_R3          s6
++#define REG_R4          s7
++#define REG_R5          s8
++#define REG_R6          s9
++#define REG_R7          s10
++#define REG_SpLim       s11
++
++#define REG_F1          fs0
++#define REG_F2          fs1
++#define REG_F3          fs2
++#define REG_F4          fs3
++#define REG_F5          fs4
++#define REG_F6          fs5
++
++#define REG_D1          fs6
++#define REG_D2          fs7
++#define REG_D3          fs8
++#define REG_D4          fs9
++#define REG_D5          fs10
++#define REG_D6          fs11
++
++#define MAX_REAL_FLOAT_REG   6
++#define MAX_REAL_DOUBLE_REG  6
++
+ #else
+ 
+ #error Cannot find platform to give register info for
+diff --git a/includes/stg/MachRegsForHost.h b/includes/stg/MachRegsForHost.h
+index 3597b2be90..e902d528f6 100644
+--- a/includes/stg/MachRegsForHost.h
++++ b/includes/stg/MachRegsForHost.h
+@@ -71,6 +71,10 @@
+ #define MACHREGS_s390x    1
+ #endif
+ 
++#if defined(riscv64_HOST_ARCH)
++#define MACHREGS_riscv64  1
++#endif
++
+ #endif
+ 
+ #include "MachRegs.h"
+diff --git a/includes/stg/SMP.h b/includes/stg/SMP.h
+index 389dd95c88..f12fd3f71b 100644
+--- a/includes/stg/SMP.h
++++ b/includes/stg/SMP.h
+@@ -377,6 +377,8 @@ write_barrier(void) {
+     __asm__ __volatile__ ("" : : : "memory");
+ #elif defined(arm_HOST_ARCH) || defined(aarch64_HOST_ARCH)
+     __asm__ __volatile__ ("dmb  st" : : : "memory");
++#elif defined(riscv64_HOST_ARCH)
++    __asm__ __volatile__ ("fence w,w" : : : "memory");
+ #else
+ #error memory barriers unimplemented on this architecture
+ #endif
+@@ -401,6 +403,8 @@ store_load_barrier(void) {
+     __asm__ __volatile__ ("dmb" : : : "memory");
+ #elif defined(aarch64_HOST_ARCH)
+     __asm__ __volatile__ ("dmb sy" : : : "memory");
++#elif defined(riscv64_HOST_ARCH)
++    __asm__ __volatile__ ("fence w,r" : : : "memory");
+ #else
+ #error memory barriers unimplemented on this architecture
+ #endif
+@@ -426,6 +430,8 @@ load_load_barrier(void) {
+     __asm__ __volatile__ ("dmb" : : : "memory");
+ #elif defined(aarch64_HOST_ARCH)
+     __asm__ __volatile__ ("dmb sy" : : : "memory");
++#elif defined(riscv64_HOST_ARCH)
++    __asm__ __volatile__ ("fence w,r" : : : "memory");
+ #else
+ #error memory barriers unimplemented on this architecture
+ #endif
+diff --git a/libraries/ghc-boot/GHC/Platform.hs b/libraries/ghc-boot/GHC/Platform.hs
+index 186f8c8af6..63033269b9 100644
+--- a/libraries/ghc-boot/GHC/Platform.hs
++++ b/libraries/ghc-boot/GHC/Platform.hs
+@@ -130,6 +130,7 @@ data Arch
+         | ArchAlpha
+         | ArchMipseb
+         | ArchMipsel
++        | ArchRISCV64
+         | ArchJavaScript
+         deriving (Read, Show, Eq)
+ 
+@@ -171,6 +172,7 @@ stringEncodeArch = \case
+   ArchAlpha -> "alpha"
+   ArchMipseb -> "mipseb"
+   ArchMipsel -> "mipsel"
++  ArchRISCV64 -> "riscv64"
+   ArchJavaScript -> "js"
+ 
+ isARM :: Arch -> Bool
+diff --git a/llvm-targets b/llvm-targets
+index e259ca29c5..9ea787d6b1 100644
+--- a/llvm-targets
++++ b/llvm-targets
+@@ -38,6 +38,8 @@
+ ,("powerpc64le-unknown-linux-musl", ("e-m:e-i64:64-n32:64", "ppc64le", "+secure-plt"))
+ ,("powerpc64le-unknown-linux", ("e-m:e-i64:64-n32:64", "ppc64le", ""))
+ ,("s390x-ibm-linux", ("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-a:8:16-n32:64", "z10", ""))
++,("riscv64-unknown-linux-gnu", ("e-m:e-p:64:64-i64:64-i128:128-n64-S128", "", "+m +a +f +d +c +relax"))
++,("riscv64-unknown-linux", ("e-m:e-p:64:64-i64:64-i128:128-n64-S128", "", "+m +a +f +d +c +relax"))
+ ,("i386-apple-darwin", ("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:128-n8:16:32-S128", "penryn", ""))
+ ,("x86_64-apple-darwin", ("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "penryn", ""))
+ ,("arm64-apple-darwin", ("e-m:o-i64:64-i128:128-n32:64-S128", "vortex", "+v8.3a +fp-armv8 +neon +crc +crypto +fullfp16 +ras +lse +rdm +rcpc +zcm +zcz +sha2 +aes"))
+diff --git a/mk/config.mk.in b/mk/config.mk.in
+index e2c1591860..9e6c3d8c40 100644
+--- a/mk/config.mk.in
++++ b/mk/config.mk.in
+@@ -179,7 +179,7 @@ ifeq "$(TargetArch_CPP)" "arm"
+ # We don't support load/store barriers pre-ARMv7. See #10433.
+ ArchSupportsSMP=$(if $(filter $(ARM_ISA),ARMv5 ARMv6),NO,YES)
+ else
+-ArchSupportsSMP=$(strip $(patsubst $(TargetArch_CPP), YES, $(findstring $(TargetArch_CPP), i386 x86_64 sparc powerpc powerpc64 powerpc64le s390x aarch64)))
++ArchSupportsSMP=$(strip $(patsubst $(TargetArch_CPP), YES, $(findstring $(TargetArch_CPP), i386 x86_64 sparc powerpc powerpc64 powerpc64le s390x aarch64 riscv64)))
+ endif
+ 
+ # The THREADED_RTS requires `BaseReg` to be in a register and the
+diff --git a/rts/StgCRunAsm.S b/rts/StgCRunAsm.S
+index 60f1bf9a13..aed3241d12 100644
+--- a/rts/StgCRunAsm.S
++++ b/rts/StgCRunAsm.S
+@@ -231,6 +231,150 @@ StgReturn:
+ 	.cfi_endproc
+ 	.size StgReturn, .-StgReturn
+ 
++	.section	.note.GNU-stack,"",@progbits
++
++#elif defined(riscv64_HOST_ARCH)
++# define STACK_FRAME_SIZE (RESERVED_C_STACK_BYTES+208)
++	.text
++	.align 1
++	.globl StgRun
++	.type StgRun, @function
++StgRun:
++	.cfi_startproc
++	addi	sp,sp,-208
++	.cfi_def_cfa_offset 208
++	/* save callee-saved registers plus ra */
++	sd	ra,200(sp)
++	sd	s0,192(sp)
++	sd	s1,184(sp)
++	sd	s2,176(sp)
++	sd	s3,168(sp)
++	sd	s4,160(sp)
++	sd	s5,152(sp)
++	sd	s6,144(sp)
++	sd	s7,136(sp)
++	sd	s8,128(sp)
++	sd	s9,120(sp)
++	sd	s10,112(sp)
++	sd	s11,104(sp)
++	fsd	fs0,88(sp)
++	fsd	fs1,80(sp)
++	fsd	fs2,72(sp)
++	fsd	fs3,64(sp)
++	fsd	fs4,56(sp)
++	fsd	fs5,48(sp)
++	fsd	fs6,40(sp)
++	fsd	fs7,32(sp)
++	fsd	fs8,24(sp)
++	fsd	fs9,16(sp)
++	fsd	fs10,8(sp)
++	fsd	fs11,0(sp)
++	/* allocate stack frame */
++	li	t0,RESERVED_C_STACK_BYTES
++	sub	sp,sp,t0
++	.cfi_def_cfa_offset STACK_FRAME_SIZE
++	.cfi_offset 1, -8
++	.cfi_offset 8, -16
++	.cfi_offset 9, -24
++	.cfi_offset 18, -32
++	.cfi_offset 19, -40
++	.cfi_offset 20, -48
++	.cfi_offset 21, -56
++	.cfi_offset 22, -64
++	.cfi_offset 23, -72
++	.cfi_offset 24, -80
++	.cfi_offset 25, -88
++	.cfi_offset 26, -96
++	.cfi_offset 27, -104
++	.cfi_offset 40, -120
++	.cfi_offset 41, -128
++	.cfi_offset 50, -136
++	.cfi_offset 51, -144
++	.cfi_offset 52, -152
++	.cfi_offset 53, -160
++	.cfi_offset 54, -168
++	.cfi_offset 55, -176
++	.cfi_offset 56, -184
++	.cfi_offset 57, -192
++	.cfi_offset 58, -200
++	.cfi_offset 59, -208
++	/* set STGs BaseReg from RISCV a1 */
++	mv	s1,a1
++	/* jump to STG function */
++	jr	a0
++	.cfi_endproc
++	.size StgRun, .-StgRun
++
++	.text
++	.align 1
++	.globl StgReturn
++	.type StgReturn, @function
++StgReturn:
++	.cfi_startproc
++	/* set return value from STGs R1 (RISCV s4) */
++	mv	a0,s4
++	/* deallocate stack frame */
++	li	t0,RESERVED_C_STACK_BYTES
++	add	sp,sp,t0
++	.cfi_def_cfa_offset 208
++	/* restore callee-saved registers and ra */
++	ld	ra,200(sp)
++	.cfi_restore 1
++	ld	s0,192(sp)
++	.cfi_restore 8
++	ld	s1,184(sp)
++	.cfi_restore 9
++	ld	s2,176(sp)
++	.cfi_restore 18
++	ld	s3,168(sp)
++	.cfi_restore 19
++	ld	s4,160(sp)
++	.cfi_restore 20
++	ld	s5,152(sp)
++	.cfi_restore 21
++	ld	s6,144(sp)
++	.cfi_restore 22
++	ld	s7,136(sp)
++	.cfi_restore 23
++	ld	s8,128(sp)
++	.cfi_restore 24
++	ld	s9,120(sp)
++	.cfi_restore 25
++	ld	s10,112(sp)
++	.cfi_restore 26
++	ld	s11,104(sp)
++	.cfi_restore 27
++	fld	fs0,88(sp)
++	.cfi_restore 40
++	fld	fs1,80(sp)
++	.cfi_restore 41
++	fld	fs2,72(sp)
++	.cfi_restore 50
++	fld	fs3,64(sp)
++	.cfi_restore 51
++	fld	fs4,56(sp)
++	.cfi_restore 52
++	fld	fs5,48(sp)
++	.cfi_restore 53
++	fld	fs6,40(sp)
++	.cfi_restore 54
++	fld	fs7,32(sp)
++	.cfi_restore 55
++	fld	fs8,24(sp)
++	.cfi_restore 56
++	fld	fs9,16(sp)
++	.cfi_restore 57
++	fld	fs10,8(sp)
++	.cfi_restore 58
++	fld	fs11,0(sp)
++	.cfi_restore 59
++	addi	sp,sp,208
++	.cfi_def_cfa_offset 0
++	/* jump back to caller of StgRun() */
++	ret
++	.cfi_endproc
++	.size StgReturn, .-StgReturn
++
+ 	.section	.note.GNU-stack,"",@progbits
+ #endif
+ 
+diff --git a/rts/ghc.mk b/rts/ghc.mk
+index 32c49d9099..010146ce8a 100644
+--- a/rts/ghc.mk
++++ b/rts/ghc.mk
+@@ -55,7 +55,7 @@ ifneq "$(findstring $(TargetArch_CPP), i386 powerpc powerpc64)" ""
+ rts_S_SRCS += rts/AdjustorAsm.S
+ endif
+ # this matches substrings of powerpc64le, including "powerpc" and "powerpc64"
+-ifneq "$(findstring $(TargetArch_CPP), powerpc64le s390x)" ""
++ifneq "$(findstring $(TargetArch_CPP), powerpc64le s390x riscv64)" ""
+ # unregisterised builds use the mini interpreter
+ ifneq "$(GhcUnregisterised)" "YES"
+ rts_S_SRCS += rts/StgCRunAsm.S
+diff --git a/rts/linker/Elf.c b/rts/linker/Elf.c
+index e637da4c62..a2b39570a1 100644
+--- a/rts/linker/Elf.c
++++ b/rts/linker/Elf.c
+@@ -412,6 +412,12 @@ ocVerifyImage_ELF ( ObjectCode* oc )
+ #endif
+ #if defined(EM_AARCH64)
+       case EM_AARCH64: IF_DEBUG(linker,debugBelch( "aarch64" )); break;
++#endif
++#if defined(EM_RISCV)
++      case EM_RISCV:  IF_DEBUG(linker,debugBelch( "riscv" ));
++          errorBelch("%s: RTS linker not implemented on riscv",
++                     oc->fileName);
++          return 0;
+ #endif
+        default:       IF_DEBUG(linker,debugBelch( "unknown" ));
+                      errorBelch("%s: unknown architecture (e_machine == %d)"
+diff --git a/rts/rts.cabal.in b/rts/rts.cabal.in
+index 17a215c4a2..85942e14bc 100644
+--- a/rts/rts.cabal.in
++++ b/rts/rts.cabal.in
+@@ -420,7 +420,7 @@ library
+ 
+     if arch(i386) || arch(powerpc) || arch(powerpc64)
+        asm-sources: AdjustorAsm.S
+-    if arch(powerpc) || arch(powerpc64) || arch(powerpc64le) || arch(s390x)
++    if arch(powerpc) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+        asm-sources: StgCRunAsm.S
+ 
+     c-sources: Adjustor.c
+diff --git a/utils/llvm-targets/gen-data-layout.sh b/utils/llvm-targets/gen-data-layout.sh
+index 32032cb97e..092e0892e5 100755
+--- a/utils/llvm-targets/gen-data-layout.sh
++++ b/utils/llvm-targets/gen-data-layout.sh
+@@ -76,6 +76,9 @@ TARGETS=(
+     "powerpc64le-unknown-linux"
+     # Linux s390x
+     "s390x-ibm-linux"
++    # Linux riscv64
++    "riscv64-unknown-linux-gnu"
++    "riscv64-unknown-linux"
+ 
+     #########################
+     # Darwin
+-- 
+2.33.1
+
