@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Haochen Tong <i@hexchain.org>
+Date: Tue, 2 Nov 2021 22:21:00 +0800
+Subject: [PATCH] compiler: allow LLVM backend in unregisterised compiler
+
+See https://gitlab.haskell.org/ghc/ghc/-/snippets/3354
+---
+ compiler/GHC/Driver/Session.hs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/compiler/GHC/Driver/Session.hs b/compiler/GHC/Driver/Session.hs
+index f4e6bda404..a3f618d154 100644
+--- a/compiler/GHC/Driver/Session.hs
++++ b/compiler/GHC/Driver/Session.hs
+@@ -5023,7 +5023,7 @@ makeDynFlagsConsistent dflags
+           warn = "Hpc can't be used with byte-code interpreter. Ignoring -fhpc."
+       in loop dflags' warn
+ 
+- | hscTarget dflags `elem` [HscAsm, HscLlvm] &&
++ | hscTarget dflags `elem` [HscAsm] &&
+    platformUnregisterised (targetPlatform dflags)
+     = loop (dflags { hscTarget = HscC })
+            "Target platform uses unregisterised ABI, so compiling via C"
+-- 
+2.33.1
+
