@@ -1,0 +1,26 @@
+diff --git a/cmake/VSTConfig.cmake b/cmake/VSTConfig.cmake
+index 8d23c1d..bd91af5 100644
+--- a/cmake/VSTConfig.cmake
++++ b/cmake/VSTConfig.cmake
+@@ -39,6 +39,8 @@ if(NOT VST3_PACKAGE_ARCHITECTURE)
+             set(VST3_PACKAGE_ARCHITECTURE "${VST3_SYSTEM_PROCESSOR}")
+         elseif(VST3_SYSTEM_PROCESSOR MATCHES "^(aarch64)$")
+             set(VST3_PACKAGE_ARCHITECTURE "aarch64")
++        elseif(VST3_SYSTEM_PROCESSOR MATCHES "^(riscv64)$")
++            set(VST3_PACKAGE_ARCHITECTURE "riscv64")
+         else()
+             message(FATAL_ERROR "We don't know this architecture for VST3: ${VST3_SYSTEM_PROCESSOR}.")
+         endif()
+diff --git a/external/atomic_queue/include/atomic_queue/defs.h b/external/atomic_queue/include/atomic_queue/defs.h
+index a279dcf..8dd6f0e 100644
+--- a/external/atomic_queue/include/atomic_queue/defs.h
++++ b/external/atomic_queue/include/atomic_queue/defs.h
+@@ -15,7 +15,7 @@ static inline void spin_loop_pause() noexcept {
+     _mm_pause();
+ }
+ } // namespace atomic_queue
+-#elif defined(__arm__) || defined(__aarch64__)
++#elif defined(__arm__) || defined(__aarch64__) || defined(__riscv)
+ namespace atomic_queue {
+ constexpr int CACHE_LINE_SIZE = 64;
+ static inline void spin_loop_pause() noexcept {
