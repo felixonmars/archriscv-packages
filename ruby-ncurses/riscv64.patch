@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index ff21144..5f17eea 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,14 +13,17 @@ url='https://sourceforge.net/projects/ncurses-ruby.berlios/'
+ license=(GPL)
+ depends=(ruby ncurses)
+ source=("https://downloads.sourceforge.net/ncurses-ruby.berlios/ncurses-ruby-$pkgver.tar.bz2"
+-        'str2cstr.patch::https://src.fedoraproject.org/rpms/ruby-ncurses/raw/main/f/0001-STR2CSTR-deprecated.patch')
++        'str2cstr.patch::https://src.fedoraproject.org/rpms/ruby-ncurses/raw/main/f/0001-STR2CSTR-deprecated.patch'
++        "fix_not_literal_string.patch")
+ sha256sums=('dca8ce452e989ce1399cb683184919850f2baf79e6af9d16a7eed6a9ab776ec5'
+-            '3a9fea87a0fa3eac58022e9e86e901601953939c15ebccede0ba64f4a011039d')
++            '3a9fea87a0fa3eac58022e9e86e901601953939c15ebccede0ba64f4a011039d'
++            'ce90ddb0f9c22d4b9bf7f7760cb0b19a6c10ce0d7424efb9535a85077772604c')
+ 
+ prepare() {
+   cd ncurses-ruby-$pkgver
+ 
+   patch -i ../str2cstr.patch
++  patch -Np1 -i "../fix_not_literal_string.patch"
+   sed -i '1s,^,#include <sys/time.h>\n,' ncurses_wrap.c
+ }
+ 
