@@ -1,0 +1,574 @@
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/ced/sources/main/ced_func_rtf.cpp cuneiform-linux-1.1.0/cuneiform_src/Kern/ced/sources/main/ced_func_rtf.cpp
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/ced/sources/main/ced_func_rtf.cpp	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/ced/sources/main/ced_func_rtf.cpp	2021-11-01 15:27:29.165422801 +0800
+@@ -212,7 +212,7 @@
+     }
+ */
+     // write the text lines
+-	for (;sect>0;sect=sect->next)
++	for (;sect;sect=sect->next)
+ 	{
+ 		if (!WriteRtfSection(rtf,sect)) goto WRITE_END; //write section properties
+ 		//	int sectNum=0;
+@@ -897,7 +897,7 @@
+ //    if (curChar->fontNum>=rtf->page->fontsUsed || (prevChar&&prevChar->fontNum>=rtf->page->fontsUsed)) return TRUE;
+ 
+     // extract value for comparison
+-    if (prevChar>0) {
++    if (prevChar) {
+ //       lstrcpy(PrevTypeFace,TerFont[PrevFont].TypeFace);
+        PrevFamily=rtf->table[rtf->page->GetFontByNum(prevChar->fontNum)];
+        PrevStyle=prevChar->fontAttribs;
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/dif/src/stick.h cuneiform-linux-1.1.0/cuneiform_src/Kern/dif/src/stick.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/dif/src/stick.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/dif/src/stick.h	2021-11-01 15:59:30.921758849 +0800
+@@ -227,7 +227,7 @@
+ 	    L->num_concs<3                              &&		\
+ 	    (L->mount[2]>0||L->conc[0]>0&&L->conc[4]>0) &&		\
+ 	    R->mount[0]>0  && R->mount[4]>0  && R->m_meandr<4 )		\
+-		dis += (tab) * min ((R->mount[0] + R->mount[4]), 4);	\
++		dis += (tab) * MIN ((R->mount[0] + R->mount[4]), 4);	\
+ 	}
+ 
+ #define FOUR_CONC(l,r,tab)                                      \
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/fon/src/p2_clu.c cuneiform-linux-1.1.0/cuneiform_src/Kern/fon/src/p2_clu.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/fon/src/p2_clu.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/fon/src/p2_clu.c	2021-11-01 15:35:05.869930839 +0800
+@@ -120,7 +120,7 @@
+ //   (now 128*64+... > 8192)
+ //
+ // working buffer
+-static char mybuffer[MAX(2*MAXSYM * sizeof(int16_t), max(2*sizeof (welet ),sizeof(access_tab)))];
++static char mybuffer[MAX(2*MAXSYM * sizeof(int16_t), MAX(2*sizeof (welet ),sizeof(access_tab)))];
+ welet *welBuf = (welet *) mybuffer;
+ welet *dist_wel = (welet *) (mybuffer + MAX(MAXSYM * sizeof(int16_t),
+ 		sizeof(welet))); // use as
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/hhh/lst3_win.h cuneiform-linux-1.1.0/cuneiform_src/Kern/hhh/lst3_win.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/hhh/lst3_win.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/hhh/lst3_win.h	2021-11-01 15:58:18.678070338 +0800
+@@ -835,17 +835,17 @@
+   d_down=abs(f1->down - f2->down);  \
+   dv=abs( ( (f1->up+f1->down) - (f2->up+f2->down) )>>1 );\
+   if(d_up < dv) dv=d_up; if(d_down < dv) dv=d_down;         \
+-  dist=abs(max(f1->left,f2->left) - min(f1->right,f2->right));\
++  dist=abs(MAX(f1->left,f2->left) - MIN(f1->right,f2->right));\
+   dist+=par.kv*dv; \
+ } */
+ #define dist_frm(f1,f2,dist) { int dv,d_up;\
+   d_up=  abs(f1->up - f2->up); \
+   dv=abs(f1->down - f2->down); if(d_up < dv) dv=d_up; \
+-  dist=abs(max(f1->left,f2->left) - min(f1->right,f2->right));\
++  dist=abs(MAX(f1->left,f2->left) - MIN(f1->right,f2->right));\
+   dist+=par.kv*dv; \
+ }
+ 
+-#define DIST_V(u1,d1,u2,d2) (min(d1,d2)-max(u1,u2))
++#define DIST_V(u1,d1,u2,d2) (MIN(d1,d2)-MAX(u1,u2))
+ 
+ #define DV_FRM(a,b) DIST_V(a->up,a->down,b->up,b->down)
+ 
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/hrk/std.h cuneiform-linux-1.1.0/cuneiform_src/Kern/hrk/std.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/hrk/std.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/hrk/std.h	2021-11-01 15:46:00.924216736 +0800
+@@ -57,6 +57,11 @@
+ #ifndef __STD_H
+    #define __STD_H
+ 
++   #ifndef __STDDEF_H
++      #include <stddef.h>
++      #define __STDDEF_H
++   #endif
++
+    #ifndef __STDIO_H
+       #include <stdio.h>
+       #define __STDIO_H
+@@ -211,11 +216,6 @@
+ #define STD_CMPFILETIME_MORE                      1
+ #define STD_CMPFILETIME_ERR                        -2
+ 
+-/* On Windows wchar_t is 16 bit. On Unix it is 32 bit. */
+-#ifndef WIN32
+-#define wchar_t int16_t
+-#endif
+-
+ STD_FUNC( Bool32 ) stdCheckFile(const char * lpFileName );
+ 
+ STD_FUNC( Bool32 ) stdMoveFile(
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/hrstr/stic-mac.h cuneiform-linux-1.1.0/cuneiform_src/Kern/hrstr/stic-mac.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/hrstr/stic-mac.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/hrstr/stic-mac.h	2021-11-01 15:59:30.921758849 +0800
+@@ -138,7 +138,7 @@
+ 	    L->num_concs<3                              &&		\
+ 	    (L->mount[2]>0||L->conc[0]>0&&L->conc[4]>0) &&		\
+ 	    R->mount[0]>0  && R->mount[4]>0  && R->m_meandr<4 )		\
+-		dis += (tab) * min ((R->mount[0] + R->mount[4]), 4);	\
++		dis += (tab) * MIN ((R->mount[0] + R->mount[4]), 4);	\
+ 	}
+ 
+ 
+@@ -241,8 +241,8 @@
+ 	{                                             \
+ 	int16_t t,m;                                      \
+ 	t =  abs(L->mount[i]-R->mount[i]) ;           \
+-	m =  min(L->mount[i],R->mount[i]) ;           \
+-	if( t>max(((wid)>>1),dist) || m==0 )          \
++	m =  MIN(L->mount[i],R->mount[i]) ;           \
++	if( t>MAX(((wid)>>1),dist) || m==0 )          \
+ 		dis += (tab)*t;                       \
+ 	}
+ 
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/icrashreport/wtl/include/atlapp.h cuneiform-linux-1.1.0/cuneiform_src/Kern/icrashreport/wtl/include/atlapp.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/icrashreport/wtl/include/atlapp.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/icrashreport/wtl/include/atlapp.h	2021-11-01 15:58:18.664736939 +0800
+@@ -258,7 +258,7 @@
+   {
+ 	if(lpstrDest == NULL || lpstrSrc == NULL || nLength <= 0)
+ 		return NULL;
+-	int nLen = min(lstrlen(lpstrSrc), nLength - 1);
++	int nLen = MIN(lstrlen(lpstrSrc), nLength - 1);
+ 	char* lpstrRet = (char*)memcpy(lpstrDest, lpstrSrc, nLen * sizeof(TCHAR));
+ 	lpstrDest[nLen] = 0;
+ 	return lpstrRet;
+@@ -277,7 +277,7 @@
+   {
+ 	if(lpstrDest == NULL || lpstrSrc == NULL || nLength <= 0)
+ 		return NULL;
+-	int nLen = min(lstrlenA(lpstrSrc), nLength - 1);
++	int nLen = MIN(lstrlenA(lpstrSrc), nLength - 1);
+ 	char* lpstrRet = (char*)memcpy(lpstrDest, lpstrSrc, nLen * sizeof(char));
+ 	lpstrDest[nLen] = 0;
+ 	return lpstrRet;
+@@ -787,7 +787,7 @@
+ 		}
+ 		else if(cchCount == _TRUNCATE)
+ 		{
+-			cchCount = min(cchDest - 1, size_t(lstrlenA(lpstrSrc)));
++			cchCount = MIN(cchDest - 1, size_t(lstrlenA(lpstrSrc)));
+ 			nRet = STRUNCATE;
+ 		}
+ 		else if(cchDest <= cchCount)
+@@ -814,7 +814,7 @@
+ 		}
+ 		else if(cchCount == _TRUNCATE)
+ 		{
+-			cchCount = min(cchDest - 1, size_t(lstrlenW(lpstrSrc)));
++			cchCount = MIN(cchDest - 1, size_t(lstrlenW(lpstrSrc)));
+ 			nRet = STRUNCATE;
+ 		}
+ 		else if(cchDest <= cchCount)
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/icrashreport/wtl/include/atlctrlx.h cuneiform-linux-1.1.0/cuneiform_src/Kern/icrashreport/wtl/include/atlctrlx.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/icrashreport/wtl/include/atlctrlx.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/icrashreport/wtl/include/atlctrlx.h	2021-11-01 15:58:18.664736939 +0800
+@@ -994,7 +994,7 @@
+         RECT rcLink = rect;
+         dc.DrawText(_T("NS"), -1, &rcLink, DT_LEFT | DT_WORDBREAK | DT_CALCRECT);
+         dc.SelectFont(hFontOld);
+-        return max(rcText.bottom - rcText.top, rcLink.bottom - rcLink.top);
++        return MAX(rcText.bottom - rcText.top, rcLink.bottom - rcLink.top);
+     }
+ 
+     bool GetIdealSize(SIZE& size) const
+@@ -1050,7 +1050,7 @@
+ 
+             dc.SelectFont(hFontOld);
+ 
+-            int cyMax = max(rcLeft.bottom, max(rcLink.bottom, rcRight.bottom));
++            int cyMax = MAX(rcLeft.bottom, MAX(rcLink.bottom, rcRight.bottom));
+             ::SetRect(&rcAll, rcLeft.left, rcLeft.top, rcRight.right, cyMax);
+         }
+         else
+@@ -2685,7 +2685,7 @@
+         {
+             int cyFont = abs(lf.lfHeight) + m_cxyBorder + 2 * m_cxyTextOffset;
+             int cyBtn = m_cyImageTB + m_cxyBtnAddTB + m_cxyBorder + 2 * m_cxyBtnOffset;
+-            m_cxyHeader = max(cyFont, cyBtn);
++            m_cxyHeader = MAX(cyFont, cyBtn);
+         }
+     }
+ 
+@@ -4243,7 +4243,7 @@
+         {
+             // Append menu items for all pages
+             const int cchPrefix = 3;   // 2 digits + space
+-            nMenuItemsCount = min(min(nPageCount, nMenuItemsCount), (int)m_nMenuItemsMax);
++            nMenuItemsCount = MIN(MIN(nPageCount, nMenuItemsCount), (int)m_nMenuItemsMax);
+             ATLASSERT(nMenuItemsCount < 100);   // 2 digits only
+             if(nMenuItemsCount >= 100)
+                 nMenuItemsCount = 99;
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/icrashreport/wtl/include/atlmisc.h cuneiform-linux-1.1.0/cuneiform_src/Kern/icrashreport/wtl/include/atlmisc.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/icrashreport/wtl/include/atlmisc.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/icrashreport/wtl/include/atlmisc.h	2021-11-01 15:58:18.664736939 +0800
+@@ -1856,7 +1856,7 @@
+ 				else
+ 				{
+ 					nItemLen = lstrlen(pstrNextArg);
+-					nItemLen = max(1, nItemLen);
++					nItemLen = MAX(1, nItemLen);
+ 				}
+ 				break;
+ 			}
+@@ -1872,7 +1872,7 @@
+ 				else
+ 				{
+ 					nItemLen = (int)wcslen(pstrNextArg);
+-					nItemLen = max(1, nItemLen);
++					nItemLen = MAX(1, nItemLen);
+ 				}
+ #else // _UNICODE
+ 				const char * pstrNextArg = va_arg(argList, const char *);
+@@ -1887,7 +1887,7 @@
+ #else
+ 					nItemLen = lstrlenA(pstrNextArg);
+ #endif
+-					nItemLen = max(1, nItemLen);
++					nItemLen = MAX(1, nItemLen);
+ 				}
+ #endif // _UNICODE
+ 				break;
+@@ -1908,7 +1908,7 @@
+ #else
+ 					nItemLen = lstrlenA(pstrNextArg);
+ #endif
+-					nItemLen = max(1, nItemLen);
++					nItemLen = MAX(1, nItemLen);
+ 				}
+ 				break;
+ 			}
+@@ -1924,7 +1924,7 @@
+ 				else
+ 				{
+ 					nItemLen = (int)wcslen(pstrNextArg);
+-					nItemLen = max(1, nItemLen);
++					nItemLen = MAX(1, nItemLen);
+ 				}
+ 				break;
+ 			}
+@@ -1933,9 +1933,9 @@
+ 			// adjust nItemLen for strings
+ 			if (nItemLen != 0)
+ 			{
+-				nItemLen = max(nItemLen, nWidth);
++				nItemLen = MAX(nItemLen, nWidth);
+ 				if (nPrecision != 0)
+-					nItemLen = min(nItemLen, nPrecision);
++					nItemLen = MIN(nItemLen, nPrecision);
+ 			}
+ 			else
+ 			{
+@@ -1953,7 +1953,7 @@
+ 					else
+ 						va_arg(argList, int);
+ 					nItemLen = 32;
+-					nItemLen = max(nItemLen, nWidth + nPrecision);
++					nItemLen = MAX(nItemLen, nWidth + nPrecision);
+ 					break;
+ 
+ #ifndef _ATL_USE_CSTRING_FLOAT
+@@ -1979,7 +1979,7 @@
+ 				case _T('G'):
+ 					va_arg(argList, double);
+ 					nItemLen = 128;
+-					nItemLen = max(nItemLen, nWidth + nPrecision);
++					nItemLen = MAX(nItemLen, nWidth + nPrecision);
+ 					break;
+ 				case _T('f'):
+ 					{
+@@ -1988,7 +1988,7 @@
+ 						// 309 zeroes == max precision of a double
+ 						// 6 == adjustment in case precision is not specified,
+ 						//   which means that the precision defaults to 6
+-						int cchLen = max(nWidth, 312 + nPrecision + 6);
++						int cchLen = MAX(nWidth, 312 + nPrecision + 6);
+ 						CTempBuffer<TCHAR, _WTL_STACK_ALLOC_THRESHOLD> buff;
+ 						char* pszTemp = buff.Allocate(cchLen);
+ 						if(pszTemp != NULL)
+@@ -2007,7 +2007,7 @@
+ 				case _T('p'):
+ 					va_arg(argList, void*);
+ 					nItemLen = 32;
+-					nItemLen = max(nItemLen, nWidth + nPrecision);
++					nItemLen = MAX(nItemLen, nWidth + nPrecision);
+ 					break;
+ 
+ 				// no output
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/include/minmax.h cuneiform-linux-1.1.0/cuneiform_src/Kern/include/minmax.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/include/minmax.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/include/minmax.h	2021-11-01 15:32:57.645526120 +0800
+@@ -60,18 +60,7 @@
+  * code use them without proper includes which lead to link errors.
+  */
+ 
+-#ifndef MIN
+ #define MIN(a,b) (((a)>(b))?(b):(a))
+-#endif
+-#ifndef MAX
+ #define MAX(a,b) (((a)>(b))?(a):(b))
+-#endif
+-
+-#ifndef min
+-#define min(a,b) (((a)>(b))?(b):(a))
+-#endif
+-#ifndef max
+-#define max(a,b) (((a)>(b))?(a):(b))
+-#endif
+ 
+ #endif
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/leo/src/leo_cont.c cuneiform-linux-1.1.0/cuneiform_src/Kern/leo/src/leo_cont.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/leo/src/leo_cont.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/leo/src/leo_cont.c	2021-11-01 15:43:07.939879340 +0800
+@@ -55,6 +55,7 @@
+ */
+ 
+ // container fot RecRasters
++#include<stddef.h>
+ #include<stdio.h>
+ #include<string.h>
+ #include "ctb.h"
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/lns32/src/lnscheck.cpp cuneiform-linux-1.1.0/cuneiform_src/Kern/lns32/src/lnscheck.cpp
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/lns32/src/lnscheck.cpp	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/lns32/src/lnscheck.cpp	2021-11-01 15:38:32.588119332 +0800
+@@ -66,8 +66,8 @@
+ #include "decl.h"
+ 
+ typedef Point16 XPoint16;
+-#define maxi max
+-#define mini min
++#define maxi MAX
++#define mini MIN
+ #define PPSArray TArray
+ 
+ #define CONSOLE /* This can also be printf. */
+@@ -1492,4 +1492,3 @@
+ v_lns.flush();
+ return TRUE;
+ }
+-
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/lns32/src/lns.cpp cuneiform-linux-1.1.0/cuneiform_src/Kern/lns32/src/lns.cpp
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/lns32/src/lns.cpp	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/lns32/src/lns.cpp	2021-11-01 15:39:31.778519061 +0800
+@@ -190,8 +190,8 @@
+          break;   // keep lines, if lack
+       if (li.Flags & LI_NOISE)
+          continue;
+-      Point32 Mn; Mn.x = MIN(li.A.x,li.B.x);   Mn.y = min(li.A.y,li.B.y);
+-      Point32 Mx; Mx.x = MAX(li.A.x,li.B.x);   Mx.y = max(li.A.y,li.B.y);
++      Point32 Mn; Mn.x = MIN(li.A.x,li.B.x);   Mn.y = MIN(li.A.y,li.B.y);
++      Point32 Mx; Mx.x = MAX(li.A.x,li.B.x);   Mx.y = MAX(li.A.y,li.B.y);
+       if ((Mn.y < imgrect.top + 50) || (Mx.y > imgrect.bottom - 50))
+       {
+          if (!__HasCorners(li, plti, TRUE))
+@@ -213,8 +213,8 @@
+          continue;
+       if (vcnt < 5)
+          break;   // keep lines, if lack
+-      Point32 Mn; Mn.x = MIN(li.A.x,li.B.x);   Mn.y = min(li.A.y,li.B.y);
+-      Point32 Mx; Mx.x = MAX(li.A.x,li.B.x);   Mx.y = max(li.A.y,li.B.y);
++      Point32 Mn; Mn.x = MIN(li.A.x,li.B.x);   Mn.y = MIN(li.A.y,li.B.y);
++      Point32 Mx; Mx.x = MAX(li.A.x,li.B.x);   Mx.y = MAX(li.A.y,li.B.y);
+       if ((Mn.x < imgrect.left + 50) || (Mx.x > imgrect.right - 50))
+       {
+          if (!__HasCorners(li, plti, FALSE))
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/lns32/src/xydim.h cuneiform-linux-1.1.0/cuneiform_src/Kern/lns32/src/xydim.h
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/lns32/src/xydim.h	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/lns32/src/xydim.h	2021-11-01 15:38:13.654655157 +0800
+@@ -86,8 +86,8 @@
+ 					);
+ 			};
+          void expandX( int l, int r ){
+-				left = min( left, l );
+-				right = max( right, r);
++				left = MIN( left, l );
++				right = MAX( right, r);
+ 			};
+ 
+ 	};
+@@ -115,8 +115,8 @@
+ 				);
+ 			};
+          void expandY( int b, int t ){
+-				bottom = min( bottom, b );
+-				top = max( top, t );
++				bottom = MIN( bottom, b );
++				top = MAX( top, t );
+ 			};
+ 
+ 	};
+@@ -145,10 +145,10 @@
+ 						 );
+ 			};
+          void restrictXY( int x1, int x2, int y1, int y2 ){
+-				left 		= 	max( left, x1 );
+-				right		=  min( right, x2 );
+-				bottom	= 	max(bottom, y1);
+-				top    	=  min(top, y2);
++				left 		= 	MAX( left, x1 );
++				right		=  MIN( right, x2 );
++				bottom	= 	MAX(bottom, y1);
++				top    	=  MIN(top, y2);
+ 			};
+          void expandXY( TXYDim* brother ){
+ 				expandX( brother->left, brother->right );
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rbal/src/linban.c cuneiform-linux-1.1.0/cuneiform_src/Kern/rbal/src/linban.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rbal/src/linban.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rbal/src/linban.c	2021-11-01 15:58:10.521363155 +0800
+@@ -864,7 +864,7 @@
+ void histes() {
+ 	int16_t i, m, m3, lb3;
+ 	uchar *bp, *bc, *bn;
+-	// find: MAX(segs) in same place as max(ends)
++	// find: MAX(segs) in same place as MAX(ends)
+ 	m3 = -1;
+ 	if (Ns3) {
+ 		int16_t ibeg, iend;
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rcorrkegl/src/cpp/cor_kegl.cpp cuneiform-linux-1.1.0/cuneiform_src/Kern/rcorrkegl/src/cpp/cor_kegl.cpp
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rcorrkegl/src/cpp/cor_kegl.cpp	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rcorrkegl/src/cpp/cor_kegl.cpp	2021-11-01 15:34:10.576149579 +0800
+@@ -1563,7 +1563,7 @@
+   int32_t y2=test->top-main->bottom;
+   if (x1>0 || x2>0 || y1>0 || y2>0)   //╨╜╨╡ ╨┐╨╡╤А╨╡╤Б╨╡╨║╨░╤О╤В╤Б
+   {
+-    x=MAX(x1,x2);  y=max(y1,y2);
++    x=MAX(x1,x2);  y=MAX(y1,y2);
+     if (x<0)  return y;
+     if (y<0)  return x;
+     return MIN(x,y);
+@@ -1574,7 +1574,7 @@
+   x2=test->right-main->right;
+   y1=main->top-test->top;
+   y2=test->bottom-main->bottom;
+-  x=MAX(x1,x2);  y=max(y1,y2);
++  x=MAX(x1,x2);  y=MAX(y1,y2);
+   x=MAX(x,y);
+   return (x>0) ? x : 0;
+ }
+@@ -1775,4 +1775,3 @@
+ 		    hBlock = hNext;
+ 	    }
+ */
+-
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rcutp/sources/main/rcutp_func.cpp cuneiform-linux-1.1.0/cuneiform_src/Kern/rcutp/sources/main/rcutp_func.cpp
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rcutp/sources/main/rcutp_func.cpp	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rcutp/sources/main/rcutp_func.cpp	2021-11-01 15:26:12.837756599 +0800
+@@ -902,8 +902,8 @@
+    if(l1<0 || r1<0) return -1;
+    if(i>0)
+     {
+-     minl=MIN(minl,l1); minr=min(minr,r1);
+-     maxl=MAX(maxl,l1); maxr=max(maxr,r1);
++     minl=MIN(minl,l1); minr=MIN(minr,r1);
++     maxl=MAX(maxl,l1); maxr=MAX(maxr,r1);
+     }
+    else
+     {
+@@ -2155,6 +2155,3 @@
+ 
+ return( (i<<3)+last_pos[*RASTER] );
+ }
+-
+-
+-
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rout/src/html.cpp cuneiform-linux-1.1.0/cuneiform_src/Kern/rout/src/html.cpp
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rout/src/html.cpp	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rout/src/html.cpp	2021-11-01 15:58:18.664736939 +0800
+@@ -264,10 +264,10 @@
+ 				{
+ 					if (isGoodCharRect(r))
+ 					{
+-						rcLine.left = min(rcLine.left, r.left);
+-						rcLine.top = min(rcLine.top, r.top);
+-						rcLine.right = max(rcLine.right, r.right);
+-						rcLine.bottom = max(rcLine.bottom, r.bottom);
++						rcLine.left = MIN(rcLine.left, r.left);
++						rcLine.top = MIN(rcLine.top, r.top);
++						rcLine.right = MAX(rcLine.right, r.right);
++						rcLine.bottom = MAX(rcLine.bottom, r.bottom);
+ 					}
+ 					else
+ 					{
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/cg_main.c cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/cg_main.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/cg_main.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/cg_main.c	2021-11-01 15:58:10.521363155 +0800
+@@ -428,7 +428,7 @@
+  else
+    minw=minp;
+ //   minw=minp=my_bases.ps/10;
+-// minw=MAX(minw,1); minp=max(minp,1);
++// minw=MAX(minw,1); minp=MAX(minp,1);
+ 
+ //уточняем оценки и расставляем точки над 'i'
+ 
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/defpoint.c cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/defpoint.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/defpoint.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/defpoint.c	2021-11-01 15:47:51.028161047 +0800
+@@ -530,7 +530,7 @@
+         /*внизу три коротких одинаковых*/
+         if(ans->h<=chetvert_h && (ans+1)->h<=chetvert_h && (ans+2)->h<=chetvert_h)
+          {
+-           max_h=MAX(max(ans->h,(ans+1)->h),max((ans+1)->h,(ans+2)->h));
++           max_h=MAX(MAX(ans->h,(ans+1)->h),MAX((ans+1)->h,(ans+2)->h));
+            if(ans->h==max_h)      return 6;
+            if((ans+1)->h==max_h)  return 8;
+            else                   return 7;
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/stic_big.c cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/stic_big.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/stic_big.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/stic_big.c	2021-11-01 15:48:06.454911888 +0800
+@@ -920,7 +920,7 @@
+ {
+ int16_t dis=0,l_beam = add_flag ? 3 : 5;
+ int16_t inc = signums->inc;
+-int16_t rc=MAX(r->conc[3],r->conc[4]),lc=max(l->conc[3],l->conc[4]);
++int16_t rc=MAX(r->conc[3],r->conc[4]),lc=MAX(l->conc[3],l->conc[4]);
+ int16_t	s=signums->stick_width;
+ int16_t L_max=s>>1;	/* 1/2 stick width */
+ int16_t rmd,rmu,lmd,lmu;
+@@ -983,7 +983,7 @@
+ if( typ=='!' && r->mount[0]>5 && l->mount[0]<2 || l->mount[0]>5 && r->mount[0]<2 )
+ 	dis += tab_vert[3];   /* down flags */
+ 
+-lmu = MAX(l->mount[0],l->mount[1]);  rmu = max(r->mount[0],r->mount[1]);
++lmu = MAX(l->mount[0],l->mount[1]);  rmu = MAX(r->mount[0],r->mount[1]);
+ lmd = l->mount[4];  rmd = r->mount[4];
+ 
+ if( lmu+rmu+lmd+rmd != 0 )
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/stic_cha.c cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/stic_cha.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/stic_cha.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/stic_cha.c	2021-11-01 15:47:59.864875970 +0800
+@@ -334,7 +334,7 @@
+ {
+ int16_t l1,l2,r1,r2,dy_u=dy/6,dy_d=dy-1-dy/6,d=(dx-1)<<2;
+ 
+-r1 = MIN(r+4,d); r2 = min(r+8,d); /* r1-one,r2-two step in right direct */
++r1 = MIN(r+4,d); r2 = MIN(r+8,d); /* r1-one,r2-two step in right direct */
+ if( r1==r2 )
+ 	r2 += 4; /* right mode = dx-1 */
+ /* upper right serif */
+@@ -358,7 +358,7 @@
+ 	right_chars->down_serif=1;
+ }
+ 
+-l2 = MAX(l-8,0); l1 = max(l-4,0);  /* l1-one,l2-two step in left direct */
++l2 = MAX(l-8,0); l1 = MAX(l-4,0);  /* l1-one,l2-two step in left direct */
+ 
+ /* upper left serif */
+ if( left_chars->mount[0] && left_chars->m_pos[0]<dy_u )
+diff --color -Naur cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/stic_dis.c cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/stic_dis.c
+--- cuneiform-linux-1.1.0-orig/cuneiform_src/Kern/rstr/src/stic_dis.c	2011-04-19 20:49:57.000000000 +0800
++++ cuneiform-linux-1.1.0/cuneiform_src/Kern/rstr/src/stic_dis.c	2021-11-01 15:48:12.968280664 +0800
+@@ -512,7 +512,7 @@
+ 		  int16_t npoints_1_or_2)  {		// 17.01.1994
+ int16_t	dis=0;
+ int16_t	wid=s->stick_width, inc=s->inc;
+-int16_t maxlen = MAX (MAX(l->mount[0],l->mount[4]), max(r->mount[0],l->mount[4]));
++int16_t maxlen = MAX (MAX(l->mount[0],l->mount[4]), MAX(r->mount[0],l->mount[4]));
+ 
+ /*......................................................................*/
+ 				// 05.08.1993 about DOT:
+@@ -605,7 +605,7 @@
+ int16_t	tt = (dy>30) ? 2 : 1;	// 25.02.1993	// CAUTION: USED TWICE ######
+ //////int16_t	d_L, d_R;	// 04.06.1993
+ 
+-lmu = MAX(l->mount[0],l->mount[1]);  rmu = max(r->mount[0],r->mount[1]);
++lmu = MAX(l->mount[0],l->mount[1]);  rmu = MAX(r->mount[0],r->mount[1]);
+ lmd = l->mount[4];  rmd = r->mount[4];
+ 
+ /*......................................................................*/
