@@ -1,51 +1,52 @@
-# Maintainer: Felix Yan <felixonmars@archlinux.org>
-# Contributor: Thomas Dziedzic <gostrc@gmail.com>
-# Contributor: simo <simo@archlinux.org>
-# Contributor: Vesa Kaihlavirta <vegai@iki.fi>
-
 pkgname=ghc-bootstrap-helpers
+_happy_ver=1.20.0
+_alex_ver=3.2.6
+_hscolour_ver=1.24.4
 pkgver=1
 pkgrel=1
-pkgdesc="Bootstrap helpers"
-url="https://hackage.haskell.org/package/happy"
-arch=(riscv64)
-license=("custom:BSD2" "custom:BSD3")
-makedepends=('ghc-bootstrap-riscv64')
+pkgdesc="Helpers for bootstrapping GHC (do not install except for bootstrapping GHC)"
+arch=('riscv64')
+license=("custom:BSD2" "custom:BSD3" "LGPL")
+provides=('alex' 'happy' 'haskell-hscolour')
+conflicts=('alex' 'happy' 'haskell-hscolour')
+makedepends=('ghc-bootstrap')
 source=(
-    "https://hackage.haskell.org/packages/archive/happy/1.20.0/happy-1.20.0.tar.gz"
-    "https://hackage.haskell.org/packages/archive/alex/3.2.6/alex-3.2.6.tar.gz"
+    "https://hackage.haskell.org/packages/archive/happy/$_happy_ver/happy-$_happy_ver.tar.gz"
+    "https://hackage.haskell.org/packages/archive/alex/$_alex_ver/alex-$_alex_ver.tar.gz"
+    "https://hackage.haskell.org/packages/archive/hscolour/$_hscolour_ver/hscolour-$_hscolour_ver.tar.gz"
 )
 sha512sums=('2c19e6e13032ead435495aab232192cf0ad9fe5e3e04c79b40b586272fb0208284815cf5c15d609f75387e7fe91ca0932b675bcaa95552f62ad08a12701649ce'
-            '05b6e55e9a1c348aea599d1130780a3d2a0a7c5f1db00b2c98bd34737cac9d48842fb1b1f98947a99d99013f94e39a6ffee1af8546f02fb2d32fcf362ff0f83c')
-
-ghc_bootstrap_root=/opt/ghc-bootstrap-riscv64
+            '05b6e55e9a1c348aea599d1130780a3d2a0a7c5f1db00b2c98bd34737cac9d48842fb1b1f98947a99d99013f94e39a6ffee1af8546f02fb2d32fcf362ff0f83c'
+            '39b631c0a8346beff1c2e02ca8e72c1b1e3f7dafcedad7dc9de274e6750501de2bc553fe72a7d3459d4f9797e916f27e28ff96f705c2c0f9d3e0eec0ac6182c7')
 
 build() {
-  cd "${srcdir}/happy-1.20.0"
-  export PATH="$ghc_bootstrap_root/bin:$PATH"
+    _cabal_opts="--prefix=/usr --ghc-option=-fllvm --disable-library-vanilla"
+    cd "${srcdir}/happy-$_happy_ver"
+    ghc Setup.hs -o cabal -fllvm
+    ./cabal configure --docdir=/usr/share/doc/happy --datasubdir="happy" $_cabal_opts
+    ./cabal build $MAKEFLAGS
 
-  ghc Setup.hs -o cabal
-  ./cabal configure --prefix=$ghc_bootstrap_root
-  ./cabal build $MAKEFLAGS
+    cd "$srcdir/alex-$_alex_ver"
+    ghc Setup.hs -o cabal -fllvm
+    ./cabal configure --docdir=/usr/share/doc/alex --datasubdir="alex" $_cabal_opts
+    ./cabal build $MAKEFLAGS
 
-  cd "$srcdir/alex-3.2.6"
-  ghc Setup.hs -o cabal
-  ./cabal configure --prefix=$ghc_bootstrap_root
-  ./cabal build $MAKEFLAGS
-
+    cd "$srcdir/hscolour-$_hscolour_ver"
+    ghc Setup.hs -o cabal -fllvm
+    ./cabal configure --docdir=/usr/share/doc/hscolour --datasubdir="hscolour" $_cabal_opts
+    ./cabal build $MAKEFLAGS
 }
 
 package() {
-  cd "${srcdir}/happy-1.20.0"
-  ./cabal copy --destdir="${pkgdir}"
-  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/$pkgname/LICENSE-happy"
+    cd "${srcdir}/happy-$_happy_ver"
+    ./cabal copy --destdir="${pkgdir}"
+    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/$pkgname/LICENSE.happy"
 
-  cd "$srcdir/alex-3.2.6"
-  ./cabal copy --destdir="$pkgdir"
-  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-alex"
+    cd "$srcdir/alex-$_alex_ver"
+    ./cabal copy --destdir="$pkgdir"
+    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/$pkgname/LICENSE.alex"
 
-  # Doc only contains the license
-  rm -rf "$pkgdir/$ghc_bootstrap_root/share/doc"
+    cd "$srcdir/hscolour-$_hscolour_ver"
+    ./cabal copy --destdir="$pkgdir"
+    install -Dm644 LICENCE-LGPL "${pkgdir}/usr/share/licenses/$pkgname/LICENSE.hscolour"
 }
-
-# vim: ts=2 sw=2 et:
