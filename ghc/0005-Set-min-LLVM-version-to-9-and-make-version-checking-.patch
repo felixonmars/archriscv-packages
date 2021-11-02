@@ -1,18 +1,22 @@
-From 5279eac5ce1a82d661dfaa911e892a591c7f95c0 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Zubin Duggal <zubin.duggal@gmail.com>
 Date: Thu, 17 Jun 2021 16:25:46 +0530
-Subject: [PATCH 5/9] Set min LLVM version to 9 and make version checking use a
+Subject: [PATCH] Set min LLVM version to 9 and make version checking use a
  non-inclusive upper bound.
 
 We use a non-inclusive upper bound so that setting the upper bound to 13 for
 example means that all 12.x versions are accepted.
+
+(cherry picked from commit 6c783817ef089e85642c3383937117cff9d15f67)
+(cherry picked from commit 9b668ca47499b271bffd96d58f696a80a14002c8)
+(cherry picked from commit 1f66634630a000c19d0806e7a6b30c1358bad271)
 ---
  aclocal.m4                     |  2 +-
  compiler/GHC/CmmToLlvm.hs      |  6 +++---
- compiler/GHC/CmmToLlvm/Base.hs | 16 +++++++++-------
+ compiler/GHC/CmmToLlvm/Base.hs | 18 ++++++++++--------
  compiler/GHC/SysTools/Tasks.hs |  9 +++++----
  configure.ac                   |  4 ++--
- 5 files changed, 20 insertions(+), 17 deletions(-)
+ 5 files changed, 21 insertions(+), 18 deletions(-)
 
 diff --git a/aclocal.m4 b/aclocal.m4
 index a296dbc243..0219ea3a61 100644
@@ -52,18 +56,20 @@ index 0d2ecb16be..8bc7dc65b4 100644
         -- run code generation
         a <- runLlvm dflags llvm_ver bufh $
 diff --git a/compiler/GHC/CmmToLlvm/Base.hs b/compiler/GHC/CmmToLlvm/Base.hs
-index a47bfd3baa..86f9944f59 100644
+index a47bfd3baa..24df565424 100644
 --- a/compiler/GHC/CmmToLlvm/Base.hs
 +++ b/compiler/GHC/CmmToLlvm/Base.hs
-@@ -15,7 +15,7 @@ module GHC.CmmToLlvm.Base (
+@@ -15,8 +15,8 @@ module GHC.CmmToLlvm.Base (
          LiveGlobalRegs,
          LlvmUnresData, LlvmData, UnresLabel, UnresStatic,
  
 -        LlvmVersion, supportedLlvmVersionMin, supportedLlvmVersionMax,
-+        LlvmVersion, supportedLlvmVersionLowerBound, supportedLlvmVersionUpperBound,
-         llvmVersionSupported, parseLlvmVersion,
+-        llvmVersionSupported, parseLlvmVersion,
++        LlvmVersion, llvmVersionSupported, parseLlvmVersion,
++        supportedLlvmVersionLowerBound, supportedLlvmVersionUpperBound,
          llvmVersionStr, llvmVersionList,
  
+         LlvmM,
 @@ -265,7 +265,6 @@ llvmPtrBits platform = widthInBits $ typeWidth $ gcWord platform
  -- * Llvm Version
  --
@@ -139,5 +145,5 @@ index cf93f10938..e0423add87 100644
  AC_SUBST([LlvmMaxVersion])
  sUPPORTED_LLVM_VERSION_MIN=$(echo \($LlvmMinVersion\) | sed 's/\./,/')
 -- 
-2.33.0
+2.33.1
 

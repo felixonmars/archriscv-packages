@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Sat, 17 Oct 2020 13:21:32 +0200
+Subject: [PATCH] Allow bootstrapping with unregisterised compiler
+
+When genapply is compiled with an unregisterised compiler it always
+outputs code for an unregisterised build.  This is because an
+unregisterised compiler defines UnregisterisedCompiler, which implies
+NO_REGS.  But we only what to define NO_REGS if building an unregisterised
+compiler.
+
+(cherry picked from commit 4a3300084ead5f17ccc7b5d29be4086b62c13c55)
+---
+ .gitlab-ci.yml         | 3 +++
+ utils/genapply/Main.hs | 5 +++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/utils/genapply/Main.hs b/utils/genapply/Main.hs
+index a6d944efa4..149040a3c1 100644
+--- a/utils/genapply/Main.hs
++++ b/utils/genapply/Main.hs
+@@ -17,6 +17,11 @@ module Main(main) where
+ -- We improperly include *HOST* macros for our target...
+ #include "../../includes/ghcconfig.h"
+ 
++-- If the bootstrap compiler is unregisterised it defines
++-- UnregisterisedCompiler, which implies NO_REGS.  But we only want to
++-- define NO_REGS if building an unregisterised compiler.
++#undef UnregisterisedCompiler
++
+ -- ...so that this header defines the right stuff.  It is the RTS's host, but
+ -- our target, as we are generating code that uses that RTS.
+ #include "../../includes/stg/MachRegsForHost.h"
+-- 
+2.33.1
+
