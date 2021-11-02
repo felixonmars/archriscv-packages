@@ -1,0 +1,21 @@
+diff --git PKGBUILD PKGBUILD
+index 7cfe4fe..c0acdb4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,14 @@ url='https://github.com/iovisor/bcc'
+ license=('Apache')
+ makedepends=('cmake' 'clang' 'llvm' 'flex' 'bison' 'python')
+ checkdepends=('netperf' 'iperf')
+-source=("bcc-$pkgver.tar.gz"::"https://github.com/iovisor/bcc/releases/download/v$pkgver/bcc-src-with-submodule.tar.gz")
+-sha512sums=('a522fdb11f7d45f7e85083d41a6fbf39b9dbbdad7de777532200ead1f1ce1e1e2450f027a22929d29c5531860141e73c897e5c0ac77b1e79c810e298b3c50afb')
++source=("bcc-$pkgver.tar.gz"::"https://github.com/iovisor/bcc/releases/download/v$pkgver/bcc-src-with-submodule.tar.gz"
++        "fix-naming-scheme.patch::https://github.com/iovisor/bcc/pull/3678.patch")
++sha512sums=('a522fdb11f7d45f7e85083d41a6fbf39b9dbbdad7de777532200ead1f1ce1e1e2450f027a22929d29c5531860141e73c897e5c0ac77b1e79c810e298b3c50afb'
++            '4550de7e788d3050f8224a921356c551c57f8b6b96b9c8493bc76e538b0ac398990c1d284952fa56cd15766595282204805291fdf00b6cb2a363e6f127792ab3')
++
++prepare() {
++  patch -Np1 -i ${srcdir}/fix-naming-scheme.patch -d bcc
++}
+ 
+ build() {
+   mkdir -p bcc/build
