@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index cbf354a..c22a70f 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,22 @@ url='https://verilogtorouting.org'
+ license=('MIT')
+ depends=('ctags' 'intel-tbb')
+ makedepends=('cmake')
+-source=("$pkgname-$pkgver::https://github.com/verilog-to-routing/vtr-verilog-to-routing/archive/v$pkgver.tar.gz")
+-sha512sums=('9fc75f8451185fef65b01d37bafcc8c13e04632cdb66d0d49df7f942b40b8178a1e4610b83b88eb32b48077eeda4bd0061b8bb390e61573a1d85153fdc7ba1de')
++source=("$pkgname-$pkgver::https://github.com/verilog-to-routing/vtr-verilog-to-routing/archive/v$pkgver.tar.gz"
++        "migrate_to_onetbb.patch"
++        "fix_missing_headers.patch"
++        "fix_pthread_linking.patch")
++sha512sums=('9fc75f8451185fef65b01d37bafcc8c13e04632cdb66d0d49df7f942b40b8178a1e4610b83b88eb32b48077eeda4bd0061b8bb390e61573a1d85153fdc7ba1de'
++            '1fc5c7ca4b6b2debcc35585e626899e42a02ff85b442731980187273feefe20d4adebe865e84661f88cdbef34b5afedd38c7e54cf4185ff62468d21f88196bf4'
++            '155ae501dd39a0f7e76e102057aaa5ed9f146b32a1c73f6f60f4b3eeb41eefa7279c9c3476f53eb8ebea6294631ad75751656484489704030d29e1dd2372cc96'
++            'b5a4f09e86700395c8d0c13b3880729c97478508ffd84ce138f7c4b40969cc60b22f34ae4522b8c645f70a99a128b25afac611dff77cdaedc2e172c8b3e1d932')
++
++prepare() {
++  cd $_pkgname-$pkgver
++
++  patch -Np1 -i "../migrate_to_onetbb.patch"
++  patch -Np1 -i "../fix_missing_headers.patch"
++  patch -Np1 -i "../fix_pthread_linking.patch"
++}
+ 
+ build() {
+   mkdir $_pkgname-$pkgver/build

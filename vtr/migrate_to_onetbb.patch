@@ -1,0 +1,46 @@
+diff --git a/cmake/modules/FindTBB.cmake b/cmake/modules/FindTBB.cmake
+index 0a1a5bb..dcca812 100644
+--- a/cmake/modules/FindTBB.cmake
++++ b/cmake/modules/FindTBB.cmake
+@@ -184,7 +184,7 @@ if(NOT TBB_FOUND)
+   ##################################
+ 
+   if(TBB_INCLUDE_DIRS)
+-    file(READ "${TBB_INCLUDE_DIRS}/tbb/tbb_stddef.h" _tbb_version_file)
++    file(READ "${TBB_INCLUDE_DIRS}/oneapi/tbb/version.h" _tbb_version_file)
+     string(REGEX REPLACE ".*#define TBB_VERSION_MAJOR ([0-9]+).*" "\\1"
+         TBB_VERSION_MAJOR "${_tbb_version_file}")
+     string(REGEX REPLACE ".*#define TBB_VERSION_MINOR ([0-9]+).*" "\\1"
+diff --git a/vpr/src/base/vpr_api.cpp b/vpr/src/base/vpr_api.cpp
+index d08a576..81c5553 100644
+--- a/vpr/src/base/vpr_api.cpp
++++ b/vpr/src/base/vpr_api.cpp
+@@ -80,11 +80,12 @@ using namespace std;
+ #include "log.h"
+ 
+ #ifdef VPR_USE_TBB
+-#    include <tbb/task_scheduler_init.h>
++#    include <tbb/info.h>
++#    include <tbb/task_arena.h>
+ 
+ //We need to store the scheduler object so any concurrency
+ //setting is persistent
+-std::unique_ptr<tbb::task_scheduler_init> tbb_scheduler;
++std::unique_ptr<tbb::task_arena> tbb_scheduler;
+ #endif
+ 
+ /* Local subroutines */
+@@ -187,11 +188,11 @@ void vpr_init(const int argc, const char** argv, t_options* options, t_vpr_setup
+     //Using Thread Building Blocks
+     if (num_workers == 0) {
+         //Use default concurrency (i.e. maximum conccurency)
+-        num_workers = tbb::task_scheduler_init::default_num_threads();
++        num_workers = tbb::info::default_concurrency();
+     }
+ 
+     VTR_LOG("Using up to %zu parallel worker(s)\n", num_workers);
+-    tbb_scheduler = std::make_unique<tbb::task_scheduler_init>(num_workers);
++    tbb_scheduler = std::make_unique<tbb::task_arena>(num_workers);
+ #else
+     //No parallel execution support
+     if (num_workers != 1) {
