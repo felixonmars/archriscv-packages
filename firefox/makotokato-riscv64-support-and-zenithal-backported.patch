@@ -52,16 +52,16 @@ diff --unified --recursive --text a/.cargo/config.in b/.cargo/config.in
 +++ b/.cargo/config.in
 @@ -47,6 +47,11 @@
  replace-with = "vendored-sources"
- rev = "2e56bb9bae5d8211137980a717ee991cc4a5eb98"
+ rev = "ecc433935118a4ff22d33c4fe7c625a5d0bfb571"
  
 +[source."https://github.com/makotokato/authenticator-rs"]
 +git = "https://github.com/makotokato/authenticator-rs"
 +replace-with = "vendored-sources"
 +rev = "eed8919d50559f4959e2d7d2af7b4d48869b5366"
 +
- [source."https://github.com/kvark/wgpu"]
- branch = "gecko-beta-solaris"
- git = "https://github.com/kvark/wgpu"
+ [source."https://github.com/kvark/dummy-web"]
+ git = "https://github.com/kvark/dummy-web"
+ replace-with = "vendored-sources"
 diff --git a/Cargo.lock b/Cargo.lock
 index 7e17939fad48b..8519d3d0e95a6 100644
 --- a/Cargo.lock
@@ -1994,18 +1994,31 @@ index 0000000000000..a784e9bf4600b
 +pub const _HIDIOCGRDESCSIZE: __u32 = 2147764225;
 +pub const _HIDIOCGRDESC: __u32 = 2416199682;
 diff --git a/toolkit/library/rust/shared/Cargo.toml b/toolkit/library/rust/shared/Cargo.toml
-index 47ea0f7c4e00a..2c50e360158d7 100644
---- a/toolkit/library/rust/shared/Cargo.toml
-+++ b/toolkit/library/rust/shared/Cargo.toml
-@@ -25,7 +25,7 @@ cubeb-sys = { version = "0.9", optional = true, features=["gecko-in-tree"] }
+# index 47ea0f7c4e00a..2c50e360158d7 100644
+# --- a/toolkit/library/rust/shared/Cargo.toml
+# +++ b/toolkit/library/rust/shared/Cargo.toml
+# @@ -25,7 +25,7 @@ cubeb-sys = { version = "0.9", optional = true, features=["gecko-in-tree"] }
+#  encoding_glue = { path = "../../../../intl/encoding_glue" }
+#  audioipc-client = { git = "https://github.com/mozilla/audioipc-2", rev = "7537bfadad2e981577eb75e4f13662fc517e1a09", optional = true }
+#  audioipc-server = { git = "https://github.com/mozilla/audioipc-2", rev = "7537bfadad2e981577eb75e4f13662fc517e1a09", optional = true }
+# -authenticator = "0.3.1"
+# +authenticator = { git = "https://github.com/makotokato/authenticator-rs", rev = "eed8919d50559f4959e2d7d2af7b4d48869b5366" }
+#  gkrust_utils = { path = "../../../../xpcom/rust/gkrust_utils" }
+#  gecko_logger = { path = "../../../../xpcom/rust/gecko_logger" }
+#  rsdparsa_capi = { path = "../../../../dom/media/webrtc/sdp/rsdparsa_capi" }
+
+--- a/toolkit/library/rust/shared/Cargo.toml	2021-11-04 14:42:05.937241648 +0800
++++ b/toolkit/library/rust/shared/Cargo.toml	2021-11-04 14:57:07.212983750 +0800
+@@ -25,7 +25,7 @@
  encoding_glue = { path = "../../../../intl/encoding_glue" }
- audioipc-client = { git = "https://github.com/mozilla/audioipc-2", rev = "7537bfadad2e981577eb75e4f13662fc517e1a09", optional = true }
- audioipc-server = { git = "https://github.com/mozilla/audioipc-2", rev = "7537bfadad2e981577eb75e4f13662fc517e1a09", optional = true }
+ audioipc-client = { git = "https://github.com/mozilla/audioipc-2", rev = "8381f3812354d8d1df972c2c3ea596b70caa9a84", optional = true }
+ audioipc-server = { git = "https://github.com/mozilla/audioipc-2", rev = "8381f3812354d8d1df972c2c3ea596b70caa9a84", optional = true }
 -authenticator = "0.3.1"
 +authenticator = { git = "https://github.com/makotokato/authenticator-rs", rev = "eed8919d50559f4959e2d7d2af7b4d48869b5366" }
  gkrust_utils = { path = "../../../../xpcom/rust/gkrust_utils" }
  gecko_logger = { path = "../../../../xpcom/rust/gecko_logger" }
  rsdparsa_capi = { path = "../../../../dom/media/webrtc/sdp/rsdparsa_capi" }
+
 
 From 75685ab28c13c481a737b26ea95668461b060fac Mon Sep 17 00:00:00 2001
 From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
@@ -2383,95 +2396,97 @@ Subject: [PATCH] Update highway to 0.14.0
 
 diff --git a/media/highway/moz.yaml b/media/highway/moz.yaml
 index 2381fb69b4f3a..a6d84aef91dbd 100644
+# --- a/media/highway/moz.yaml
+# +++ b/media/highway/moz.yaml
+# @@ -1,43 +1,43 @@
+# -# Version of this schema
+# -schema: 1
+# -
+# -bugzilla:
+# -  # Bugzilla product and component for this directory and subdirectories
+# -  product: Core
+# -  component: "ImageLib"
+# -
+# -# Document the source of externally hosted code
+# -origin:
+# -
+# -  # Short name of the package/library
+# -  name: highway
+# -
+# -  description: Performance-portable, length-agnostic SIMD with runtime dispatch
+# -
+# -  # Full URL for the package's homepage/etc
+# -  # Usually different from repository url
+# -  url: https://github.com/google/highway
+# -
+# -  # Human-readable identifier for this version/release
+# -  # Generally "version NNN", "tag SSS", "bookmark SSS"
+# -  release: commit e2397743fe092df68b760d358253773699a16c93 (2021-06-09T08:56:32Z).
+# -
+# -  # Revision to pull in
+# -  # Must be a long or short commit SHA (long preferred)
+# -  revision: e2397743fe092df68b760d358253773699a16c93
+# -
+# -  # The package's license, where possible using the mnemonic from
+# -  # https://spdx.org/licenses/
+# -  # Multiple licenses can be specified (as a YAML list)
+# -  # A "LICENSE" file must exist containing the full license text
+# -  license: Apache-2.0
+# -
+# -  license-file: LICENSE
+# -
+# -vendoring:
+# -  url: https://github.com/google/highway.git
+# -  source-hosting: github
+# -  vendor-directory: third_party/highway
+# -
+# -  exclude:
+# -    - g3doc/
+# +# Version of this schema
+# +schema: 1
+# +
+# +bugzilla:
+# +  # Bugzilla product and component for this directory and subdirectories
+# +  product: Core
+# +  component: "ImageLib"
+# +
+# +# Document the source of externally hosted code
+# +origin:
+# +
+# +  # Short name of the package/library
+# +  name: highway
+# +
+# +  description: Performance-portable, length-agnostic SIMD with runtime dispatch
+# +
+# +  # Full URL for the package's homepage/etc
+# +  # Usually different from repository url
+# +  url: https://github.com/google/highway
+# +
+# +  # Human-readable identifier for this version/release
+# +  # Generally "version NNN", "tag SSS", "bookmark SSS"
+# +  release: commit 32e48580c1c82bd6233a10dce6021c0f583237d5 (2021-07-29T13:12:33Z).
+# +
+# +  # Revision to pull in
+# +  # Must be a long or short commit SHA (long preferred)
+# +  revision: 32e48580c1c82bd6233a10dce6021c0f583237d5
+# +
+# +  # The package's license, where possible using the mnemonic from
+# +  # https://spdx.org/licenses/
+# +  # Multiple licenses can be specified (as a YAML list)
+# +  # A "LICENSE" file must exist containing the full license text
+# +  license: Apache-2.0
+# +
+# +  license-file: LICENSE
+# +
+# +vendoring:
+# +  url: https://github.com/google/highway.git
+# +  source-hosting: github
+# +  vendor-directory: third_party/highway
+# +
+# +  exclude:
+# +    - g3doc/
 --- a/media/highway/moz.yaml
 +++ b/media/highway/moz.yaml
-#@@ -1,43 +1,43 @@
-#-# Version of this schema
-#-schema: 1
-#-
-#-bugzilla:
-#-  # Bugzilla product and component for this directory and subdirectories
-#-  product: Core
-#-  component: "ImageLib"
-#-
-#-# Document the source of externally hosted code
-#-origin:
-#-
-#-  # Short name of the package/library
-#-  name: highway
-#-
-#-  description: Performance-portable, length-agnostic SIMD with runtime dispatch
-#-
-#-  # Full URL for the package's homepage/etc
-#-  # Usually different from repository url
-#-  url: https://github.com/google/highway
-#-
-#-  # Human-readable identifier for this version/release
-#-  # Generally "version NNN", "tag SSS", "bookmark SSS"
-#-  release: commit d9882104caf9fb060d328d62cac9ce0a05a191db (2021-05-21T10:02:16Z).
-#-
-#-  # Revision to pull in
-#-  # Must be a long or short commit SHA (long preferred)
-#-  revision: d9882104caf9fb060d328d62cac9ce0a05a191db
-#-
-#-  # The package's license, where possible using the mnemonic from
-#-  # https://spdx.org/licenses/
-#-  # Multiple licenses can be specified (as a YAML list)
-#-  # A "LICENSE" file must exist containing the full license text
-#-  license: Apache-2.0
-#-
-#-  license-file: LICENSE
-#-
-#-vendoring:
-#-  url: https://github.com/google/highway.git
-#-  source-hosting: github
-#-  vendor-directory: third_party/highway
-#-
-#-  exclude:
-#-    - g3doc/
-#+# Version of this schema
-#+schema: 1
-#+
-#+bugzilla:
-#+  # Bugzilla product and component for this directory and subdirectories
-#+  product: Core
-#+  component: "ImageLib"
-#+
-#+# Document the source of externally hosted code
-#+origin:
-#+
-#+  # Short name of the package/library
-#+  name: highway
-#+
-#+  description: Performance-portable, length-agnostic SIMD with runtime dispatch
-#+
-#+  # Full URL for the package's homepage/etc
-#+  # Usually different from repository url
-#+  url: https://github.com/google/highway
-#+
-#+  # Human-readable identifier for this version/release
-#+  # Generally "version NNN", "tag SSS", "bookmark SSS"
-#+  release: commit 32e48580c1c82bd6233a10dce6021c0f583237d5 (2021-07-29T13:12:33Z).
-#+
-#+  # Revision to pull in
-#+  # Must be a long or short commit SHA (long preferred)
-#+  revision: 32e48580c1c82bd6233a10dce6021c0f583237d5
-#+
-#+  # The package's license, where possible using the mnemonic from
-#+  # https://spdx.org/licenses/
-#+  # Multiple licenses can be specified (as a YAML list)
-#+  # A "LICENSE" file must exist containing the full license text
-#+  license: Apache-2.0
-#+
-#+  license-file: LICENSE
-#+
-#+vendoring:
-#+  url: https://github.com/google/highway.git
-#+  source-hosting: github
-#+  vendor-directory: third_party/highway
-#+
-#+  exclude:
-#+    - g3doc/
 @ -20,11 +20,11 @@
  ^M
    # Human-readable identifier for this version/release^M
@@ -2488,9 +2503,108 @@ index 2381fb69b4f3a..a6d84aef91dbd 100644
    # https://spdx.org/licenses/^M
 diff --git a/third_party/highway/BUILD b/third_party/highway/BUILD
 index e38101f41d661..a846a1d2d6561 100644
---- a/third_party/highway/BUILD
-+++ b/third_party/highway/BUILD
-@@ -41,6 +41,13 @@ selects.config_setting_group(
+# --- a/third_party/highway/BUILD
+# +++ b/third_party/highway/BUILD
+# @@ -41,6 +41,13 @@ selects.config_setting_group(
+#      ],
+#  )
+ 
+# +config_setting(vim 
+# +    name = "emulate_sve",
+# +    values = {
+# +        "copt": "-DHWY_EMULATE_SVE",
+# +    },
+# +)
+# +
+#  # Additional warnings for Clang OR GCC (skip for MSVC)
+#  CLANG_GCC_COPTS = [
+#      "-Werror",
+# @@ -76,11 +83,10 @@ COPTS = select({
+#      "//conditions:default": CLANG_GCC_COPTS + CLANG_ONLY_COPTS,
+#  })
+ 
+# -# Unused on Bazel builds, where these are not defined/known; Copybara replaces
+# -# usages of this with an empty list.
+# +# Unused on Bazel builds, where this is not defined/known; Copybara replaces
+# +# usages with an empty list.
+#  COMPAT = [
+# -    "//buildenv/target:mobile",
+# -    "//buildenv/target:vendor",
+# +    "//buildenv/target:non_prod",  # includes mobile/vendor.
+#  ]
+ 
+#  # WARNING: changing flags such as HWY_DISABLED_TARGETS may break users without
+# @@ -94,19 +100,23 @@ cc_library(
+#          "hwy/aligned_allocator.cc",
+#          "hwy/targets.cc",
+#      ],
+# +    # Normal headers with include guards
+#      hdrs = [
+#          "hwy/aligned_allocator.h",
+#          "hwy/base.h",
+#          "hwy/cache_control.h",
+# -        "hwy/highway.h",
+# +        "hwy/detect_compiler_arch.h",  # private
+# +        "hwy/detect_targets.h",  # private
+#          "hwy/targets.h",
+#      ],
+#      compatible_with = [],
+#      copts = COPTS,
+#      textual_hdrs = [
+# +        "hwy/highway.h",  # public
+#          "hwy/foreach_target.h",  # public
+#          "hwy/ops/arm_neon-inl.h",
+#          "hwy/ops/arm_sve-inl.h",
+# +        "hwy/ops/generic_ops-inl.h",
+#          "hwy/ops/rvv-inl.h",
+#          "hwy/ops/scalar-inl.h",
+#          "hwy/ops/set_macros-inl.h",
+# @@ -116,6 +126,10 @@ cc_library(
+#          "hwy/ops/x86_256-inl.h",
+#          "hwy/ops/x86_512-inl.h",
+#      ],
+# +    deps = select({
+# +        ":emulate_sve": ["//third_party/farm_sve"],
+# +        "//conditions:default": [],
+# +    }),
+#  )
+ 
+#  cc_library(
+# @@ -186,10 +200,13 @@ HWY_TESTS = [
+#      ("hwy/", "highway_test"),
+#      ("hwy/", "targets_test"),
+#      ("hwy/tests/", "arithmetic_test"),
+# +    ("hwy/tests/", "blockwise_test"),
+#      ("hwy/tests/", "combine_test"),
+#      ("hwy/tests/", "compare_test"),
+#      ("hwy/tests/", "convert_test"),
+# +    ("hwy/tests/", "crypto_test"),
+#      ("hwy/tests/", "logical_test"),
+# +    ("hwy/tests/", "mask_test"),
+#      ("hwy/tests/", "memory_test"),
+#      ("hwy/tests/", "swizzle_test"),
+#      ("hwy/tests/", "test_util_test"),
+# @@ -204,9 +221,14 @@ HWY_TESTS = [
+#              srcs = [
+#                  subdir + test + ".cc",
+#              ],
+# -            copts = COPTS,
+# -            # for test_suite. math_test is not yet supported on RVV.
+# -            tags = ["hwy_ops_test"] if test != "math_test" else [],
+# +            copts = COPTS + [
+# +                # gTest triggers this warning (which is enabled by the
+# +                # extra-semi in COPTS), so we need to disable it here,
+# +                # but it's still enabled for :hwy.
+# +                "-Wno-c++98-compat-extra-semi",
+# +            ],
+# +            # for test_suite.
+# +            tags = ["hwy_ops_test"],
+#              deps = [
+#                  ":hwy",
+#                  ":hwy_test_util",
+--- a/third_party/highway/BUILD	2021-11-04 14:42:10.600621160 +0800
++++ b/third_party/highway/BUILD	2021-11-04 14:46:55.236769017 +0800
+@@ -41,6 +41,13 @@
      ],
  )
  
@@ -2504,7 +2618,7 @@ index e38101f41d661..a846a1d2d6561 100644
  # Additional warnings for Clang OR GCC (skip for MSVC)
  CLANG_GCC_COPTS = [
      "-Werror",
-@@ -76,11 +83,10 @@ COPTS = select({
+@@ -76,11 +83,10 @@
      "//conditions:default": CLANG_GCC_COPTS + CLANG_ONLY_COPTS,
  })
  
@@ -2519,32 +2633,7 @@ index e38101f41d661..a846a1d2d6561 100644
  ]
  
  # WARNING: changing flags such as HWY_DISABLED_TARGETS may break users without
-@@ -94,19 +100,23 @@ cc_library(
-         "hwy/aligned_allocator.cc",
-         "hwy/targets.cc",
-     ],
-+    # Normal headers with include guards
-     hdrs = [
-         "hwy/aligned_allocator.h",
-         "hwy/base.h",
-         "hwy/cache_control.h",
--        "hwy/highway.h",
-+        "hwy/detect_compiler_arch.h",  # private
-+        "hwy/detect_targets.h",  # private
-         "hwy/targets.h",
-     ],
-     compatible_with = [],
-     copts = COPTS,
-     textual_hdrs = [
-+        "hwy/highway.h",  # public
-         "hwy/foreach_target.h",  # public
-         "hwy/ops/arm_neon-inl.h",
-         "hwy/ops/arm_sve-inl.h",
-+        "hwy/ops/generic_ops-inl.h",
-         "hwy/ops/rvv-inl.h",
-         "hwy/ops/scalar-inl.h",
-         "hwy/ops/set_macros-inl.h",
-@@ -116,6 +126,10 @@ cc_library(
+@@ -121,6 +127,10 @@
          "hwy/ops/x86_256-inl.h",
          "hwy/ops/x86_512-inl.h",
      ],
@@ -2555,7 +2644,7 @@ index e38101f41d661..a846a1d2d6561 100644
  )
  
  cc_library(
-@@ -186,10 +200,13 @@ HWY_TESTS = [
+@@ -191,10 +201,13 @@
      ("hwy/", "highway_test"),
      ("hwy/", "targets_test"),
      ("hwy/tests/", "arithmetic_test"),
@@ -2569,7 +2658,7 @@ index e38101f41d661..a846a1d2d6561 100644
      ("hwy/tests/", "memory_test"),
      ("hwy/tests/", "swizzle_test"),
      ("hwy/tests/", "test_util_test"),
-@@ -204,9 +221,14 @@ HWY_TESTS = [
+@@ -209,9 +222,14 @@
              srcs = [
                  subdir + test + ".cc",
              ],
@@ -2591,11 +2680,20 @@ diff --git a/third_party/highway/CMakeLists.txt b/third_party/highway/CMakeLists
 index c6ec4012b1dd7..177c961fab708 100644
 --- a/third_party/highway/CMakeLists.txt
 +++ b/third_party/highway/CMakeLists.txt
+# @@ -19,7 +19,7 @@ if(POLICY CMP0083)
+#    cmake_policy(SET CMP0083 NEW)
+#  endif()
+ 
+# -project(hwy VERSION 0.12.1)  # Keep in sync with highway.h version
+# +project(hwy VERSION 0.14.0)  # Keep in sync with highway.h version
+ 
+#  set(CMAKE_CXX_STANDARD 11)
+#  set(CMAKE_CXX_EXTENSIONS OFF)
 @@ -19,7 +19,7 @@ if(POLICY CMP0083)
    cmake_policy(SET CMP0083 NEW)
  endif()
  
--project(hwy VERSION 0.12.1)  # Keep in sync with highway.h version
+-project(hwy VERSION 0.12.2)  # Keep in sync with highway.h version
 +project(hwy VERSION 0.14.0)  # Keep in sync with highway.h version
  
  set(CMAKE_CXX_STANDARD 11)
@@ -2698,20 +2796,20 @@ index c6ec4012b1dd7..177c961fab708 100644
    hwy/tests/memory_test.cc
    hwy/tests/swizzle_test.cc
    hwy/tests/test_util_test.cc
-@@ -307,8 +323,11 @@ foreach (TESTFILE IN LISTS HWY_TEST_FILES)
-   get_filename_component(TESTNAME ${TESTFILE} NAME_WE)
-   add_executable(${TESTNAME} ${TESTFILE})
-   target_compile_options(${TESTNAME} PRIVATE ${HWY_FLAGS})
--  # Test all targets, not just the best/baseline.
--  target_compile_options(${TESTNAME} PRIVATE -DHWY_COMPILE_ALL_ATTAINABLE=1)
-+  # Test all targets, not just the best/baseline. This changes the default
-+  # policy to all-attainable; note that setting -DHWY_COMPILE_* directly can
-+  # cause compile errors because only one may be set, and other CMakeLists.txt
-+  # that include us may set them.
-+  target_compile_options(${TESTNAME} PRIVATE -DHWY_IS_TEST=1)
+# @@ -307,8 +323,11 @@ foreach (TESTFILE IN LISTS HWY_TEST_FILES)
+#    get_filename_component(TESTNAME ${TESTFILE} NAME_WE)
+#    add_executable(${TESTNAME} ${TESTFILE})
+#    target_compile_options(${TESTNAME} PRIVATE ${HWY_FLAGS})
+# -  # Test all targets, not just the best/baseline.
+# -  target_compile_options(${TESTNAME} PRIVATE -DHWY_COMPILE_ALL_ATTAINABLE=1)
+# +  # Test all targets, not just the best/baseline. This changes the default
+# +  # policy to all-attainable; note that setting -DHWY_COMPILE_* directly can
+# +  # cause compile errors because only one may be set, and other CMakeLists.txt
+# +  # that include us may set them.
+# +  target_compile_options(${TESTNAME} PRIVATE -DHWY_IS_TEST=1)
  
-   if(HWY_SYSTEM_GTEST)
-     target_link_libraries(${TESTNAME} hwy hwy_contrib GTest::GTest GTest::Main)
+#    if(HWY_SYSTEM_GTEST)
+#      target_link_libraries(${TESTNAME} hwy hwy_contrib GTest::GTest GTest::Main)
 @@ -333,3 +352,5 @@ endforeach ()
  target_sources(skeleton_test PRIVATE hwy/examples/skeleton.cc)
  
@@ -2939,7 +3037,27 @@ diff --git a/third_party/highway/debian/changelog b/third_party/highway/debian/c
 index 75768968fbea7..14b667c016c95 100644
 --- a/third_party/highway/debian/changelog
 +++ b/third_party/highway/debian/changelog
-@@ -1,3 +1,19 @@
+# @@ -1,3 +1,19 @@
+# +highway (0.14.0-1) UNRELEASED; urgency=medium
+# +
+# +  * Add SVE, S-SSE3, AVX3_DL targets
+# +  * Support partial vectors in all ops
+# +  * Add PopulationCount, FindFirstTrue, Ne, TableLookupBytesOr0
+# +  * Add AESRound, CLMul, MulOdd, HWY_CAP_FLOAT16
+# +
+# + -- Jan Wassenberg <janwas@google.com>  Thu, 29 Jul 2021 15:00:00 +0200
+# +
+# +highway (0.12.2-1) UNRELEASED; urgency=medium
+# +
+# +  * fix scalar-only test and Windows macro conflict with Load/StoreFence
+# +  * replace deprecated wasm intrinsics
+# +
+# + -- Jan Wassenberg <janwas@google.com>  Mon, 31 May 2021 16:00:00 +0200
+# +
+#  highway (0.12.1-1) UNRELEASED; urgency=medium
+ 
+#    * doc updates, ARM GCC support, fix s390/ppc, complete partial vectors
+@@ -1,3 +1,12 @@
 +highway (0.14.0-1) UNRELEASED; urgency=medium
 +
 +  * Add SVE, S-SSE3, AVX3_DL targets
@@ -2949,16 +3067,9 @@ index 75768968fbea7..14b667c016c95 100644
 +
 + -- Jan Wassenberg <janwas@google.com>  Thu, 29 Jul 2021 15:00:00 +0200
 +
-+highway (0.12.2-1) UNRELEASED; urgency=medium
-+
-+  * fix scalar-only test and Windows macro conflict with Load/StoreFence
-+  * replace deprecated wasm intrinsics
-+
-+ -- Jan Wassenberg <janwas@google.com>  Mon, 31 May 2021 16:00:00 +0200
-+
- highway (0.12.1-1) UNRELEASED; urgency=medium
+ highway (0.12.2-1) UNRELEASED; urgency=medium
  
-   * doc updates, ARM GCC support, fix s390/ppc, complete partial vectors
+   * fix scalar-only test and Windows macro conflict with Load/StoreFence
 diff --git a/third_party/highway/debian/rules b/third_party/highway/debian/rules
 old mode 100644
 new mode 100755
@@ -3477,67 +3588,128 @@ index 75fe585e4c296..1ecd215d4103a 100644
  HWY_API void CopyBytes(const From* from, To* to) {
 diff --git a/third_party/highway/hwy/base_test.cc b/third_party/highway/hwy/base_test.cc
 index 19e0b6f5445c4..df04f68f0aecf 100644
---- a/third_party/highway/hwy/base_test.cc
-+++ b/third_party/highway/hwy/base_test.cc
-@@ -90,6 +90,17 @@ HWY_NOINLINE void TestAllType() {
-   ForFloatTypes(TestIsFloat());
- }
+# --- a/third_party/highway/hwy/base_test.cc
+# +++ b/third_party/highway/hwy/base_test.cc
+# @@ -90,6 +90,17 @@ HWY_NOINLINE void TestAllType() {
+#    ForFloatTypes(TestIsFloat());
+#  }
  
-+struct TestIsSame {
-+  template <class T>
-+  HWY_NOINLINE void operator()(T /*unused*/) const {
-+    static_assert(IsSame<T, T>(), "T == T");
-+    static_assert(!IsSame<MakeSigned<T>, MakeUnsigned<T>>(), "S != U");
-+    static_assert(!IsSame<MakeUnsigned<T>, MakeSigned<T>>(), "U != S");
-+  }
-+};
-+
-+HWY_NOINLINE void TestAllIsSame() { ForAllTypes(TestIsSame()); }
-+
- HWY_NOINLINE void TestAllPopCount() {
-   HWY_ASSERT_EQ(size_t(0), PopCount(0u));
-   HWY_ASSERT_EQ(size_t(1), PopCount(1u));
-@@ -113,11 +124,20 @@ HWY_NOINLINE void TestAllPopCount() {
- HWY_AFTER_NAMESPACE();
+# +struct TestIsSame {
+# +  template <class T>
+# +  HWY_NOINLINE void operator()(T /*unused*/) const {
+# +    static_assert(IsSame<T, T>(), "T == T");
+# +    static_assert(!IsSame<MakeSigned<T>, MakeUnsigned<T>>(), "S != U");
+# +    static_assert(!IsSame<MakeUnsigned<T>, MakeSigned<T>>(), "U != S");
+# +  }
+# +};
+# +
+# +HWY_NOINLINE void TestAllIsSame() { ForAllTypes(TestIsSame()); }
+# +
+#  HWY_NOINLINE void TestAllPopCount() {
+#    HWY_ASSERT_EQ(size_t(0), PopCount(0u));
+#    HWY_ASSERT_EQ(size_t(1), PopCount(1u));
+# @@ -113,11 +124,20 @@ HWY_NOINLINE void TestAllPopCount() {
+#  HWY_AFTER_NAMESPACE();
  
- #if HWY_ONCE
-+
- namespace hwy {
- HWY_BEFORE_TEST(BaseTest);
- HWY_EXPORT_AND_TEST_P(BaseTest, TestAllLimits);
- HWY_EXPORT_AND_TEST_P(BaseTest, TestAllLowestHighest);
- HWY_EXPORT_AND_TEST_P(BaseTest, TestAllType);
-+HWY_EXPORT_AND_TEST_P(BaseTest, TestAllIsSame);
- HWY_EXPORT_AND_TEST_P(BaseTest, TestAllPopCount);
- }  // namespace hwy
-+
-+// Ought not to be necessary, but without this, no tests run on RVV.
-+int main(int argc, char **argv) {
-+  ::testing::InitGoogleTest(&argc, argv);
-+  return RUN_ALL_TESTS();
-+}
-+
- #endif
-diff --git a/third_party/highway/hwy/cache_control.h b/third_party/highway/hwy/cache_control.h
-index ab0a2347982b9..65f326a5f5f1f 100644
---- a/third_party/highway/hwy/cache_control.h
-+++ b/third_party/highway/hwy/cache_control.h
-@@ -32,6 +32,14 @@
- #include <emmintrin.h>  // SSE2
- #endif
+#  #if HWY_ONCE
+# +
+#  namespace hwy {
+#  HWY_BEFORE_TEST(BaseTest);
+#  HWY_EXPORT_AND_TEST_P(BaseTest, TestAllLimits);
+#  HWY_EXPORT_AND_TEST_P(BaseTest, TestAllLowestHighest);
+#  HWY_EXPORT_AND_TEST_P(BaseTest, TestAllType);
+# +HWY_EXPORT_AND_TEST_P(BaseTest, TestAllIsSame);
+#  HWY_EXPORT_AND_TEST_P(BaseTest, TestAllPopCount);
+#  }  // namespace hwy
+# +
+# +// Ought not to be necessary, but without this, no tests run on RVV.
+# +int main(int argc, char **argv) {
+# +  ::testing::InitGoogleTest(&argc, argv);
+# +  return RUN_ALL_TESTS();
+# +}
+# +
+#  #endif
+# diff --git a/third_party/highway/hwy/cache_control.h b/third_party/highway/hwy/cache_control.h
+# index ab0a2347982b9..65f326a5f5f1f 100644
+# --- a/third_party/highway/hwy/cache_control.h
+# +++ b/third_party/highway/hwy/cache_control.h
+# @@ -32,6 +32,14 @@
+#  #include <emmintrin.h>  // SSE2
+#  #endif
  
-+// Windows.h #defines these, which causes infinite recursion. Temporarily
-+// undefine them in this header; these functions are anyway deprecated.
-+// TODO(janwas): remove when these functions are removed.
-+#pragma push_macro("LoadFence")
-+#pragma push_macro("StoreFence")
-+#undef LoadFence
-+#undef StoreFence
-+
- namespace hwy {
+# +// Windows.h #defines these, which causes infinite recursion. Temporarily
+# +// undefine them in this header; these functions are anyway deprecated.
+# +// TODO(janwas): remove when these functions are removed.
+# +#pragma push_macro("LoadFence")
+# +#pragma push_macro("StoreFence")
+# +#undef LoadFence
+# +#undef StoreFence
+# +
+#  namespace hwy {
  
- // Even if N*sizeof(T) is smaller, Stream may write a multiple of this size.
-@@ -47,20 +55,28 @@ namespace hwy {
+#  // Even if N*sizeof(T) is smaller, Stream may write a multiple of this size.
+# @@ -47,20 +55,28 @@ namespace hwy {
+#  // Delays subsequent loads until prior loads are visible. On Intel CPUs, also
+#  // serves as a full fence (waits for all prior instructions to complete).
+#  // No effect on non-x86.
+# +// DEPRECATED due to differing behavior across architectures AND vendors.
+#  HWY_INLINE HWY_ATTR_CACHE void LoadFence() {
+#  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
+#    _mm_lfence();
+#  #endif
+#  }
+ 
+# -// Ensures previous weakly-ordered stores are visible. No effect on non-x86.
+# -HWY_INLINE HWY_ATTR_CACHE void StoreFence() {
+# +// Ensures values written by previous `Stream` calls are visible on the current
+# +// core. This is NOT sufficient for synchronizing across cores; when `Stream`
+# +// outputs are to be consumed by other core(s), the producer must publish
+# +// availability (e.g. via mutex or atomic_flag) after `FlushStream`.
+# +HWY_INLINE HWY_ATTR_CACHE void FlushStream() {
+#  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
+#    _mm_sfence();
+#  #endif
+#  }
+ 
+# -// Begins loading the cache line containing "p".
+# +// DEPRECATED, replace with `FlushStream`.
+# +HWY_INLINE HWY_ATTR_CACHE void StoreFence() { FlushStream(); }
+# +
+# +// Optionally begins loading the cache line containing "p" to reduce latency of
+# +// subsequent actual loads.
+#  template <typename T>
+#  HWY_INLINE HWY_ATTR_CACHE void Prefetch(const T* p) {
+#  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
+# @@ -74,7 +90,7 @@ HWY_INLINE HWY_ATTR_CACHE void Prefetch(const T* p) {
+#  #endif
+#  }
+ 
+# -// Invalidates and flushes the cache line containing "p". No effect on non-x86.
+# +// Invalidates and flushes the cache line containing "p", if possible.
+#  HWY_INLINE HWY_ATTR_CACHE void FlushCacheline(const void* p) {
+#  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
+#    _mm_clflush(p);
+# @@ -83,7 +99,7 @@ HWY_INLINE HWY_ATTR_CACHE void FlushCacheline(const void* p) {
+#  #endif
+#  }
+ 
+# -// Reduces power consumption in spin-loops. No effect on non-x86.
+# +// When called inside a spin-loop, may reduce power consumption.
+#  HWY_INLINE HWY_ATTR_CACHE void Pause() {
+#  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
+#    _mm_pause();
+# @@ -92,4 +108,8 @@ HWY_INLINE HWY_ATTR_CACHE void Pause() {
+ 
+#  }  // namespace hwy
+ 
+# +// TODO(janwas): remove when these functions are removed. (See above.)
+# +#pragma pop_macro("StoreFence")
+# +#pragma pop_macro("LoadFence")
+# +
+#  #endif  // HIGHWAY_HWY_CACHE_CONTROL_H_
+--- a/third_party/highway/hwy/cache_control.h	2021-11-04 14:42:10.603954526 +0800
++++ b/third_party/highway/hwy/cache_control.h	2021-11-04 15:49:37.515723341 +0800
+@@ -55,20 +55,29 @@
  // Delays subsequent loads until prior loads are visible. On Intel CPUs, also
  // serves as a full fence (waits for all prior instructions to complete).
  // No effect on non-x86.
@@ -3561,6 +3733,7 @@ index ab0a2347982b9..65f326a5f5f1f 100644
  }
  
 -// Begins loading the cache line containing "p".
++
 +// DEPRECATED, replace with `FlushStream`.
 +HWY_INLINE HWY_ATTR_CACHE void StoreFence() { FlushStream(); }
 +
@@ -3569,7 +3742,7 @@ index ab0a2347982b9..65f326a5f5f1f 100644
  template <typename T>
  HWY_INLINE HWY_ATTR_CACHE void Prefetch(const T* p) {
  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
-@@ -74,7 +90,7 @@ HWY_INLINE HWY_ATTR_CACHE void Prefetch(const T* p) {
+@@ -82,7 +91,7 @@
  #endif
  }
  
@@ -3578,7 +3751,7 @@ index ab0a2347982b9..65f326a5f5f1f 100644
  HWY_INLINE HWY_ATTR_CACHE void FlushCacheline(const void* p) {
  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
    _mm_clflush(p);
-@@ -83,7 +99,7 @@ HWY_INLINE HWY_ATTR_CACHE void FlushCacheline(const void* p) {
+@@ -91,7 +100,7 @@
  #endif
  }
  
@@ -3587,15 +3760,6 @@ index ab0a2347982b9..65f326a5f5f1f 100644
  HWY_INLINE HWY_ATTR_CACHE void Pause() {
  #if HWY_ARCH_X86 && !defined(HWY_DISABLE_CACHE_CONTROL)
    _mm_pause();
-@@ -92,4 +108,8 @@ HWY_INLINE HWY_ATTR_CACHE void Pause() {
- 
- }  // namespace hwy
- 
-+// TODO(janwas): remove when these functions are removed. (See above.)
-+#pragma pop_macro("StoreFence")
-+#pragma pop_macro("LoadFence")
-+
- #endif  // HIGHWAY_HWY_CACHE_CONTROL_H_
 diff --git a/third_party/highway/hwy/contrib/image/image.cc b/third_party/highway/hwy/contrib/image/image.cc
 index 0dfe739a4914c..0dc0108b1d19e 100644
 --- a/third_party/highway/hwy/contrib/image/image.cc
@@ -5020,12 +5184,32 @@ diff --git a/third_party/highway/hwy/highway.h b/third_party/highway/hwy/highway
 index a34c60ebef486..9312b5ad36328 100644
 --- a/third_party/highway/hwy/highway.h
 +++ b/third_party/highway/hwy/highway.h
+# @@ -27,17 +27,12 @@ namespace hwy {
+ 
+#  // API version (https://semver.org/); keep in sync with CMakeLists.txt.
+#  #define HWY_MAJOR 0
+# -#define HWY_MINOR 12
+# -#define HWY_PATCH 1
+# +#define HWY_MINOR 14
+# +#define HWY_PATCH 0
+ 
+#  //------------------------------------------------------------------------------
+#  // Shorthand for descriptors (defined in shared-inl.h) used to select overloads.
+ 
+# -// Because Highway functions take descriptor and/or vector arguments, ADL finds
+# -// these functions without requiring users in project::HWY_NAMESPACE to
+# -// qualify Highway functions with hwy::HWY_NAMESPACE. However, ADL rules for
+# -// templates require `using hwy::HWY_NAMESPACE::ShiftLeft;` etc. declarations.
+# -
+#  // HWY_FULL(T[,LMUL=1]) is a native vector/group. LMUL is the number of
+#  // registers in the group, and is ignored on targets that do not support groups.
+#  #define HWY_FULL1(T) hwy::HWY_NAMESPACE::Simd<T, HWY_LANES(T)>
 @@ -27,17 +27,12 @@ namespace hwy {
  
  // API version (https://semver.org/); keep in sync with CMakeLists.txt.
  #define HWY_MAJOR 0
 -#define HWY_MINOR 12
--#define HWY_PATCH 1
+-#define HWY_PATCH 2
 +#define HWY_MINOR 14
 +#define HWY_PATCH 0
  
@@ -14940,47 +15124,21 @@ index 11a7b616f806e..95ee01c199ab9 100644
  // Prefer instead using Lanes() and dynamic allocation, or Rebind, or
 diff --git a/third_party/highway/hwy/ops/wasm_128-inl.h b/third_party/highway/hwy/ops/wasm_128-inl.h
 index e235d10b45122..a5c43bb65ce53 100644
---- a/third_party/highway/hwy/ops/wasm_128-inl.h
-+++ b/third_party/highway/hwy/ops/wasm_128-inl.h
-@@ -22,10 +22,37 @@
- #include "hwy/base.h"
- #include "hwy/ops/shared-inl.h"
- 
-+#ifdef HWY_WASM_OLD_NAMES
-+#define wasm_i8x16_shuffle wasm_v8x16_shuffle
-+#define wasm_i16x8_shuffle wasm_v16x8_shuffle
-+#define wasm_i32x4_shuffle wasm_v32x4_shuffle
-+#define wasm_i64x2_shuffle wasm_v64x2_shuffle
-+#define wasm_u16x8_extend_low_u8x16 wasm_i16x8_widen_low_u8x16
-+#define wasm_u32x4_extend_low_u16x8 wasm_i32x4_widen_low_u16x8
-+#define wasm_i32x4_extend_low_i16x8 wasm_i32x4_widen_low_i16x8
-+#define wasm_i16x8_extend_low_i8x16 wasm_i16x8_widen_low_i8x16
-+#define wasm_u32x4_extend_high_u16x8 wasm_i32x4_widen_high_u16x8
-+#define wasm_i32x4_extend_high_i16x8 wasm_i32x4_widen_high_i16x8
-+#define wasm_i32x4_trunc_sat_f32x4 wasm_i32x4_trunc_saturate_f32x4
-+#define wasm_u8x16_add_sat wasm_u8x16_add_saturate
-+#define wasm_u8x16_sub_sat wasm_u8x16_sub_saturate
-+#define wasm_u16x8_add_sat wasm_u16x8_add_saturate
-+#define wasm_u16x8_sub_sat wasm_u16x8_sub_saturate
-+#define wasm_i8x16_add_sat wasm_i8x16_add_saturate
-+#define wasm_i8x16_sub_sat wasm_i8x16_sub_saturate
-+#define wasm_i16x8_add_sat wasm_i16x8_add_saturate
-+#define wasm_i16x8_sub_sat wasm_i16x8_sub_saturate
-+#endif
-+
- HWY_BEFORE_NAMESPACE();
- namespace hwy {
+--- a/third_party/highway/hwy/ops/wasm_128-inl.h	2021-11-04 14:42:10.603954526 +0800
++++ b/third_party/highway/hwy/ops/wasm_128-inl.h	2021-11-04 17:37:00.945686378 +0800
+@@ -49,6 +49,11 @@
  namespace HWY_NAMESPACE {
  
-+template <typename T>
+ template <typename T>
 +using Full128 = Simd<T, 16 / sizeof(T)>;
 +
 +namespace detail {
 +
- template <typename T>
++template <typename T>
  struct Raw128 {
    using type = __v128_u;
-@@ -35,12 +62,11 @@ struct Raw128<float> {
+ };
+@@ -57,12 +62,11 @@
    using type = __f32x4;
  };
  
@@ -14995,7 +15153,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  
   public:
    // Compound assignment. Only usable if there is a corresponding non-member
-@@ -70,29 +96,41 @@ class Vec128 {
+@@ -92,29 +96,41 @@
    Raw raw;
  };
  
@@ -15046,7 +15204,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    return Vec128<uint8_t, N * sizeof(T)>{BitCastToInteger(v.raw)};
  }
  
-@@ -107,8 +145,8 @@ struct BitCastFromInteger128<float> {
+@@ -129,8 +145,8 @@
  };
  
  template <typename T, size_t N>
@@ -15057,7 +15215,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    return Vec128<T, N>{BitCastFromInteger128<T>()(v.raw)};
  }
  
-@@ -120,7 +158,7 @@ HWY_API Vec128<T, N> BitCast(Simd<T, N> d,
+@@ -142,7 +158,7 @@
    return detail::BitCastFromByte(d, detail::BitCastToByte(v));
  }
  
@@ -15066,7 +15224,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  
  // Returns an all-zero vector/part.
  template <typename T, size_t N, HWY_IF_LE128(T, N)>
-@@ -132,6 +170,11 @@ HWY_API Vec128<float, N> Zero(Simd<float, N> /* tag */) {
+@@ -154,6 +170,11 @@
    return Vec128<float, N>{wasm_f32x4_splat(0.0f)};
  }
  
@@ -15078,7 +15236,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  // Returns a vector/part with all lanes set to "t".
  template <size_t N, HWY_IF_LE128(uint8_t, N)>
  HWY_API Vec128<uint8_t, N> Set(Simd<uint8_t, N> /* tag */, const uint8_t t) {
-@@ -145,6 +188,10 @@ template <size_t N, HWY_IF_LE128(uint32_t, N)>
+@@ -167,6 +188,10 @@
  HWY_API Vec128<uint32_t, N> Set(Simd<uint32_t, N> /* tag */, const uint32_t t) {
    return Vec128<uint32_t, N>{wasm_i32x4_splat(t)};
  }
@@ -15089,7 +15247,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  
  template <size_t N, HWY_IF_LE128(int8_t, N)>
  HWY_API Vec128<int8_t, N> Set(Simd<int8_t, N> /* tag */, const int8_t t) {
-@@ -158,6 +205,10 @@ template <size_t N, HWY_IF_LE128(int32_t, N)>
+@@ -180,6 +205,10 @@
  HWY_API Vec128<int32_t, N> Set(Simd<int32_t, N> /* tag */, const int32_t t) {
    return Vec128<int32_t, N>{wasm_i32x4_splat(t)};
  }
@@ -15100,65 +15258,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  
  template <size_t N, HWY_IF_LE128(float, N)>
  HWY_API Vec128<float, N> Set(Simd<float, N> /* tag */, const float t) {
-@@ -281,24 +332,24 @@ HWY_API Vec128<float, N> operator-(const Vec128<float, N> a,
- template <size_t N>
- HWY_API Vec128<uint8_t, N> SaturatedAdd(const Vec128<uint8_t, N> a,
-                                         const Vec128<uint8_t, N> b) {
--  return Vec128<uint8_t, N>{wasm_u8x16_add_saturate(a.raw, b.raw)};
-+  return Vec128<uint8_t, N>{wasm_u8x16_add_sat(a.raw, b.raw)};
- }
- template <size_t N>
- HWY_API Vec128<uint16_t, N> SaturatedAdd(const Vec128<uint16_t, N> a,
-                                          const Vec128<uint16_t, N> b) {
--  return Vec128<uint16_t, N>{wasm_u16x8_add_saturate(a.raw, b.raw)};
-+  return Vec128<uint16_t, N>{wasm_u16x8_add_sat(a.raw, b.raw)};
- }
- 
- // Signed
- template <size_t N>
- HWY_API Vec128<int8_t, N> SaturatedAdd(const Vec128<int8_t, N> a,
-                                        const Vec128<int8_t, N> b) {
--  return Vec128<int8_t, N>{wasm_i8x16_add_saturate(a.raw, b.raw)};
-+  return Vec128<int8_t, N>{wasm_i8x16_add_sat(a.raw, b.raw)};
- }
- template <size_t N>
- HWY_API Vec128<int16_t, N> SaturatedAdd(const Vec128<int16_t, N> a,
-                                         const Vec128<int16_t, N> b) {
--  return Vec128<int16_t, N>{wasm_i16x8_add_saturate(a.raw, b.raw)};
-+  return Vec128<int16_t, N>{wasm_i16x8_add_sat(a.raw, b.raw)};
- }
- 
- // ------------------------------ Saturating subtraction
-@@ -309,24 +360,24 @@ HWY_API Vec128<int16_t, N> SaturatedAdd(const Vec128<int16_t, N> a,
- template <size_t N>
- HWY_API Vec128<uint8_t, N> SaturatedSub(const Vec128<uint8_t, N> a,
-                                         const Vec128<uint8_t, N> b) {
--  return Vec128<uint8_t, N>{wasm_u8x16_sub_saturate(a.raw, b.raw)};
-+  return Vec128<uint8_t, N>{wasm_u8x16_sub_sat(a.raw, b.raw)};
- }
- template <size_t N>
- HWY_API Vec128<uint16_t, N> SaturatedSub(const Vec128<uint16_t, N> a,
-                                          const Vec128<uint16_t, N> b) {
--  return Vec128<uint16_t, N>{wasm_u16x8_sub_saturate(a.raw, b.raw)};
-+  return Vec128<uint16_t, N>{wasm_u16x8_sub_sat(a.raw, b.raw)};
- }
- 
- // Signed
- template <size_t N>
- HWY_API Vec128<int8_t, N> SaturatedSub(const Vec128<int8_t, N> a,
-                                        const Vec128<int8_t, N> b) {
--  return Vec128<int8_t, N>{wasm_i8x16_sub_saturate(a.raw, b.raw)};
-+  return Vec128<int8_t, N>{wasm_i8x16_sub_sat(a.raw, b.raw)};
- }
- template <size_t N>
- HWY_API Vec128<int16_t, N> SaturatedSub(const Vec128<int16_t, N> a,
-                                         const Vec128<int16_t, N> b) {
--  return Vec128<int16_t, N>{wasm_i16x8_sub_saturate(a.raw, b.raw)};
-+  return Vec128<int16_t, N>{wasm_i16x8_sub_sat(a.raw, b.raw)};
- }
- 
- // ------------------------------ Average
-@@ -362,9 +413,7 @@ HWY_API Vec128<int32_t, N> Abs(const Vec128<int32_t, N> v) {
+@@ -384,9 +413,7 @@
  }
  template <size_t N>
  HWY_API Vec128<int64_t, N> Abs(const Vec128<int64_t, N> v) {
@@ -15169,7 +15269,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  template <size_t N>
-@@ -537,12 +586,10 @@ HWY_API Vec128<uint64_t, N> Min(const Vec128<uint64_t, N> a,
+@@ -559,12 +586,10 @@
                                  const Vec128<uint64_t, N> b) {
    alignas(16) float min[4];
    min[0] =
@@ -15184,7 +15284,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // Signed
-@@ -566,12 +613,10 @@ HWY_API Vec128<int64_t, N> Min(const Vec128<int64_t, N> a,
+@@ -588,12 +613,10 @@
                                 const Vec128<int64_t, N> b) {
    alignas(16) float min[4];
    min[0] =
@@ -15199,7 +15299,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // Float
-@@ -604,12 +649,10 @@ HWY_API Vec128<uint64_t, N> Max(const Vec128<uint64_t, N> a,
+@@ -626,12 +649,10 @@
                                  const Vec128<uint64_t, N> b) {
    alignas(16) float max[4];
    max[0] =
@@ -15214,7 +15314,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // Signed
-@@ -633,12 +676,10 @@ HWY_API Vec128<int64_t, N> Max(const Vec128<int64_t, N> a,
+@@ -655,12 +676,10 @@
                                 const Vec128<int64_t, N> b) {
    alignas(16) float max[4];
    max[0] =
@@ -15229,47 +15329,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // Float
-@@ -679,29 +720,29 @@ template <size_t N>
- HWY_API Vec128<uint16_t, N> MulHigh(const Vec128<uint16_t, N> a,
-                                     const Vec128<uint16_t, N> b) {
-   // TODO(eustas): replace, when implemented in WASM.
--  const auto al = wasm_i32x4_widen_low_u16x8(a.raw);
--  const auto ah = wasm_i32x4_widen_high_u16x8(a.raw);
--  const auto bl = wasm_i32x4_widen_low_u16x8(b.raw);
--  const auto bh = wasm_i32x4_widen_high_u16x8(b.raw);
-+  const auto al = wasm_u32x4_extend_low_u16x8(a.raw);
-+  const auto ah = wasm_u32x4_extend_high_u16x8(a.raw);
-+  const auto bl = wasm_u32x4_extend_low_u16x8(b.raw);
-+  const auto bh = wasm_u32x4_extend_high_u16x8(b.raw);
-   const auto l = wasm_i32x4_mul(al, bl);
-   const auto h = wasm_i32x4_mul(ah, bh);
-   // TODO(eustas): shift-right + narrow?
-   return Vec128<uint16_t, N>{
--      wasm_v16x8_shuffle(l, h, 1, 3, 5, 7, 9, 11, 13, 15)};
-+      wasm_i16x8_shuffle(l, h, 1, 3, 5, 7, 9, 11, 13, 15)};
- }
- template <size_t N>
- HWY_API Vec128<int16_t, N> MulHigh(const Vec128<int16_t, N> a,
-                                    const Vec128<int16_t, N> b) {
-   // TODO(eustas): replace, when implemented in WASM.
--  const auto al = wasm_i32x4_widen_low_i16x8(a.raw);
--  const auto ah = wasm_i32x4_widen_high_i16x8(a.raw);
--  const auto bl = wasm_i32x4_widen_low_i16x8(b.raw);
--  const auto bh = wasm_i32x4_widen_high_i16x8(b.raw);
-+  const auto al = wasm_i32x4_extend_low_i16x8(a.raw);
-+  const auto ah = wasm_i32x4_extend_high_i16x8(a.raw);
-+  const auto bl = wasm_i32x4_extend_low_i16x8(b.raw);
-+  const auto bh = wasm_i32x4_extend_high_i16x8(b.raw);
-   const auto l = wasm_i32x4_mul(al, bl);
-   const auto h = wasm_i32x4_mul(ah, bh);
-   // TODO(eustas): shift-right + narrow?
-   return Vec128<int16_t, N>{
--      wasm_v16x8_shuffle(l, h, 1, 3, 5, 7, 9, 11, 13, 15)};
-+      wasm_i16x8_shuffle(l, h, 1, 3, 5, 7, 9, 11, 13, 15)};
- }
- 
- // Multiplies even lanes (0, 2 ..) and returns the double-width result.
-@@ -764,7 +805,6 @@ HWY_API Vec128<float, N> operator/(const Vec128<float, N> a,
+@@ -786,7 +805,6 @@
  // Approximate reciprocal
  template <size_t N>
  HWY_API Vec128<float, N> ApproximateReciprocal(const Vec128<float, N> v) {
@@ -15277,7 +15337,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const Vec128<float, N> one = Vec128<float, N>{wasm_f32x4_splat(1.0f)};
    return one / v;
  }
-@@ -837,76 +877,25 @@ HWY_API Vec128<float, N> ApproximateReciprocalSqrt(const Vec128<float, N> v) {
+@@ -859,76 +877,25 @@
  // Toward nearest integer, ties to even
  template <size_t N>
  HWY_API Vec128<float, N> Round(const Vec128<float, N> v) {
@@ -15360,7 +15420,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // ================================================== COMPARE
-@@ -919,6 +908,12 @@ HWY_API Mask128<TTo, N> RebindMask(Simd<TTo, N> /*tag*/, Mask128<TFrom, N> m) {
+@@ -941,6 +908,12 @@
    return Mask128<TTo, N>{m.raw};
  }
  
@@ -15373,7 +15433,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  // ------------------------------ Equality
  
  // Unsigned
-@@ -962,10 +957,47 @@ HWY_API Mask128<float, N> operator==(const Vec128<float, N> a,
+@@ -984,10 +957,47 @@
    return Mask128<float, N>{wasm_f32x4_eq(a.raw, b.raw)};
  }
  
@@ -15425,22 +15485,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // ------------------------------ Strict inequality
-@@ -997,12 +1029,12 @@ HWY_API Mask128<int64_t, N> operator>(const Vec128<int64_t, N> a,
- 
-   // Otherwise, the lower half decides.
-   const auto m_eq = a32 == b32;
--  const auto lo_in_hi = wasm_v32x4_shuffle(m_gt, m_gt, 2, 2, 0, 0);
-+  const auto lo_in_hi = wasm_i32x4_shuffle(m_gt, m_gt, 2, 2, 0, 0);
-   const auto lo_gt = And(m_eq, lo_in_hi);
- 
-   const auto gt = Or(lo_gt, m_gt);
-   // Copy result in upper 32 bits to lower 32 bits.
--  return Mask128<int64_t, N>{wasm_v32x4_shuffle(gt, gt, 3, 3, 1, 1)};
-+  return Mask128<int64_t, N>{wasm_i32x4_shuffle(gt, gt, 3, 3, 1, 1)};
- }
- 
- template <size_t N>
-@@ -1170,8 +1202,7 @@ HWY_API Vec128<T, N> ZeroIfNegative(Vec128<T, N> v) {
+@@ -1192,8 +1202,7 @@
  
  template <typename T, size_t N>
  HWY_API Mask128<T, N> Not(const Mask128<T, N> m) {
@@ -15450,11 +15495,10 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  template <typename T, size_t N>
-@@ -1479,36 +1510,37 @@ template <size_t N>
- HWY_API int32_t GetLane(const Vec128<int32_t, N> v) {
+@@ -1502,35 +1511,36 @@
    return wasm_i32x4_extract_lane(v.raw, 0);
  }
-+template <size_t N>
+ template <size_t N>
 +HWY_API uint64_t GetLane(const Vec128<uint64_t, N> v) {
 +  return wasm_i64x2_extract_lane(v.raw, 0);
 +}
@@ -15463,7 +15507,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 +  return wasm_i64x2_extract_lane(v.raw, 0);
 +}
 +
- template <size_t N>
++template <size_t N>
  HWY_API float GetLane(const Vec128<float, N> v) {
    return wasm_f32x4_extract_lane(v.raw, 0);
  }
@@ -15482,12 +15526,12 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <typename T>
 -HWY_API Vec128<T, 8 / sizeof(T)> UpperHalf(Vec128<T> v) {
 -  // TODO(eustas): use swizzle?
--  return Vec128<T, 8 / sizeof(T)>{wasm_v32x4_shuffle(v.raw, v.raw, 2, 3, 2, 3)};
+-  return Vec128<T, 8 / sizeof(T)>{wasm_i32x4_shuffle(v.raw, v.raw, 2, 3, 2, 3)};
 -}
 -template <>
 -HWY_INLINE Vec128<float, 2> UpperHalf(Vec128<float> v) {
 -  // TODO(eustas): use swizzle?
--  return Vec128<float, 2>{wasm_v32x4_shuffle(v.raw, v.raw, 2, 3, 2, 3)};
+-  return Vec128<float, 2>{wasm_i32x4_shuffle(v.raw, v.raw, 2, 3, 2, 3)};
 +template <typename T, size_t N>
 +HWY_API Vec128<T, N / 2> LowerHalf(Vec128<T, N> v) {
 +  return LowerHalf(Simd<T, N / 2>(), v);
@@ -15504,94 +15548,94 @@ index e235d10b45122..a5c43bb65ce53 100644
    static_assert(0 <= kBytes && kBytes <= 16, "Invalid kBytes");
    const __i8x16 zero = wasm_i8x16_splat(0);
    switch (kBytes) {
-@@ -1516,275 +1548,328 @@ HWY_API Vec128<T> ShiftLeftBytes(const Vec128<T> v) {
+@@ -1538,247 +1548,300 @@
        return v;
  
      case 1:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 0, 1, 2, 3, 4, 5, 6,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 0, 1, 2, 3, 4, 5, 6,
 -                                          7, 8, 9, 10, 11, 12, 13, 14)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 0, 1, 2, 3, 4, 5,
 +                                             6, 7, 8, 9, 10, 11, 12, 13, 14)};
  
      case 2:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 0, 1, 2, 3, 4, 5,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 0, 1, 2, 3, 4, 5,
 -                                          6, 7, 8, 9, 10, 11, 12, 13)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 0, 1, 2, 3, 4,
 +                                             5, 6, 7, 8, 9, 10, 11, 12, 13)};
  
      case 3:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 0, 1, 2, 3,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 0, 1, 2, 3,
 -                                          4, 5, 6, 7, 8, 9, 10, 11, 12)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 0, 1, 2,
 +                                             3, 4, 5, 6, 7, 8, 9, 10, 11, 12)};
  
      case 4:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 0, 1, 2,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 0, 1, 2,
 -                                          3, 4, 5, 6, 7, 8, 9, 10, 11)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 0, 1,
 +                                             2, 3, 4, 5, 6, 7, 8, 9, 10, 11)};
  
      case 5:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 0, 1,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 0, 1,
 -                                          2, 3, 4, 5, 6, 7, 8, 9, 10)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 0,
 +                                             1, 2, 3, 4, 5, 6, 7, 8, 9, 10)};
  
      case 6:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          0, 1, 2, 3, 4, 5, 6, 7, 8, 9)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
 +                                             16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)};
  
      case 7:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 0, 1, 2, 3, 4, 5, 6, 7, 8)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(
 +          v.raw, zero, 16, 16, 16, 16, 16, 16, 16, 0, 1, 2, 3, 4, 5, 6, 7, 8)};
  
      case 8:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 0, 1, 2, 3, 4, 5, 6, 7)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(
 +          v.raw, zero, 16, 16, 16, 16, 16, 16, 16, 16, 0, 1, 2, 3, 4, 5, 6, 7)};
  
      case 9:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 0, 1, 2, 3, 4, 5, 6)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
 +                                             16, 16, 16, 16, 0, 1, 2, 3, 4, 5,
 +                                             6)};
  
      case 10:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 0, 1, 2, 3, 4, 5)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
 +                                             16, 16, 16, 16, 16, 0, 1, 2, 3, 4,
 +                                             5)};
  
      case 11:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 0, 1, 2, 3, 4)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
 +                                             16, 16, 16, 16, 16, 16, 0, 1, 2, 3,
 +                                             4)};
  
      case 12:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 0, 1, 2, 3)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
 +                                             16, 16, 16, 16, 16, 16, 16, 0, 1,
 +                                             2, 3)};
  
      case 13:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 0, 1, 2)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
 +                                             16, 16, 16, 16, 16, 16, 16, 16, 0,
 +                                             1, 2)};
  
      case 14:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 0,
 -                                          1)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
@@ -15599,7 +15643,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 +                                             0, 1)};
  
      case 15:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          0)};
 +      return Vec128<T, N>{wasm_i8x16_shuffle(v.raw, zero, 16, 16, 16, 16, 16,
@@ -15649,97 +15693,97 @@ index e235d10b45122..a5c43bb65ce53 100644
 +      return v.raw;
  
      case 1:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 1, 2, 3, 4, 5, 6, 7, 8,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 1, 2, 3, 4, 5, 6, 7, 8,
 -                                          9, 10, 11, 12, 13, 14, 15, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 +                                12, 13, 14, 15, 16);
  
      case 2:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 2, 3, 4, 5, 6, 7, 8, 9,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 2, 3, 4, 5, 6, 7, 8, 9,
 -                                          10, 11, 12, 13, 14, 15, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
 +                                13, 14, 15, 16, 16);
  
      case 3:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 3, 4, 5, 6, 7, 8, 9, 10,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 3, 4, 5, 6, 7, 8, 9, 10,
 -                                          11, 12, 13, 14, 15, 16, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
 +                                13, 14, 15, 16, 16, 16);
  
      case 4:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 4, 5, 6, 7, 8, 9, 10, 11,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 4, 5, 6, 7, 8, 9, 10, 11,
 -                                          12, 13, 14, 15, 16, 16, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 +                                14, 15, 16, 16, 16, 16);
  
      case 5:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 5, 6, 7, 8, 9, 10, 11,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 5, 6, 7, 8, 9, 10, 11,
 -                                          12, 13, 14, 15, 16, 16, 16, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
 +                                15, 16, 16, 16, 16, 16);
  
      case 6:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 6, 7, 8, 9, 10, 11, 12,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 6, 7, 8, 9, 10, 11, 12,
 -                                          13, 14, 15, 16, 16, 16, 16, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 +                                16, 16, 16, 16, 16, 16);
  
      case 7:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 7, 8, 9, 10, 11, 12, 13,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 7, 8, 9, 10, 11, 12, 13,
 -                                          14, 15, 16, 16, 16, 16, 16, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 8:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 8, 9, 10, 11, 12, 13, 14,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 8, 9, 10, 11, 12, 13, 14,
 -                                          15, 16, 16, 16, 16, 16, 16, 16, 16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 9:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 9, 10, 11, 12, 13, 14,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 9, 10, 11, 12, 13, 14,
 -                                          15, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 9, 10, 11, 12, 13, 14, 15, 16, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 10:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 10, 11, 12, 13, 14, 15,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 10, 11, 12, 13, 14, 15,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 10, 11, 12, 13, 14, 15, 16, 16, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 11:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 11, 12, 13, 14, 15, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 11, 12, 13, 14, 15, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 11, 12, 13, 14, 15, 16, 16, 16, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 12:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 12, 13, 14, 15, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 12, 13, 14, 15, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 12, 13, 14, 15, 16, 16, 16, 16, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 13:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 13, 14, 15, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 13, 14, 15, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 13, 14, 15, 16, 16, 16, 16, 16, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 14:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 14, 15, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 14, 15, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 14, 15, 16, 16, 16, 16, 16, 16, 16,
 +                                16, 16, 16, 16, 16, 16, 16);
  
      case 15:
--      return Vec128<T>{wasm_v8x16_shuffle(v.raw, zero, 15, 16, 16, 16, 16, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(v.raw, zero, 15, 16, 16, 16, 16, 16,
 -                                          16, 16, 16, 16, 16, 16, 16, 16, 16,
 -                                          16)};
 +      return wasm_i8x16_shuffle(v.raw, zero, 15, 16, 16, 16, 16, 16, 16, 16, 16,
@@ -15811,100 +15855,100 @@ index e235d10b45122..a5c43bb65ce53 100644
        return lo;
  
      case 1:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 1, 2, 3, 4, 5, 6, 7,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 1, 2, 3, 4, 5, 6, 7,
 -                                          8, 9, 10, 11, 12, 13, 14, 15, 16)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 +                                  11, 12, 13, 14, 15, 16)};
  
      case 2:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 2, 3, 4, 5, 6, 7, 8,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 2, 3, 4, 5, 6, 7, 8,
 -                                          9, 10, 11, 12, 13, 14, 15, 16, 17)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 +                                  11, 12, 13, 14, 15, 16, 17)};
  
      case 3:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 3, 4, 5, 6, 7, 8, 9,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 3, 4, 5, 6, 7, 8, 9,
 -                                          10, 11, 12, 13, 14, 15, 16, 17, 18)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 +                                  12, 13, 14, 15, 16, 17, 18)};
  
      case 4:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 4, 5, 6, 7, 8, 9, 10,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 4, 5, 6, 7, 8, 9, 10,
 -                                          11, 12, 13, 14, 15, 16, 17, 18, 19)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 4, 5, 6, 7, 8, 9, 10, 11, 12,
 +                                  13, 14, 15, 16, 17, 18, 19)};
  
      case 5:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 5, 6, 7, 8, 9, 10, 11,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 5, 6, 7, 8, 9, 10, 11,
 -                                          12, 13, 14, 15, 16, 17, 18, 19, 20)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 +                                  14, 15, 16, 17, 18, 19, 20)};
  
      case 6:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 6, 7, 8, 9, 10, 11,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 6, 7, 8, 9, 10, 11,
 -                                          12, 13, 14, 15, 16, 17, 18, 19, 20,
 -                                          21)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 6, 7, 8, 9, 10, 11, 12, 13,
 +                                  14, 15, 16, 17, 18, 19, 20, 21)};
  
      case 7:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 7, 8, 9, 10, 11, 12,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 7, 8, 9, 10, 11, 12,
 -                                          13, 14, 15, 16, 17, 18, 19, 20, 21,
 -                                          22)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 7, 8, 9, 10, 11, 12, 13, 14,
 +                                  15, 16, 17, 18, 19, 20, 21, 22)};
  
      case 8:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 8, 9, 10, 11, 12, 13,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 8, 9, 10, 11, 12, 13,
 -                                          14, 15, 16, 17, 18, 19, 20, 21, 22,
 -                                          23)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 8, 9, 10, 11, 12, 13, 14, 15,
 +                                  16, 17, 18, 19, 20, 21, 22, 23)};
  
      case 9:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 9, 10, 11, 12, 13, 14,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 9, 10, 11, 12, 13, 14,
 -                                          15, 16, 17, 18, 19, 20, 21, 22, 23,
 -                                          24)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 9, 10, 11, 12, 13, 14, 15, 16,
 +                                  17, 18, 19, 20, 21, 22, 23, 24)};
  
      case 10:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 10, 11, 12, 13, 14,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 10, 11, 12, 13, 14,
 -                                          15, 16, 17, 18, 19, 20, 21, 22, 23,
 -                                          24, 25)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 10, 11, 12, 13, 14, 15, 16,
 +                                  17, 18, 19, 20, 21, 22, 23, 24, 25)};
  
      case 11:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 11, 12, 13, 14, 15,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 11, 12, 13, 14, 15,
 -                                          16, 17, 18, 19, 20, 21, 22, 23, 24,
 -                                          25, 26)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 11, 12, 13, 14, 15, 16, 17,
 +                                  18, 19, 20, 21, 22, 23, 24, 25, 26)};
  
      case 12:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 12, 13, 14, 15, 16,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 12, 13, 14, 15, 16,
 -                                          17, 18, 19, 20, 21, 22, 23, 24, 25,
 -                                          26, 27)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 12, 13, 14, 15, 16, 17, 18,
 +                                  19, 20, 21, 22, 23, 24, 25, 26, 27)};
  
      case 13:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 13, 14, 15, 16, 17,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 13, 14, 15, 16, 17,
 -                                          18, 19, 20, 21, 22, 23, 24, 25, 26,
 -                                          27, 28)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 13, 14, 15, 16, 17, 18, 19,
 +                                  20, 21, 22, 23, 24, 25, 26, 27, 28)};
  
      case 14:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 14, 15, 16, 17, 18,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 14, 15, 16, 17, 18,
 -                                          19, 20, 21, 22, 23, 24, 25, 26, 27,
 -                                          28, 29)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 14, 15, 16, 17, 18, 19, 20,
 +                                  21, 22, 23, 24, 25, 26, 27, 28, 29)};
  
      case 15:
--      return Vec128<T>{wasm_v8x16_shuffle(lo.raw, hi.raw, 15, 16, 17, 18, 19,
+-      return Vec128<T>{wasm_i8x16_shuffle(lo.raw, hi.raw, 15, 16, 17, 18, 19,
 -                                          20, 21, 22, 23, 24, 25, 26, 27, 28,
 -                                          29, 30)};
 +      return V{wasm_i8x16_shuffle(lo.raw, hi.raw, 15, 16, 17, 18, 19, 20, 21,
@@ -15931,44 +15975,8 @@ index e235d10b45122..a5c43bb65ce53 100644
  // ------------------------------ Broadcast/splat any lane
  
  // Unsigned
- template <int kLane, size_t N>
- HWY_API Vec128<uint16_t, N> Broadcast(const Vec128<uint16_t, N> v) {
-   static_assert(0 <= kLane && kLane < N, "Invalid lane");
--  return Vec128<uint16_t, N>{wasm_v16x8_shuffle(
-+  return Vec128<uint16_t, N>{wasm_i16x8_shuffle(
-       v.raw, v.raw, kLane, kLane, kLane, kLane, kLane, kLane, kLane, kLane)};
- }
- template <int kLane, size_t N>
- HWY_API Vec128<uint32_t, N> Broadcast(const Vec128<uint32_t, N> v) {
-   static_assert(0 <= kLane && kLane < N, "Invalid lane");
-   return Vec128<uint32_t, N>{
--      wasm_v32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
-+      wasm_i32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
- }
- 
- // Signed
- template <int kLane, size_t N>
- HWY_API Vec128<int16_t, N> Broadcast(const Vec128<int16_t, N> v) {
-   static_assert(0 <= kLane && kLane < N, "Invalid lane");
--  return Vec128<int16_t, N>{wasm_v16x8_shuffle(
-+  return Vec128<int16_t, N>{wasm_i16x8_shuffle(
-       v.raw, v.raw, kLane, kLane, kLane, kLane, kLane, kLane, kLane, kLane)};
- }
- template <int kLane, size_t N>
- HWY_API Vec128<int32_t, N> Broadcast(const Vec128<int32_t, N> v) {
-   static_assert(0 <= kLane && kLane < N, "Invalid lane");
-   return Vec128<int32_t, N>{
--      wasm_v32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
-+      wasm_i32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
- }
- 
- // Float
-@@ -1792,22 +1877,22 @@ template <int kLane, size_t N>
- HWY_API Vec128<float, N> Broadcast(const Vec128<float, N> v) {
-   static_assert(0 <= kLane && kLane < N, "Invalid lane");
-   return Vec128<float, N>{
--      wasm_v32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
-+      wasm_i32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
+@@ -1817,19 +1880,19 @@
+       wasm_i32x4_shuffle(v.raw, v.raw, kLane, kLane, kLane, kLane)};
  }
  
 -// ------------------------------ Shuffle bytes with variable indices
@@ -15987,12 +15995,12 @@ index e235d10b45122..a5c43bb65ce53 100644
  // V8 implementation of this had a bug, fixed on 2021-04-03:
  // https://chromium-review.googlesource.com/c/v8/v8/+/2822951
  #if 0
--  return Vec128<T, N>{wasm_v8x16_swizzle(bytes.raw, from.raw)};
+-  return Vec128<T, N>{wasm_i8x16_swizzle(bytes.raw, from.raw)};
 +  return Vec128<TI, NI>{wasm_i8x16_swizzle(bytes.raw, from.raw)};
  #else
    alignas(16) uint8_t control[16];
    alignas(16) uint8_t input[16];
-@@ -1817,10 +1902,23 @@ HWY_API Vec128<T, N> TableLookupBytes(const Vec128<T, N> bytes,
+@@ -1839,10 +1902,23 @@
    for (size_t i = 0; i < 16; ++i) {
      output[i] = control[i] < 16 ? input[control[i]] : 0;
    }
@@ -16017,79 +16025,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  // ------------------------------ Hard-coded shuffles
  
  // Notation: let Vec128<int32_t> have lanes 3,2,1,0 (0 is least-significant).
-@@ -1830,56 +1928,56 @@ HWY_API Vec128<T, N> TableLookupBytes(const Vec128<T, N> bytes,
- 
- // Swap 32-bit halves in 64-bit halves.
- HWY_API Vec128<uint32_t> Shuffle2301(const Vec128<uint32_t> v) {
--  return Vec128<uint32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 1, 0, 3, 2)};
-+  return Vec128<uint32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 1, 0, 3, 2)};
- }
- HWY_API Vec128<int32_t> Shuffle2301(const Vec128<int32_t> v) {
--  return Vec128<int32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 1, 0, 3, 2)};
-+  return Vec128<int32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 1, 0, 3, 2)};
- }
- HWY_API Vec128<float> Shuffle2301(const Vec128<float> v) {
--  return Vec128<float>{wasm_v32x4_shuffle(v.raw, v.raw, 1, 0, 3, 2)};
-+  return Vec128<float>{wasm_i32x4_shuffle(v.raw, v.raw, 1, 0, 3, 2)};
- }
- 
- // Swap 64-bit halves
- HWY_API Vec128<uint32_t> Shuffle1032(const Vec128<uint32_t> v) {
--  return Vec128<uint32_t>{wasm_v64x2_shuffle(v.raw, v.raw, 1, 0)};
-+  return Vec128<uint32_t>{wasm_i64x2_shuffle(v.raw, v.raw, 1, 0)};
- }
- HWY_API Vec128<int32_t> Shuffle1032(const Vec128<int32_t> v) {
--  return Vec128<int32_t>{wasm_v64x2_shuffle(v.raw, v.raw, 1, 0)};
-+  return Vec128<int32_t>{wasm_i64x2_shuffle(v.raw, v.raw, 1, 0)};
- }
- HWY_API Vec128<float> Shuffle1032(const Vec128<float> v) {
--  return Vec128<float>{wasm_v64x2_shuffle(v.raw, v.raw, 1, 0)};
-+  return Vec128<float>{wasm_i64x2_shuffle(v.raw, v.raw, 1, 0)};
- }
- 
- // Rotate right 32 bits
- HWY_API Vec128<uint32_t> Shuffle0321(const Vec128<uint32_t> v) {
--  return Vec128<uint32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 1, 2, 3, 0)};
-+  return Vec128<uint32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 1, 2, 3, 0)};
- }
- HWY_API Vec128<int32_t> Shuffle0321(const Vec128<int32_t> v) {
--  return Vec128<int32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 1, 2, 3, 0)};
-+  return Vec128<int32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 1, 2, 3, 0)};
- }
- HWY_API Vec128<float> Shuffle0321(const Vec128<float> v) {
--  return Vec128<float>{wasm_v32x4_shuffle(v.raw, v.raw, 1, 2, 3, 0)};
-+  return Vec128<float>{wasm_i32x4_shuffle(v.raw, v.raw, 1, 2, 3, 0)};
- }
- // Rotate left 32 bits
- HWY_API Vec128<uint32_t> Shuffle2103(const Vec128<uint32_t> v) {
--  return Vec128<uint32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 3, 0, 1, 2)};
-+  return Vec128<uint32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 3, 0, 1, 2)};
- }
- HWY_API Vec128<int32_t> Shuffle2103(const Vec128<int32_t> v) {
--  return Vec128<int32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 3, 0, 1, 2)};
-+  return Vec128<int32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 3, 0, 1, 2)};
- }
- HWY_API Vec128<float> Shuffle2103(const Vec128<float> v) {
--  return Vec128<float>{wasm_v32x4_shuffle(v.raw, v.raw, 3, 0, 1, 2)};
-+  return Vec128<float>{wasm_i32x4_shuffle(v.raw, v.raw, 3, 0, 1, 2)};
- }
- 
- // Reverse
- HWY_API Vec128<uint32_t> Shuffle0123(const Vec128<uint32_t> v) {
--  return Vec128<uint32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 3, 2, 1, 0)};
-+  return Vec128<uint32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 3, 2, 1, 0)};
- }
- HWY_API Vec128<int32_t> Shuffle0123(const Vec128<int32_t> v) {
--  return Vec128<int32_t>{wasm_v32x4_shuffle(v.raw, v.raw, 3, 2, 1, 0)};
-+  return Vec128<int32_t>{wasm_i32x4_shuffle(v.raw, v.raw, 3, 2, 1, 0)};
- }
- HWY_API Vec128<float> Shuffle0123(const Vec128<float> v) {
--  return Vec128<float>{wasm_v32x4_shuffle(v.raw, v.raw, 3, 2, 1, 0)};
-+  return Vec128<float>{wasm_i32x4_shuffle(v.raw, v.raw, 3, 2, 1, 0)};
- }
- 
- // ------------------------------ TableLookupLanes
-@@ -1928,176 +2026,274 @@ HWY_API Vec128<float, N> TableLookupLanes(const Vec128<float, N> v,
+@@ -1950,176 +2026,274 @@
                   TableLookupBytes(BitCast(di, v), Vec128<int32_t, N>{idx.raw}));
  }
  
@@ -16102,7 +16038,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  template <size_t N>
 -HWY_API Vec128<uint16_t, (N + 1) / 2> ZipLower(const Vec128<uint8_t, N> a,
 -                                               const Vec128<uint8_t, N> b) {
--  return Vec128<uint16_t, (N + 1) / 2>{wasm_v8x16_shuffle(
+-  return Vec128<uint16_t, (N + 1) / 2>{wasm_i8x16_shuffle(
 +HWY_API Vec128<uint8_t, N> InterleaveLower(Vec128<uint8_t, N> a,
 +                                           Vec128<uint8_t, N> b) {
 +  return Vec128<uint8_t, N>{wasm_i8x16_shuffle(
@@ -16112,12 +16048,11 @@ index e235d10b45122..a5c43bb65ce53 100644
 -HWY_API Vec128<uint32_t, (N + 1) / 2> ZipLower(const Vec128<uint16_t, N> a,
 -                                               const Vec128<uint16_t, N> b) {
 -  return Vec128<uint32_t, (N + 1) / 2>{
--      wasm_v16x8_shuffle(a.raw, b.raw, 0, 8, 1, 9, 2, 10, 3, 11)};
 +HWY_API Vec128<uint16_t, N> InterleaveLower(Vec128<uint16_t, N> a,
 +                                            Vec128<uint16_t, N> b) {
 +  return Vec128<uint16_t, N>{
-+      wasm_i16x8_shuffle(a.raw, b.raw, 0, 8, 1, 9, 2, 10, 3, 11)};
-+}
+       wasm_i16x8_shuffle(a.raw, b.raw, 0, 8, 1, 9, 2, 10, 3, 11)};
+ }
 +template <size_t N>
 +HWY_API Vec128<uint32_t, N> InterleaveLower(Vec128<uint32_t, N> a,
 +                                            Vec128<uint32_t, N> b) {
@@ -16127,12 +16062,12 @@ index e235d10b45122..a5c43bb65ce53 100644
 +HWY_API Vec128<uint64_t, N> InterleaveLower(Vec128<uint64_t, N> a,
 +                                            Vec128<uint64_t, N> b) {
 +  return Vec128<uint64_t, N>{wasm_i64x2_shuffle(a.raw, b.raw, 0, 2)};
- }
++}
  
  template <size_t N>
 -HWY_API Vec128<int16_t, (N + 1) / 2> ZipLower(const Vec128<int8_t, N> a,
 -                                              const Vec128<int8_t, N> b) {
--  return Vec128<int16_t, (N + 1) / 2>{wasm_v8x16_shuffle(
+-  return Vec128<int16_t, (N + 1) / 2>{wasm_i8x16_shuffle(
 +HWY_API Vec128<int8_t, N> InterleaveLower(Vec128<int8_t, N> a,
 +                                          Vec128<int8_t, N> b) {
 +  return Vec128<int8_t, N>{wasm_i8x16_shuffle(
@@ -16142,12 +16077,11 @@ index e235d10b45122..a5c43bb65ce53 100644
 -HWY_API Vec128<int32_t, (N + 1) / 2> ZipLower(const Vec128<int16_t, N> a,
 -                                              const Vec128<int16_t, N> b) {
 -  return Vec128<int32_t, (N + 1) / 2>{
--      wasm_v16x8_shuffle(a.raw, b.raw, 0, 8, 1, 9, 2, 10, 3, 11)};
 +HWY_API Vec128<int16_t, N> InterleaveLower(Vec128<int16_t, N> a,
 +                                           Vec128<int16_t, N> b) {
 +  return Vec128<int16_t, N>{
-+      wasm_i16x8_shuffle(a.raw, b.raw, 0, 8, 1, 9, 2, 10, 3, 11)};
-+}
+       wasm_i16x8_shuffle(a.raw, b.raw, 0, 8, 1, 9, 2, 10, 3, 11)};
+ }
 +template <size_t N>
 +HWY_API Vec128<int32_t, N> InterleaveLower(Vec128<int32_t, N> a,
 +                                           Vec128<int32_t, N> b) {
@@ -16157,24 +16091,24 @@ index e235d10b45122..a5c43bb65ce53 100644
 +HWY_API Vec128<int64_t, N> InterleaveLower(Vec128<int64_t, N> a,
 +                                           Vec128<int64_t, N> b) {
 +  return Vec128<int64_t, N>{wasm_i64x2_shuffle(a.raw, b.raw, 0, 2)};
- }
++}
  
  template <size_t N>
 -HWY_API Vec128<uint16_t, N / 2> ZipUpper(const Vec128<uint8_t, N> a,
 -                                         const Vec128<uint8_t, N> b) {
--  return Vec128<uint16_t, N / 2>{wasm_v8x16_shuffle(a.raw, b.raw, 8, 24, 9, 25,
+-  return Vec128<uint16_t, N / 2>{wasm_i8x16_shuffle(a.raw, b.raw, 8, 24, 9, 25,
 -                                                    10, 26, 11, 27, 12, 28, 13,
 -                                                    29, 14, 30, 15, 31)};
 +HWY_API Vec128<float, N> InterleaveLower(Vec128<float, N> a,
 +                                         Vec128<float, N> b) {
 +  return Vec128<float, N>{wasm_i32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
- }
++}
 +
 +// Additional overload for the optional Simd<> tag.
 +template <typename T, size_t N, class V = Vec128<T, N>>
 +HWY_API V InterleaveLower(Simd<T, N> /* tag */, V a, V b) {
 +  return InterleaveLower(a, b);
-+}
+ }
 +
 +// ------------------------------ InterleaveUpper (UpperHalf)
 +
@@ -16185,7 +16119,6 @@ index e235d10b45122..a5c43bb65ce53 100644
 -HWY_API Vec128<uint32_t, N / 2> ZipUpper(const Vec128<uint16_t, N> a,
 -                                         const Vec128<uint16_t, N> b) {
 -  return Vec128<uint32_t, N / 2>{
--      wasm_v16x8_shuffle(a.raw, b.raw, 4, 12, 5, 13, 6, 14, 7, 15)};
 +HWY_API Vec128<uint8_t, N> InterleaveUpper(Vec128<uint8_t, N> a,
 +                                           Vec128<uint8_t, N> b) {
 +  return Vec128<uint8_t, N>{wasm_i8x16_shuffle(a.raw, b.raw, 8, 24, 9, 25, 10,
@@ -16196,8 +16129,8 @@ index e235d10b45122..a5c43bb65ce53 100644
 +HWY_API Vec128<uint16_t, N> InterleaveUpper(Vec128<uint16_t, N> a,
 +                                            Vec128<uint16_t, N> b) {
 +  return Vec128<uint16_t, N>{
-+      wasm_i16x8_shuffle(a.raw, b.raw, 4, 12, 5, 13, 6, 14, 7, 15)};
-+}
+       wasm_i16x8_shuffle(a.raw, b.raw, 4, 12, 5, 13, 6, 14, 7, 15)};
+ }
 +template <size_t N>
 +HWY_API Vec128<uint32_t, N> InterleaveUpper(Vec128<uint32_t, N> a,
 +                                            Vec128<uint32_t, N> b) {
@@ -16207,12 +16140,12 @@ index e235d10b45122..a5c43bb65ce53 100644
 +HWY_API Vec128<uint64_t, N> InterleaveUpper(Vec128<uint64_t, N> a,
 +                                            Vec128<uint64_t, N> b) {
 +  return Vec128<uint64_t, N>{wasm_i64x2_shuffle(a.raw, b.raw, 1, 3)};
- }
++}
  
  template <size_t N>
 -HWY_API Vec128<int16_t, N / 2> ZipUpper(const Vec128<int8_t, N> a,
 -                                        const Vec128<int8_t, N> b) {
--  return Vec128<int16_t, N / 2>{wasm_v8x16_shuffle(a.raw, b.raw, 8, 24, 9, 25,
+-  return Vec128<int16_t, N / 2>{wasm_i8x16_shuffle(a.raw, b.raw, 8, 24, 9, 25,
 -                                                   10, 26, 11, 27, 12, 28, 13,
 -                                                   29, 14, 30, 15, 31)};
 +HWY_API Vec128<int8_t, N> InterleaveUpper(Vec128<int8_t, N> a,
@@ -16225,12 +16158,11 @@ index e235d10b45122..a5c43bb65ce53 100644
 -HWY_API Vec128<int32_t, N / 2> ZipUpper(const Vec128<int16_t, N> a,
 -                                        const Vec128<int16_t, N> b) {
 -  return Vec128<int32_t, N / 2>{
--      wasm_v16x8_shuffle(a.raw, b.raw, 4, 12, 5, 13, 6, 14, 7, 15)};
 +HWY_API Vec128<int16_t, N> InterleaveUpper(Vec128<int16_t, N> a,
 +                                           Vec128<int16_t, N> b) {
 +  return Vec128<int16_t, N>{
-+      wasm_i16x8_shuffle(a.raw, b.raw, 4, 12, 5, 13, 6, 14, 7, 15)};
-+}
+       wasm_i16x8_shuffle(a.raw, b.raw, 4, 12, 5, 13, 6, 14, 7, 15)};
+ }
 +template <size_t N>
 +HWY_API Vec128<int32_t, N> InterleaveUpper(Vec128<int32_t, N> a,
 +                                           Vec128<int32_t, N> b) {
@@ -16240,7 +16172,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 +HWY_API Vec128<int64_t, N> InterleaveUpper(Vec128<int64_t, N> a,
 +                                           Vec128<int64_t, N> b) {
 +  return Vec128<int64_t, N>{wasm_i64x2_shuffle(a.raw, b.raw, 1, 3)};
- }
++}
  
 -// ------------------------------ Interleave lanes
 +template <size_t N>
@@ -16265,7 +16197,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <>
 -HWY_INLINE Vec128<uint32_t> InterleaveLower<uint32_t>(
 -    const Vec128<uint32_t> a, const Vec128<uint32_t> b) {
--  return Vec128<uint32_t>{wasm_v32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
+-  return Vec128<uint32_t>{wasm_i32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
 +
 +// Partial
 +template <typename T, size_t N, HWY_IF_LE64(T, N), class V = Vec128<T, N>>
@@ -16276,7 +16208,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <>
 -HWY_INLINE Vec128<int32_t> InterleaveLower<int32_t>(const Vec128<int32_t> a,
 -                                                    const Vec128<int32_t> b) {
--  return Vec128<int32_t>{wasm_v32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
+-  return Vec128<int32_t>{wasm_i32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
 +
 +// ------------------------------ ZipLower/ZipUpper (InterleaveLower)
 +
@@ -16289,7 +16221,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <>
 -HWY_INLINE Vec128<float> InterleaveLower<float>(const Vec128<float> a,
 -                                                const Vec128<float> b) {
--  return Vec128<float>{wasm_v32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
+-  return Vec128<float>{wasm_i32x4_shuffle(a.raw, b.raw, 0, 4, 1, 5)};
 +template <typename T, size_t N, class D = Simd<T, N>,
 +          class DW = RepartitionToWide<D>>
 +HWY_API VFromD<DW> ZipLower(DW dw, Vec128<T, N> a, Vec128<T, N> b) {
@@ -16299,20 +16231,20 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <typename T>
 -HWY_API Vec128<T> InterleaveUpper(const Vec128<T> a, const Vec128<T> b) {
 -  return Vec128<T>{ZipUpper(a, b).raw};
+-}
+-template <>
+-HWY_INLINE Vec128<uint32_t> InterleaveUpper<uint32_t>(
+-    const Vec128<uint32_t> a, const Vec128<uint32_t> b) {
+-  return Vec128<uint32_t>{wasm_i32x4_shuffle(a.raw, b.raw, 2, 6, 3, 7)};
 +template <typename T, size_t N, class D = Simd<T, N>,
 +          class DW = RepartitionToWide<D>>
 +HWY_API VFromD<DW> ZipUpper(DW dw, Vec128<T, N> a, Vec128<T, N> b) {
 +  return BitCast(dw, InterleaveUpper(D(), a, b));
  }
 -template <>
--HWY_INLINE Vec128<uint32_t> InterleaveUpper<uint32_t>(
--    const Vec128<uint32_t> a, const Vec128<uint32_t> b) {
--  return Vec128<uint32_t>{wasm_v32x4_shuffle(a.raw, b.raw, 2, 6, 3, 7)};
--}
--template <>
 -HWY_INLINE Vec128<int32_t> InterleaveUpper<int32_t>(const Vec128<int32_t> a,
 -                                                    const Vec128<int32_t> b) {
--  return Vec128<int32_t>{wasm_v32x4_shuffle(a.raw, b.raw, 2, 6, 3, 7)};
+-  return Vec128<int32_t>{wasm_i32x4_shuffle(a.raw, b.raw, 2, 6, 3, 7)};
 +
 +// ================================================== COMBINE
 +
@@ -16333,7 +16265,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <>
 -HWY_INLINE Vec128<float> InterleaveUpper<float>(const Vec128<float> a,
 -                                                const Vec128<float> b) {
--  return Vec128<float>{wasm_v32x4_shuffle(a.raw, b.raw, 2, 6, 3, 7)};
+-  return Vec128<float>{wasm_i32x4_shuffle(a.raw, b.raw, 2, 6, 3, 7)};
 +
 +// ------------------------------ ZeroExtendVector (Combine, IfThenElseZero)
 +
@@ -16348,38 +16280,36 @@ index e235d10b45122..a5c43bb65ce53 100644
  // hiH,hiL loH,loL |-> hiL,loL (= lower halves)
  template <typename T>
 -HWY_API Vec128<T> ConcatLowerLower(const Vec128<T> hi, const Vec128<T> lo) {
--  return Vec128<T>{wasm_v64x2_shuffle(lo.raw, hi.raw, 0, 2)};
 +HWY_API Vec128<T> ConcatLowerLower(Full128<T> /* tag */, const Vec128<T> hi,
 +                                   const Vec128<T> lo) {
-+  return Vec128<T>{wasm_i64x2_shuffle(lo.raw, hi.raw, 0, 2)};
-+}
+   return Vec128<T>{wasm_i64x2_shuffle(lo.raw, hi.raw, 0, 2)};
+ }
 +template <typename T, size_t N, HWY_IF_LE64(T, N)>
 +HWY_API Vec128<T, N> ConcatLowerLower(Simd<T, N> d, const Vec128<T, N> hi,
 +                                      const Vec128<T, N> lo) {
 +  const Half<decltype(d)> d2;
 +  return Combine(LowerHalf(d2, hi), LowerHalf(d2, lo));
- }
++}
++
++// ------------------------------ ConcatUpperUpper
  
 -// hiH,hiL loH,loL |-> hiH,loH (= upper halves)
-+// ------------------------------ ConcatUpperUpper
-+
  template <typename T>
 -HWY_API Vec128<T> ConcatUpperUpper(const Vec128<T> hi, const Vec128<T> lo) {
--  return Vec128<T>{wasm_v64x2_shuffle(lo.raw, hi.raw, 1, 3)};
 +HWY_API Vec128<T> ConcatUpperUpper(Full128<T> /* tag */, const Vec128<T> hi,
 +                                   const Vec128<T> lo) {
-+  return Vec128<T>{wasm_i64x2_shuffle(lo.raw, hi.raw, 1, 3)};
-+}
+   return Vec128<T>{wasm_i64x2_shuffle(lo.raw, hi.raw, 1, 3)};
+ }
 +template <typename T, size_t N, HWY_IF_LE64(T, N)>
 +HWY_API Vec128<T, N> ConcatUpperUpper(Simd<T, N> d, const Vec128<T, N> hi,
 +                                      const Vec128<T, N> lo) {
 +  const Half<decltype(d)> d2;
 +  return Combine(UpperHalf(d2, hi), UpperHalf(d2, lo));
- }
++}
++
++// ------------------------------ ConcatLowerUpper
  
 -// hiH,hiL loH,loL |-> hiL,loH (= inner halves)
-+// ------------------------------ ConcatLowerUpper
-+
  template <typename T>
 -HWY_API Vec128<T> ConcatLowerUpper(const Vec128<T> hi, const Vec128<T> lo) {
 -  return CombineShiftRightBytes<8>(hi, lo);
@@ -16397,7 +16327,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -// hiH,hiL loH,loL |-> hiH,loL (= outer halves)
 -template <typename T>
 -HWY_API Vec128<T> ConcatUpperLower(const Vec128<T> hi, const Vec128<T> lo) {
--  return Vec128<T>{wasm_v64x2_shuffle(lo.raw, hi.raw, 0, 3)};
+-  return Vec128<T>{wasm_i64x2_shuffle(lo.raw, hi.raw, 0, 3)};
 +// ------------------------------ ConcatUpperLower
 +template <typename T, size_t N>
 +HWY_API Vec128<T, N> ConcatUpperLower(Simd<T, N> d, const Vec128<T, N> hi,
@@ -16428,7 +16358,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <typename T>
 -HWY_API Vec128<T> odd_even_impl(hwy::SizeTag<2> /* tag */, const Vec128<T> a,
 -                                const Vec128<T> b) {
--  return Vec128<T>{wasm_v16x8_shuffle(a.raw, b.raw, 8, 1, 10, 3, 12, 5, 14, 7)};
+-  return Vec128<T>{wasm_i16x8_shuffle(a.raw, b.raw, 8, 1, 10, 3, 12, 5, 14, 7)};
 +template <typename T, size_t N>
 +HWY_INLINE Vec128<T, N> OddEven(hwy::SizeTag<2> /* tag */, const Vec128<T, N> a,
 +                                const Vec128<T, N> b) {
@@ -16438,7 +16368,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <typename T>
 -HWY_API Vec128<T> odd_even_impl(hwy::SizeTag<4> /* tag */, const Vec128<T> a,
 -                                const Vec128<T> b) {
--  return Vec128<T>{wasm_v32x4_shuffle(a.raw, b.raw, 4, 1, 6, 3)};
+-  return Vec128<T>{wasm_i32x4_shuffle(a.raw, b.raw, 4, 1, 6, 3)};
 +template <typename T, size_t N>
 +HWY_INLINE Vec128<T, N> OddEven(hwy::SizeTag<4> /* tag */, const Vec128<T, N> a,
 +                                const Vec128<T, N> b) {
@@ -16468,7 +16398,7 @@ index e235d10b45122..a5c43bb65ce53 100644
 -template <>
 -HWY_INLINE Vec128<float> OddEven<float>(const Vec128<float> a,
 -                                        const Vec128<float> b) {
--  return Vec128<float>{wasm_v32x4_shuffle(a.raw, b.raw, 4, 1, 6, 3)};
+-  return Vec128<float>{wasm_i32x4_shuffle(a.raw, b.raw, 4, 1, 6, 3)};
 +template <size_t N>
 +HWY_API Vec128<float, N> OddEven(const Vec128<float, N> a,
 +                                 const Vec128<float, N> b) {
@@ -16476,65 +16406,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // ================================================== CONVERT
-@@ -2108,69 +2304,63 @@ HWY_INLINE Vec128<float> OddEven<float>(const Vec128<float> a,
- template <size_t N>
- HWY_API Vec128<uint16_t, N> PromoteTo(Simd<uint16_t, N> /* tag */,
-                                       const Vec128<uint8_t, N> v) {
--  return Vec128<uint16_t, N>{wasm_i16x8_widen_low_u8x16(v.raw)};
-+  return Vec128<uint16_t, N>{wasm_u16x8_extend_low_u8x16(v.raw)};
- }
- template <size_t N>
- HWY_API Vec128<uint32_t, N> PromoteTo(Simd<uint32_t, N> /* tag */,
-                                       const Vec128<uint8_t, N> v) {
-   return Vec128<uint32_t, N>{
--      wasm_i32x4_widen_low_u16x8(wasm_i16x8_widen_low_u8x16(v.raw))};
-+      wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(v.raw))};
- }
- template <size_t N>
- HWY_API Vec128<int16_t, N> PromoteTo(Simd<int16_t, N> /* tag */,
-                                      const Vec128<uint8_t, N> v) {
--  return Vec128<int16_t, N>{wasm_i16x8_widen_low_u8x16(v.raw)};
-+  return Vec128<int16_t, N>{wasm_u16x8_extend_low_u8x16(v.raw)};
- }
- template <size_t N>
- HWY_API Vec128<int32_t, N> PromoteTo(Simd<int32_t, N> /* tag */,
-                                      const Vec128<uint8_t, N> v) {
-   return Vec128<int32_t, N>{
--      wasm_i32x4_widen_low_u16x8(wasm_i16x8_widen_low_u8x16(v.raw))};
-+      wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(v.raw))};
- }
- template <size_t N>
- HWY_API Vec128<uint32_t, N> PromoteTo(Simd<uint32_t, N> /* tag */,
-                                       const Vec128<uint16_t, N> v) {
--  return Vec128<uint32_t, N>{wasm_i32x4_widen_low_u16x8(v.raw)};
-+  return Vec128<uint32_t, N>{wasm_u32x4_extend_low_u16x8(v.raw)};
- }
- template <size_t N>
- HWY_API Vec128<int32_t, N> PromoteTo(Simd<int32_t, N> /* tag */,
-                                      const Vec128<uint16_t, N> v) {
--  return Vec128<int32_t, N>{wasm_i32x4_widen_low_u16x8(v.raw)};
-+  return Vec128<int32_t, N>{wasm_u32x4_extend_low_u16x8(v.raw)};
- }
- 
- // Signed: replicate sign bit.
- template <size_t N>
- HWY_API Vec128<int16_t, N> PromoteTo(Simd<int16_t, N> /* tag */,
-                                      const Vec128<int8_t, N> v) {
--  return Vec128<int16_t, N>{wasm_i16x8_widen_low_i8x16(v.raw)};
-+  return Vec128<int16_t, N>{wasm_i16x8_extend_low_i8x16(v.raw)};
- }
- template <size_t N>
- HWY_API Vec128<int32_t, N> PromoteTo(Simd<int32_t, N> /* tag */,
-                                      const Vec128<int8_t, N> v) {
-   return Vec128<int32_t, N>{
--      wasm_i32x4_widen_low_i16x8(wasm_i16x8_widen_low_i8x16(v.raw))};
-+      wasm_i32x4_extend_low_i16x8(wasm_i16x8_extend_low_i8x16(v.raw))};
- }
- template <size_t N>
- HWY_API Vec128<int32_t, N> PromoteTo(Simd<int32_t, N> /* tag */,
-                                      const Vec128<int16_t, N> v) {
--  return Vec128<int32_t, N>{wasm_i32x4_widen_low_i16x8(v.raw)};
-+  return Vec128<int32_t, N>{wasm_i32x4_extend_low_i16x8(v.raw)};
+@@ -2179,20 +2353,14 @@
  }
  
  template <size_t N>
@@ -16559,7 +16431,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const Simd<int32_t, N> di32;
    const Simd<uint32_t, N> du32;
    const Simd<float, N> df32;
-@@ -2232,19 +2422,14 @@ HWY_API Vec128<int8_t, N> DemoteTo(Simd<int8_t, N> /* tag */,
+@@ -2254,19 +2422,14 @@
  }
  
  template <size_t N>
@@ -16583,16 +16455,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const Simd<int32_t, N> di;
    const Simd<uint32_t, N> du;
    const Simd<uint16_t, N> du16;
-@@ -2291,7 +2476,7 @@ HWY_API Vec128<float, N> ConvertTo(Simd<float, N> /* tag */,
- template <size_t N>
- HWY_API Vec128<int32_t, N> ConvertTo(Simd<int32_t, N> /* tag */,
-                                      const Vec128<float, N> v) {
--  return Vec128<int32_t, N>{wasm_i32x4_trunc_saturate_f32x4(v.raw)};
-+  return Vec128<int32_t, N>{wasm_i32x4_trunc_sat_f32x4(v.raw)};
- }
- 
- template <size_t N>
-@@ -2305,9 +2490,10 @@ HWY_API Vec128<int32_t, N> NearestInt(const Vec128<float, N> v) {
+@@ -2327,9 +2490,10 @@
  
  namespace detail {
  
@@ -16606,7 +16469,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    alignas(16) uint64_t lanes[2];
    wasm_v128_store(lanes, mask.raw);
  
-@@ -2317,18 +2503,37 @@ HWY_API uint64_t BitsFromMask(hwy::SizeTag<1> /*tag*/,
+@@ -2339,18 +2503,37 @@
    return (hi + lo);
  }
  
@@ -16649,7 +16512,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const __i32x4 mask_i = static_cast<__i32x4>(mask.raw);
    const __i32x4 slice = wasm_i32x4_make(1, 2, 4, 8);
    const __i32x4 sliced_mask = wasm_v128_and(mask_i, slice);
-@@ -2374,22 +2579,22 @@ constexpr __i8x16 BytesAbove() {
+@@ -2396,22 +2579,22 @@
  }
  
  template <typename T, size_t N>
@@ -16676,7 +16539,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const __i32x4 var_shift = wasm_i32x4_make(1, 2, 4, 8);
    const __i32x4 shifted_bits = wasm_v128_and(m.raw, var_shift);
    alignas(16) uint64_t lanes[2];
-@@ -2400,76 +2605,85 @@ HWY_API size_t CountTrue(hwy::SizeTag<4> /*tag*/, const Mask128<T> m) {
+@@ -2422,76 +2605,85 @@
  }  // namespace detail
  
  template <typename T, size_t N>
@@ -16779,7 +16642,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // ------------------------------ Compress
-@@ -2661,8 +2875,8 @@ HWY_INLINE Vec128<T, N> Idx64x2FromBits(const uint64_t mask_bits) {
+@@ -2683,8 +2875,8 @@
  // redundant BitsFromMask in the latter.
  
  template <typename T, size_t N>
@@ -16790,7 +16653,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const auto idx = detail::Idx16x8FromBits<T, N>(mask_bits);
    using D = Simd<T, N>;
    const RebindToSigned<D> di;
-@@ -2670,8 +2884,8 @@ HWY_API Vec128<T, N> Compress(hwy::SizeTag<2> /*tag*/, Vec128<T, N> v,
+@@ -2692,8 +2884,8 @@
  }
  
  template <typename T, size_t N>
@@ -16801,7 +16664,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const auto idx = detail::Idx32x4FromBits<T, N>(mask_bits);
    using D = Simd<T, N>;
    const RebindToSigned<D> di;
-@@ -2681,9 +2895,9 @@ HWY_API Vec128<T, N> Compress(hwy::SizeTag<4> /*tag*/, Vec128<T, N> v,
+@@ -2703,9 +2895,9 @@
  #if HWY_CAP_INTEGER64 || HWY_CAP_FLOAT64
  
  template <typename T, size_t N>
@@ -16814,7 +16677,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const auto idx = detail::Idx64x2FromBits<uint64_t, N>(mask_bits);
    using D = Simd<T, N>;
    const RebindToSigned<D> di;
-@@ -2730,7 +2944,7 @@ HWY_API void StoreInterleaved3(const Vec128<uint8_t> a, const Vec128<uint8_t> b,
+@@ -2752,7 +2944,7 @@
        0x80, 2, 0x80, 0x80, 3, 0x80, 0x80, 4, 0x80, 0x80};
    const auto shuf_r0 = Load(d, tbl_r0);
    const auto shuf_g0 = Load(d, tbl_g0);  // cannot reuse r0 due to 5 in MSB
@@ -16823,7 +16686,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const auto r0 = TableLookupBytes(a, shuf_r0);  // 5..4..3..2..1..0
    const auto g0 = TableLookupBytes(b, shuf_g0);  // ..4..3..2..1..0.
    const auto b0 = TableLookupBytes(c, shuf_b0);  // .4..3..2..1..0..
-@@ -2782,7 +2996,7 @@ HWY_API void StoreInterleaved3(const Vec128<uint8_t, 8> a,
+@@ -2804,7 +2996,7 @@
        0x80, 2, 0x80, 0x80, 3, 0x80, 0x80, 4, 0x80, 0x80};
    const auto shuf_r0 = Load(d_full, tbl_r0);
    const auto shuf_g0 = Load(d_full, tbl_g0);  // cannot reuse r0 due to 5 in MSB
@@ -16832,7 +16695,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const auto r0 = TableLookupBytes(full_a, shuf_r0);  // 5..4..3..2..1..0
    const auto g0 = TableLookupBytes(full_b, shuf_g0);  // ..4..3..2..1..0.
    const auto b0 = TableLookupBytes(full_c, shuf_b0);  // .4..3..2..1..0..
-@@ -2820,8 +3034,8 @@ HWY_API void StoreInterleaved3(const Vec128<uint8_t, N> a,
+@@ -2842,8 +3034,8 @@
        0,    0x80, 0x80, 1,   0x80, 0x80, 2, 0x80, 0x80, 3, 0x80, 0x80,  //
        0x80, 0x80, 0x80, 0x80};
    const auto shuf_r0 = Load(d_full, tbl_r0);
@@ -16843,7 +16706,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const auto r0 = TableLookupBytes(full_a, shuf_r0);  // ......3..2..1..0
    const auto g0 = TableLookupBytes(full_b, shuf_g0);  // .....3..2..1..0.
    const auto b0 = TableLookupBytes(full_c, shuf_b0);  // ....3..2..1..0..
-@@ -2837,21 +3051,23 @@ HWY_API void StoreInterleaved3(const Vec128<uint8_t, N> a,
+@@ -2859,21 +3051,23 @@
  HWY_API void StoreInterleaved4(const Vec128<uint8_t> v0,
                                 const Vec128<uint8_t> v1,
                                 const Vec128<uint8_t> v2,
@@ -16880,7 +16743,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // 64 bits
-@@ -2859,21 +3075,23 @@ HWY_API void StoreInterleaved4(const Vec128<uint8_t, 8> in0,
+@@ -2881,21 +3075,23 @@
                                 const Vec128<uint8_t, 8> in1,
                                 const Vec128<uint8_t, 8> in2,
                                 const Vec128<uint8_t, 8> in3,
@@ -16912,7 +16775,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  }
  
  // <= 32 bits
-@@ -2885,38 +3103,58 @@ HWY_API void StoreInterleaved4(const Vec128<uint8_t, N> in0,
+@@ -2907,38 +3103,58 @@
                                 Simd<uint8_t, N> /*tag*/,
                                 uint8_t* HWY_RESTRICT unaligned) {
    // Use full vectors to reduce the number of stores.
@@ -16982,7 +16845,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    return v;
  }
  
-@@ -2924,38 +3162,41 @@ HWY_API Vec128<T, 1> MaxOfLanes(hwy::SizeTag<sizeof(T)> /* tag */,
+@@ -2946,38 +3162,41 @@
  
  // N=2
  template <typename T>
@@ -17033,7 +16896,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const Vec128<T> v1032 = Shuffle1032(v3210);
    const Vec128<T> v31_20_31_20 = Max(v3210, v1032);
    const Vec128<T> v20_31_20_31 = Shuffle0321(v31_20_31_20);
-@@ -2966,17 +3207,20 @@ HWY_API Vec128<T> MaxOfLanes(hwy::SizeTag<4> /* tag */, const Vec128<T> v3210) {
+@@ -2988,17 +3207,20 @@
  
  // N=2 (full)
  template <typename T>
@@ -17057,7 +16920,7 @@ index e235d10b45122..a5c43bb65ce53 100644
    const Vec128<T> v01 = Shuffle01(v10);
    return Max(v10, v01);
  }
-@@ -2985,18 +3229,114 @@ HWY_API Vec128<T> MaxOfLanes(hwy::SizeTag<8> /* tag */, const Vec128<T> v10) {
+@@ -3007,18 +3229,114 @@
  
  // Supported for u/i/f 32/64. Returns the same value in each lane.
  template <typename T, size_t N>
@@ -17175,7 +17038,7 @@ index e235d10b45122..a5c43bb65ce53 100644
  // ================================================== Operator wrapper
  
  template <class V>
-@@ -3031,6 +3371,10 @@ HWY_API auto Eq(V a, V b) -> decltype(a == b) {
+@@ -3053,6 +3371,10 @@
    return a == b;
  }
  template <class V>
@@ -24735,7 +24598,7 @@ diff --git a/third_party/highway/hwy/targets.h b/third_party/highway/hwy/targets
 index 5f0195317d834..b9e8984c2c853 100644
 --- a/third_party/highway/hwy/targets.h
 +++ b/third_party/highway/hwy/targets.h
-@@ -21,282 +21,23 @@
+@@ -21,281 +21,23 @@
  // generate and call.
  
  #include "hwy/base.h"
@@ -24987,13 +24850,12 @@ index 5f0195317d834..b9e8984c2c853 100644
 -#define HWY_TARGETS HWY_STATIC_TARGET
 -
 -// 3) For tests: include all attainable targets (in particular: scalar)
--#elif defined(HWY_COMPILE_ALL_ATTAINABLE)
+-#elif defined(HWY_COMPILE_ALL_ATTAINABLE) || defined(HWY_IS_TEST)
 -#define HWY_TARGETS HWY_ATTAINABLE_TARGETS
 -
 -// 4) Default: attainable WITHOUT non-best baseline. This reduces code size by
 -// excluding superseded targets, in particular scalar.
 -#else
--
 -#define HWY_TARGETS (HWY_ATTAINABLE_TARGETS & (2 * HWY_STATIC_TARGET - 1))
 -
 -#endif  // target policy
@@ -25029,7 +24891,7 @@ index 5f0195317d834..b9e8984c2c853 100644
  // Disable from runtime dispatch the mask of compiled in targets. Targets that
  // were not enabled at compile time are ignored. This function is useful to
  // disable a target supported by the CPU that is known to have bugs or when a
-@@ -305,17 +46,9 @@ uint32_t SupportedTargets();
+@@ -304,17 +46,9 @@
  // returns at least the baseline target.
  void DisableTargets(uint32_t disabled_targets);
  
@@ -25048,7 +24910,7 @@ index 5f0195317d834..b9e8984c2c853 100644
  // regardless of this mock, to prevent accidentally adding targets that are
  // known to be buggy in the current CPU. Call with a mask of 0 to disable the
  // mock and use the actual CPU supported targets instead.
-@@ -341,12 +74,16 @@ HWY_INLINE std::vector<uint32_t> SupportedAndGeneratedTargets() {
+@@ -340,12 +74,16 @@
  static inline HWY_MAYBE_UNUSED const char* TargetName(uint32_t target) {
    switch (target) {
  #if HWY_ARCH_X86
@@ -25065,7 +24927,7 @@ index 5f0195317d834..b9e8984c2c853 100644
  #endif
  
  #if HWY_ARCH_ARM
-@@ -424,17 +161,17 @@ static inline HWY_MAYBE_UNUSED const char* TargetName(uint32_t target) {
+@@ -423,17 +161,17 @@
  // HWY_MAX_DYNAMIC_TARGETS) bit. This list must contain exactly
  // HWY_MAX_DYNAMIC_TARGETS elements and does not include SCALAR. The first entry
  // corresponds to the best target. Don't include a "," at the end of the list.
@@ -27438,8 +27300,8 @@ index 0000000000000..c85d63af953eb
 +#endif
 diff --git a/third_party/highway/hwy/tests/logical_test.cc b/third_party/highway/hwy/tests/logical_test.cc
 index d4a447f6133c1..c7bc1dfdd6921 100644
---- a/third_party/highway/hwy/tests/logical_test.cc
-+++ b/third_party/highway/hwy/tests/logical_test.cc
+--- a/third_party/highway/hwy/tests/logical_test.cc	2021-11-04 14:42:10.603954526 +0800
++++ b/third_party/highway/hwy/tests/logical_test.cc	2021-11-04 17:59:16.443442642 +0800
 @@ -16,12 +16,12 @@
  #include <stdint.h>
  #include <string.h>  // memcmp
@@ -27454,7 +27316,7 @@ index d4a447f6133c1..c7bc1dfdd6921 100644
  #include "hwy/highway.h"
  #include "hwy/tests/test_util-inl.h"
  
-@@ -160,302 +160,6 @@ HWY_NOINLINE void TestAllCopySign() {
+@@ -160,308 +160,6 @@
    ForFloatTypes(ForPartialVectors<TestCopySign>());
  }
  
@@ -27464,15 +27326,21 @@ index d4a447f6133c1..c7bc1dfdd6921 100644
 -    const size_t N = Lanes(d);
 -    auto mask_lanes = AllocateAligned<T>(N);
 -
--    // NOTE: reverse polarity (mask is true iff mask_lanes[i] == 0) because we
--    // cannot reliably compare against all bits set (NaN for float types).
--    const T off = 1;
+-    // GCC workaround: we previously used zero to indicate true because we can
+-    // safely compare with that value. However, that hits an ICE for u64x1 on
+-    // GCC 8.3 but not 8.4, even if the implementation of operator== is
+-    // simplified to return zero. Using MaskFromVec avoids this, and requires
+-    // FF..FF and 0 constants.
+-    T on;
+-    memset(&on, 0xFF, sizeof(on));
+-    const T off = 0;
 -
 -    for (size_t len = 0; len <= N; ++len) {
 -      for (size_t i = 0; i < N; ++i) {
--        mask_lanes[i] = i < len ? T(0) : off;
+-        mask_lanes[i] = i < len ? on : off;
 -      }
--      const auto mask = Eq(Load(d, mask_lanes.get()), Zero(d));
+-      const auto mask_vals = Load(d, mask_lanes.get());
+-      const auto mask = MaskFromVec(mask_vals);
 -      HWY_ASSERT_MASK_EQ(d, mask, FirstN(d, len));
 -    }
 -  }
@@ -27757,7 +27625,7 @@ index d4a447f6133c1..c7bc1dfdd6921 100644
  struct TestZeroIfNegative {
    template <class T, class D>
    HWY_NOINLINE void operator()(T /*unused*/, D d) {
-@@ -482,7 +186,7 @@ struct TestBroadcastSignBit {
+@@ -488,7 +186,7 @@
      const auto s0 = Zero(d);
      const auto s1 = Set(d, -1);  // all bit set
      const auto vpos = And(Iota(d, 0), Set(d, LimitsMax<T>()));
@@ -27766,7 +27634,7 @@ index d4a447f6133c1..c7bc1dfdd6921 100644
  
      HWY_ASSERT_VEC_EQ(d, s0, BroadcastSignBit(vpos));
      HWY_ASSERT_VEC_EQ(d, s0, BroadcastSignBit(Set(d, LimitsMax<T>())));
-@@ -507,18 +211,18 @@ struct TestTestBit {
+@@ -513,18 +211,18 @@
        const auto bit3 = Set(d, 1ull << ((i + 2) % kNumBits));
        const auto bits12 = Or(bit1, bit2);
        const auto bits23 = Or(bit2, bit3);
@@ -27797,7 +27665,7 @@ index d4a447f6133c1..c7bc1dfdd6921 100644
      }
    }
  };
-@@ -527,198 +231,54 @@ HWY_NOINLINE void TestAllTestBit() {
+@@ -533,198 +231,54 @@
    ForIntegerTypes(ForPartialVectors<TestTestBit>());
  }
  
@@ -28465,20 +28333,7 @@ diff --git a/third_party/highway/hwy/tests/memory_test.cc b/third_party/highway/
 index 31bd7dbce52d1..f20e48d108b6c 100644
 --- a/third_party/highway/hwy/tests/memory_test.cc
 +++ b/third_party/highway/hwy/tests/memory_test.cc
-@@ -12,6 +12,12 @@
- // See the License for the specific language governing permissions and
- // limitations under the License.
- 
-+// Ensure incompabilities with Windows macros (e.g. #define StoreFence) are
-+// detected. Must come before Highway headers.
-+#if defined(_WIN32) || defined(_WIN64)
-+#include <windows.h>
-+#endif
-+
- #include <stddef.h>
- #include <stdint.h>
- 
-@@ -281,8 +287,8 @@ struct TestScatter {
+@@ -287,8 +287,8 @@
        std::fill(expected.get(), expected.get() + range, T(0));
        std::fill(actual.get(), actual.get() + range, T(0));
        for (size_t i = 0; i < N; ++i) {
@@ -28489,7 +28344,7 @@ index 31bd7dbce52d1..f20e48d108b6c 100644
          CopyBytes<sizeof(T)>(
              bytes.get() + i * sizeof(T),
              reinterpret_cast<uint8_t*>(expected.get()) + offsets[i]);
-@@ -334,11 +340,12 @@ struct TestGather {
+@@ -340,11 +340,12 @@
      using Offset = MakeSigned<T>;
  
      const size_t N = Lanes(d);
@@ -28503,7 +28358,7 @@ index 31bd7dbce52d1..f20e48d108b6c 100644
      auto bytes = AllocateAligned<uint8_t>(max_bytes);
      for (size_t i = 0; i < max_bytes; ++i) {
        bytes[i] = static_cast<uint8_t>(Random32(&rng) & 0xFF);
-@@ -351,8 +358,8 @@ struct TestGather {
+@@ -357,8 +358,8 @@
      for (size_t rep = 0; rep < 100; ++rep) {
        // Offsets
        for (size_t i = 0; i < N; ++i) {
@@ -28514,7 +28369,7 @@ index 31bd7dbce52d1..f20e48d108b6c 100644
          CopyBytes<sizeof(T)>(bytes.get() + offsets[i], &expected[i]);
        }
  
-@@ -401,6 +408,7 @@ HWY_NOINLINE void TestAllCache() {
+@@ -407,6 +408,7 @@
  HWY_AFTER_NAMESPACE();
  
  #if HWY_ONCE
@@ -28522,7 +28377,7 @@ index 31bd7dbce52d1..f20e48d108b6c 100644
  namespace hwy {
  HWY_BEFORE_TEST(HwyMemoryTest);
  HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllLoadStore);
-@@ -412,4 +420,11 @@ HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllScatter);
+@@ -418,4 +420,11 @@
  HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllGather);
  HWY_EXPORT_AND_TEST_P(HwyMemoryTest, TestAllCache);
  }  // namespace hwy
