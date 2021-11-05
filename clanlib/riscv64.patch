@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index 5453a7f..0dcdd66 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,14 +9,17 @@ license=('custom:zlib')
+ depends=('alsa-lib' 'libjpeg' 'libmikmod' 'libpng' 'libvorbis' 'libxi' 'libxmu' 'sdl_gfx'
+          'freetype2' 'pcre' 'sqlite' 'libgl')
+ makedepends=('doxygen' 'graphviz' 'mesa')
+-source=($pkgname-$pkgver.tar.gz::https://github.com/sphair/ClanLib/archive/v${pkgver}.tar.gz)
+-sha512sums=('34f5d1fdb7b071a218f081a6b06a6018a9c20cedc4c8500a9796be02d335f06fa148304379eeb1a35e08b9a734e504ceb490a6558a43d1611187bd97be01f4b0')
++source=($pkgname-$pkgver.tar.gz::https://github.com/sphair/ClanLib/archive/v${pkgver}.tar.gz
++        add-support-for-riscv.patch)
++sha512sums=('34f5d1fdb7b071a218f081a6b06a6018a9c20cedc4c8500a9796be02d335f06fa148304379eeb1a35e08b9a734e504ceb490a6558a43d1611187bd97be01f4b0'
++            'e3a6dd16592266f8bf030df7e0847bc91f52fc169630e629a2d43cd907447f9436ba488cbd7de99a2015c5bd0cf8704cf8e22054a16e1ad95fbbf7220e633a86')
+ 
+ build() {
+ 	cd ClanLib-$pkgver
+ 
++	patch -Np1 -i ../add-support-for-riscv.patch
+   ./autogen.sh
+-	./configure --prefix=/usr
++	./configure --prefix=/usr --enable-sse2=no
+ 
+ 	make
+ 	make html
