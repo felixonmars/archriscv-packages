@@ -1,0 +1,38 @@
+diff --git PKGBUILD PKGBUILD
+index e4283437..01964cb4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,22 +14,27 @@ makedepends=('alsa-lib' 'jack' 'libsmf' 'libsndfile' 'lv2' 'zita-resampler')
+ optdepends=('alsa-lib: for drumgizmo standalone'
+             'jack: for drumgizmo standalone'
+             'lv2-host: for LV2 plugin')
+-source=("https://www.${pkgname}.org/releases/${pkgname}-${pkgver}/${pkgname}-${pkgver}.tar.gz"{,.asc})
+-sha512sums=('beb693997a333e4f553a0d26da7e26ec8be1348de729aab26edb1e062d5d685f35acf507d78b7a0223eb3af6b594e324ce76400b534ba344dee84de06dbfdc8f'
+-            'SKIP')
+-b2sums=('d777c693b00cd291bce974d684bcbdcb304a59df74e9d5d0f56718bdcbb82c153604beff1075e6be4e89c062240d587d28e0386296d25a9e927a7a6eefe9c00b'
+-        'SKIP')
++source=("https://www.${pkgname}.org/releases/${pkgname}-${pkgver}/${pkgname}-${pkgver}.tar.gz"{,.asc}
++        "fix-missing-include.patch::http://git.drumgizmo.org/drumgizmo.git/patch/?id=a638001e3249edf7264b5ee0f6d5280229aeb671")
++sha512sums=('cc0c5d1f88d306e3e5fa9556b77a4f72ec5cad937ed504fb4a98fff249f8f2cd76b25c3696a278ac565503a0f36a8f07c2f2032da7095b7a8caf39f4c8a6d46d'
++            'SKIP'
++            '49660af985c34fd71e602e90c89ea6c09f006359919af36ee57ca7d31f686a30196f792f6ff2f512ae3cdf5fbdc7312494fa6597b5fa3cd64f8c0ba595ea7608')
++b2sums=('44695044181766ef31dab375290f49edde1a585a8359272674d3eae63e9f7ad875538b73fcdbc0c3de967bb31b588bb69db95db71b19832541010460441420db'
++        'SKIP'
++        '12287c0a4e3d07b1ff9183763413435faf5daeba6df26689e4ca51108b1af6466b176cbbabd0a18c4ef7a8696c6be9de2c7253c1597bff08be5269f3a4c7d6c9')
+ validpgpkeys=('F39C94D556CCB995B1AE540E9EB89445BF071867') # DrumGizmo <info@drumgizmo.org>
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
++  patch -Np1 -i ../fix-missing-include.patch
+   autoreconf -vfi
+ }
+ 
+ build() {
+   cd "${pkgname}-${pkgver}"
+   ./configure --prefix=/usr \
+-              --enable-lv2
++              --enable-lv2 \
++              --disable-sse
+   make
+ }
+ 
