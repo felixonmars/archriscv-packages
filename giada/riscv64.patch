@@ -1,0 +1,35 @@
+diff --git PKGBUILD PKGBUILD
+index 44a199d1..ddbd1170 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,11 +16,14 @@ makedepends=('alsa-lib' 'catch2' 'cmake' 'fltk' 'gendesk' 'imagemagick' 'jack'
+ checkdepends=('xorg-server-xvfb')
+ provides=('vst3-host')
+ source=("https://www.giadamusic.com/data/${pkgname}-v${pkgver}-src.tar.gz"
+-        "$pkgname-0.17.2-devendor_nlohmann_json.patch")
++        "$pkgname-0.17.2-devendor_nlohmann_json.patch"
++        "fix-pthread-use.patch") # https://github.com/monocasual/giada/pull/520
+ sha512sums=('205b27ecbc8c2fef87908a6f0c2c532c1199fba94e4c65d7ba48c07d022c50b30c180a58860b117977e0089ad26e19adee645a06ce42586a8f7ef2ad93166d23'
+-            'b9d952c0816dd2b81dadff24521b19f305ca5ddeb1964dd81ce93e6f63b25dbf291c07e528cc2836f268a095bf9920786331a615230416f44a9014ff581a0bce')
++            'b9d952c0816dd2b81dadff24521b19f305ca5ddeb1964dd81ce93e6f63b25dbf291c07e528cc2836f268a095bf9920786331a615230416f44a9014ff581a0bce'
++            '3aca2d62b2113d7f0e862b724fb37754bef6a45777749993f9cf843d6d7b955f07d9a85f67d4eac4b82805f62568521f72278c1c05bbf8567fb435438d4f9085')
+ b2sums=('0a59f68ae2641d7e62d98fc18d7ec9cf18164cf7510f0a3c9558f419ee19b39bcedf7fdc1349dbda055d8d36c8f8d61d31cfe363bccb511996af9ba5c3f0691c'
+-        'a482f356969c5d184a1eb0945477040cc7c5d1447fee0159cc5d2da05faea0bd696123b0559bdced148b301181f93726a515df24a814dbd08d207e2959f31305')
++        'a482f356969c5d184a1eb0945477040cc7c5d1447fee0159cc5d2da05faea0bd696123b0559bdced148b301181f93726a515df24a814dbd08d207e2959f31305'
++        'e3adafd9b7053d0456b7ec2d50483db7ded59118943dfb802473316c0cd273de612d0a8febfe2870248b57660f0db198c3bd812e8e3d433aea539288432d7e10')
+ 
+ prepare() {
+   mv -v "$pkgname-$pkgver-src" "$pkgname-$pkgver"
+@@ -34,10 +37,12 @@ prepare() {
+ 
+   # devendor nlohmann-json
+   patch -Np1 -i ../"$pkgname-0.17.2-devendor_nlohmann_json.patch"
++  patch -Np1 -i ../"fix-pthread-use.patch"
+ }
+ 
+ build() {
+   cd "$pkgname-$pkgver"
++  CXXFLAGS+=" -Wno-error=format-security"
+   cmake -DCMAKE_INSTALL_PREFIX=/usr \
+         -DCMAKE_BUILD_TYPE='None' \
+         -DWITH_VST3=ON \
