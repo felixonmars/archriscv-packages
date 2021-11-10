@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index 2969b08..df05332 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,13 +11,20 @@ groups=('lv2-plugins' 'pro-audio')
+ depends=('glibc' 'libglvnd' 'libx11' 'lv2-host')
+ makedepends=('glew' 'glu' 'lv2' 'meson')
+ checkdepends=('lv2lint')
+-source=("https://git.open-music-kontrollers.ch/lv2//$pkgname/snapshot/$pkgname-$pkgver.tar.xz"{,.asc})
++source=("https://git.open-music-kontrollers.ch/lv2//$pkgname/snapshot/$pkgname-$pkgver.tar.xz"{,.asc}
++        "fix-pthread.patch")
+ sha512sums=('d5494c1b38652b3d3324864507047c2da83922f8d6f57e8b3606b869b30d9c1af1b082d0b4b4cac374fc6b6d4f0e0968058149709cb92842628fa0175ed2f023'
+-            'SKIP')
++            'SKIP'
++            '668a8d3edc0dea304719f176648ef942d8eccdb0a54186ecf8e2c73b413c759f075bc0db55be5ccfb1581c0be9fc2dd6ae9e29282b15cbe19fd1781a5c7ce303')
+ b2sums=('1f10180521f9ccde1f6f0a415115a712528b3dc089b42647f2ce37bf27ffdf36481a154797c72e197dc497e9fbfab2d1ef7477ac5b44a41f073822ef488506ef'
+-        'SKIP')
++        'SKIP'
++        'f5cb8eb59a072ae8f873c8d0b739d373606bbc739098fb964e4ca5e73b143ef00a433f280817d02b667a766216ce495b64051969b6633447369fdb85e197fea9')
+ validpgpkeys=('5AE26CEBBF49705C19FB273A30258F99258CB76A') # Hanspeter Portner <dev@open-music-kontrollers.ch>
+ 
++prepare() {
++  patch -Np1 -i $srcdir/fix-pthread.patch -d $pkgname-$pkgver
++}
++
+ build() {
+   cd "$pkgname-$pkgver"
+   arch-meson build
