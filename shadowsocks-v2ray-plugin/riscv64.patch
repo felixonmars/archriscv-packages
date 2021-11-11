@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 7beb0df..f90c3d6 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,16 @@ url='https://github.com/shadowsocks/v2ray-plugin'
+ license=('GPL')
+ depends=('glibc')
+ makedepends=('go' 'git')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/shadowsocks/v2ray-plugin/archive/v$pkgver.tar.gz")
+-sha512sums=('771ec19ee7ed4f4827f4e04ef13bd680e72022f9e267e6a25d6e0bd3d22ac59ae52545387073d4263666e5847840f7b33963a64c1e7d8fbe0813218f5acf0ead')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/shadowsocks/v2ray-plugin/archive/v$pkgver.tar.gz"
++        "update_go_vendor.patch")
++sha512sums=('771ec19ee7ed4f4827f4e04ef13bd680e72022f9e267e6a25d6e0bd3d22ac59ae52545387073d4263666e5847840f7b33963a64c1e7d8fbe0813218f5acf0ead'
++            '899d02ae84f3610df334281b1239b6c542baa7423aa038749596d6daf0257886d0584f0bf6878d189b120a8662ec70b48e51c32a87e561bfc9400f6bd8f40ec8')
++
++prepare() {
++  cd v2ray-plugin-$pkgver
++  patch -Np1 -i "../update_go_vendor.patch"
++  go mod vendor
++}
+ 
+ build() {
+   export CGO_CPPFLAGS="${CPPFLAGS}"
