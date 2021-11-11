@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index ee466af..02dd2d7 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,8 +20,15 @@ optdepends=('java-runtime: for using Prolog from Java'
+             'libxinerama: for using the pl2xpce library'
+             'libxpm: for using the pl2xpce library'
+             'unixodbc: for using the odbc4pl library')
+-source=("$pkgname-$pkgver.tar.gz::https://www.swi-prolog.org/download/stable/src/swipl-$pkgver.tar.gz")
+-b2sums=('ba0a62616432a3a958dd3ad90b56bfb644c5a99fdea5936cabf32224beac0a405622cd4f754415203b61545a1a238a227eea44e16ee455ee1270c47e3455a728')
++source=("$pkgname-$pkgver.tar.gz::https://www.swi-prolog.org/download/stable/src/swipl-$pkgver.tar.gz"
++        "fix_pthread_linking.patch")
++b2sums=('ba0a62616432a3a958dd3ad90b56bfb644c5a99fdea5936cabf32224beac0a405622cd4f754415203b61545a1a238a227eea44e16ee455ee1270c47e3455a728'
++        '447163f966e61e4e8f880eca205f87bbef3660e488b2e5c424c7ac656100acbd4f874a440ce50b3c3b489cde5000009dabc49870f51bc40d65450f1d1f17536d')
++
++prepare() {
++  cd "swipl-$pkgver"
++  patch -Np1 -i "../fix_pthread_linking.patch"
++}
+ 
+ build() {
+   cmake -B build -S "swipl-$pkgver" \
