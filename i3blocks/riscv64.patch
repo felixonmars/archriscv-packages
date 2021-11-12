@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index bd71d80..4231795 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,12 +13,18 @@ url="https://github.com/vivien/i3blocks"
+ license=('GPL3')
+ makedepends=('git')
+ depends=('glibc')
+-source=("${pkgname}-${pkgver}::git+https://github.com/vivien/${pkgname}#tag=${pkgver}?signed")
+-sha512sums=('SKIP')
++source=("${pkgname}-${pkgver}::git+https://github.com/vivien/${pkgname}#tag=${pkgver}?signed"
++        "fix-bashcompletion-dependency.patch::https://github.com/vivien/i3blocks/pull/457.patch")
++sha512sums=('SKIP'
++            '6c5c6b8124966dc70ddd87f6f6672847264b709cd19cf5e4c6ef08f91c34829ca12f232dc4e802d024a4bc328e2eef9b0e6799d9518e2b3275d987c1c24d5b4b')
+ backup=('etc/i3blocks.conf')
+ validpgpkeys=('44C919BDF206CFDC49C7101A66C63FBDFD79670A')
+ install=i3blocks.install
+ 
++prepare() {
++  patch -Np1 -i ${srcdir}/fix-bashcompletion-dependency.patch -d ${pkgname}-${pkgver}
++}
++
+ build () {
+   cd "${pkgname}-${pkgver}"
+   ./autogen.sh
