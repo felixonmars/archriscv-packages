@@ -1,0 +1,12 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,9 @@ build() {
+   export CGO_LDFLAGS="${LDFLAGS}"
+   export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+   cd "${srcdir}/${pkgname}-${pkgver}"
++  go mod edit -replace github.com/prometheus/client_golang=github.com/prometheus/client_golang@efe7aa7
++  go mod download github.com/prometheus/client_golang
++  go get github.com/prometheus/client_golang/prometheus
+   go generate
+   cd cmd/traefik
+   go build -ldflags="-linkmode=external"
