@@ -1,0 +1,32 @@
+diff --git PKGBUILD PKGBUILD
+index dfdace6..5baa9f4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -7,13 +7,20 @@ pkgrel=1
+ pkgdesc="Load another kernel from the currently executing Linux kernel"
+ arch=('x86_64')
+ url="https://kernel.org/pub/linux/utils/kernel/kexec/"
+-source=("git://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}")
++source=("git://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}"
++        "add-riscv64-support.patch")
++sha1sums=('SKIP'
++          'fb0555111b7192ece80b096aea33dff8c395a04a')
+ makedepends=('git')
+ depends=('zlib' 'xz')
+ license=('GPL2')
+ 
+ prepare() {
+   cd $pkgname
++
++  # Patch from https://build.opensuse.org/package/view_file/openSUSE:Factory:RISCV/kexec-tools/riscv.patch
++  patch -Np1 -i $srcdir/add-riscv64-support.patch
++
+   ./bootstrap
+ }
+ 
+@@ -29,5 +36,3 @@ package() {
+   make DESTDIR="$pkgdir" install
+   install -D -m644 kexec/kexec.8 "$pkgdir"/usr/share/man/man8/kexec.8
+ }
+-
+-md5sums=('SKIP')
