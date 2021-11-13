@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,8 +27,12 @@ makedepends=(
+   wxgtk3
+   zip
+ )
+-source=(git+https://github.com/visualboyadvance-m/visualboyadvance-m.git#tag=8f4862de88de2f95866b7e501304f1e57a4e0abb?signed)
+-sha256sums=(SKIP)
++source=(git+https://github.com/visualboyadvance-m/visualboyadvance-m.git#tag=8f4862de88de2f95866b7e501304f1e57a4e0abb?signed
++        0000-fix-asm-sqrt.patch
++        0001-fix-kmod-meta.patch::https://patch-diff.githubusercontent.com/raw/visualboyadvance-m/visualboyadvance-m/pull/793.diff)
++sha256sums=('SKIP'
++            '0e89fc756cb1a65e8c33917c175bf9fd685e3d5e925cdf0993f54f62077bf8c0'
++            'ee228325edac28ce66d8e6030d538e7fad2285d2431abce0710e4a1d658e8505')
+ validpgpkeys=(A0C0E526E36FD2138C149D4D08AB596679D86240) # Rafael Kitover <rkitover@gmail.com>
+ 
+ pkgver() {
+@@ -44,6 +48,10 @@ prepare() {
+     fi
+     mkdir build-$p
+   done
++  # see https://github.com/visualboyadvance-m/visualboyadvance-m/pull/895
++  # but the patch of PR #985 can't be applied directly due to source code's differences
++  patch -p1 -d visualboyadvance-m -i ../0000-fix-asm-sqrt.patch
++  patch -p1 -d visualboyadvance-m -i ../0001-fix-kmod-meta.patch
+ }
+ 
+ build() {
