@@ -1,0 +1,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,7 +41,9 @@ prepare() {
+   # If Arch decides to increase CPU requirements [1], -march=x86-64 can be
+   # replaced with -march=nehalem so that the SSE 4.1 implementation is built
+   # [1] https://lists.archlinux.org/pipermail/arch-dev-public/2020-March/029914.html
+-  sed -i "s#, '-march=native'##" autobahn/nvx/_utf8validator.py
++
++  # we need to explicitly specify -march=rv64gc here, or it will be treated as x86_64
++  sed -i "s#, '-march=native'#, '-march=rv64gc', '-mabi=lp64d'#" autobahn/nvx/_utf8validator.py
+   patch -Np1 -i "${srcdir}/judge-sse-header.patch"
+ }
+ 
