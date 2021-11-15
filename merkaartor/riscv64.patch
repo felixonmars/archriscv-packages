@@ -1,0 +1,35 @@
+diff --git PKGBUILD PKGBUILD
+index 8b0797f4..8d926b76 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,18 +12,25 @@ arch=('x86_64')
+ url='http://merkaartor.be/'
+ license=('GPL2')
+ depends=('exiv2' 'gdal' 'gpsd' 'hicolor-icon-theme' 'qt5-svg')
+-makedepends=('qt5-tools')
++makedepends=('qt5-tools' 'cmake')
+ source=("https://github.com/openstreetmap/$pkgname/archive/$pkgver/$pkgname-$pkgver.tar.gz")
+ sha256sums=('f538d1eb380005cbd5d047070b276da59c58bb7ff47218e20a080b893d0ba457')
+ 
+ build() {
+   cd $pkgname-$pkgver
+-  lrelease src/src.pro
+-  qmake-qt5 Merkaartor.pro PREFIX=/usr GPSDLIB=1 GEOIMAGE=1
+-  make
++  cmake -B build \
++    -DCMAKE_INSTALL_PREFIX=/usr \
++    -DCMAKE_BUILD_TYPE=Release \
++    -DEXTRA_TESTS=OFF
++  make -C build
++}
++
++check() {
++  cd $pkgname-$pkgver
++  QT_QPA_PLATFORM=offscreen ctest --verbose --test-dir build
+ }
+ 
+ package() {
+   cd $pkgname-$pkgver
+-  make INSTALL_ROOT="$pkgdir" install
++  DESTDIR="$pkgdir" cmake --install build
+ }
