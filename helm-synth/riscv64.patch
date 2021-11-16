@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index b0f29ca6..e29d6b78 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,14 +14,20 @@ makedepends=('alsa-lib' 'freetype2' 'jack' 'libxcursor' 'lv2')
+ replaces=('helm<=0.9.0')
+ source=("${pkgname}-${pkgver}.tar.gz::https://github.com/mtytel/${_name}/archive/v${pkgver}.tar.gz"
+         "${pkgname}-0.9.0-gcc91.patch"
+-        "${pkgname}-0.9.0-rename_helm-synth.patch")
++        "${pkgname}-0.9.0-rename_helm-synth.patch"
++        "disable_sse2_on_riscv.patch"
++        "fix_pthread_linking.patch")
+ sha512sums=('241c6bf3aec422e9ccaf7c7113eec7e30a11baadd30fe8f05f0abfac9c41d0c8a9fb284f0cae49bcaf0d3d08aa952737f6ff3eb7d48c2b2e22c60932738aeaa4'
+             '4c12575c6a58c6a03644b9c7d560e3a794fa3575ac10eb9301ca911a58a86eb5c721f0e4c8c1c5bfcf81b6efba25ed7bdba2a12fe68ec49eb18581067cec06bb'
+-            '99df61242d6fd5629440c72210c541f3ce0e711190ab2472ebc066a9044d79499c657c9554b39570867a95e061da3c32ceefce3706e84fc6b4cb540e59289607')
++            '99df61242d6fd5629440c72210c541f3ce0e711190ab2472ebc066a9044d79499c657c9554b39570867a95e061da3c32ceefce3706e84fc6b4cb540e59289607'
++            '16e9423a3b941d755e840af793dd15d3efc3b5337b9b94399b88813f89c9f00270846abb5b71c9fc288ef6aee1c3848a523b98243fd721857311907f0e67fb2f'
++            'b4282be8fd49c4c93476ba8f611273d4729d68397b12c04f4277f89f251f950be88b572f482633c332bbd297c5576d9035675a4e0e0947871d0cbf6273a5b633')
+ 
+ prepare() {
+   mv -v "${_name}-${pkgver}" "${pkgname}-${pkgver}"
+   cd "${pkgname}-${pkgver}"
++  patch -Np1 -i "../disable_sse2_on_riscv.patch"
++  patch -Np1 -i "../fix_pthread_linking.patch"
+   # gcc > 9.1 fixes:
+   # https://github.com/mtytel/helm/pull/233
+   patch -Np1 -i "../${pkgname}-0.9.0-gcc91.patch"
