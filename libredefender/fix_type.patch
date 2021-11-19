@@ -1,0 +1,40 @@
+diff --git a/engine.rs b/engine.rs
+index 5f2fe24..e26bc58 100644
+--- a/engine.rs
++++ b/engine.rs
+@@ -78,7 +78,7 @@ pub struct Engine {
+ unsafe impl Send for Engine {}
+ unsafe impl Sync for Engine {}
+ 
+-fn map_scan_result(result: cl_error_t, virname: *const i8) -> Result<ScanResult, ClamError> {
++fn map_scan_result(result: cl_error_t, virname: *const u8) -> Result<ScanResult, ClamError> {
+     match result {
+         cl_error_t::CL_CLEAN => Ok(ScanResult::Clean),
+         cl_error_t::CL_BREAK => Ok(ScanResult::Whitelisted),
+@@ -231,7 +231,7 @@ impl Engine {
+     pub fn scan_file(&self, path: &str, settings: &mut ScanSettings) -> Result<ScanResult, ClamError> {
+         let raw_path = CString::new(path).unwrap();
+         unsafe {
+-            let mut virname: *const i8 = ptr::null();
++            let mut virname: *const u8 = ptr::null();
+             let result = clamav_sys::cl_scanfile(
+                 raw_path.as_ptr(),
+                 &mut virname,
+@@ -249,7 +249,7 @@ impl Engine {
+     /// loaded and compiled.
+     pub fn scan_descriptor(&self, descriptor: i32, settings: &mut ScanSettings, filename: Option< &str >) -> Result<ScanResult, ClamError> {
+         unsafe {
+-            let mut virname: *const i8 = ptr::null();
++            let mut virname: *const u8 = ptr::null();
+             let filename_cstr = filename.map(|x| CString::new(x).expect("CString::new failed"));
+             let mut scanned : c_ulong = 0;
+             let result = clamav_sys::cl_scandesc(
+@@ -283,7 +283,7 @@ impl Engine {
+     /// @param engine        The scanning engine.
+     /// @param scanoptions   The scanning options.
+     pub fn scan_map(&self, map : & Fmap, filename: Option<&str>, settings: &mut ScanSettings) -> Result<ScanResult, ClamError> {
+-        let mut virname: *const i8 = ptr::null();
++        let mut virname: *const u8 = ptr::null();
+         let c_filename = filename.map(|n| CString::new(n).expect("CString::new failed"));
+         let result = unsafe {
+             clamav_sys::cl_scanmap_callback(

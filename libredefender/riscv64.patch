@@ -1,0 +1,31 @@
+diff --git PKGBUILD PKGBUILD
+index b090525a..ac8da04d 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,15 +10,23 @@ license=('GPL2')
+ depends=('libclamav.so' 'hicolor-icon-theme')
+ makedepends=('cargo' 'clang')
+ source=(https://github.com/kpcyrd/${pkgname}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz
+-        https://github.com/kpcyrd/${pkgname}/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz.asc)
++        https://github.com/kpcyrd/${pkgname}/releases/download/v${pkgver}/${pkgname}-${pkgver}.tar.gz.asc
++        fix_ptrace_enum.patch
++        fix_type.patch)
+ b2sums=('ae67c49a464d33249f1d11bd32eaa827c0f1410021ce5638eda8a522d0ec70100b07d817559bbda6ba6e90cb6c3f55824b763076e8b7cf5c81f25a29dee95d9a'
+-        'SKIP')
++        'SKIP'
++        'cf82f590fcdf3b98c62a8494e685d8e1e53a7009e5361be91e8c480a55af7040dbbdf2ede22f49a5cbb027be37b75e225a7da37a4110d2c4d3165bb51ef75ddd'
++        '9226d72280a7b408575cb6789193ed61f1861e5c465510a7b1bf555e238f482e73b645d50d3b5d03dd6d7afe96fb975ba73ef6fd5accca3df0d2204c0ea75a6d')
+ 
+ validpgpkeys=("64B13F7117D6E07D661BBCE0FE763A64F5E54FD6")
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  cargo fetch --locked --target "riscv64gc-unknown-linux-gnu"
++  cd ~/.cargo/registry/src/github.com-1ecc6299db9ec823/nix-0.17.0/src/sys/ptrace
++  patch -Np1 -i "${srcdir}/fix_ptrace_enum.patch"
++  cd ~/.cargo/registry/src/github.com-1ecc6299db9ec823/clamav-rs-0.5.5/src
++  patch -Np1 -i "${srcdir}/fix_type.patch"
+ }
+ 
+ build() {
