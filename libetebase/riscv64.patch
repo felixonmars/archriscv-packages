@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index cc333121..7bbfe3d9 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,17 @@ url="https://github.com/etesync/libetebase"
+ license=(BSD)
+ depends=(openssl gcc-libs)
+ makedepends=(rust)
+-source=("https://github.com/etesync/libetebase/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+-sha256sums=('448f677bd24bb4315d0d29ae95f29b7841cb64c0af049952ecb634ab683eea9c')
++source=("https://github.com/etesync/libetebase/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
++        "add_riscv_support.patch")
++sha256sums=('448f677bd24bb4315d0d29ae95f29b7841cb64c0af049952ecb634ab683eea9c'
++            '3cbab2d581a082ce2a7d8b7062f4a8d32f1f970535917fa68810cb05d488f263')
++
++prepare() {
++  cd $pkgname-$pkgver
++  cargo fetch
++  cd ~/.cargo/registry/src/github.com-1ecc6299db9ec823/libsodium-sys-0.2.6/libsodium/build-aux
++  patch -Np1 -i "${srcdir}/add_riscv_support.patch"
++}
+ 
+ build() {
+   cd $pkgname-$pkgver
