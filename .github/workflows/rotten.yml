@@ -1,0 +1,17 @@
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 0 * * 1'
+
+jobs:
+  rotten:
+    name: Check for rotten patches
+    runs-on: ubuntu-latest
+    container: archlinux/archlinux:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: pacman -Syu --noconfirm asp patch python python-sh
+      - name: Check for rotten patches
+        run: python find-rotten
+

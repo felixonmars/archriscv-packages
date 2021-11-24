@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+
+import concurrent.futures
+import os
+import re
+import shutil
+import tempfile
+import textwrap
+
+import sh
+
+ENV = os.environ.copy()
+ENV["LANG"] = "C"
+RE_HUNK_FAILED = re.compile(r"^\d+ out of \d+ hunks? FAILED", re.MULTILINE)
+RE_REVERSED = re.compile(r"^Reversed \(or previously applied\) patch detected")
+
+
+def is_rotten(package):
+    with tempfile.TemporaryDirectory() as tempdir:
+        sh.asp.checkout(package, _cwd=tempdir, _env=ENV)
+
+        package_dir = os.path.join(tempdir, package, "trunk")
+        shutil.copytree(package, package_dir, dirs_exist_ok=True)
+
+        try:
+            sh.patch("-sNp0", "-i", "riscv64.patch", _cwd=package_dir, _env=ENV)
+        except sh.ErrorReturnCode as e:
+            if e.exit_code == 1:
+                stdout = e.stdout.decode('ascii')
+                if RE_HUNK_FAILED.search(stdout) or RE_REVERSED.search(stdout):
+                    return True
+            raise e
+
+    return False
+
+
+def done_callback(futures, future):
+    package_name = futures[future]
+    exc = future.exception()
+    if exc:
+        print(f"unexpected error occured when checking {package_name}: {exc}")
+        return
+
+
+def main():
+    packages = set()
+    for dirent in os.scandir():
+        if not dirent.is_dir() or dirent.name.startswith("."):
+            continue
+        if not os.path.exists(os.path.join(dirent.name, "riscv64.patch")):
+            continue
+        packages.add(dirent.name)
+
+    all_packages = set(sh.asp("list-all").stdout.decode("ascii").strip().split())
+    packages = packages & all_packages
+
+    if ghosts := packages - all_packages:
+        print("Nonexistent packages:")
+        print(textwrap.fill("\t".join(sorted(ghosts))))
+
+    i = 0
+    packages_list = list(packages)
+    while i < len(packages_list):
+        print(f"Updating tracked packages {i}/{len(packages_list)}...")
+        sh.asp.update(*packages_list[i:i + 100])
+        i += 100
+
+    print("Finding rotten patches...")
+    futures = {}
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        for package in packages:
+            fut = pool.submit(is_rotten, package)
+            futures[fut] = package
+            fut.add_done_callback(lambda f: done_callback(futures, f))
+
+        concurrent.futures.wait(futures.keys())
+
+    rotten = []
+    for future, package_name in futures.items():
+        if not future.exception() and future.result():
+            rotten.append(package_name)
+
+    print("Rotten patches:")
+    print(textwrap.fill("\t".join(sorted(rotten)),
+                        break_on_hyphens=False,
+                        break_long_words=False))
+
+    if rotten:
+        exit(1)
+
+
+if __name__ == "__main__":
+    main()
