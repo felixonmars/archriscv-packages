@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,12 +17,22 @@ backup=(etc/${pkgname}/access.conf
+         etc/${pkgname}/fwknopd.conf)
+ depends=('gpgme' 'iptables' 'libpcap' 'wget')
+ source=(https://cipherdyne.org/fwknop/download/fwknop-${pkgver}.tar.bz2{,.asc}
+-        fwknopd.service)
++        fwknopd.service
++        0000-fix-unknown-command.patch::https://github.com/mrash/fwknop/pull/339.diff)
+ sha512sums=('3fe0a7c673ebe3d417da9bf8e3c9a882181391ecc64d9f67e77e00a56f9f7bcec2c6d94dc51a5ee77a6c64a89f032a865dd304f1cb8ebb359580c70dc0cd374f'
+             'SKIP'
+-            'a171682a054495bb10315e98a300ddbe4adf1f653b719d3344ecb6cfb8ccd15043cffbbd28304c4f15569a12ddcd9733409448d596f0c706e48d4fda2c877a6a')
++            'a171682a054495bb10315e98a300ddbe4adf1f653b719d3344ecb6cfb8ccd15043cffbbd28304c4f15569a12ddcd9733409448d596f0c706e48d4fda2c877a6a'
++            'e356b219898cb167d88e5fddca41a68131a311490248cb2eca273d2d84605140618225dffc2ec7352e37bf3a4e992906c383324b7f82d21158e139070b6130e7')
+ validpgpkeys=('4D6644A9DA036904BDA2CB90E6C9E3350D3E7410') # Michael Rash (Signing key for cipherdyne.org projects) <mbr@cipherdyne.org>
+ 
++prepare() {
++  cd ${pkgname}-${pkgver}
++
++  # setcontentsaftertitlepage is deprecated, ref: https://www.gnu.org/software/texinfo/manual/texinfo/html_node/Obsolete-_0040_002dCommands.html
++  # see-also: https://www.mail-archive.com/m4-patches@gnu.org/msg01151.html
++  patch -p1 -i ../0000-fix-unknown-command.patch
++}
++
+ build() {
+   cd ${pkgname}-${pkgver}
+   CFLAGS+=' -fcommon' # https://wiki.gentoo.org/wiki/Gcc_10_porting_notes/fno_common
