@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,18 @@ url="https://rocksdb.org/"
+ license=(GPL2 Apache)
+ depends=(bzip2 jemalloc lz4 snappy zlib zstd tbb liburing)
+ makedepends=(python)
+-source=(rocksdb-$pkgver.tar.gz::https://github.com/facebook/rocksdb/archive/v$pkgver.tar.gz)
+-sha256sums=('b793066463da71d31a46f31946e4fca435a7c3e73435e2bb1d062d95e0a20116')
++source=(rocksdb-$pkgver.tar.gz::https://github.com/facebook/rocksdb/archive/v$pkgver.tar.gz
++        0000-toku-time-riscv.patch)
++sha256sums=('b793066463da71d31a46f31946e4fca435a7c3e73435e2bb1d062d95e0a20116'
++            '9bd4ddbbcad2da293026be27921057f096370894efbb16314246cbf9d463f4a2')
++
++prepare() {
++  cd rocksdb-$pkgver
++  sed -i "s/-lpthread/-pthread/" build_tools/build_detect_platform examples/Makefile
++
++  # see https://github.com/facebook/rocksdb/pull/9215
++  patch -p0 -i ../0000-toku-time-riscv.patch
++}
+ 
+ build() {
+   cd rocksdb-$pkgver
