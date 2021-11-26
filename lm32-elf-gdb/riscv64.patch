@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 7ea73cfc..4b8a7782 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,13 +12,16 @@ url='https://www.gnu.org/software/gdb/'
+ license=(GPL3)
+ depends=(xz ncurses expat python guile gdb-common mpfr)
+ options=(!emptydirs)
+-source=(https://ftp.gnu.org/gnu/gdb/gdb-$pkgver.tar.xz{,.sig})
++source=(https://ftp.gnu.org/gnu/gdb/gdb-$pkgver.tar.xz{,.sig}
++        "fix_not_literal_format.patch")
+ sha512sums=('3653762ac008e065c37cd641653184c9ff7ce51ee2222ade1122bec9d6cc64dffd4fb74888ef11ac1942064a08910e96b7865112ad37f4602eb0a16bed074caa'
+-            'SKIP')
++            'SKIP'
++            '7252e1b4a2ad2e14d7a59c46565ebe1bc1e982e6a6b8c53ef93a58be6c41b8944e993415cc30fe9cbb0f1cdc00cb64729112dd81d6b95473a07afdeeca0436d0')
+ validpgpkeys=('F40ADB902B24264AA42E50BF92EDB04BFF325CF3') # Joel Brobecker <brobecker@adacore.com>
+ 
+ prepare() {
+   cd gdb-$pkgver
++  patch -Np1 -i "../fix_not_literal_format.patch"
+   sed -i "/ac_cpp=/s/\$CPPFLAGS/\$CPPFLAGS -O2/" libiberty/configure
+ }
+ 
