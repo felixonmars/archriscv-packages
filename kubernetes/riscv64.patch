@@ -1,26 +1,34 @@
-diff --git PKGBUILD PKGBUILD
-index 824ca43..a98f332 100644
---- PKGBUILD
+diff --git PKGBUILD.orig PKGBUILD
+--- PKGBUILD.orig
 +++ PKGBUILD
-@@ -29,6 +29,7 @@ source=("https://github.com/kubernetes/kubernetes/archive/v${pkgver}/kubernetes-
-         "kube-proxy.service"
-         "kube-scheduler.env"
-         "kube-scheduler.service"
-+        "add-riscv64-support.patch"
+@@ -13,7 +13,7 @@ depends=(glibc)
+ makedepends=(cni-plugins conntrack-tools ethtool git go go-bindata go-md2man
+ iptables-nft socat rsync)
+ source=(
+-  "https://github.com/kubernetes/kubernetes/archive/v${pkgver}/kubernetes-${pkgver}.tar.gz"
++  "kubernetes-${pkgver}.tar.gz::https://github.com/kubernetes/kubernetes/archive/refs/tags/v${pkgver}.tar.gz"
+   "${pkgbase}-1.20.0-gotags.patch"
+   "10-kubeadm-kubelet.conf"
+   "50-kubelet-sysctl.conf"
+@@ -30,6 +30,7 @@ source=(
+   "kube-proxy.service"
+   "kube-scheduler.env"
+   "kube-scheduler.service"
++  "add-riscv64-support.patch"
  )
- sha512sums=('81045b0432f60a865c79f408921ff7c5865cdcb297c4cf17f741a08a5fa0f2af9e8c938e54e73c532dbeb643316e8acf983a0e9203be8ce920c2ae588dec6554'
+ sha512sums=('b2b8060d031dac83c65e634ad14b804010036a7d74161dd37349f39974d862b10b48423c2dcb4e9ca9e775c94dbe9595d49e57c98a2e6a8d8335cb235ba342e0'
              'a2c97738fb49c0e30eee44b6404af083bbaddbafb8a3fa92493802065f4ac06f0c09d50437a9fdda345e0365de984d9bc768fb9300a40c716e6dec53bd57b6de'
-@@ -46,7 +47,8 @@ sha512sums=('81045b0432f60a865c79f408921ff7c5865cdcb297c4cf17f741a08a5fa0f2af9e8
+@@ -47,7 +48,8 @@ sha512sums=('b2b8060d031dac83c65e634ad14b804010036a7d74161dd37349f39974d862b10b4
              'c5c16d97afc0fa455981a56794547a4e6e8a710b1b686ccf84645c8001a601fa41b624ad0009bf21e56ec2da35874ac7808731b4a5b9b0fd80fc188714708f23'
              'dd4efa137462905f9e29a99d69b747ae35e58ba8152794bfa417325953dd5059bad96fabfabf73ce1ee2310dc4ab4d1b95c8d931d33b81c67addcb614a51be54'
              'ba277f765959ddb8aa0dee5a86cd9df1f40fb3f6ea1001f24825dbf21bd9342981d13894301170431729f76e710f70c23481e4061c64be29517ff497490f1ef3'
 -            '2c25c0e11a7b2d6d61e03f9afe7ba21f9497495ab02e85f2623ce8c71019fb8a1af16197ab3968d5da050c2188c3e67372aa43322ac91af84f7da61bf73596bc')
 +            '2c25c0e11a7b2d6d61e03f9afe7ba21f9497495ab02e85f2623ce8c71019fb8a1af16197ab3968d5da050c2188c3e67372aa43322ac91af84f7da61bf73596bc'
 +            'faba6b03ea87469a9b4588e6dfcb7a193407759a867b2b6894a6d44c45dff0df72ac1a27abaacd76b393adc317c93e2f0a02e5e29d03a15e13d9d1934936893e')
- b2sums=('bcc5deb9f446032baeff60b3f75e11c75af0e69fd0e50df789d2b7b532f9e839875ef4227729166d667f022816b321bacf219b0fdeaa2d0da552587d4a9a4067'
+ b2sums=('3e0b87add2b02e653edb6bb17db076cdaec625536ebab66239e4433c759efbc51ac0222898760f95e1154d7c3532c03565a54181015ddfb910ee55d963086c79'
          'a84c41a2b2be6ab0f5f6c3ede13b28456deb7098421a6f1af0e72e53a9214efa30a59709c5b1e6c35031c4dfd15e786a691b69e592796d769cf057fb1d21379a'
          'dbab30d7e1b566027fec9d6a95dd41ed8f64399c39aac07fb4513ce21050eeeb4a226adfd513f76921c305945dfa4a140602ede574dd5eb4cd287e0f2df21714'
-@@ -63,12 +65,14 @@ b2sums=('bcc5deb9f446032baeff60b3f75e11c75af0e69fd0e50df789d2b7b532f9e839875ef42
+@@ -64,12 +66,14 @@ b2sums=('3e0b87add2b02e653edb6bb17db076cdaec625536ebab66239e4433c759efbc51ac0222
          '082474a56525f7ea52315fbf9d765081d9f6bbd20ab4213bc2d2a6ddb8a3764987e365f08f157be6deec53f9c1bf2fb6c99595f5649c631e8610fcf81ed61eab'
          '5ce796468c442d76f311d1c620576dcd2c784fcd40ecaa68ca3a6d7c089e8703506f712ee918f89ddb4debfe061cea3939fa4f2d2a77553dd1cd7aa4fae17729'
          '4f35d3b5296839dd68885b924a41725a3479c2725c77887038c7d402a6aa754e37fe0d3697e746a1b65a5236f9e927df01e99a66d37d227cb801965575403788'
@@ -36,7 +44,7 @@ index 824ca43..a98f332 100644
    # set CGO_ENABLED
    sed -E 's/(CGO_ENABLED)=0/\1=1/g' -i hack/lib/golang.sh
  }
-@@ -103,7 +107,7 @@ package_kubeadm() {
+@@ -104,7 +108,7 @@ package_kubeadm() {
    install="${pkgname}.install"
  
    cd "${pkgbase}-${pkgver}"
@@ -45,8 +53,8 @@ index 824ca43..a98f332 100644
    # service override for kubelet.service
    install -vDm 644 "../10-${pkgname}-kubelet.conf" \
      "${pkgdir}/usr/lib/systemd/system/kubelet.service.d/10-${pkgname}.conf"
-@@ -119,7 +123,7 @@ package_kubectl() {
-   groups=('kubernetes-tools')
+@@ -120,7 +124,7 @@ package_kubectl() {
+   groups=(kubernetes-tools)
  
    cd "${pkgbase}-${pkgver}"
 -  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
@@ -54,8 +62,8 @@ index 824ca43..a98f332 100644
    # man pages
    install -vDm 644 "docs/man/man1/${pkgname}"* -t "$pkgdir/usr/share/man/man1"
    # shell completion
-@@ -138,7 +142,7 @@ package_kubelet() {
-   install="${pkgname}.install"
+@@ -139,7 +143,7 @@ package_kubelet() {
+   install=${pkgname}.install
  
    cd "${pkgbase}-${pkgver}"
 -  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
@@ -63,8 +71,8 @@ index 824ca43..a98f332 100644
    # config
    install -vDm 644 "../${pkgname}.env" -t "$pkgdir/etc/kubernetes/"
    # service
-@@ -161,7 +165,7 @@ package_kube-apiserver() {
-   backup=('etc/kubernetes/kube-apiserver.env')
+@@ -162,7 +166,7 @@ package_kube-apiserver() {
+   backup=(etc/kubernetes/kube-apiserver.env)
  
    cd "${pkgbase}-${pkgver}"
 -  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
@@ -72,8 +80,8 @@ index 824ca43..a98f332 100644
    # config
    install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
    # service
-@@ -180,7 +184,7 @@ package_kube-controller-manager() {
-   backup=("etc/kubernetes/${pkgname}.env")
+@@ -181,7 +185,7 @@ package_kube-controller-manager() {
+   backup=(etc/kubernetes/${pkgname}.env)
  
    cd "${pkgbase}-${pkgver}"
 -  install -Dm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
@@ -81,8 +89,8 @@ index 824ca43..a98f332 100644
    # config
    install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
    # service
-@@ -199,7 +203,7 @@ package_kube-proxy() {
-   backup=("etc/kubernetes/${pkgname}.env")
+@@ -200,7 +204,7 @@ package_kube-proxy() {
+   backup=(etc/kubernetes/${pkgname}.env)
  
    cd "${pkgbase}-${pkgver}"
 -  install -Dm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin/"
@@ -90,8 +98,8 @@ index 824ca43..a98f332 100644
    # config
    install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
    # service
-@@ -216,7 +220,7 @@ package_kube-scheduler() {
-   backup=("etc/kubernetes/${pkgname}.env")
+@@ -217,7 +221,7 @@ package_kube-scheduler() {
+   backup=(etc/kubernetes/${pkgname}.env)
  
    cd "${pkgbase}-${pkgver}"
 -  install -Dm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
