@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index bb2da2d7..8a4c4fcd 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,17 @@ arch=('x86_64')
+ license=('GPL2')
+ depends=('soapysdr')
+ makedepends=('cmake')
+-source=("$url/archive/v$pkgver.zip")
+-sha512sums=('6afc5e99061725a5cab79418ea5a912a9de73d2a5abd5932e17b1ef6b6b4c0c079fd8502dd37ce039244ba2aab692001736f371d2ef1570be6c2fb2ab30f7c72')
++source=("$url/archive/v$pkgver.zip"
++        "support-api-v0.8.patch")
++sha512sums=('6afc5e99061725a5cab79418ea5a912a9de73d2a5abd5932e17b1ef6b6b4c0c079fd8502dd37ce039244ba2aab692001736f371d2ef1570be6c2fb2ab30f7c72'
++            'a6c8f09b273887efefa978abee5c617575ffd5c7b79e06929473c8c4f356a39aedbcccf501f82770f257e687d35ebcf55e0628eef0c9efd66fb98044ec977f53')
++
++prepare() {
++  cd $pkgname-$pkgver
++  # https://github.com/rxseger/rx_tools/commit/920ee087396266bc22a31599fd5386629d02299f
++  # https://github.com/rxseger/rx_tools/commit/811b21c4c8a592515279bd19f7460c6e4ff0551c
++  patch -Np1 -i ../support-api-v0.8.patch
++}
+ 
+ build(){
+   mkdir -p $pkgname-$pkgver/build
+@@ -28,4 +37,3 @@ package()
+ 
+     make DESTDIR="$pkgdir" install
+ }
+-
