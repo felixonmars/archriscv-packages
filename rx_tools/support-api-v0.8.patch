@@ -1,0 +1,31 @@
+diff --color -Naur rx_tools-1.0.3-orig/src/convenience/convenience.c rx_tools-1.0.3/src/convenience/convenience.c
+--- rx_tools-1.0.3-orig/src/convenience/convenience.c	2016-11-05 23:41:44.000000000 +0800
++++ rx_tools-1.0.3/src/convenience/convenience.c	2021-11-27 17:40:47.044114032 +0800
+@@ -38,6 +38,7 @@
+ 
+ #include <SoapySDR/Device.h>
+ #include <SoapySDR/Formats.h>
++#include <SoapySDR/Version.h>
+ 
+ #ifdef _MSC_VER
+ struct tm *localtime_r (const time_t *timer, struct tm *result)
+@@ -488,10 +489,18 @@
+ 
+ 	show_device_info(dev);
+ 
++	#if SOAPY_SDR_API_VERSION < 0x00080000
+ 	if (SoapySDRDevice_setupStream(dev, streamOut, SOAPY_SDR_RX, format, NULL, 0, &stream_args) != 0) {
+-		fprintf(stderr, "SoapySDRDevice_setupStream failed\n");
++		fprintf(stderr, "SoapySDRDevice_setupStream failed: %s\n", SoapySDRDevice_lastError());
+ 		return -3;
+ 	}
++	#else
++	*streamOut = SoapySDRDevice_setupStream(dev, SOAPY_SDR_RX, format, NULL, 0, &stream_args);
++	if (*streamOut == NULL) {
++		fprintf(stderr, "SoapySDRDevice_setupStream failed: %s\n", SoapySDRDevice_lastError());
++		return -3;
++	}
++	#endif
+ 
+ 	*devOut = dev;
+ 	return 0;
