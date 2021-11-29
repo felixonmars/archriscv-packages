@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index de0b178..7bc4a61 100644
+index 504f869..d1bced8 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -12,7 +12,7 @@ url="https://www.mozilla.org/firefox/"
@@ -11,31 +11,32 @@ index de0b178..7bc4a61 100644
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
              'pulseaudio: Audio support'
-@@ -22,10 +22,14 @@ optdepends=('networkmanager: Location detection via available WiFi networks'
- options=(!emptydirs !makeflags !strip)
+@@ -23,11 +23,15 @@ options=(!emptydirs !makeflags !strip)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
          0001-Use-remoting-name-for-GDK-application-names.patch
+         0002-Bug-1735905-Upgrade-cubeb-pulse-to-fix-a-race-condit.patch
 +        cc-crate-riscv64-clang-support.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch
          $pkgname.desktop identity-icons-brand.svg)
- sha256sums=('b7bb8c5fcc74a74e9d2b55d1e9415b891305fe86520fb854cec25024d7e5de67'
+ sha256sums=('899ba1c806549034793d7e8ca53f4c845d783c810338f314f3d653d39649e575'
              'SKIP'
              '51cca2cab0fa9798f96b81ed24c238b2a7c98524f589ec500224bac9797b66fb'
+             '744d3956ba60c63fed81903700a4cf66c13d2898944e4e86ac0d3b1e3f222fff'
 +            'b02ecd2476832a243426ac6d69803d8b15c8509da3e442a3f0c08b17e49f4e8a'
 +            '77998092242d0cc277f6df1e47f844b96d78d1440e485b2b552d18c9de5e54fa'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -48,6 +52,8 @@ prepare() {
- 
-   # https://bugzilla.mozilla.org/show_bug.cgi?id=1530052
-   patch -Np1 -i ../0001-Use-remoting-name-for-GDK-application-names.patch
+@@ -54,6 +58,8 @@ prepare() {
+   # https://bugzilla.opensuse.org/show_bug.cgi?id=1192067
+   # https://bugzilla.mozilla.org/show_bug.cgi?id=1735905
+   patch -Np1 -i ../0002-Bug-1735905-Upgrade-cubeb-pulse-to-fix-a-race-condit.patch
 +  patch -Np1 -i ../cc-crate-riscv64-clang-support.patch
 +  patch -Np1 -i ../makotokato-riscv64-support-and-zenithal-backported.patch
  
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
-@@ -57,13 +63,20 @@ ac_add_options --enable-application=browser
+@@ -63,13 +69,20 @@ ac_add_options --enable-application=browser
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -60,7 +61,7 @@ index de0b178..7bc4a61 100644
  
  # Branding
  ac_add_options --enable-official-branding
-@@ -71,7 +84,8 @@ ac_add_options --enable-update-channel=release
+@@ -77,7 +90,8 @@ ac_add_options --enable-update-channel=release
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -70,7 +71,7 @@ index de0b178..7bc4a61 100644
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -86,7 +100,7 @@ ac_add_options --with-system-nss
+@@ -92,7 +106,7 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -79,7 +80,7 @@ index de0b178..7bc4a61 100644
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -104,39 +118,41 @@ build() {
+@@ -110,39 +124,41 @@ build() {
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -152,7 +153,7 @@ index de0b178..7bc4a61 100644
  }
  
  package() {
-@@ -204,12 +220,12 @@ END
+@@ -210,12 +226,12 @@ END
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
