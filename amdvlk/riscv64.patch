@@ -1,0 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index 95b9cc91..19269311 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,8 +11,10 @@ license=('MIT')
+ provides=('vulkan-driver')
+ makedepends=('perl-xml-xpath' 'python' 'wayland' 'libxrandr' 'xorg-server-devel' 'cmake' 'ninja' 'git')
+ makedepends+=('python2') # spvgen
+-source=("https://github.com/GPUOpen-Drivers/AMDVLK/archive/v-${pkgver}.tar.gz")
+-sha256sums=('5d6a83f835a5feb4e1d230115bd5a3303d8905ea2f4ba1d6b0735b2130a6b38f')
++source=("https://github.com/GPUOpen-Drivers/AMDVLK/archive/v-${pkgver}.tar.gz"
++        "add_riscv_support.patch")
++sha256sums=('5d6a83f835a5feb4e1d230115bd5a3303d8905ea2f4ba1d6b0735b2130a6b38f'
++            '6b57cd0d2edbcc91f84655dd707341b0bb63cc627cff30f2622f827b323d23d9')
+             
+ prepare() {
+   local nrepos path name revision
+@@ -30,6 +32,8 @@ prepare() {
+       popd
+     (( nrepos-- ))
+   done
++  cd "${srcdir}/pal"
++  patch -Np1 -i "../add_riscv_support.patch"
+ }
+ 
+ build() {
