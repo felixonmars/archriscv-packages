@@ -1,0 +1,220 @@
+# Maintainer: Levente Polyak <anthraxx[at]archlinux[dot]org>
+# Maintainer: Guillaume ALAUX <guillaume@archlinux.org>
+
+# TODO add test, see about packaging jtreg and using it here
+# TODO see about building with OpenJDK10
+# TODO add javazi
+# TODO when IcedTea provides it, package icedtea-web and add it as optdepends
+# TODO package OpenJFX for OpenJDK10 and add it as optdepends
+
+## EXPLORATIONS
+# TODO extract a jmods package from jdk10-openjdk?
+# TODO extract a jdk-headless package?
+
+pkgbase=java11-openjdk-bootstrap
+pkgname=('jre11-openjdk-bootstrap-headless' 'jdk11-openjdk-bootstrap')
+_majorver=11
+_minorver=0
+_securityver=13
+_updatever=8
+pkgrel=1
+pkgver=${_majorver}.${_minorver}.${_securityver}.u${_updatever}
+_git_tag=jdk-${_majorver}.${_minorver}.${_securityver}+${_updatever}
+arch=('any')
+url='https://openjdk.java.net/'
+license=('custom')
+makedepends=('java-environment>=10' 'java-environment<12' 'cpio' 'unzip' 'zip' 'libelf'
+             'libnet' 'bash' 'glibc' 'gcc-libs'
+             riscv64-linux-gnu-{binutils,gcc,glibc,linux-api-headers})
+_extra_riscv64_packages=(
+  libcups-1:2.3.3op2-3-riscv64
+  fontconfig-2:2.13.94-1-riscv64
+  freetype2-2.11.0-4-riscv64
+  alsa-lib-1.2.5.1-3-riscv64
+  libx11-1.7.2-1-riscv64
+  libxext-1.3.4-3-riscv64
+  libxtst-1.2.3-4-riscv64
+  libxi-1.8-1-riscv64
+  libxt-1.2.1-1-riscv64
+  libxrandr-1.5.2-3-riscv64
+  xorgproto-2021.5-1-any
+  libxrender-0.9.10-4-riscv64
+)
+source=(https://github.com/openjdk/jdk${_majorver}u/archive/${_git_tag}.tar.gz
+        java11-riscv64.patch
+        https://archriscv.felixc.at/images/archriscv-20210601.tar.zst)
+sha256sums=('119c6233fe7ff5670c590e2f9d6686ac4d80c97b17065506998b75c547b54f2c'
+            '3963927fee540f90a4bd7d2ae5492ccc93a58b5b597f3ed09cd61f0b971865e9'
+            '15ff323f2cd3650091579c40fa01313e84ae3f38a0f55f1a231e9de4a532ef31'
+            '9a620a7a454e6410b20ddf333cd7dbbd96432e5dbd74d9b8406ff6ea8e1efe14'
+            '43287f1031cbeb29f149c58228cdd08c59d67436d39cc38b7e629f376a347d6d'
+            '7005423b83069524e7ad1dc76c9752455e7215dc17e28f65e2745aa3312b1f2f'
+            'a6f549ee8413dcbe746c1eef32ab14ac3b2fc2e772010ac7b83c411571dd1c5d'
+            '6ea5abc537228f62348e5ca605e7ac0b1e0bb11092b669e0def2c52702e3185d'
+            'ddc9ada292162b0bf84ed0b7d16285f1e20f15ebe778ece9b3adb37e1daa86bb'
+            '40cc922a9673599ab5e6cdbde654fabeeaadeea44858d355c86ab601b999c463'
+            '0d48a19e57737d82a9f065d0561f3d060e13ac1aa7bfd04e77b925c11fb7ee22'
+            'a0b672fb0d6f4bf76ac6e3371aa1f88ac20f80da869d2aea4781444c9d2a071b'
+            '96773f99ff958b31257333f5bd930135ade0ecd3d1d37385e9804fa4f0cb1d52'
+            '62a859841ea0c011420a88adf2af966aa1d91ead59d4f232bb4fa3b45407bbdb'
+            'f81be88aa6c29e38136dd3aa23e8c30028fc6b99be9a5b942ec2375cb23c5e1a')
+options=(!strip)
+noextract=(
+    archriscv-20210601.tar.zst
+)
+
+for pkg in "${_extra_riscv64_packages[@]}"; do
+  source+=("https://archriscv.felixc.at/repo/extra/${pkg}.pkg.tar.zst")
+  noextract+=("${pkg}.pkg.tar.zst")
+done
+
+_JARCH=riscv64
+
+_jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk-bootstrap
+_jdkdir=jdk${_majorver}u-${_git_tag//+/-}
+_imgdir=${_jdkdir}/build/linux-${_JARCH}-normal-server-release/images
+
+prepare() {
+  mkdir -p "$srcdir/crossbin"
+  cd "$srcdir/crossbin"
+
+  for file in /usr/bin/riscv64-linux-gnu-*; do
+    base=$(basename "$file")
+    ln -sf $file "${base/riscv64/riscv64-unknown}"
+  done
+
+  mkdir -p "$srcdir/sysroot"
+  for f in "${noextract[@]}"
+  do
+    bsdtar -xf "$srcdir/$f" -C "$srcdir/sysroot"
+  done
+
+  cd "$srcdir/$_jdkdir"
+  patch -Np1 -i ../java11-riscv64.patch
+}
+
+build() {
+  cd ${_jdkdir}
+
+  NUM_PROC_OPT=''
+  MAKEFLAG_J=$(echo ${MAKEFLAGS} | sed -En 's/.*-j([0-9]+).*/\1/p')
+  if [ -n "${MAKEFLAG_J}" ]; then
+    # http://hg.openjdk.java.net/jdk10/jdk10/file/85e6cb013b98/make/InitSupport.gmk#l105
+    echo "Removing '-j${MAKEFLAG_J}' from MAKEFLAGS to prevent build fail. Passing it directly to ./configure."
+    export MAKEFLAGS=${MAKEFLAGS/-j${MAKEFLAG_J}/}
+    NUM_PROC_OPT="--with-num-cores=${MAKEFLAG_J}"
+  fi
+
+  # ignore host *FLAGS
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+
+  export PATH="$srcdir/crossbin:$PATH"
+
+  bash configure \
+    --with-version-build="${_updatever}" \
+    --with-version-pre="" \
+    --with-version-opt="" \
+    --with-stdc++lib=dynamic \
+    --with-jvm-features=zgc \
+    --enable-unlimited-crypto \
+    --enable-headless-only \
+    --openjdk-target='riscv64-unknown-linux-gnu' \
+    --with-sysroot="$srcdir/sysroot" \
+    --disable-warnings-as-errors \
+    ${NUM_PROC_OPT}
+    #--disable-javac-server
+
+  make images legacy-jre-image docs
+
+  # https://bugs.openjdk.java.net/browse/JDK-8173610
+  find "../${_imgdir}" -iname '*.so' -exec chmod +x {} \;
+}
+
+check() {
+  cd ${_jdkdir}
+  # TODO package jtreg
+  # make -k check
+}
+
+package_jre11-openjdk-bootstrap-headless() {
+  pkgdesc="OpenJDK Java ${_majorver} headless runtime environment"
+  depends=('java-runtime-common>=3' 'ca-certificates-utils' 'nss' 'libnet' 'freetype2' 'libfreetype.so' 'glibc' 'gcc-libs')
+  provides=("java-runtime-headless=${_majorver}" "java-runtime-headless-openjdk=${_majorver}" "jre${_majorver}-openjdk-headless=${pkgver}-${pkgrel}")
+  backup=(etc/${pkgbase}/logging.properties
+          etc/${pkgbase}/management/jmxremote.access
+          etc/${pkgbase}/management/jmxremote.password.template
+          etc/${pkgbase}/management/management.properties
+          etc/${pkgbase}/net.properties
+          etc/${pkgbase}/security/java.policy
+          etc/${pkgbase}/security/java.security
+          etc/${pkgbase}/security/policy/README.txt
+          etc/${pkgbase}/security/policy/limited/default_US_export.policy
+          etc/${pkgbase}/security/policy/limited/default_local.policy
+          etc/${pkgbase}/security/policy/limited/exempt_local.policy
+          etc/${pkgbase}/security/policy/unlimited/default_US_export.policy
+          etc/${pkgbase}/security/policy/unlimited/default_local.policy
+          etc/${pkgbase}/sound.properties)
+  install=install_jre-openjdk-headless.sh
+
+  cd ${_imgdir}/jre
+
+  install -dm 755 "${pkgdir}${_jvmdir}"
+
+  cp -a bin lib \
+    "${pkgdir}${_jvmdir}"
+
+  cp ../jdk/release "${pkgdir}${_jvmdir}"
+  cp ../jdk/lib/modules "${pkgdir}${_jvmdir}/lib"
+
+  # Conf
+  install -dm 755 "${pkgdir}/etc"
+  cp -r conf "${pkgdir}/etc/${pkgbase}"
+  ln -s /etc/${pkgbase} "${pkgdir}/${_jvmdir}/conf"
+
+  # Legal
+  install -dm 755 "${pkgdir}/usr/share/licenses"
+  cp -r legal "${pkgdir}/usr/share/licenses/${pkgbase}"
+  ln -s ${pkgbase} "${pkgdir}/usr/share/licenses/${pkgname}"
+  ln -s /usr/share/licenses/${pkgbase} "${pkgdir}/${_jvmdir}/legal"
+
+  # Link JKS keystore from ca-certificates-utils
+  rm -f "${pkgdir}${_jvmdir}/lib/security/cacerts"
+  ln -sf /etc/ssl/certs/java/cacerts "${pkgdir}${_jvmdir}/lib/security/cacerts"
+}
+
+package_jdk11-openjdk-bootstrap() {
+  pkgdesc="OpenJDK Java ${_majorver} development kit"
+  depends=("jre${_majorver}-openjdk-headless=${pkgver}-${pkgrel}" 'java-environment-common=3' 'libelf' 'glibc' 'gcc-libs')
+  provides=("java-environment=${_majorver}" "java-environment-openjdk=${_majorver}" "jdk${_majorver}-openjdk=${pkgver}-${pkgrel}")
+  install=install_jdk-openjdk.sh
+
+  cd ${_imgdir}/jdk
+
+  install -dm 755 "${pkgdir}${_jvmdir}"
+
+  cp -a bin demo include jmods lib \
+    "${pkgdir}${_jvmdir}"
+
+  rm "${pkgdir}${_jvmdir}/lib/src.zip"
+
+  # Remove files held by JRE
+  pushd ../jre
+  for d in bin lib; do
+    find ${d} ! -type d -exec rm "${pkgdir}${_jvmdir}/{}" \;
+  done
+  popd
+  find "${pkgdir}${_jvmdir}/lib" -type d -empty -delete
+
+  # Conf files all belong to JRE
+
+  # Legal
+  install -dm 755 "${pkgdir}/usr/share/licenses"
+  cp -r legal "${pkgdir}/usr/share/licenses/${pkgbase}"
+  pushd ../jre/legal
+  find . ! -type d -exec rm "${pkgdir}/usr/share/licenses/${pkgbase}/{}" \;
+  popd
+  find "${pkgdir}/usr/share/licenses" -type d -empty -delete
+  ln -s ${pkgbase} "${pkgdir}/usr/share/licenses/${pkgname}"
+}
