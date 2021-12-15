@@ -1,28 +1,12 @@
 diff --git PKGBUILD PKGBUILD
-index 4e8e7861..a1d986b8 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,7 +38,8 @@ source=("git+https://gitlab.com/gitlab-org/gitlab-runner.git#tag=${_commit}"
-         "gitlab-runner.service"
-         "gitlab-runner.sysusers"
-         "gitlab-runner.tmpfiles"
--        "config.toml")
-+        "config.toml"
-+        "update_go_mod.patch")
- sha512sums=('SKIP'
-             '392ab768f8cb3520ccce51260642bdd706dc04d419b83c5aca9c0af235194338a2d4e238db72b320a3c50ae8dcec14afe7ccfd644f8fa75827aa9f5316effe03'
-             '1e485e81673b8d2a4dd39e884adef3b32894953e94cb1759b0e58b760e3605cfa2e50c482dd5f49f1dba9c72f1c4fce7b5998722c78b68c67b4ff1f251b28403'
-@@ -53,10 +54,12 @@ sha512sums=('SKIP'
-             'c0af374b9986895aedcfaee6c67cfad68f0f7289f87e4611358adaff59a2f349f55764fe28b2b1f61f8bfeb61126d4f90d433c626fdf9b826a2de6217f86574f'
-             '8aa7f08702e99053c696fcc2aaba83beb9e9cd6f31973d82862db9350ac46df3a095377625d31fe909677525290d2de922d7a97930ed235774cb8f0da8944d40'
-             '6751d9fa0b27172d1b419c4138f5ac15cbc7c9147653a7258cf1470216142c637210bb60608c7ed0974e0e4057e5ddeae32225df1bb36e7dd1f20fec71e33cc3'
--            '9718b94bd0ddb09095ffb8c1e60ca1e9649dabb1747e7fc95e58e404b2f9effdeb4cfd759f5b904443dc53a4e18c02003c38f85584713deb49f6a6d1007503de')
-+            '9718b94bd0ddb09095ffb8c1e60ca1e9649dabb1747e7fc95e58e404b2f9effdeb4cfd759f5b904443dc53a4e18c02003c38f85584713deb49f6a6d1007503de'
-+            '51eecf60f299c612b82ec1f413b7431dc2ed819342a5e87025272015c67deba7d256ffff5be935f81069c0ff0df5ae485416e7d2702521db035230400106c53a')
- 
- prepare() {
+@@ -84,6 +84,8 @@
+   export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
+
    cd gitlab-runner
-+  patch -Np1 -i "../update_go_mod.patch"
- 
-   local version=$(make version | grep "Current version:" | sed -n "s/.*: \(.*\)/\1/p")
-   local revision=$(make version | grep "Current revision:" | sed -n "s/.*: \(.*\)/\1/p")
++  go mod edit -replace=github.com/kr/pty=github.com/creack/pty@v1.1.17
++  go mod tidy
+   go build -o gitlab-runner .
+ }
+
