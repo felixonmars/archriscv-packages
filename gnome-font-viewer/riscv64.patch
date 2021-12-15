@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index eb369708..572b1b70 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,14 +11,21 @@ depends=(gtk3 gnome-desktop libhandy)
+ makedepends=(git meson)
+ groups=(gnome)
+ _commit=6723c64b9aef44b6c6e36e6a1c66f3d587e649ce  # tags/41.0^0
+-source=("git+https://gitlab.gnome.org/GNOME/gnome-font-viewer.git#commit=$_commit")
+-sha256sums=('SKIP')
++source=("git+https://gitlab.gnome.org/GNOME/gnome-font-viewer.git#commit=$_commit"
++        "fix_positional_args.patch")
++sha256sums=('SKIP'
++            '9bc2f205f7b5809c4bd533510ca2c72249b5b2c38bd752bb75bb600878133ab4')
+ 
+ pkgver() {
+   cd $pkgname
+   git describe --tags | sed 's/-/+/g'
+ }
+ 
++prepare() {
++  cd $pkgname
++  patch -Np1 -i ../fix_positional_args.patch
++}
++
+ build() {
+   arch-meson $pkgname build
+   meson compile -C build
