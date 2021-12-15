@@ -1,0 +1,30 @@
+diff --git a/code/AssetLib/MDL/MDLMaterialLoader.cpp b/code/AssetLib/MDL/MDLMaterialLoader.cpp
+index 6232081..42e7033 100644
+--- a/code/AssetLib/MDL/MDLMaterialLoader.cpp
++++ b/code/AssetLib/MDL/MDLMaterialLoader.cpp
+@@ -692,17 +692,19 @@ void MDLImporter::SkipSkinLump_3DGS_MDL7(
+             // return the size of the color data in bytes in iSkip
+             unsigned int iSkip = 0;
+ 
+-            aiTexture tex;
+-            tex.pcData = bad_texel;
+-            tex.mHeight = iHeight;
+-            tex.mWidth = iWidth;
+-            ParseTextureColorData(szCurrent, iMasked, &iSkip, &tex);
++            aiTexture *tex = new aiTexture();
++            tex->pcData = bad_texel;
++            tex->mHeight = iHeight;
++            tex->mWidth = iWidth;
++            ParseTextureColorData(szCurrent, iMasked, &iSkip, tex);
+ 
+             // FIX: Important, otherwise the destructor will crash
+-            tex.pcData = nullptr;
++            tex->pcData = nullptr;
+ 
+             // skip length of texture data
+             szCurrent += iSkip;
++
++            delete tex;
+         }
+     }
+ 
