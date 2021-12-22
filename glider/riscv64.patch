@@ -1,26 +1,19 @@
 diff --git PKGBUILD PKGBUILD
-index abcb7b0..b1517fa 100644
+index 3538322e..dce7ccd1 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -10,8 +10,19 @@ url="https://github.com/nadoo/glider"
- license=('GPL')
- depends=('glibc')
- makedepends=('go' 'git')
--source=("$pkgname-$pkgver.tar.gz::https://github.com/nadoo/glider/archive/v$pkgver.tar.gz")
--sha512sums=('e0df5db2b92e35bf3b676327ef531c0471773b45e9c57820fe68dc3c28a8b6868d8dd84cb1c3e4052650587e616a600dc9dcdcc363bc9fb83426741ea9db3e33')
-+source=("$pkgname-$pkgver.tar.gz::https://github.com/nadoo/glider/archive/v$pkgver.tar.gz"
-+        "update_go_vendor.patch"
-+        "fix_no_init.patch")
-+sha512sums=('e0df5db2b92e35bf3b676327ef531c0471773b45e9c57820fe68dc3c28a8b6868d8dd84cb1c3e4052650587e616a600dc9dcdcc363bc9fb83426741ea9db3e33'
-+            'd53d8c7b881cc9482fb047748102911ecb9c3d9117d3fda4f18ad0fef6498f4cf826099e9bd8304dbf8ad9481a7d4037101aef7c8144f96d21574ebddb9f45a3'
-+            '748822529a27a198dfc8cf159c8548a567f14a904e17e43151e549014334befe69889ae8058e6cb90ca3888add338145e30657aa5d80899330a98f80df6a2708')
-+
+@@ -13,6 +13,14 @@ makedepends=('go' 'git')
+ source=("$pkgname-$pkgver.tar.gz::https://github.com/nadoo/glider/archive/v$pkgver.tar.gz")
+ sha512sums=('7d54a52ffa6f0b7fa05d0188f475e67dd264cd545aca14252d134c2c1843310286a896b634534ae6534d37bbd07f74342390241a8e1cdaefaa086485bc453d03')
+ 
 +prepare() {
 +  cd glider-$pkgver
-+  patch -Np1 -i "../update_go_vendor.patch"
-+  go mod vendor
-+  patch -Np1 -i "../fix_no_init.patch"
++
++  # Unreleased changes including fixes for riscv64
++  go mod edit -replace github.com/templexxx/cpu=github.com/templexxx/cpu@98168dcec14af3f8700bf309afe503bfe936e9f2
++  go mod tidy
 +}
- 
++
  build() {
    cd glider-$pkgver
+   export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external"
