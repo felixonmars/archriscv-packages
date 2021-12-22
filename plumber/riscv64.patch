@@ -1,0 +1,34 @@
+diff --git PKGBUILD PKGBUILD
+index ce2cb88e2..e4e44770c 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,9 +9,17 @@ url="https://github.com/batchcorp/plumber"
+ license=('Apache')
+ depends=('glibc')
+ makedepends=('go' 'git')
+-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/batchcorp/${pkgname}/archive/v${pkgver}.tar.gz")
+-sha512sums=('da32454205e8d54813e28525157791b68bb06801f078b1dd189a9b47a2a4708585f9d84316d93f22a8978939a3495e025c22c06c4482a5d72a44e9cca47fc2a3')
+-b2sums=('e331b433efa6a54a81f6d8166e1ccca8e68cb3bd18849492313c72fd4d71bce497f485f3bf3dfa916f218a45193ca6c11d851dbf2d68ada1db881ae5ce365dbd')
++source=("${pkgname}-${pkgver}.tar.gz::https://github.com/batchcorp/${pkgname}/archive/v${pkgver}.tar.gz"
++        "add_riscv_support.patch")
++sha512sums=('da32454205e8d54813e28525157791b68bb06801f078b1dd189a9b47a2a4708585f9d84316d93f22a8978939a3495e025c22c06c4482a5d72a44e9cca47fc2a3'
++            '4fe7a94c6e5740cf5073129a478c8f2d9d1a6be948defb5354affa1fe53bf56629f97e5a73c2bfc78f102bf19402bb3c426f41c58ba41635a003177a784f4854')
++b2sums=('e331b433efa6a54a81f6d8166e1ccca8e68cb3bd18849492313c72fd4d71bce497f485f3bf3dfa916f218a45193ca6c11d851dbf2d68ada1db881ae5ce365dbd'
++        '7bef1dd55c324dbfd62407822b529f2b17309c6ef6d97624fb9a6e72a5e0b481965f0c3aecbcf913b63ce584fea83eeea06665b466cbb84544de1a5c5940fca2')
++
++prepare() {
++  cd "${pkgname}-${pkgver}"
++  patch -Np1 -i "../add_riscv_support.patch"
++}
+ 
+ build(){
+   cd "${pkgname}-${pkgver}"
+@@ -19,7 +27,7 @@ build(){
+   export CGO_CFLAGS="${CFLAGS}"
+   export CGO_CXXFLAGS="${CXXFLAGS}"
+   export CGO_LDFLAGS="${LDFLAGS}"
+-  export GOFLAGS="-buildmode=pie -ldflags=-linkmode=external -trimpath -mod=readonly -modcacherw"
++  export GOFLAGS="-buildmode=pie -ldflags=-linkmode=external -trimpath -mod=vendor -modcacherw"
+   go build -o plumber-bin .
+ }
+ 
