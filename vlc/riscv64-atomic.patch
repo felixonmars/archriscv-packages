@@ -1,0 +1,52 @@
+From 50b642992007df0d7b617a168b80898850385a04 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?R=C3=A9mi=20Denis-Courmont?= <remi@remlab.net>
+Date: Sat, 16 Jun 2018 21:31:45 +0300
+Subject: [PATCH] configure: fix linking on RISC-V ISA
+
+---
+ configure.ac | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configure.ac b/configure.ac
+index 47e85debe0..3f1d13d208 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -102,6 +102,7 @@ case "${host_os}" in
+     ;;
+   linux*)
+     SYS=linux
++    test "${host_cpu}" = "riscv64" && CFLAGS="${CFLAGS} -pthread"
+     ;;
+   bsdi*)
+     SYS=bsdi
+-- 
+GitLab
+
+From fc8208ec86db8eff4ec666a4c9af1828a9ac5bdf Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?R=C3=A9mi=20Denis-Courmont?= <remi@remlab.net>
+Date: Sun, 17 Jun 2018 12:07:06 +0300
+Subject: [PATCH] configure: always pass -pthread on Linux
+
+This appears to be the official way to get POSIX threads. In practice,
+it pre-defines _REENTRANT to 1 and pulls -lpthread.
+(This works with both GCC and Clang.)
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index c96778e04e..eaa17947b3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -102,7 +102,7 @@ case "${host_os}" in
+     ;;
+   linux*)
+     SYS=linux
+-    test "${host_cpu}" = "riscv64" && CFLAGS="${CFLAGS} -pthread"
++    CFLAGS="${CFLAGS} -pthread"
+     ;;
+   bsdi*)
+     SYS=bsdi
+-- 
+GitLab
+
