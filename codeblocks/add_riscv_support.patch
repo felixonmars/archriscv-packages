@@ -1,0 +1,76 @@
+diff --git a/src/include/mozilla_chardet/nsprpub/pr/include/prcpucfg_linux.h b/src/include/mozilla_chardet/nsprpub/pr/include/prcpucfg_linux.h
+index 2fdbf63..c3e9879 100644
+--- a/src/include/mozilla_chardet/nsprpub/pr/include/prcpucfg_linux.h
++++ b/src/include/mozilla_chardet/nsprpub/pr/include/prcpucfg_linux.h
+@@ -914,6 +914,52 @@
+ #define PR_BYTES_PER_WORD_LOG2   2
+ #define PR_BYTES_PER_DWORD_LOG2  3
+ 
++#elif defined(__riscv) && __riscv_xlen == 64
++
++#define IS_LITTLE_ENDIAN 1
++#undef IS_BIG_ENDIAN
++#define IS_64
++
++#define PR_BYTES_PER_BYTE   1
++#define PR_BYTES_PER_SHORT  2
++#define PR_BYTES_PER_INT    4
++#define PR_BYTES_PER_INT64  8
++#define PR_BYTES_PER_LONG   8
++#define PR_BYTES_PER_FLOAT  4
++#define PR_BYTES_PER_DOUBLE 8
++#define PR_BYTES_PER_WORD   8
++#define PR_BYTES_PER_DWORD  8
++
++#define PR_BITS_PER_BYTE    8
++#define PR_BITS_PER_SHORT   16
++#define PR_BITS_PER_INT     32
++#define PR_BITS_PER_INT64   64
++#define PR_BITS_PER_LONG    64
++#define PR_BITS_PER_FLOAT   32
++#define PR_BITS_PER_DOUBLE  64
++#define PR_BITS_PER_WORD    64
++
++#define PR_BITS_PER_BYTE_LOG2   3
++#define PR_BITS_PER_SHORT_LOG2  4
++#define PR_BITS_PER_INT_LOG2    5
++#define PR_BITS_PER_INT64_LOG2  6
++#define PR_BITS_PER_LONG_LOG2   6
++#define PR_BITS_PER_FLOAT_LOG2  5
++#define PR_BITS_PER_DOUBLE_LOG2 6
++#define PR_BITS_PER_WORD_LOG2   6
++
++#define PR_ALIGN_OF_SHORT   2
++#define PR_ALIGN_OF_INT     4
++#define PR_ALIGN_OF_LONG    8
++#define PR_ALIGN_OF_INT64   8
++#define PR_ALIGN_OF_FLOAT   4
++#define PR_ALIGN_OF_DOUBLE  8
++#define PR_ALIGN_OF_POINTER 8
++#define PR_ALIGN_OF_WORD    8
++
++#define PR_BYTES_PER_WORD_LOG2   3
++#define PR_BYTES_PER_DWORD_LOG2  3
++
+ #else
+ 
+ #error "Unknown CPU architecture"
+diff --git a/src/plugins/contrib/dragscroll/dragscrollcfg.h b/src/plugins/contrib/dragscroll/dragscrollcfg.h
+index 7fc28be..06d7197 100644
+--- a/src/plugins/contrib/dragscroll/dragscrollcfg.h
++++ b/src/plugins/contrib/dragscroll/dragscrollcfg.h
+@@ -35,7 +35,13 @@ class cbDragScrollCfg: public cbConfigurationPanel
+         wxString GetBitmapBaseName() const;
+         void OnApply();
+         void OnCancel(){}
+-        virtual void InitDialog(){ asm("int3");} /*trap*/
++        virtual void InitDialog(){ /*trap*/
++#if defined(__riscv) && __riscv_xlen == 64
++            asm(".4byte 0x00100073");
++#else
++            asm("int3");
++#endif
++        }
+ 
+         // pointer to owner of the configuration diaglog needed to
+         // complete the OnApply/OnCancel EndModal() logic
