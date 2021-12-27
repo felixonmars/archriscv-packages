@@ -1,0 +1,24 @@
+diff --git PKGBUILD.orig PKGBUILD
+index 0538a33..71988e8 100644
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -13,13 +13,17 @@
+ depends=('glibc' 'openssl')
+ makedepends=('git' 'gnu-efi' 'help2man' 'util-linux-libs')
+ source=("git+https://git.kernel.org/pub/scm/linux/kernel/git/jejb/sbsigntools.git#tag=v${pkgver}?signed"
+-        "git+https://git.ozlabs.org/ccan")
++        "git+https://git.ozlabs.org/ccan"
++        "0001-add-support-for-risc-v-64-bit-pe-coff-images.patch")
+ sha256sums=('SKIP'
+-            'SKIP')
++            'SKIP'
++            '094d1cd29147a93877750163b96bece754d9edf7a23b69a8bd7d989dbb8f5be8')
+ validpgpkeys=('D5606E73C8B46271BEAD9ADF814AE47C214854D6') # James Bottomley <jejb@kernel.org>
+ 
+ prepare() {
+   cd ${pkgname}
++  # https://groups.io/g/sbsigntools/message/51
++  patch -p1 -i "${srcdir}/0001-add-support-for-risc-v-64-bit-pe-coff-images.patch"
+   git submodule init
+   git config submodule."lib/ccan.git".url "${srcdir}/ccan"
+   git submodule update
