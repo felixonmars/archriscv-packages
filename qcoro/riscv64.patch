@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 2516b3251..5b55d9a59 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,15 @@ arch=(x86_64)
+ url='https://github.com/danvratil/qcoro'
+ license=(MIT)
+ makedepends=(cmake qt5-base qt6-base)
+-source=(https://github.com/danvratil/qcoro/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
+-sha256sums=('610fcf621de0cf04597e2e308d1d22a7fce2a39eafa2d4827d1ff6c8b0e724c0')
++source=(https://github.com/danvratil/qcoro/archive/v$pkgver/$pkgname-$pkgver.tar.gz
++        "fix_pthread_linking.patch")
++sha256sums=('610fcf621de0cf04597e2e308d1d22a7fce2a39eafa2d4827d1ff6c8b0e724c0'
++            '8cb1f43bb5278deef370a7c4d0f2e14c0cd5952fbb675015d6d46c175dc69e07')
++
++prepare() {
++  cd $pkgbase-$pkgver
++  patch -Np1 -i "../fix_pthread_linking.patch"
++}
+ 
+ build() {
+   cmake -B build5 -S $pkgbase-$pkgver \
