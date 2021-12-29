@@ -1,0 +1,46 @@
+diff --git PKGBUILD PKGBUILD
+index a6596b838..572da75d6 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,14 +17,20 @@ source=("git+$url.git#tag=$pkgver"
+         'git+https://github.com/sqmedeiros/lpeglabel.git'
+         'git+https://github.com/actboy168/luamake.git'
+         'git+https://github.com/electron/rcedit.git'
+-        'wrapper')
++        'wrapper'
++        'add_riscv_support.patch'
++        'fix_pthread_linking.patch'
++        'fix_luamake_pthread_linking.patch')
+ b2sums=('SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+         'SKIP'
+-        '0e7bac7ff59c86dc9d6124a139773586846d6224b7b6c7941e1b6672c4c387746bc3d3fb85a62225e4f1740774273648109783281686a957b650838f7f1e10cd')
++        '0e7bac7ff59c86dc9d6124a139773586846d6224b7b6c7941e1b6672c4c387746bc3d3fb85a62225e4f1740774273648109783281686a957b650838f7f1e10cd'
++        '90fec304639916f2cee54c0f34ecd59f30bb035ad5ac046032d9cca9349cc3f6ea38369641e7cee629bf734777860053d5976dfeeb8be21d876f59fdc94f64dd'
++        'd79831ae242c16a69222f49a5ad36cfe24f211ee3bc465ea820e68a56cfe0a07f64e00b44f4456294134fa85c1f3bf39532c183afa3c033f6b78dd5ecea392ed'
++        '1766b4472813bd8c62cdc9cf8929237fb1d10e7415b2f2a81ed4c76385083fbd7791a118b163f10b00de6f9e664b4f8975faa98ef17a76af9822886c0cbd6443')
+ 
+ prepare() {
+   cd $pkgname
+@@ -33,10 +39,18 @@ prepare() {
+     git config submodule.3rd/${i##../}.url $i
+   done
+   git submodule update
++  patch -Np1 -i "${srcdir}/fix_pthread_linking.patch"
++  cd "3rd/bee.lua"
++  patch -Np1 -i "${srcdir}/add_riscv_support.patch"
++  cd -
+   cd 3rd/luamake
+   git submodule init
+   git config submodule.3rd/bee.lua.url ../../../bee.lua
+   git submodule update
++  patch -Np1 -i "${srcdir}/fix_luamake_pthread_linking.patch"
++  cd "3rd/bee.lua"
++  patch -Np1 -i "${srcdir}/add_riscv_support.patch"
++  cd -
+ }
+ 
+ build() {
