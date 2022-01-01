@@ -1,0 +1,41 @@
+diff --git PKGBUILD.orig PKGBUILD
+index fd94ba0..80e406c 100644
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -9,18 +9,33 @@
+ url='https://github.com/fwupd/fwupd'
+ license=('LGPL')
+ makedepends=('meson' 'gnu-efi')
+-source=("https://people.freedesktop.org/~hughsient/releases/${pkgname}-${pkgver}.tar.xz"{,.asc})
++source=("https://people.freedesktop.org/~hughsient/releases/${pkgname}-${pkgver}.tar.xz"{,.asc}
++        "add-support-for-riscv64.patch::https://raw.githubusercontent.com/GNOME/gnome-build-meta/37bc8931517261e359e02b2b14bffab0501e79d9/files/fwupd/riscv64.patch"
++        "crt0-efi-riscv64.S::https://sourceforge.net/p/gnu-efi/code/ci/3.0.14/tree/gnuefi/crt0-efi-riscv64.S?format=raw"
++        "elf_riscv64_efi.lds::https://sourceforge.net/p/gnu-efi/code/ci/3.0.14/tree/gnuefi/elf_riscv64_efi.lds?format=raw")
+ sha256sums=('5c01f1ccaf1d232e91d0947937af7bd9a32b1c020a99707d2f5f694b3b4e07f1'
+-            'SKIP')
++            'SKIP'
++            'd0121480e0502eedced2f2064617c6e3cef984230ff5c222fdd10f451d62fd53'
++            '64c3e96080e1ce2dac80a174426b19d0d28879cbb0a3aae2133bf39a4cf190dc'
++            'f95933e4ac8fe7c30647b809292021133af58e94cc459b488dc733069db739df')
+ validpgpkeys=('163EB50119225DB3DF8F49EA17ACBA8DFA970E17') # Richard Hughes <richard@hughsie.com>
+ 
++prepare() {
++    cd ${pkgname}-${pkgver}
++    # part of https://gitlab.gnome.org/GNOME/gnome-build-meta/-/merge_requests/1112
++    patch -Np1 -i ../add-support-for-riscv64.patch
++    # from gnu-efi source code
++    cp ../crt0-efi-riscv64.S efi/crt0
++    cp ../elf_riscv64_efi.lds efi/lds
++}
++
+ build() {
+   arch-meson ${pkgname}-${pkgver} build  \
+     -D efi_sbat_distro_id='arch' \
+     -D efi_sbat_distro_summary='Arch Linux' \
+     -D efi_sbat_distro_pkgname=${pkgname} \
+     -D efi_sbat_distro_version=${pkgver} \
+-    -D efi_sbat_distro_url="https://archlinux.org/packages/community/x86_64/${pkgname}/"
++    -D efi_sbat_distro_url="https://archlinux.org/packages/community/$CARCH/${pkgname}/"
+   ninja -C build
+ }
+ 
