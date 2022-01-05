@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,6 +12,12 @@ depends=('go')
+ source=("$pkgname-$_commit.tar.gz::https://github.com/alecthomas/template/archive/$_commit.tar.gz")
+ sha512sums=('5ca546170725c3bdd4d9b27ca3976d6dc6376be8db685e6e26cfaef4a51560f78702b7babbe5ed0b2d934d0c32867bc69b11ae757071dc143a4453e6e7ffabdf')
+ 
++prepare() {
++  cd "template-$_commit"
++  go mod init "${url#https://}" # strip https:// from canonical URL
++  go mod tidy
++}
++
+ check() {
+   export GOPATH="$srcdir/build:/usr/share/gocode"
+   mkdir -p "$srcdir"/build/src/github.com/alecthomas
