@@ -10,31 +10,33 @@
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
              'pulseaudio: Audio support'
-@@ -23,10 +22,14 @@ optdepends=('networkmanager: Location detection via available WiFi networks'
- options=(!emptydirs !makeflags !strip)
+@@ -24,11 +23,15 @@ options=(!emptydirs !makeflags !strip)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
          0001-Use-remoting-name-for-GDK-application-names.patch
+         0002-Bug-1745560-Add-missing-stub-for-wl_proxy_marshal_fl.patch
 +        cc-crate-riscv64-clang-support.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch
          $pkgname.desktop identity-icons-brand.svg)
- sha256sums=('7fa3e43f6ec710b2ebba0e99db713a56d13d85f1f23c4a1399bb594fd74864de'
+ sha256sums=('c178cbf61979bd39a8daa9a09c6e03089da37baded692ad1f745ecfcaae74d64'
              'SKIP'
              'a7a5ea4680c0a4c6eb5a5f99970008f5ad3e2f29f0d6d050aa651bce8c713718'
+             '8a893ae44955c90a0fb4a504134773293054ab57a41ba7931df98c8cf5449549'
 +            'd8b37f574262067cd10b0d6971a928b46b7965b7c52d164f3c82c8b482670203'
 +            '266756aef173c4ec9280ad4f5cd66f22193c1af5c866a2432ffc4d7c5529fa50'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -49,6 +52,8 @@ prepare() {
+@@ -55,6 +58,9 @@ prepare() {
+   # Fix build with wayland 1.20
+   patch -Np1 -i ../0002-Bug-1745560-Add-missing-stub-for-wl_proxy_marshal_fl.patch
  
-   # https://bugzilla.mozilla.org/show_bug.cgi?id=1530052
-   patch -Np1 -i ../0001-Use-remoting-name-for-GDK-application-names.patch
 +  patch -Np1 -i ../cc-crate-riscv64-clang-support.patch
 +  patch -Np1 -i ../makotokato-riscv64-support-and-zenithal-backported.patch
- 
++  
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
-@@ -58,14 +63,21 @@ ac_add_options --enable-application=browser
+ 
+@@ -63,14 +69,21 @@ ac_add_options --enable-application=browser
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -61,7 +63,7 @@
  
  # Branding
  ac_add_options --enable-official-branding
-@@ -73,7 +85,8 @@ ac_add_options --enable-update-channel=release
+@@ -78,7 +91,8 @@ ac_add_options --enable-update-channel=release
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -71,7 +73,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -88,7 +101,7 @@ ac_add_options --with-system-nss
+@@ -93,7 +107,7 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -80,7 +82,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -106,39 +119,41 @@ build() {
+@@ -111,39 +125,41 @@ build() {
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -153,7 +155,7 @@
  }
  
  package() {
-@@ -206,12 +221,12 @@ END
+@@ -211,12 +227,12 @@ END
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
