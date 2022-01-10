@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,10 +11,14 @@ license=('custom:icu')
+ depends=('gcc-libs' 'sh')
+ makedepends=('python')
+ provides=(libicu{data,i18n,io,test,tu,uc}.so)
+-source=(https://github.com/unicode-org/icu/releases/download/release-${pkgver//./-}/${pkgname}4c-${pkgver//./_}-src.tgz{,.asc})
++source=(https://github.com/unicode-org/icu/releases/download/release-${pkgver//./-}/${pkgname}4c-${pkgver//./_}-src.tgz{,.asc}
++       fix-TrieTestSet1.patch::https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/1925.patch
++       fix-NumberFormatterApiTest.patch::https://patch-diff.githubusercontent.com/raw/unicode-org/icu/pull/1946.patch)
+ # https://github.com/unicode-org/icu/releases/download/release-70-1/SHASUM512.txt
+ sha512sums=('0b26ae7207155cb65a8fdb25f7b2fa4431e74b12bccbed0884a17feaae3c96833d12451064dd152197fd6ea5fd3adfd95594284a463e66c82e0d860f645880c9'
+-            'SKIP')
++            'SKIP'
++            '69728c4809c75c7eecb081bdb8d8d51c7dbcbda53a81e08290472a9d861fb43bb816cd12753ae5338d97a895148b71d27dfd34574f5c956641860d9ccb89ed13'
++            'b5c07ec6d1add01fad8f30c6dd63199aa69b8535b20110acaae80500684e7f165b8970d276c3cba854dc1fc55581008fec1d58e49910d855b7014f22088f41bf')
+ #validpgpkeys=('BA90283A60D67BA0DD910A893932080F4FB419E3') #  "Steven R. Loomis (filfla-signing) <srloomis@us.ibm.com>" 
+ #validpgpkeys+=('9731166CD8E23A83BEE7C6D3ACA5DBE1FD8FABF1') #  "Steven R. Loomis (ICU Project) <srl@icu-project.org>" 
+ #validpgpkeys+=('FFA9129A180D765B7A5BEA1C9B432B27D1BA20D7') # "Fredrik Roubert <fredrik@roubert.name>"
+@@ -22,6 +26,12 @@ sha512sums=('0b26ae7207155cb65a8fdb25f7b2fa4431e74b12bccbed0884a17feaae3c96833d1
+ #validpgpkeys+=('4569BBC09DA846FC91CBD21CE1BBA44593CF2AE0') # "Steven R. Loomis (codesign-qormi) <srloomis@us.ibm.com>"
+ validpgpkeys=('0E51E7F06EF719FBD072782A5F56E5AFA63CCD33') #"Craig Cornelius (For use with ICU releases) <ccornelius@google.com>"
+ 
++prepare() {
++  cd icu
++  patch -Np2 < ../fix-TrieTestSet1.patch # https://unicode-org.atlassian.net/browse/ICU-21793
++  patch -Np2 < ../fix-NumberFormatterApiTest.patch # https://unicode-org.atlassian.net/browse/ICU-21613
++}
++
+ build() {
+   cd icu/source
+   ./configure --prefix=/usr \
