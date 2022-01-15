@@ -16,11 +16,11 @@ Fixes #19119.
  3 files changed, 34 insertions(+)
 
 diff --git a/configure.ac b/configure.ac
-index e0423add87..e0bf1dcc14 100644
+index 20911ae43f..69e67fa223 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -1225,6 +1225,32 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM(
-     AC_MSG_RESULT(no)
+@@ -1286,6 +1286,32 @@ AC_LINK_IFELSE([
+   AC_MSG_RESULT(no)
  )
  
 +AC_MSG_CHECKING(whether -latomic is needed for sub-word-sized atomic operations)
@@ -31,7 +31,7 @@ index e0423add87..e0bf1dcc14 100644
 +        need_latomic=0
 +    ],
 +    [
-+        _save_LIBS=$LIBS
++        _save_LIBS="$LIBS"
 +        LIBS="-latomic"
 +        AC_LINK_IFELSE([AC_LANG_PROGRAM([[unsigned char a;]], [[__atomic_fetch_or(&a, 1, __ATOMIC_RELAXED);]])],
 +            [
@@ -44,7 +44,7 @@ index e0423add87..e0bf1dcc14 100644
 +                AC_MSG_ERROR([sub-word-sized atomic operations not available.])
 +                need_latomic=0
 +            ])
-+        LIBS=$_save_LIBS
++        LIBS="$_save_LIBS"
 +    ])
 +AC_DEFINE_UNQUOTED([NEED_ATOMIC_LIB], [$need_latomic],
 +    [Define to 1 if we need -latomic for sub-word atomic operations.])
@@ -53,7 +53,7 @@ index e0423add87..e0bf1dcc14 100644
  AC_CHECK_HEADERS([sys/eventfd.h])
  AC_CHECK_FUNCS([eventfd])
 diff --git a/rts/package.conf.in b/rts/package.conf.in
-index 718fa1b203..4c8cccd14c 100644
+index 5e0af88fb6..b2d9120184 100644
 --- a/rts/package.conf.in
 +++ b/rts/package.conf.in
 @@ -63,6 +63,9 @@ extra-libraries:
@@ -67,10 +67,10 @@ index 718fa1b203..4c8cccd14c 100644
  #if defined(INSTALLING)
  include-dirs:           INCLUDE_DIR FFI_INCLUDE_DIR
 diff --git a/rts/rts.cabal.in b/rts/rts.cabal.in
-index 93dd6743a9..17a215c4a2 100644
+index 90325dc689..5bebb4718f 100644
 --- a/rts/rts.cabal.in
 +++ b/rts/rts.cabal.in
-@@ -18,6 +18,8 @@ flag libbfd
+@@ -20,6 +20,8 @@ flag libbfd
    default: @CabalHaveLibbfd@
  flag mingwex
    default: @CabalMingwex@
@@ -79,7 +79,7 @@ index 93dd6743a9..17a215c4a2 100644
  flag libdw
    default: @CabalHaveLibdw@
  flag libnuma
-@@ -120,6 +122,9 @@ library
+@@ -126,6 +128,9 @@ library
      if flag(need-pthread)
         -- for pthread_getthreadid_np, pthread_create, ...
         extra-libraries: pthread
@@ -90,5 +90,5 @@ index 93dd6743a9..17a215c4a2 100644
         -- for debugging
         extra-libraries: bfd iberty
 -- 
-2.33.1
+2.34.1
 

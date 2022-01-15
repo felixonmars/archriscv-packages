@@ -7,7 +7,6 @@ This enables a registerised build for the riscv64 architecture.
 
 (cherry picked from commit 31e265c1df948d1bcc82d08affe995fd1d1c1438)
 ---
- aclocal.m4                                    |   5 +-
  compiler/GHC/CmmToAsm.hs                      |   1 +
  .../GHC/CmmToAsm/Reg/Graph/TrivColorable.hs   |   3 +
  compiler/GHC/CmmToAsm/Reg/Linear.hs           |   1 +
@@ -25,31 +24,14 @@ This enables a registerised build for the riscv64 architecture.
  includes/stg/SMP.h                            |   6 +
  libraries/ghc-boot/GHC/Platform.hs            |   2 +
  llvm-targets                                  |   2 +
+ m4/fptools.m4                                 |   5 +-
  mk/config.mk.in                               |   2 +-
  rts/StgCRunAsm.S                              | 144 ++++++++++++++++++
- rts/ghc.mk                                    |   2 +-
  rts/linker/Elf.c                              |   6 +
- rts/rts.cabal.in                              |   2 +-
  utils/llvm-targets/gen-data-layout.sh         |   3 +
- 24 files changed, 343 insertions(+), 9 deletions(-)
+ 22 files changed, 341 insertions(+), 7 deletions(-)
  create mode 100644 compiler/GHC/Platform/RISCV64.hs
 
-diff --git a/aclocal.m4 b/aclocal.m4
-index b16f57e879..8ed0dca2f4 100644
---- a/aclocal.m4
-+++ b/aclocal.m4
-@@ -231,7 +231,10 @@ AC_DEFUN([FPTOOLS_SET_HASKELL_PLATFORM_VARS],
-         mipsel)
-             test -z "[$]2" || eval "[$]2=ArchMipsel"
-             ;;
--        hppa|hppa1_1|ia64|m68k|nios2|riscv32|riscv64|rs6000|s390|sh4|vax)
-+        riscv64)
-+            test -z "[$]2" || eval "[$]2=ArchRISCV64"
-+            ;;
-+        hppa|hppa1_1|ia64|m68k|nios2|riscv32|rs6000|s390|sh4|vax)
-             test -z "[$]2" || eval "[$]2=ArchUnknown"
-             ;;
-         *)
 diff --git a/compiler/GHC/CmmToAsm.hs b/compiler/GHC/CmmToAsm.hs
 index 23175a1cd2..3f77573495 100644
 --- a/compiler/GHC/CmmToAsm.hs
@@ -91,10 +73,10 @@ index 105e2ebdf9..07eca93ac3 100644
                              ArchUnknown   -> panic "trivColorable ArchUnknown")
          , count2        <- accSqueeze 0 cALLOCATABLE_REGS_DOUBLE
 diff --git a/compiler/GHC/CmmToAsm/Reg/Linear.hs b/compiler/GHC/CmmToAsm/Reg/Linear.hs
-index 6acd34c9be..fb76aa2a16 100644
+index 1ab353cc34..d8228c69cd 100644
 --- a/compiler/GHC/CmmToAsm/Reg/Linear.hs
 +++ b/compiler/GHC/CmmToAsm/Reg/Linear.hs
-@@ -226,6 +226,7 @@ linearRegAlloc config entry_ids block_live sccs
+@@ -225,6 +225,7 @@ linearRegAlloc config entry_ids block_live sccs
        ArchAlpha      -> panic "linearRegAlloc ArchAlpha"
        ArchMipseb     -> panic "linearRegAlloc ArchMipseb"
        ArchMipsel     -> panic "linearRegAlloc ArchMipsel"
@@ -158,10 +140,10 @@ index ba249801ba..284df45983 100644
        ArchUnknown   -> panic "targetRegDotColor ArchUnknown"
  
 diff --git a/compiler/GHC/Driver/Pipeline.hs b/compiler/GHC/Driver/Pipeline.hs
-index f596593419..470598ba42 100644
+index 8edf49dfdd..abe93319d9 100644
 --- a/compiler/GHC/Driver/Pipeline.hs
 +++ b/compiler/GHC/Driver/Pipeline.hs
-@@ -932,6 +932,7 @@ llvmOptions dflags =
+@@ -936,6 +936,7 @@ llvmOptions dflags =
      ++ [("", "-mcpu=" ++ mcpu)   | not (null mcpu)
                                   , not (any (isInfixOf "-mcpu") (getOpts dflags opt_lc)) ]
      ++ [("", "-mattr=" ++ attrs) | not (null attrs) ]
@@ -169,7 +151,7 @@ index f596593419..470598ba42 100644
  
    where target = platformMisc_llvmTarget $ platformMisc dflags
          Just (LlvmTarget _ mcpu mattr) = lookup target (llvmTargets $ llvmConfig dflags)
-@@ -961,6 +962,11 @@ llvmOptions dflags =
+@@ -965,6 +966,11 @@ llvmOptions dflags =
                ++ ["+bmi"     | isBmiEnabled dflags      ]
                ++ ["+bmi2"    | isBmi2Enabled dflags     ]
  
@@ -250,10 +232,10 @@ index 1bf21370c7..e0bdf5d6e5 100644
      | arch `elem` [ArchPPC, ArchPPC_64 ELF_V1, ArchPPC_64 ELF_V2] ->
          PPC.freeReg
 diff --git a/compiler/ghc.cabal.in b/compiler/ghc.cabal.in
-index dfe7587b88..af945c29e0 100644
+index de53f7f548..483a601602 100644
 --- a/compiler/ghc.cabal.in
 +++ b/compiler/ghc.cabal.in
-@@ -262,6 +262,7 @@ Library
+@@ -261,6 +261,7 @@ Library
          GHC.Platform.AArch64
          GHC.Platform.NoRegs
          GHC.Platform.PPC
@@ -262,10 +244,10 @@ index dfe7587b88..af945c29e0 100644
          GHC.Platform.SPARC
          GHC.Platform.X86
 diff --git a/configure.ac b/configure.ac
-index e0bf1dcc14..28c2bec130 100644
+index 69e67fa223..b6e79c944a 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -281,7 +281,7 @@ dnl --------------------------------------------------------------
+@@ -283,7 +283,7 @@ dnl --------------------------------------------------------------
  
  AC_MSG_CHECKING(whether target supports a registerised ABI)
  case "$TargetArch" in
@@ -274,7 +256,7 @@ index e0bf1dcc14..28c2bec130 100644
          UnregisterisedDefault=NO
          AC_MSG_RESULT([yes])
          ;;
-@@ -316,7 +316,7 @@ AC_MSG_CHECKING(whether target supports tables next to code)
+@@ -318,7 +318,7 @@ AC_MSG_CHECKING(whether target supports tables next to code)
  case "$Unregisterised" in
      NO)
          case "$TargetArch" in
@@ -283,7 +265,7 @@ index e0bf1dcc14..28c2bec130 100644
                  TablesNextToCodeDefault=NO
                  AC_MSG_RESULT([no])
                  ;;
-@@ -345,7 +345,7 @@ AC_SUBST(TablesNextToCode)
+@@ -347,7 +347,7 @@ AC_SUBST(TablesNextToCode)
  dnl ** Does target have runtime linker support?
  dnl --------------------------------------------------------------
  case "$target" in
@@ -293,10 +275,10 @@ index e0bf1dcc14..28c2bec130 100644
          ;;
      *)
 diff --git a/hadrian/src/Oracles/Flag.hs b/hadrian/src/Oracles/Flag.hs
-index 960036fa89..86521e4aa8 100644
+index 40da0068af..0ca8d14c4f 100644
 --- a/hadrian/src/Oracles/Flag.hs
 +++ b/hadrian/src/Oracles/Flag.hs
-@@ -70,7 +70,7 @@ targetSupportsSMP :: Action Bool
+@@ -72,7 +72,7 @@ targetSupportsSMP :: Action Bool
  targetSupportsSMP = do
    unreg <- flag GhcUnregisterised
    armVer <- targetArmVersion
@@ -533,7 +515,7 @@ index 186f8c8af6..63033269b9 100644
  
  isARM :: Arch -> Bool
 diff --git a/llvm-targets b/llvm-targets
-index e259ca29c5..9ea787d6b1 100644
+index c328b2e001..0f809b2418 100644
 --- a/llvm-targets
 +++ b/llvm-targets
 @@ -38,6 +38,8 @@
@@ -544,9 +526,25 @@ index e259ca29c5..9ea787d6b1 100644
 +,("riscv64-unknown-linux", ("e-m:e-p:64:64-i64:64-i128:128-n64-S128", "", "+m +a +f +d +c +relax"))
  ,("i386-apple-darwin", ("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-f80:128-n8:16:32-S128", "penryn", ""))
  ,("x86_64-apple-darwin", ("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128", "penryn", ""))
- ,("arm64-apple-darwin", ("e-m:o-i64:64-i128:128-n32:64-S128", "vortex", "+v8.3a +fp-armv8 +neon +crc +crypto +fullfp16 +ras +lse +rdm +rcpc +zcm +zcz +sha2 +aes"))
+ ,("arm64-apple-darwin", ("e-m:o-i64:64-i128:128-n32:64-S128", "apple-a12", "+v8.3a +fp-armv8 +neon +crc +crypto +fullfp16 +ras +lse +rdm +rcpc +zcm +zcz +sha2 +aes"))
+diff --git a/m4/fptools.m4 b/m4/fptools.m4
+index 619b673537..0e7f05eb85 100644
+--- a/m4/fptools.m4
++++ b/m4/fptools.m4
+@@ -231,7 +231,10 @@ AC_DEFUN([FPTOOLS_SET_HASKELL_PLATFORM_VARS],
+         mipsel)
+             test -z "[$]2" || eval "[$]2=ArchMipsel"
+             ;;
+-        hppa|hppa1_1|ia64|m68k|nios2|riscv32|riscv64|rs6000|s390|sh4|vax)
++        riscv64)
++            test -z "[$]2" || eval "[$]2=ArchRISCV64"
++            ;;
++        hppa|hppa1_1|ia64|m68k|nios2|riscv32|rs6000|s390|sh4|vax)
+             test -z "[$]2" || eval "[$]2=ArchUnknown"
+             ;;
+         *)
 diff --git a/mk/config.mk.in b/mk/config.mk.in
-index e2c1591860..9e6c3d8c40 100644
+index 48b8e23145..e260730991 100644
 --- a/mk/config.mk.in
 +++ b/mk/config.mk.in
 @@ -179,7 +179,7 @@ ifeq "$(TargetArch_CPP)" "arm"
@@ -713,21 +711,8 @@ index 60f1bf9a13..aed3241d12 100644
  	.section	.note.GNU-stack,"",@progbits
  #endif
  
-diff --git a/rts/ghc.mk b/rts/ghc.mk
-index 32c49d9099..010146ce8a 100644
---- a/rts/ghc.mk
-+++ b/rts/ghc.mk
-@@ -55,7 +55,7 @@ ifneq "$(findstring $(TargetArch_CPP), i386 powerpc powerpc64)" ""
- rts_S_SRCS += rts/AdjustorAsm.S
- endif
- # this matches substrings of powerpc64le, including "powerpc" and "powerpc64"
--ifneq "$(findstring $(TargetArch_CPP), powerpc64le s390x)" ""
-+ifneq "$(findstring $(TargetArch_CPP), powerpc64le s390x riscv64)" ""
- # unregisterised builds use the mini interpreter
- ifneq "$(GhcUnregisterised)" "YES"
- rts_S_SRCS += rts/StgCRunAsm.S
 diff --git a/rts/linker/Elf.c b/rts/linker/Elf.c
-index e637da4c62..a2b39570a1 100644
+index 1da69d03fa..1c247ac2f9 100644
 --- a/rts/linker/Elf.c
 +++ b/rts/linker/Elf.c
 @@ -412,6 +412,12 @@ ocVerifyImage_ELF ( ObjectCode* oc )
@@ -743,19 +728,6 @@ index e637da4c62..a2b39570a1 100644
  #endif
         default:       IF_DEBUG(linker,debugBelch( "unknown" ));
                       errorBelch("%s: unknown architecture (e_machine == %d)"
-diff --git a/rts/rts.cabal.in b/rts/rts.cabal.in
-index 17a215c4a2..85942e14bc 100644
---- a/rts/rts.cabal.in
-+++ b/rts/rts.cabal.in
-@@ -420,7 +420,7 @@ library
- 
-     if arch(i386) || arch(powerpc) || arch(powerpc64)
-        asm-sources: AdjustorAsm.S
--    if arch(powerpc) || arch(powerpc64) || arch(powerpc64le) || arch(s390x)
-+    if arch(powerpc) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
-        asm-sources: StgCRunAsm.S
- 
-     c-sources: Adjustor.c
 diff --git a/utils/llvm-targets/gen-data-layout.sh b/utils/llvm-targets/gen-data-layout.sh
 index 32032cb97e..092e0892e5 100755
 --- a/utils/llvm-targets/gen-data-layout.sh
@@ -771,5 +743,5 @@ index 32032cb97e..092e0892e5 100755
      #########################
      # Darwin
 -- 
-2.33.1
+2.34.1
 
