@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,13 +11,17 @@ arch=('any')
+ url=https://github.com/readthedocs/sphinx_rtd_theme
+ license=('MIT')
+ depends=('python-sphinx')
+-makedepends=('nodejs-lts-fermium' 'npm' 'python-setuptools')
+-source=("$url/archive/$pkgver/sphinx_rtd_theme-$pkgver.tar.gz")
+-b2sums=('c70740d1f6b6afddd2b32b756e1f6940846459038d6ea0f03b218cfeb07e0974f4d186f9993eeddda58115d0b2a607e61b28081576b9f953d855f3cc3d51d836')
++makedepends=('nodejs-lts-gallium' 'npm' 'python-setuptools')
++source=("$url/archive/$pkgver/sphinx_rtd_theme-$pkgver.tar.gz"
++        fix-for-new-nodejs.patch)
++b2sums=('c70740d1f6b6afddd2b32b756e1f6940846459038d6ea0f03b218cfeb07e0974f4d186f9993eeddda58115d0b2a607e61b28081576b9f953d855f3cc3d51d836'
++        '8a1edb03efb011756da569de7e5fe9d5450325ea8b015749208e74936f7cea6b34f30af1fe51a6815fe230e1a67fa97b0d0f1546bb6742fafca97feb29f7fb61')
+ 
+ prepare() {
+   cd sphinx_rtd_theme-$pkgver
+-  npm ci
++  patch -Np1 -i ../fix-for-new-nodejs.patch
++  rm package-lock.json
++  npm install
+ }
+ 
+ build() {
