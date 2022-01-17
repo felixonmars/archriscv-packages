@@ -1,0 +1,18 @@
+diff --git PKGBUILD.orig PKGBUILD
+index 57ef0b2..7c0b808 100644
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -16,6 +16,13 @@
+ source=(https://pypi.python.org/packages/source/T/Tempita/Tempita-${pkgver}.tar.gz)
+ sha256sums=('cacecf0baa674d356641f1d406b8bff1d756d739c46b869a54de515d08e6fc9c')
+ 
++prepare() {
++  cd Tempita-${pkgver}
++  # setuptools 58 removed support for 2to3
++  sed -i "s/use_2to3=True,//" setup.py
++  2to3 -wn tempita
++}
++
+ package() {
+   cd Tempita-${pkgver}
+   python setup.py install --root="$pkgdir" --optimize=1
