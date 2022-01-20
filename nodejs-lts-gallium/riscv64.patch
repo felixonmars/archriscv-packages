@@ -1,49 +1,43 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,9 +13,13 @@ makedepends=(python procps-ng)
+@@ -3,7 +3,7 @@
+ 
+ pkgname=nodejs-lts-gallium
+ pkgver=16.13.1
+-pkgrel=1
++pkgrel=1.1
+ pkgdesc="Evented I/O for V8 javascript (LTS release: Gallium)"
+ arch=(x86_64)
+ url="https://nodejs.org/"
+@@ -13,9 +13,11 @@ makedepends=(python procps-ng)
  optdepends=('npm: nodejs package manager')
  provides=("nodejs=$pkgver")
  conflicts=(nodejs)
 -source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz)
 +source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz
-+        "fix-sparkplug.patch.b64::https://chromium-review.googlesource.com/changes/v8%2Fv8~3093009/revisions/11/patch?download"
-+        "fix-s1-code_obj.patch.b64::https://chromium-review.googlesource.com/changes/v8%2Fv8~3096886/revisions/6/patch?download")
++        "fix-cherry-pick-v8.patch::https://github.com/nodejs/node/pull/41566.patch")
  # https://nodejs.org/download/release/latest-gallium/SHASUMS256.txt.asc
 -sha256sums=(4c23004fd75eaf799ad8e76fe34f53e0327f433d4acbfc883396f72e96cc63ad)
 +sha256sums=('4c23004fd75eaf799ad8e76fe34f53e0327f433d4acbfc883396f72e96cc63ad'
-+            'c55194174e03c1ca0c33512b0501defbdbc2d5c748d80b6e696d7e4b0bcc1e74'
-+            '1163d6c7c5a5ab2291b0adf6ab9908f313f24d1333ec20c8195f6f55935b9ff5')
++            'f826c84f6cb04b83cef9a40ea7c8fb2d7e96f09041e7dde977cd6d1c6d0f9af9')
  validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesborins@google.com>
                77984A986EBC2AA786BC0F66B01FBB92821C587A  # Gibson Fahnestock <gibfahn@gmail.com>
                B9AE9905FFD7803F25714661B63B535A4C206CA9  # Evan Lucas <evanlucas@me.com>
-@@ -25,13 +29,26 @@ validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesbor
+@@ -25,6 +27,13 @@ validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesbor
                C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C  # Richard Lau <rlau@redhat.com>
                74F12602B6F1C4E913FAA37AD3A89613643B6201) # Danielle Adams <adamzdanielle@gmail.com>
  
 +prepare() {
-+  base64 -d fix-sparkplug.patch.b64 > fix-sparkplug.patch
-+  base64 -d fix-s1-code_obj.patch.b64 > fix-s1-code_obj.patch
-+
 +  cd node-v${pkgver}
 +
-+  # node_mksnapshot infinite loop: https://github.com/riscv-collab/v8/issues/516
-+  patch -Np1 -d deps/v8 < ../fix-sparkplug.patch
-+  patch -Np1 -d deps/v8 < ../fix-s1-code_obj.patch
++  # https://github.com/nodejs/node/pull/41566
++  patch -Np1 < ../fix-cherry-pick-v8.patch
 +}
 +
  build() {
    cd node-v${pkgver}
  
-+  # We have to disable inspector for RISC-V, or it will crash with signal 11.
-   ./configure \
-     --prefix=/usr \
-     --with-intl=system-icu \
-     --without-npm \
-+    --without-inspector \
-     --shared-openssl \
-     --shared-zlib \
-     --shared-libuv \
-@@ -42,12 +59,13 @@ build() {
+@@ -42,12 +51,13 @@ build() {
      # --shared-v8
      # --shared-http-parser
  
