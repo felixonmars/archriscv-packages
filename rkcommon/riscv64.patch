@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,17 @@ url="https://github.com/ospray/rkcommon/"
+ license=(Apache)
+ depends=(tbb)
+ makedepends=(cmake)
+-source=(${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz)
+-sha256sums=('f037c15f7049610ef8bca37500b2ab00775af60ebbb9d491ba5fc2e5c04a7794')
++source=(${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz
++        0000-fix-intrinsic.patch)
++sha256sums=('f037c15f7049610ef8bca37500b2ab00775af60ebbb9d491ba5fc2e5c04a7794'
++            '57d02535a40f07d04b5a5f4d9d5661181ccc9f78803998f8c053886ad5ffaf55')
++
++prepare() {
++  cd ${pkgname}-${pkgver}
++
++  # see https://github.com/ospray/rkcommon/issues/7
++  patch -Np1 -i ../0000-fix-intrinsic.patch
++}
+ 
+ build() {
+   cmake -B build -S ${pkgname}-${pkgver} \
