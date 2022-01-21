@@ -1,0 +1,80 @@
+diff -r -u linuxsampler-2.2.0-orig/src/common/RTMath.cpp linuxsampler-2.2.0/src/common/RTMath.cpp
+--- linuxsampler-2.2.0-orig/src/common/RTMath.cpp	2021-11-27 03:16:35.817070346 +0800
++++ linuxsampler-2.2.0/src/common/RTMath.cpp	2022-01-21 20:25:59.732706513 +0800
+@@ -53,6 +53,10 @@
+     time_stamp_t t;
+     __asm__ __volatile__ ("mov %0=ar.itc" : "=r"(t));
+     return t;
++    #elif defined(__riscv) && __riscv_xlen == 64
++    uint64_t cycles;
++    __asm__ __volatile__ ("rdcycle %0" : "=r"(cycles));
++    return cycles;
+     #elif defined(__powerpc__)
+     time_stamp_t t;
+     __asm__ __volatile__ (
+diff -r -u linuxsampler-2.2.0-orig/src/common/atomic.h linuxsampler-2.2.0/src/common/atomic.h
+--- linuxsampler-2.2.0-orig/src/common/atomic.h	2021-11-27 03:16:35.817070346 +0800
++++ linuxsampler-2.2.0/src/common/atomic.h	2022-01-21 21:23:04.726377168 +0800
+@@ -1187,6 +1187,54 @@
+ 
+ #else
+ 
++#if defined(__riscv)
++
++#ifndef __ARCH_RISCV64_ATOMIC__
++#define __ARCH_RISCV64_ATOMIC__
++/*
++ * Counter is volatile to make sure gcc doesn't try to be clever
++ * and move things around on us. We need to use _exactly_ the address
++ * the user gave us, not some alias that contains the same information.
++ */
++typedef struct { volatile int counter; } atomic_t;
++
++#define ATOMIC_INIT(i)	( (atomic_t) { (i) } )
++
++#define atomic_read(v)		((v)->counter)
++#define atomic_set(v,i)		((v)->counter = (i))
++
++static __inline__ void atomic_add(int i, atomic_t * v)
++{
++	__atomic_fetch_add(&v->counter, i, __ATOMIC_SEQ_CST);
++}
++
++static __inline__ void atomic_sub(int i, atomic_t * v)
++{
++	__atomic_fetch_sub(&v->counter, i, __ATOMIC_SEQ_CST);
++}
++
++static __inline__ long atomic_add_return(int i, atomic_t * v)
++{
++	return __atomic_add_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
++}
++
++static __inline__ long atomic_sub_return(int i, atomic_t * v)
++{
++	return __atomic_sub_fetch(&v->counter, i, __ATOMIC_SEQ_CST);
++}
++
++#define atomic_dec_return(v) atomic_sub_return(1,(v))
++#define atomic_inc_return(v) atomic_add_return(1,(v))
++
++#define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
++#define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
++
++#define atomic_inc(v) atomic_add(1,(v))
++#define atomic_dec(v) atomic_sub(1,(v))
++
++#endif /* __ARCH_RISCV64_ATOMIC__ */
++#else
++
+ #warning libs/pbd has no implementation of strictly atomic operations for your hardware.
+ 
+ #define __NO_STRICT_ATOMIC
+@@ -1231,6 +1279,7 @@
+ }
+ 
+ #  endif /* __NO_STRICT_ATOMIC */
++#  endif /* riscv64 */
+ #  endif /* m68k */
+ #  endif /* mips */
+ #  endif /* s390 */
