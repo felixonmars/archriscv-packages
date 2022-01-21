@@ -1,17 +1,17 @@
 diff --git PKGBUILD PKGBUILD
-index af4c50ca..ba39b569 100644
+index a97ff10..be1d39f 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -1,7 +1,7 @@
  # Maintainer: Thomas Bächler <thomas@archlinux.org>
  
  pkgbase=linux-firmware
--pkgname=(linux-firmware amd-ucode)
-+pkgname=(linux-firmware)
- #_tag=2021216
- _commit=f682ecb015df087613f91872712eb6c0f6c998a8
- pkgver=20211216.f682ecb
-@@ -36,21 +36,6 @@
+-pkgname=(linux-firmware-whence linux-firmware amd-ucode
++pkgname=(linux-firmware-whence linux-firmware
+          linux-firmware-{nfp,mellanox,marvell,qcom,liquidio,qlogic,bnx2x}
+ )
+ #_tag=20211216
+@@ -54,21 +54,6 @@ pkgver() {
    echo $(TZ=UTC git show -s --pretty=%cd --date=format-local:%Y%m%d HEAD).$(git rev-parse --short HEAD)
  }
  
@@ -30,11 +30,11 @@ index af4c50ca..ba39b569 100644
 -    bsdtar --null -cf - --format=newc @- > amd-ucode.img
 -}
 -
- package_linux-firmware() {
-   cd ${pkgname}
- 
-@@ -63,13 +48,4 @@
-   install -Dt "${pkgdir}/usr/share/licenses/${pkgname}" -m644 LICEN* WHENCE
+ package_linux-firmware-whence() {
+   cd "$pkgbase"
+   install -Dt "${pkgdir}/usr/share/licenses/${pkgname}" -m644 WHENCE
+@@ -109,15 +94,6 @@ package_linux-firmware() {
+   _pick linux-firmware-bnx2x usr/lib/firmware/bnx2x*
  }
  
 -package_amd-ucode() {
@@ -46,4 +46,6 @@ index af4c50ca..ba39b569 100644
 -  install -Dt "${pkgdir}/usr/share/licenses/${pkgname}" -m644 ${pkgbase}/LICENSE.amd-ucode
 -}
 -
- # vim:set sw=2 et:
+ package_linux-firmware-nfp() {
+   pkgdesc+=" - nfp / Firmware for Netronome Flow Processors"
+   depends=('linux-firmware-whence')
