@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,6 +27,8 @@ build() {
+   export PYTHON_INCLUDE_DIRS="/usr/include/python${python_version}"
+   cmake -DCMAKE_INSTALL_PREFIX='/usr' \
+         -DCMAKE_BUILD_TYPE='None' \
++        -DCMAKE_C_FLAGS="-fopenmp $CMAKE_C_FLAGS" \
++        -DCMAKE_CXX_FLAGS="-fopenmp $CMAKE_CXX_FLAGS" \
+         -DENABLE_RUBY=OFF \
+         -DMAGICKCORE_HDRI_ENABLE=1 \
+         -DMAGICKCORE_QUANTUM_DEPTH=16 \
+@@ -41,7 +43,7 @@ build() {
+ 
+ check() {
+   cd "${pkgname}-${pkgver}"
+-  make VERBOSE=1 -C build test || printf "Issues with SVG and protobuf\n"
++  make VERBOSE=1 ARGS="--timeout 3" -C build test || printf "Issues with SVG and protobuf\n"
+ }
+ 
+ package() {
