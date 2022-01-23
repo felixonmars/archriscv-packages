@@ -1,0 +1,39 @@
+diff --git PKGBUILD.orig PKGBUILD
+index 31dde76..ca2ce5e 100644
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -10,21 +10,29 @@
+ depends=('python')
+ makedepends=('python-setuptools')
+ checkdepends=('python-pytest' 'python-pytest-html')
+-source=("https://github.com/cucumber/tag-expressions-python/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+-sha512sums=('444c04d219998899e7ea30f3a3141c9f6d711c7ab727eca107bdcfa0b3b8fe66c99cfa07c695638efcbf5279d75a12434101a85f2c778f6802a74a972b274c85')
++source=("https://github.com/cucumber/tag-expressions/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
++        "remove_deprecated_method_use_2to3.patch::https://github.com/cucumber/tag-expressions/commit/97e405edf4a88c4b3cc8a72528887f4eb629854a.patch")
++
++sha512sums=('4886526b256161d2572b0293d6ac868c7682ba91521565c66c9bc7835073e74046d4c7234aa9d5ca8141a9c4433b5ad3f8d806b7baedc1bd870c1bf546ef6a6f'
++            'f75fe462d7c76f0b6515f1e46aa38883fa6465a2f2747fdbaa2bf5c0cd4d6c769d5329a6a49f1ed4c8959b2254583412d27c9f8aed08a7c0effc8ebcd78002c2')
++
++prepare() {
++  cd tag-expressions-$pkgver
++  patch -Np1 -i ../remove_deprecated_method_use_2to3.patch
++}
+ 
+ build() {
+-  cd tag-expressions-python-$pkgver
++  cd tag-expressions-$pkgver/python
+   python setup.py build
+ }
+ 
+ check() {
+-  cd tag-expressions-python-$pkgver
++  cd tag-expressions-$pkgver/python
+   python -m pytest
+ }
+ 
+ package() {
+-  cd tag-expressions-python-$pkgver
++  cd tag-expressions-$pkgver/python
+   python setup.py install --root="$pkgdir" --optimize=1
+ 
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
