@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index 8ac388ccb..b995b5452 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,8 +24,10 @@ makedepends=(
+ )
+ groups=(pantheon)
+ _tag=7b6dc14405fc2c8671c0afa140bab4a8f906fb07
+-source=(pantheon-terminal::git+https://github.com/elementary/terminal.git#tag=${_tag})
+-sha256sums=(SKIP)
++source=(pantheon-terminal::git+https://github.com/elementary/terminal.git#tag=${_tag}
++        "fix_positional_args.patch")
++sha256sums=('SKIP'
++            '473a678b401623aeab1c4e30cb7f0236dd862a3132ac22d6f202ab227e000be7')
+ 
+ pkgver() {
+   cd pantheon-terminal
+@@ -33,6 +35,11 @@ pkgver() {
+   git describe --tags
+ }
+ 
++prepare() {
++  cd pantheon-terminal
++  patch -Np1 -i "../fix_positional_args.patch"
++}
++
+ build() {
+   arch-meson pantheon-terminal build \
+     -Dubuntu-bionic-patched-vte=false
