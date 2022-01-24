@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index 29f9bfeb8..a180315cb 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,8 +23,10 @@ makedepends=(
+   vala
+ )
+ _tag=03358ba8638b83cea0384685a602d8da8fffd845
+-source=(pantheon-screenshot::git+https://github.com/elementary/screenshot.git#tag=${_tag})
+-sha256sums=(SKIP)
++source=(pantheon-screenshot::git+https://github.com/elementary/screenshot.git#tag=${_tag}
++        "fix_positional_args.patch")
++sha256sums=('SKIP'
++            'a63bf72c2e0d17f9813ab0ff5f09c0c067cb2f9612253a77c88b40debb8a1071')
+ 
+ pkgver() {
+   cd pantheon-screenshot
+@@ -32,6 +34,11 @@ pkgver() {
+   git describe --tags
+ }
+ 
++prepare() {
++  cd pantheon-screenshot
++  patch -Np1 -i "../fix_positional_args.patch"
++}
++
+ build() {
+   arch-meson pantheon-screenshot build
+   ninja -C build
