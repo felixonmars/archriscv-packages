@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 20734288..73117fbb 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,16 @@
+ options=('!emptydirs')
+ depends=('python-nose' 'python-coverage')
+ makedepends=('python-setuptools' 'git')
+-source=("git+https://github.com/ask/nosecover3.git#tag=v$pkgver")
+-sha512sums=('SKIP')
++source=("git+https://github.com/ask/nosecover3.git#tag=v$pkgver"
++        "remove-use_2to3.patch")
++sha512sums=('SKIP'
++            '97650cecbd14d1d6db6b29cafbda24ba9b31c1999e96d2d602f56cf73c64b1d7f0affaa79bdf14b1907091bd357fc255d301705957245145a3927c7018ef54a6')
++
++prepare() {
++  cd nosecover3
++  patch -Np1 -i ../remove-use_2to3.patch
++  2to3 -wn nosecover3
++}
+ 
+ package() {
+   cd nosecover3
