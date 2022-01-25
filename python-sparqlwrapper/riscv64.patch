@@ -1,0 +1,51 @@
+From 8eb495678c5e68950faf541d1db03637f270735f Mon Sep 17 00:00:00 2001
+From: Coelacanthus <coelacanthus@outlook.com>
+Date: Tue, 25 Jan 2022 06:32:53 +0100
+Subject: [PATCH] run 2to3 manually
+
+---
+ PKGBUILD | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git PKGBUILD PKGBUILD
+index 94eeb0b..3df3a81 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,16 +10,32 @@ license=('W3C')
+ depends=('python')
+ makedepends=('python-setuptools')
+ checkdepends=('python-nose' 'python-rdflib-jsonld')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/RDFLib/sparqlwrapper/archive/$pkgver.tar.gz")
+-sha512sums=('7637989bbf883824be5d277d6b0bd2c2ec8b628ded8a103f6da724b62977a5e9bd13f8ec8d9031de5f5028acfcbd599148dbab5ff3694261c1ec27295c34ee38')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/RDFLib/sparqlwrapper/archive/$pkgver.tar.gz"
++        "0001-drop-py2.patch"
++        "0002-drop-ez-setup-script.patch::https://github.com/RDFLib/sparqlwrapper/commit/d338e0629f88c4b06b79ccfd97a658875a2453bc.patch"
++        )
++sha512sums=('7637989bbf883824be5d277d6b0bd2c2ec8b628ded8a103f6da724b62977a5e9bd13f8ec8d9031de5f5028acfcbd599148dbab5ff3694261c1ec27295c34ee38'
++            'a21f120156efa96a7753c61445d2dec410c27f2136c43180e9355dca84c459c77710b08e9aa6b210bd3d3b24328ef847473793a80f4013ce45d1ca015fc63fec'
++            '286e9174d7781c73d1ee888981c4d722bc6cd80cc25956c5b30405eee0467f77654160cf85badf788892b0e7d51c1eadcb15eaaf537ec7ad9f52220ce2dc3b29')
++
++prepare() {
++  cd "$srcdir"/sparqlwrapper-$pkgver
++  patch -Np1 -i ../0001-drop-py2.patch
++  patch -Np1 -i ../0002-drop-ez-setup-script.patch
++  sed '/use_2to3/d' -i setup.py
++}
+ 
+ build() {
+   cd "$srcdir"/sparqlwrapper-$pkgver
++  2to3 -wn SPARQLWrapper
++  2to3 -wn scripts
++  2to3 -wn docs
+   python setup.py build
+ }
+ 
+ check() {
+   cd "$srcdir"/sparqlwrapper-$pkgver
++  2to3 -wn test
+   ./run_tests_py3.sh
+ }
+ 
+-- 
+2.34.1
+
