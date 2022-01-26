@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index f4e30014..0f2a89cf 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,12 +10,19 @@
+ license=('MIT')
+ depends=('python-blessings' 'python-nose')
+ makedepends=('python-setuptools')
+-source=("https://files.pythonhosted.org/packages/source/${_name::1}/${_name}/${_name}-${pkgver}.tar.gz")
+-sha512sums=('59abe0e5f060149046aa4e9b8ca622af1eb65db3b69631b5c6230c31ee9641f9f7b9bba7ed50709f5243c04a9bbf36fd5901601e3d93e9b68867fc37357b649e')
+-b2sums=('1d88949369fa29cdb1762455989889f54af2a15efbfc5856bc86936e0a97337a09cd9e82658e467335655835537a42b3507e9cec99f3b1abfadd4f6a88c43e0c')
++source=("https://files.pythonhosted.org/packages/source/${_name::1}/${_name}/${_name}-${pkgver}.tar.gz"
++        "remove-use_2to3.patch")
++sha512sums=('59abe0e5f060149046aa4e9b8ca622af1eb65db3b69631b5c6230c31ee9641f9f7b9bba7ed50709f5243c04a9bbf36fd5901601e3d93e9b68867fc37357b649e'
++            'a2281849ea5b879c394766229c35e272f02366e22f81030f408346ae422a3b999b4e9b6ef80caeeb91913b7eedde9407f6870f901af3d9198a8e8faa564fb5cb')
++b2sums=('1d88949369fa29cdb1762455989889f54af2a15efbfc5856bc86936e0a97337a09cd9e82658e467335655835537a42b3507e9cec99f3b1abfadd4f6a88c43e0c'
++        'd3e73b548df8e04a0fcce557e15fcc7671adfbf2ee9c4b9c774fc350f4475361e851fbfee6485f78775dd5d79d2bfb7d0bea2b0e145015646c525b0a76ae5528')
+ 
+ prepare() {
+   mv -v "${_name}-$pkgver" "$pkgname-$pkgver"
++  cd "$pkgname-$pkgver"
++  # FS#73512
++  patch -Np1 -i ../remove-use_2to3.patch
++  2to3 -wn noseprogressive
+ }
+ 
+ build() {
