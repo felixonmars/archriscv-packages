@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index 9b2eb7ecd..d03430600 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,13 +12,21 @@ depends=(python-chardet python-jinja python-pluggy python-pygments)
+ makedepends=(python-setuptools)
+ checkdepends=(python-pytest python-pytest-mock python-tomli)
+ optdepends=('python-tomli: for TOML support')
+-source=("https://files.pythonhosted.org/packages/source/${_name::1}/${_name}/${_name}-${pkgver}.tar.gz"{,.asc})
++source=("https://files.pythonhosted.org/packages/source/${_name::1}/${_name}/${_name}-${pkgver}.tar.gz"{,.asc}
++        "fix_test_style_defs.patch::https://github.com/Bachmann1234/diff_cover/pull/271.patch")
+ sha512sums=('10e19a6a1585f043f18aa9bf73a788d1b69b876eaab7fc3567e93e3a5f7d6731dae0a9f4459b51e4dc2543b3479843c20b2ca226ceab2b6a5de3540048de4a8e'
+-            'SKIP')
++            'SKIP'
++            '89e5ef5c042cd823a015bf2990c2640645da43a45e1c3f7b0b14971d0a266f1683ccf21c3b6643484b793a6aa471141e8d80d1988ba5eaf74e01800428a8838f')
+ b2sums=('98527bc20a9325ad7cbe3086ba3635a208bc8037d527d97b5bb1ac2f022691e7e52206d27f7e2588c6daac224ccf644116b0db838c09667de813378626def1e8'
+-        'SKIP')
++        'SKIP'
++        '857a2114b6147e996902da198c936d7a8ecf89f35e20588e36aaf9ddd06d8ad890b8884c39139ed0ac3a11d178c1ed029dbffc5ce2053795402810c2ae9a1292')
+ validpgpkeys=('54CAEABCAC2956D407348256972401BDE60128CB') # Matt Bachmann <matt.bachmann@lola.com>
+ 
++prepare() {
++  cd "${_name}-${pkgver}"
++  patch -Np1 -i "../fix_test_style_defs.patch"
++}
++
+ build() {
+   cd "${_name}-${pkgver}"
+   python setup.py build
