@@ -1,0 +1,31 @@
+diff --git PKGBUILD PKGBUILD
+index cb5e7e8..3d5d179 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,15 +14,25 @@ arch=('x86_64')
+ url="https://bellard.org/tcc/"
+ license=('LGPL')
+ depends=('glibc')
++makedepends=('patchutils')
+ options=('docs' 'staticlibs')
+-source=("https://download.savannah.nongnu.org/releases/tinycc/${pkgname}-${pkgver}.tar.bz2")
+-md5sums=('9cdb185555da76db90287db351ca40b8')
++source=("https://download.savannah.nongnu.org/releases/tinycc/${pkgname}-${pkgver}.tar.bz2"
++        "supporting-riscv64-and-other-updates.patch::https://github.com/TinyCC/tinycc/compare/d348a9a51d32cece842b7885d27a411436d7887b..4e0e9b8f210d69893b306d6b24d2dd615a22f246.patch")
++md5sums=('9cdb185555da76db90287db351ca40b8'
++         'ed6968edeecfd5abfa00cd8dad9c1699')
+
+ build() {
+   cd ${pkgname}-${pkgver}
++  filterdiff -p1 -x 'win32/*' < ../supporting-riscv64-and-other-updates.patch | patch -Np1
+   unset CFLAGS
+   unset LDFLAGS
+   ./configure --prefix=/usr
++  # remove unnecessary binary files
++  sed -i 's/bt-exe.o bt-log.o bt-dll.o//g' Makefile
++  sed -i 's/bt-exe.o bt-log.o bt-dll.o//g' lib/Makefile
++  # replace -lpthread with -pthread
++  sed -i 's/-lpthread/-pthread/g' Makefile
++  sed -i 's/-lpthread/-pthread/g' lib/Makefile
+   make
+ }
