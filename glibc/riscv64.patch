@@ -1,8 +1,6 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 395138)
-+++ PKGBUILD	(working copy)
-@@ -4,14 +4,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -4,16 +4,15 @@
  # toolchain build order: linux-api-headers->glibc->binutils->gcc->binutils->glibc
  # NOTE: valgrind requires rebuilt with each major glibc version
  
@@ -10,17 +8,21 @@ Index: PKGBUILD
 -pkgname=(glibc lib32-glibc)
 +pkgname=glibc
  pkgver=2.33
- pkgrel=5
+-pkgrel=5
++pkgrel=5.1
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
 -makedepends=(git gd lib32-gcc-libs python)
 +makedepends=(git gd python)
  optdepends=('perl: for mtrace')
- options=(!strip staticlibs)
+-options=(!strip staticlibs)
++options=(!strip staticlibs !lto)
  #_commit=3de512be7ea6053255afed6154db9ee31d4e557a
-@@ -33,7 +32,7 @@
-          'fc57038c1297c7c11258e8dda1623ec2')
+ #source=(git+https://sourceware.org/git/glibc.git#commit=$_commit
+ source=(https://ftp.gnu.org/gnu/glibc/glibc-$pkgver.tar.xz{,.sig}
+@@ -40,7 +39,7 @@ md5sums=('390bbd889c7e8e8a7041564cb6b27cca'
+          '7a09f1693613897add1791e7aead19c9')
  
  prepare() {
 -  mkdir -p glibc-build lib32-glibc-build
@@ -28,9 +30,9 @@ Index: PKGBUILD
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc 
    cd glibc
-@@ -57,13 +56,12 @@
-       --enable-bind-now
+@@ -68,13 +67,12 @@ build() {
        --enable-cet
+       --enable-kernel=4.4
        --enable-lock-elision
 -      --enable-multi-arch
        --enable-stack-protector=strong
@@ -44,7 +46,16 @@ Index: PKGBUILD
    )
  
    cd "$srcdir/glibc-build"
-@@ -86,51 +84,17 @@
+@@ -86,6 +84,8 @@ build() {
+ 
+   # remove fortify for building libraries
+   CPPFLAGS=${CPPFLAGS/-D_FORTIFY_SOURCE=2/}
++  # https://bugs.archlinux.org/task/73530
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
+ 
+   #
+   CFLAGS=${CFLAGS/-fno-plt/}
+@@ -97,51 +97,17 @@ build() {
        --libexecdir=/usr/lib \
        ${_configure_flags[@]}
  
@@ -52,18 +63,13 @@ Index: PKGBUILD
    # build libraries with fortify disabled
 -  echo "build-programs=no" >> configparms
 -  make
-+  #echo "build-programs=no" >> configparms
-+  #make
- 
-   # re-enable fortify for programs
+-
+-  # re-enable fortify for programs
 -  sed -i "/build-programs=/s#no#yes#" configparms
-+  #sed -i "/build-programs=/s#no#yes#" configparms
- 
+-
 -  echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
 -  echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
-+  #echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
-+  #echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
-   make
+-  make
 -
 -  # build info pages manually for reprducibility
 -  make info
@@ -91,18 +97,23 @@ Index: PKGBUILD
 -  # build libraries with fortify disabled
 -  echo "build-programs=no" >> configparms
 -  make
--
--  # re-enable fortify for programs
++  #echo "build-programs=no" >> configparms
++  #make
+ 
+   # re-enable fortify for programs
 -  sed -i "/build-programs=/s#no#yes#" configparms
--
++  #sed -i "/build-programs=/s#no#yes#" configparms
+ 
 -  echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
 -  echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
--  make
++  #echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
++  #echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
+   make
 -
  }
  
  check() {
-@@ -143,7 +107,7 @@
+@@ -154,7 +120,7 @@ check() {
    make check || true
  }
  
@@ -111,7 +122,7 @@ Index: PKGBUILD
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat')
-@@ -191,48 +155,6 @@
+@@ -202,48 +168,6 @@ package_glibc() {
        -name '*-*.so' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
    fi
  
