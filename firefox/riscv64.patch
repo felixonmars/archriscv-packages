@@ -10,33 +10,29 @@
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
              'pulseaudio: Audio support'
-@@ -24,11 +23,15 @@ options=(!emptydirs !makeflags !strip)
+@@ -23,10 +22,12 @@ optdepends=('networkmanager: Location detection via available WiFi networks'
+ options=(!emptydirs !makeflags !strip !lto)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
          0001-Use-remoting-name-for-GDK-application-names.patch
-         0002-Bug-1745560-Add-missing-stub-for-wl_proxy_marshal_fl.patch
-+        cc-crate-riscv64-clang-support.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch
          $pkgname.desktop identity-icons-brand.svg)
- sha256sums=('c178cbf61979bd39a8daa9a09c6e03089da37baded692ad1f745ecfcaae74d64'
+ sha256sums=('b4b03214ad838fe2744fed26c497c8a6fa7aedc95f47d4146da1cf5cc97860c0'
              'SKIP'
-             'a7a5ea4680c0a4c6eb5a5f99970008f5ad3e2f29f0d6d050aa651bce8c713718'
-             '8a893ae44955c90a0fb4a504134773293054ab57a41ba7931df98c8cf5449549'
-+            'd8b37f574262067cd10b0d6971a928b46b7965b7c52d164f3c82c8b482670203'
-+            '266756aef173c4ec9280ad4f5cd66f22193c1af5c866a2432ffc4d7c5529fa50'
+             '5ead90994f91bed3231c2661977c69fc276cfbe278a1ab904daa544c9455ff42'
++            '99f541762d931e52f50c0332b19f57dcd9cf9d187db5f4cb51862a3f4529ad6d'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -55,6 +58,9 @@ prepare() {
-   # Fix build with wayland 1.20
-   patch -Np1 -i ../0002-Bug-1745560-Add-missing-stub-for-wl_proxy_marshal_fl.patch
+@@ -50,6 +51,8 @@ prepare() {
+   # https://bugzilla.mozilla.org/show_bug.cgi?id=1530052
+   patch -Np1 -i ../0001-Use-remoting-name-for-GDK-application-names.patch
  
-+  patch -Np1 -i ../cc-crate-riscv64-clang-support.patch
 +  patch -Np1 -i ../makotokato-riscv64-support-and-zenithal-backported.patch
-+  
++
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
  
-@@ -63,14 +69,21 @@ ac_add_options --enable-application=browser
+@@ -58,14 +61,21 @@ ac_add_options --enable-application=browser
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -63,7 +59,7 @@
  
  # Branding
  ac_add_options --enable-official-branding
-@@ -78,7 +91,8 @@ ac_add_options --enable-update-channel=release
+@@ -73,7 +83,8 @@ ac_add_options --enable-update-channel=release
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -73,7 +69,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -93,7 +107,7 @@ ac_add_options --with-system-nss
+@@ -88,7 +99,7 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -82,7 +78,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -111,39 +125,41 @@ build() {
+@@ -106,39 +117,41 @@ build() {
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -90,8 +86,14 @@
 -  cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-profile-generate=cross
 -END
--  ./mach build
--
++  # disable PGO
++#  echo "Building instrumented browser..."
++   cat >.mozconfig ../mozconfig
++#  cat >.mozconfig ../mozconfig - <<END
++#ac_add_options --enable-profile-generate=cross
++#END
+   ./mach build
+ 
 -  echo "Profiling instrumented browser..."
 -  ./mach package
 -  LLVM_PROFDATA=llvm-profdata \
@@ -115,14 +117,8 @@
 -ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
 -ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
 -END
-+  # disable PGO
-+#  echo "Building instrumented browser..."
-+   cat >.mozconfig ../mozconfig
-+#  cat >.mozconfig ../mozconfig - <<END
-+#ac_add_options --enable-profile-generate=cross
-+#END
-   ./mach build
- 
+-  ./mach build
+-
 -  echo "Building symbol archive..."
 -  ./mach buildsymbols
 +#  echo "Profiling instrumented browser..."
@@ -155,7 +151,7 @@
  }
  
  package() {
-@@ -211,12 +227,12 @@ END
+@@ -206,12 +219,12 @@ END
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  

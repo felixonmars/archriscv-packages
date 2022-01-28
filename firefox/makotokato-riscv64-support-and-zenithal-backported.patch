@@ -2011,8 +2011,8 @@ diff --git a/toolkit/library/rust/shared/Cargo.toml b/toolkit/library/rust/share
 +++ b/toolkit/library/rust/shared/Cargo.toml	2021-11-04 14:57:07.212983750 +0800
 @@ -25,7 +25,7 @@
  encoding_glue = { path = "../../../../intl/encoding_glue" }
- audioipc-client = { git = "https://github.com/mozilla/audioipc-2", rev = "03868a0eaf1d46e895353fa6e1f5bcaf7e588e62", optional = true }
- audioipc-server = { git = "https://github.com/mozilla/audioipc-2", rev = "03868a0eaf1d46e895353fa6e1f5bcaf7e588e62", optional = true }
+ audioipc-client = { git = "https://github.com/mozilla/audioipc-2", rev = "470320364f59672c0e1ee60240f2cd15f0e5b52f", optional = true }
+ audioipc-server = { git = "https://github.com/mozilla/audioipc-2", rev = "470320364f59672c0e1ee60240f2cd15f0e5b52f", optional = true }
 -authenticator = "0.3.1"
 +authenticator = { git = "https://github.com/makotokato/authenticator-rs", rev = "eed8919d50559f4959e2d7d2af7b4d48869b5366" }
  gkrust_utils = { path = "../../../../xpcom/rust/gkrust_utils" }
@@ -2075,25 +2075,25 @@ Subject: [PATCH] More webrtc fix. But this isn't built yet.
 # #elif defined(__riscv) && __riscv_xlen == 64
 # #define ARCH_CPU_RISCV 1
 # #define ARCH_CPU_64_BITS 1
-diff --git a/third_party/libwebrtc/webrtc/typedefs.h b/third_party/libwebrtc/webrtc/typedefs.h
-index 60095a926faa2..2b9ca31d6e47c 100644
---- a/third_party/libwebrtc/webrtc/typedefs.h
-+++ b/third_party/libwebrtc/webrtc/typedefs.h
-@@ -120,6 +120,14 @@
- #define WEBRTC_ARCH_32_BITS 1
- #define WEBRTC_ARCH_BIG_ENDIAN
- #define WEBRTC_BIG_ENDIAN
-+#elif defined(__riscv) && __riscv_xlen == 64
-+#define WEBRTC_ARCH_64_BITS
-+#define WEBRTC_ARCH_LITTLE_ENDIAN
-+#define WEBRTC_LITTLE_ENDIAN
-+#elif defined(__riscv) && __riscv_xlen == 32
-+#define WEBRTC_ARCH_32_BITS
-+#define WEBRTC_ARCH_LITTLE_ENDIAN
-+#define WEBRTC_LITTLE_ENDIAN
- #elif defined(__pnacl__)
- #define WEBRTC_ARCH_32_BITS
- #define WEBRTC_ARCH_LITTLE_ENDIAN
+#diff --git a/third_party/libwebrtc/webrtc/typedefs.h b/third_party/libwebrtc/webrtc/typedefs.h
+#index 60095a926faa2..2b9ca31d6e47c 100644
+#--- a/third_party/libwebrtc/webrtc/typedefs.h
+#+++ b/third_party/libwebrtc/webrtc/typedefs.h
+#@@ -120,6 +120,14 @@
+# #define WEBRTC_ARCH_32_BITS 1
+# #define WEBRTC_ARCH_BIG_ENDIAN
+# #define WEBRTC_BIG_ENDIAN
+#+#elif defined(__riscv) && __riscv_xlen == 64
+#+#define WEBRTC_ARCH_64_BITS
+#+#define WEBRTC_ARCH_LITTLE_ENDIAN
+#+#define WEBRTC_LITTLE_ENDIAN
+#+#elif defined(__riscv) && __riscv_xlen == 32
+#+#define WEBRTC_ARCH_32_BITS
+#+#define WEBRTC_ARCH_LITTLE_ENDIAN
+#+#define WEBRTC_LITTLE_ENDIAN
+# #elif defined(__pnacl__)
+# #define WEBRTC_ARCH_32_BITS
+# #define WEBRTC_ARCH_LITTLE_ENDIAN
 
 From 735487e921dfb35d5a52eb2ff5222d70ad0aefa7 Mon Sep 17 00:00:00 2001
 From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
@@ -2258,16 +2258,30 @@ Subject: [PATCH] Don't use libwebrtc include path without MOZ_WEBRTC.
  3 files changed, 18 insertions(+), 6 deletions(-)
 
 diff --git a/dom/bindings/moz.build b/dom/bindings/moz.build
-index ca13276f98c86..8b0ef9d816117 100644
---- a/dom/bindings/moz.build
-+++ b/dom/bindings/moz.build
-@@ -94,12 +94,16 @@ LOCAL_INCLUDES += [
-     "/layout/xul/tree",
-     "/media/webrtc/",
-     "/netwerk/base/",
--    "/third_party/libwebrtc",
--    "/third_party/libwebrtc/webrtc",
- ]
+#index ca13276f98c86..8b0ef9d816117 100644
+#--- a/dom/bindings/moz.build
+#+++ b/dom/bindings/moz.build
+#@@ -94,12 +94,16 @@ LOCAL_INCLUDES += [
+#     "/layout/xul/tree",
+#     "/media/webrtc/",
+#     "/netwerk/base/",
+#-    "/third_party/libwebrtc",
+#-    "/third_party/libwebrtc/webrtc",
+# ]
+# 
+# LOCAL_INCLUDES += ["/third_party/msgpack/include"]
+# 
+#+if CONFIG["MOZ_WEBRTC"]:
+#+    LOCAL_INCLUDES += [
+#+        "/third_party/libwebrtc",
+#+        "/third_party/libwebrtc/webrtc",
+#+    ]
+#+
+# DEFINES["GOOGLE_PROTOBUF_NO_RTTI"] = True
+# DEFINES["GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER"] = True 
+--- a/dom/bindings/moz.build    2022-01-14 01:02:16.406292945 +0800
++++ b/dom/bindings/moz.build    2022-01-14 15:45:18.649193275 +0800
+@@ -104,6 +104,12 @@
  
  LOCAL_INCLUDES += ["/third_party/msgpack/include"]
  
@@ -2279,17 +2293,32 @@ index ca13276f98c86..8b0ef9d816117 100644
 +
  DEFINES["GOOGLE_PROTOBUF_NO_RTTI"] = True
  DEFINES["GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER"] = True
- 
+
 diff --git a/dom/media/gtest/moz.build b/dom/media/gtest/moz.build
-index aaa5e45972eef..25c457c702636 100644
---- a/dom/media/gtest/moz.build
-+++ b/dom/media/gtest/moz.build
-@@ -11,10 +11,14 @@ DEFINES["ENABLE_SET_CUBEB_BACKEND"] = True
- LOCAL_INCLUDES += [
-     "/dom/media/mediasink",
-     "/dom/media/webrtc/common/",
--    "/third_party/libwebrtc",
--    "/third_party/libwebrtc/webrtc",
+#index aaa5e45972eef..25c457c702636 100644
+#--- a/dom/media/gtest/moz.build
+#+++ b/dom/media/gtest/moz.build
+#@@ -11,10 +11,14 @@ DEFINES["ENABLE_SET_CUBEB_BACKEND"] = True
+# LOCAL_INCLUDES += [
+#     "/dom/media/mediasink",
+#     "/dom/media/webrtc/common/",
+#-    "/third_party/libwebrtc",
+#-    "/third_party/libwebrtc/webrtc",
+# ]
+# 
+#+if CONFIG["MOZ_WEBRTC"]:
+#+    LOCAL_INCLUDES += [
+#+        "/third_party/libwebrtc",
+#+        "/third_party/libwebrtc/webrtc",
+#+    ]
+#+
+# UNIFIED_SOURCES += [
+#     "MockCubeb.cpp",
+#     "MockMediaResource.cpp",
+--- a/dom/media/gtest/moz.build 2022-01-14 01:02:16.786288436 +0800
++++ b/dom/media/gtest/moz.build 2022-01-14 15:56:49.069489135 +0800
+@@ -17,6 +17,12 @@
+     "/third_party/libwebrtc/third_party/abseil-cpp",
  ]
  
 +if CONFIG["MOZ_WEBRTC"]:
@@ -2302,15 +2331,30 @@ index aaa5e45972eef..25c457c702636 100644
      "MockCubeb.cpp",
      "MockMediaResource.cpp",
 diff --git a/ipc/glue/moz.build b/ipc/glue/moz.build
-index 569ca15046bf1..2b3a1167267be 100644
---- a/ipc/glue/moz.build
-+++ b/ipc/glue/moz.build
-@@ -207,11 +207,15 @@ LOCAL_INCLUDES += [
-     "/dom/indexedDB",
-     "/dom/storage",
-     "/netwerk/base",
--    "/third_party/libwebrtc",
--    "/third_party/libwebrtc/webrtc",
+#index 569ca15046bf1..2b3a1167267be 100644
+#--- a/ipc/glue/moz.build
+#+++ b/ipc/glue/moz.build
+#@@ -203,11 +203,15 @@ LOCAL_INCLUDES += [
+#     "/dom/indexedDB",
+#     "/dom/storage",
+#     "/netwerk/base",
+#-    "/third_party/libwebrtc",
+#-	"/third_party/libwebrtc/webrtc",
+#     "/xpcom/build",
+# ]
+# 
+#+if CONFIG["MOZ_WEBRTC"]:
+#+    LOCAL_INCLUDES += [
+#+        "/third_party/libwebrtc",
+#+        "/third_party/libwebrtc/webrtc",
+#+    ]
+#+
+# IPDL_SOURCES = [
+#     "InputStreamParams.ipdlh",
+#     "IPCStream.ipdlh",
+--- a/ipc/glue/moz.build        2022-01-14 01:02:11.566350645 +0800
++++ b/ipc/glue/moz.build        2022-01-14 16:03:13.378229620 +0800
+@@ -221,6 +221,12 @@
      "/xpcom/build",
  ]
  
