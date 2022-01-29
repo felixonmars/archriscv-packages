@@ -1,54 +1,46 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 433967)
-+++ PKGBUILD	(working copy)
+diff --git PKGBUILD PKGBUILD
+index 6cc7428..0de487b 100644
+--- PKGBUILD
++++ PKGBUILD
 @@ -3,9 +3,9 @@
  
  pkgname=devtools
- pkgver=20211129
+ pkgver=20220126
 -pkgrel=1
-+pkgrel=1.2
++pkgrel=1.1
  pkgdesc='Tools for Arch Linux package maintainers'
 -arch=('any')
 +arch=('x86_64')
  license=('GPL')
- url='https://github.com/archlinux/devtools'
+ url='https://gitlab.archlinux.org/archlinux/devtools'
  depends=('bash' 'openssh' 'subversion' 'rsync' 'arch-install-scripts'
-@@ -12,7 +12,9 @@
-          'git' 'bzr' 'mercurial' 'diffutils' 'util-linux' 'awk')
+@@ -13,7 +13,8 @@
  makedepends=('asciidoc')
  optdepends=('btrfs-progs: btrfs support')
--source=(https://sources.archlinux.org/other/${pkgname}/${pkgname}-${pkgver}.tar.gz{,.sig})
-+source=(https://sources.archlinux.org/other/${pkgname}/${pkgname}-${pkgver}.tar.gz{,.sig}
-+        https://github.com/archlinux/devtools/pull/64.patch
+ source=(${url}/uploads/70fd9a0e53816981adc8886fe7122624/devtools-${pkgver}.tar.gz
+-        ${url}/uploads/598ef01fa062ad558a9b45524494a4dd/devtools-${pkgver}.tar.gz.sig)
++        ${url}/uploads/598ef01fa062ad558a9b45524494a4dd/devtools-${pkgver}.tar.gz.sig
 +        makepkg-riscv64.conf pacman-extra-riscv64.conf)
  validpgpkeys=('487EACC08557AD082088DABA1EB2638FF56C0C53'
                '4AA4767BBC9C4B1D18AE28B77F2D434B9741E8AC'
                '86CFFCA918CF3AF47147588051E8B148A9999C34'
-@@ -23,10 +25,20 @@
+@@ -24,9 +25,13 @@
                '6645B0A8C7005E78DB1D7864F99FFE0FEAE999BD'
                'E240B57E2C4630BA768E2F26FC1B547C8D8172C8')
- sha256sums=('9da0d997dff57be9193b8c0396ca0b8b17e97a6cb73f92a23d8b52a5fa941967'
+ sha256sums=('8eb40c8243499a3fcd28452038b277f0b9706812a041af9572f354a7c8a34674'
 -            'SKIP')
 +            'SKIP'
-+            '4e86489de1a1edc507a02c5b0759dfac8e734386aa4a9093efcd8ce9307085fd'
 +            'd0eda35a669f0015c6f6bacf146145c821dffba42de663901da08d2c35a4c148'
 +            'fc933f164d21774e7a1435d9fccf87cb05f7b601e89a2ba54b899b2ce1e809df')
- b2sums=('7305f2cd28f3970bb7ee175fd52b71dd65289078e2a5c1e1ba26b044de11c2ee5b00f5f1fb267be4fa5f5fd683ad820b529c41ca2f2de391bf902eabec38ba73'
+ b2sums=('712230fa99637482150f5cacbc730be856210bcdae60002b0d3552eefc620cab634cc1a339a86dade08da2ae8fc6627ae3f39d1d2312e9c328d6d31cc10996bc'
 -        'SKIP')
 +        'SKIP'
-+        '1776dd01c74e43f994fbd76e0e0b168a5fb8dbd920af0f7e7e11e357293cc14371618a3cc43322df40860f29dffd30a62ad7d4c7067d62f28dcf47c077987218'
 +        '0447383166cefc37a3bfd66c607338e4efaab432e147133268079eb7d306cb4ea37010b710b0ad640c1ef7ecefd3dc34663c81aaa46ad9a591459df40740acf7'
 +        'fbfb852a217879e37a4d19c6c3edc84e25591cfa15b51ef6c736d7fa924ad5b7d3b6063e4820c99eeab05e1aa57179bb31c83197858faca0a966c8fb515ff5cf')
  
-+prepare(){
-+  cd ${pkgname}-${pkgver}
-+  patch -Np1 -i ../64.patch
-+}
  build() {
    cd ${pkgname}-${pkgver}
-   make BUILDTOOLVER="${pkgver}-${pkgrel}-${arch}" PREFIX=/usr
-@@ -35,6 +47,15 @@
+@@ -36,6 +41,14 @@
  package() {
    cd ${pkgname}-${pkgver}
    make PREFIX=/usr DESTDIR="${pkgdir}" install
@@ -60,7 +52,6 @@ Index: PKGBUILD
 +    install -dm755 "$pkgdir"/usr/share/devtools/setarch-aliases.d
 +    echo "$CARCH" > "$pkgdir"/usr/share/devtools/setarch-aliases.d/riscv64
 +  fi
-+
  }
  
  # vim: ts=2 sw=2 et:
