@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,11 +12,19 @@ url="https://pypi.python.org/pypi/$_pypiname"
+ license=('BSD')
+ depends=('python')
+ makedepends=('python-setuptools')
+-source=("https://files.pythonhosted.org/packages/source/a/$_pypiname/$_pypiname-${pkgver}.tar.gz")
+-md5sums=('2ea28d6ec311aeeebaf993cb3008b27c')
++source=("https://files.pythonhosted.org/packages/source/a/$_pypiname/$_pypiname-${pkgver}.tar.gz"
++        "0000-fix-2to3.patch")
++md5sums=('2ea28d6ec311aeeebaf993cb3008b27c'
++         '63485ca2d36a3fa1b79cae8a5856a63b')
++
++prepare() {
++  cd "$_pypiname-${pkgver}"
++  patch -Np1 -i ../0000-fix-2to3.patch 
++}
+ 
+ build() {
+   cd "$_pypiname-${pkgver}"
++  2to3 -wn $_pypiname
+   python setup.py build
+ }
+ 
