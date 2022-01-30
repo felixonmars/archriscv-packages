@@ -1,104 +1,120 @@
 diff --git PKGBUILD PKGBUILD
-index 522e5124..831c4254 100644
+index f05d522..5ec7c48 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -4,7 +4,7 @@
- # Contributor: Daniel Micay <danielmicay@gmail.com>
+@@ -5,7 +5,7 @@
  # Contributor: userwithuid <userwithuid@gmail.com>
  
--pkgname=('rust' 'lib32-rust-libs' 'rust-musl' 'rust-docs')
-+pkgname=('rust' 'rust-docs')
+ pkgbase=rust
+-pkgname=(rust lib32-rust-libs rust-musl rust-wasm rust-src)
++pkgname=(rust rust-wasm rust-src)
  epoch=1
- pkgver=1.56.0
- pkgrel=3
-@@ -16,8 +16,8 @@ url='https://www.rust-lang.org/'
- arch=('x86_64')
- license=('MIT' 'Apache')
- 
--makedepends=('rust' "llvm=$_llvm_ver" 'libffi' 'lib32-gcc-libs' 'perl' 'python'
--             'curl' 'cmake' 'musl' 'ninja')
-+makedepends=('rust' "llvm=$_llvm_ver" 'llvm12-libs' 'libffi' 'perl' 'python'
-+             'curl' 'cmake' 'ninja')
- checkdepends=('procps-ng' 'gdb')
- 
- options=('!emptydirs' '!strip')
-@@ -59,7 +59,7 @@ profile = "user"
- link-shared = true
+ pkgver=1.57.0
+ pkgrel=1
+@@ -13,10 +13,10 @@ pkgdesc="Systems programming language focused on safety, speed and concurrency"
+ url=https://www.rust-lang.org/
+ arch=(x86_64)
+ license=(MIT Apache)
+-options=(!emptydirs !strip)
++options=(!emptydirs !strip !lto)
+ _llvm_ver=13.0.0
+ depends=(gcc-libs llvm-libs curl libssh2 gcc)
+-makedepends=(rust "llvm=$_llvm_ver" libffi lib32-gcc-libs perl python cmake musl
++makedepends=(rust "llvm=$_llvm_ver" libffi perl python cmake musl
+              ninja wasi-libc lld)
+ checkdepends=(procps-ng gdb)
+ source=(
+@@ -62,11 +62,9 @@ link-shared = true
  
  [build]
--target = ["x86_64-unknown-linux-gnu", "i686-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-+target = ["riscv64gc-unknown-linux-gnu"]
+ target = [
+-  "x86_64-unknown-linux-gnu",
+-  "i686-unknown-linux-gnu",
+-  "x86_64-unknown-linux-musl",
+   "wasm32-unknown-unknown",
+   "wasm32-wasi",
++  "riscv64gc-unknown-linux-gnu",
+ ]
  cargo = "/usr/bin/cargo"
  rustc = "/usr/bin/rustc"
- rustfmt = "/usr/bin/rustfmt"
-@@ -82,12 +82,8 @@ debuginfo-level-std = 2
- channel = "stable"
+@@ -90,7 +88,6 @@ description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
  rpath = false
+ backtrace-on-ice = true
+ remap-debuginfo = true
+-jemalloc = true
+ 
+ # LLVM crashes when passing an object through ThinLTO twice.  This is triggered
+ # when using rust code in cross-language LTO if libstd was built using ThinLTO.
+@@ -101,13 +98,9 @@ codegen-units-std = 1
+ [dist]
+ compression-formats = ["gz"]
  
 -[target.x86_64-unknown-linux-gnu]
 +[target.riscv64gc-unknown-linux-gnu]
  llvm-config = "/usr/bin/llvm-config"
--
+ 
 -[target.x86_64-unknown-linux-musl]
 -sanitizers = false
 -musl-root = "/usr/lib/musl"
- END
- }
- 
-@@ -98,7 +94,7 @@ build() {
+-
+ [target.wasm32-unknown-unknown]
+ sanitizers = false
+ profiler = false
+@@ -136,7 +129,7 @@ build() {
    export RUST_COMPILER_RT_ROOT="$srcdir/compiler-rt-$_llvm_ver.src"
    [[ -d $RUST_COMPILER_RT_ROOT ]]
  
--  DESTDIR="$PWD"/dest-rust python ./x.py install -j "$(nproc)"
-+  DESTDIR="$PWD"/dest-rust python ./x.py install
+-  DESTDIR="$srcdir/dest-rust" python ./x.py install -j "$(nproc)"
++  DESTDIR="$srcdir/dest-rust" python ./x.py install
  
-   # Remove analysis data for libs that weren't installed
-   # TODO: Find out where these come from
-@@ -113,8 +109,6 @@ build() {
-   done < <(find "dest-rust/usr/lib/rustlib"  -path '*/analysis/*.json' -print0)
+   cd ../dest-rust
  
-   # move docs and cross targets out of the way for splitting
--  mv dest-rust/usr/lib/rustlib/i686-unknown-linux-gnu dest-i686
--  mv dest-rust/usr/lib/rustlib/x86_64-unknown-linux-musl dest-musl
-   mv dest-rust/usr/share/doc dest-doc
- }
- 
-@@ -137,37 +131,12 @@ package_rust() {
- 
+@@ -147,8 +140,7 @@ build() {
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
--  ln -srft "$pkgdir"/usr/lib x86_64-unknown-linux-gnu/lib/*.so
-+  ln -srft "$pkgdir"/usr/lib riscv64gc-unknown-linux-gnu/lib/*.so
+   mkdir -p usr/lib32
+-  ln -srft usr/lib   usr/lib/rustlib/x86_64-unknown-linux-gnu/lib/*.so
+-  ln -srft usr/lib32 usr/lib/rustlib/i686-unknown-linux-gnu/lib/*.so
++  ln -srft usr/lib   usr/lib/rustlib/riscv64gc-unknown-linux-gnu/lib/*.so
  
-   install -d "$pkgdir"/usr/share/bash-completion/
-   mv "$pkgdir"/etc/bash_completion.d "$pkgdir"/usr/share/bash-completion/completions
+   mkdir -p usr/share/bash-completion
+   mv etc/bash_completion.d usr/share/bash-completion/completions
+@@ -156,8 +148,6 @@ build() {
+   mkdir -p usr/share/licenses/rust
+   mv -t usr/share/licenses/rust usr/share/doc/rust/{COPYRIGHT,LICENSE*}
+ 
+-  _pick dest-i686 usr/lib/rustlib/i686-unknown-linux-gnu usr/lib32
+-  _pick dest-musl usr/lib/rustlib/x86_64-unknown-linux-musl
+   _pick dest-wasm usr/lib/rustlib/wasm32-*
+   _pick dest-src  usr/lib/rustlib/src
+ }
+@@ -172,29 +162,6 @@ package_rust() {
+   cp -a dest-rust/* "$pkgdir"
  }
  
 -package_lib32-rust-libs() {
--  pkgdesc='32-bit target and libraries for Rust'
--  depends=('lib32-gcc-libs')
--  provides=('lib32-rust')
--  conflicts=('lib32-rust')
--  replaces=('lib32-rust')
+-  pkgdesc="32-bit target and libraries for Rust"
+-  depends=(rust lib32-gcc-libs)
+-  provides=(lib32-rust)
+-  conflicts=(lib32-rust)
+-  replaces=(lib32-rust)
 -
--  cd "rustc-$pkgver-src"
--  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE*
+-  cp -a dest-i686/* "$pkgdir"
 -
--  install -d "$pkgdir"/usr/lib/rustlib/ "$pkgdir"/usr/lib32/
--  cp -a dest-i686 "$pkgdir"/usr/lib/rustlib/i686-unknown-linux-gnu
--  ln -srft "$pkgdir"/usr/lib32 "$pkgdir"/usr/lib/rustlib/i686-unknown-linux-gnu/lib/*.so
+-  mkdir -p "$pkgdir/usr/share/licenses"
+-  ln -s rust "$pkgdir/usr/share/licenses/$pkgname"
 -}
 -
 -package_rust-musl() {
--  pkgdesc='Musl target for Rust'
+-  pkgdesc="Musl target for Rust"
+-  depends=(rust)
 -
--  cd "rustc-$pkgver-src"
--  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE*
+-  cp -a dest-musl/* "$pkgdir"
 -
--  install -d "$pkgdir"/usr/lib/rustlib/
--  cp -a dest-musl "$pkgdir"/usr/lib/rustlib/x86_64-unknown-linux-musl
+-  mkdir -p "$pkgdir/usr/share/licenses"
+-  ln -s rust "$pkgdir/usr/share/licenses/$pkgname"
 -}
 -
- package_rust-docs() {
-   pkgdesc='Documentation for the Rust programming language'
- 
+ package_rust-wasm() {
+   pkgdesc="WebAssembly targets for Rust"
+   depends=(rust lld)
