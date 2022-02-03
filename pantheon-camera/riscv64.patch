@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index bd229b4e5..df6cb0b13 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,14 +32,21 @@ makedepends=(
+   vala
+ )
+ _tag=7878707f9a91a6e4b6b2abd3b0498aa22971a3f2
+-source=(pantheon-camera::git+https://github.com/elementary/camera.git#tag=${_tag})
+-sha256sums=(SKIP)
++source=(pantheon-camera::git+https://github.com/elementary/camera.git#tag=${_tag}
++        "fix_positional_arg.patch")
++sha256sums=('SKIP'
++            'fca6419769d28b8fbbc363cbbd8a62cadab91efb844be601a810fa56b4f51ff7')
+ 
+ pkgver() {
+   cd pantheon-camera
+   git describe --tags
+ }
+ 
++prepare() {
++  cd pantheon-camera
++  patch -Np1 -i "../fix_positional_arg.patch"
++}
++
+ build() {
+   arch-meson pantheon-camera build
+   ninja -C build
