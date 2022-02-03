@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index c831960f4..2c64ba454 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,8 +8,15 @@ arch=('x86_64')
+ url='https://github.com/google/highway/'
+ license=('Apache')
+ makedepends=('cmake' 'gtest')
+-source=("https://github.com/google/highway/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha256sums=('4bbd4439eae08cf038f1c5cc5d9ebc6a1a50f2c610c13a1483adccacfa24c150')
++source=("https://github.com/google/highway/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz"
++        "fix_missing_header.patch")
++sha256sums=('4bbd4439eae08cf038f1c5cc5d9ebc6a1a50f2c610c13a1483adccacfa24c150'
++            '02a14bddb77bae364484d4570976965042a549ec35d53870f7d922fb05349b5d')
++
++prepare() {
++	cd "${pkgname}-${pkgver}"
++	patch -Np1 -i "../fix_missing_header.patch"
++}
+ 
+ build() {
+     export CXXFLAGS+=' -ffat-lto-objects -DHWY_COMPILE_ALL_ATTAINABLE'
