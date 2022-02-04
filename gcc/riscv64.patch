@@ -1,26 +1,61 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 391859)
-+++ PKGBUILD	(working copy)
-@@ -5,7 +5,7 @@
- # toolchain build order: linux-api-headers->glibc->binutils->gcc->binutils->glibc
+--- PKGBUILD
++++ PKGBUILD
+@@ -7,7 +7,7 @@
+ # toolchain build order: linux-api-headers->glibc->binutils->gcc->glibc->binutils->gcc
  # NOTE: libtool requires rebuilt with each new gcc version
  
 -pkgname=(gcc gcc-libs gcc-fortran gcc-objc gcc-ada gcc-go lib32-gcc-libs gcc-d)
 +pkgname=(gcc gcc-libs gcc-fortran gcc-objc gcc-go gcc-d)
- pkgver=11.1.0
+ pkgver=11.2.0
  _majorver=${pkgver%%.*}
  _islver=0.24
-@@ -14,7 +14,7 @@
+@@ -16,7 +16,7 @@ pkgdesc='The GNU Compiler Collection'
  arch=(x86_64)
  license=(GPL LGPL FDL custom)
  url='https://gcc.gnu.org'
--makedepends=(binutils libmpc gcc-ada doxygen lib32-glibc lib32-gcc-libs python git libxcrypt)
-+makedepends=(binutils libmpc doxygen python git)
- checkdepends=(dejagnu inetutils)
- options=(!emptydirs)
+-makedepends=(binutils libmpc gcc-ada doxygen lib32-glibc lib32-gcc-libs python git libxcrypt zstd)
++makedepends=(binutils libmpc doxygen python git zstd)
+ checkdepends=(dejagnu inetutils tcl expect python-pytest)
+ options=(!emptydirs !lto debug)
  _libdir=usr/lib/gcc/$CHOST/${pkgver%%+*}
-@@ -78,7 +78,7 @@
+@@ -27,6 +27,7 @@ source=(https://sourceware.org/pub/gcc/releases/gcc-${pkgver}/gcc-${pkgver}.tar.
+         c89 c99
+         gdc_phobos_path.patch
+         gcc-ada-repro.patch
++        change-lto-arg.patch
+ )
+ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.org
+               86CFFCA918CF3AF47147588051E8B148A9999C34  # evangelos@foutrelis.com
+@@ -38,7 +39,8 @@ sha256sums=('d08edc536b54c372a1010ff6619dd274c0f1603aa49212ba20f7aa2cda36fa8b'
+             'de48736f6e4153f03d0a5d38ceb6c6fdb7f054e8f47ddd6af0a3dbf14f27b931'
+             '2513c6d9984dd0a2058557bf00f06d8d5181734e41dcfe07be7ed86f2959622a'
+             'c86372c207d174c0918d4aedf1cb79f7fc093649eb1ad8d9450dccc46849d308'
+-            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f')
++            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f'
++            'f8311eeae6425aa8f150e6a477994b0d834f30cc85638fe640beae778c5c9f50')
+ 
+ prepare() {
+   [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
+@@ -62,6 +64,8 @@ prepare() {
+   # Reproducible gcc-ada
+   patch -Np0 < "$srcdir/gcc-ada-repro.patch"
+ 
++  patch -Np1 < "$srcdir/change-lto-arg.patch"  # disable lto bootstrap because it is faulty
++
+   mkdir -p "$srcdir/gcc-build"
+ }
+ 
+@@ -73,6 +77,9 @@ build() {
+   CXXFLAGS=${CXXFLAGS/-flto/}
+   LDFLAGS=${LDFLAGS/-flto/}
+ 
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
++  CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
++
+   # Credits @allanmcrae
+   # https://github.com/allanmcrae/toolchain/blob/f18604d70c5933c31b51a320978711e4e6791cf1/gcc/PKGBUILD
+   # TODO: properly deal with the build issues resulting from this
+@@ -85,7 +92,7 @@ build() {
        --mandir=/usr/share/man \
        --infodir=/usr/share/info \
        --with-bugurl=https://bugs.archlinux.org/ \
@@ -29,25 +64,25 @@ Index: PKGBUILD
        --with-isl \
        --with-linker-hash-style=gnu \
        --with-system-zlib \
-@@ -93,7 +93,7 @@
-       --enable-install-libiberty \
+@@ -99,7 +106,7 @@ build() {
+       --enable-gnu-unique-object \
        --enable-linker-build-id \
        --enable-lto \
 -      --enable-multilib \
 +      --disable-multilib \
+       --enable-pgo-build=lto \
        --enable-plugin \
        --enable-shared \
-       --enable-threads=posix \
-@@ -125,7 +125,7 @@
+@@ -137,7 +144,7 @@ package_gcc-libs() {
    depends=('glibc>=2.27')
-   options+=(!strip)
+   options=(!emptydirs !strip)
    provides=($pkgname-multilib libgo.so libgfortran.so libgphobos.so
 -            libubsan.so libasan.so libtsan.so liblsan.so)
 +            libubsan.so libasan.so liblsan.so)
    replaces=($pkgname-multilib libgphobos)
  
    cd gcc-build
-@@ -136,11 +136,9 @@
+@@ -148,11 +155,9 @@ package_gcc-libs() {
               libgfortran \
               libgo \
               libgomp \
@@ -61,7 +96,7 @@ Index: PKGBUILD
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -152,14 +150,10 @@
+@@ -164,14 +169,10 @@ package_gcc-libs() {
    rm -f "$pkgdir"/usr/lib/libgphobos.spec
  
    for lib in libgomp \
@@ -76,15 +111,15 @@ Index: PKGBUILD
    # Install Runtime Library Exception
    install -Dm644 "$srcdir/gcc/COPYING.RUNTIME" \
      "$pkgdir/usr/share/licenses/gcc-libs/RUNTIME.LIBRARY.EXCEPTION"
-@@ -169,7 +163,6 @@
+@@ -181,7 +182,6 @@ package_gcc() {
    pkgdesc="The GNU Compiler Collection - C and C++ frontends"
-   depends=("gcc-libs=$pkgver-$pkgrel" 'binutils>=2.28' libmpc)
+   depends=("gcc-libs=$pkgver-$pkgrel" 'binutils>=2.28' libmpc zstd)
    groups=('base-devel')
 -  optdepends=('lib32-gcc-libs: for generating code for 32-bit ABI')
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
-   options+=(staticlibs)
-@@ -183,22 +176,18 @@
+   options=(!emptydirs staticlibs debug)
+@@ -195,22 +195,18 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -109,7 +144,7 @@ Index: PKGBUILD
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -209,16 +198,10 @@
+@@ -221,20 +217,14 @@ package_gcc() {
      "$pkgdir/usr/lib/bfd-plugins/"
  
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_{libsubinclude,toolexeclib}HEADERS
@@ -124,10 +159,6 @@ Index: PKGBUILD
 -  make -C $CHOST/32/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
 -  make -C $CHOST/32/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
  
-   make -C libiberty DESTDIR="$pkgdir" install
-   install -m644 libiberty/pic/libiberty.a "$pkgdir/usr/lib"
-@@ -225,7 +208,7 @@
- 
    make -C gcc DESTDIR="$pkgdir" install-man install-info
    rm "$pkgdir"/usr/share/man/man1/{gccgo,gfortran,gdc}.1
 -  rm "$pkgdir"/usr/share/info/{gccgo,gfortran,gnat-style,gnat_rm,gnat_ugn,gdc}.info
@@ -135,7 +166,7 @@ Index: PKGBUILD
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -240,9 +223,6 @@
+@@ -249,9 +239,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -145,7 +176,7 @@ Index: PKGBUILD
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -262,8 +242,6 @@
+@@ -271,8 +258,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -154,7 +185,7 @@ Index: PKGBUILD
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -293,45 +271,6 @@
+@@ -302,45 +287,6 @@ package_gcc-objc() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -163,7 +194,7 @@ Index: PKGBUILD
 -  depends=("gcc=$pkgver-$pkgrel")
 -  provides=($pkgname-multilib)
 -  replaces=($pkgname-multilib)
--  options+=(staticlibs)
+-  options=(!emptydirs staticlibs debug)
 -
 -  cd gcc-build/gcc
 -  make DESTDIR="$pkgdir" ada.install-{common,info}
@@ -200,7 +231,7 @@ Index: PKGBUILD
  package_gcc-go() {
    pkgdesc='Go front-end for GCC'
    depends=("gcc=$pkgver-$pkgrel")
-@@ -341,11 +280,10 @@
+@@ -350,11 +296,10 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
@@ -213,7 +244,7 @@ Index: PKGBUILD
    install -Dm755 gcc/go1 "$pkgdir/${_libdir}/go1"
  
    # Install Runtime Library Exception
-@@ -354,43 +292,6 @@
+@@ -363,43 +308,6 @@ package_gcc-go() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -257,7 +288,7 @@ Index: PKGBUILD
  package_gcc-d() {
    pkgdesc="D frontend for GCC"
    depends=("gcc=$pkgver-$pkgrel")
-@@ -406,7 +307,6 @@
+@@ -415,7 +323,6 @@ package_gcc-d() {
  
    make -C $CHOST/libphobos DESTDIR="$pkgdir" install
    rm -f "$pkgdir/usr/lib/"lib{gphobos,gdruntime}.so*
