@@ -1,0 +1,29 @@
+diff --git PKGBUILD PKGBUILD
+index 17c4adf55..6cdbf122a 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,13 +17,21 @@ license=(custom GPL)
+ depends=(libtorrent-rasterbar qt6-base)
+ makedepends=(cmake boost qt6-tools qt6-svg)
+ optdepends=('python: needed for torrent search tab')
+-source=(https://downloads.sourceforge.net/sourceforge/qbittorrent/${pkgname}-${pkgver}.tar.xz{,.asc})
++source=(https://downloads.sourceforge.net/sourceforge/qbittorrent/${pkgname}-${pkgver}.tar.xz{,.asc}
++        "prefer_pthread.patch")
+ sha512sums=('92c219969f6f44056579da24fd37dd40969d0b98e14aa29b5f32d2b9c1c7bba1095ba7d40c6d90ca66dd7e65a50f1d63ab1f1360e8b2f9cb64c8e914967cba08'
+-            'SKIP')
++            'SKIP'
++            '70003cb6e569a136d13d1dd4b67137f7343f8473561c4c92cfeecfeb349518a32203522900b9128c2a863ab9907ca47f665fc57540db1771ecc97b7d7341638c')
+ b2sums=('56ed77fba20ec1c3bcd4848ed73190a60504316695ea1f2248ebaf4e9faf03b76c2124adf5a3e99e48a217519befb117f8b463d125f106dc011423c761e4582f'
+-        'SKIP')
++        'SKIP'
++        'c8fb832f401c46a0a78cf785406970291e780cbfed4be711ee7f780a489fbbecf39034eeea44d14f13c505b408580a0509e26d62e0301b5ed067f73acc9bfb5e')
+ validpgpkeys=('D8F3DA77AAC6741053599C136E4A2D025B7CC9A2') # sledgehammer999 <sledgehammer999@qbittorrent.org>
+ 
++prepare() {
++  cd $pkgbase-$pkgver
++  patch -Np1 -i "../prefer_pthread.patch"
++}
++
+ build() {
+   cmake -B build -S $pkgbase-$pkgver \
+     -DCMAKE_INSTALL_PREFIX=/usr \
