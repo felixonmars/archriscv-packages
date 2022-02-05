@@ -1,0 +1,17 @@
+diff --git a/cmake/OpenMP.cmake b/cmake/OpenMP.cmake
+index fec17da..5b892fe 100644
+--- a/cmake/OpenMP.cmake
++++ b/cmake/OpenMP.cmake
+@@ -28,7 +28,11 @@ if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+     # But we still want to build the library.
+     set(_omp_severity "WARNING")
+ else()
+-    set(_omp_severity "FATAL_ERROR")
++    if(DNNL_TARGET_ARCH STREQUAL "RV64")
++        set(_omp_severity "WARNING")
++    else()
++        set(_omp_severity "FATAL_ERROR")
++    endif()
+ endif()
+ 
+ macro(forbid_link_compiler_omp_rt)
