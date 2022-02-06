@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,9 +21,17 @@ libid3tag libogg libsndfile libusb libvorbis lilv lv2 qt5-tools portaudio
+ portmidi protobuf rubberband vamp-plugin-sdk)
+ checkdepends=(xorg-server-xvfb)
+ options=(debug)
+-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/${pkgname}dj/${pkgname}/archive/${pkgver}.tar.gz")
+-sha512sums=('81282d6c587914157b9ef4a7ca2f0e886cb97a847e215e2b0496671938d392e3fc8f941071577bc69db517e677dcd96b72e4b53d6fd42d2224c8a4e62d2acbcd')
+-b2sums=('9ec1d871d3051f081152f07fdafd6c5e2bb41224e723dc260afe27755fdcd87befd2cb5ecaa2d0fb6d7ee9fb1b97c12db4b8d0a29e695a3ff1a7fb51b94ebfa4')
++source=("${pkgname}-${pkgver}.tar.gz::https://github.com/${pkgname}dj/${pkgname}/archive/${pkgver}.tar.gz"
++        "0000-fix-unsupported-tests.patch")
++sha512sums=('81282d6c587914157b9ef4a7ca2f0e886cb97a847e215e2b0496671938d392e3fc8f941071577bc69db517e677dcd96b72e4b53d6fd42d2224c8a4e62d2acbcd'
++            '58050c09ea07259180011d359354a849b4fa5010e1cdc8f413e660e5ef7fb4609631d2a39bfdad6c1844d4d6bac435adea24a4ed29d5e75592db85b447a6410c')
++b2sums=('9ec1d871d3051f081152f07fdafd6c5e2bb41224e723dc260afe27755fdcd87befd2cb5ecaa2d0fb6d7ee9fb1b97c12db4b8d0a29e695a3ff1a7fb51b94ebfa4'
++        '2a5a1e03905bfe6ae1683513f1d160031e677db39923b06d9e089a36c48f88e01cb79aff799a0c455e2ae755be75f2ec28384b2134640a1ba0ee50cba8a7bbca')
++
++prepare() {
++  cd "${pkgname}-${pkgver}"
++  patch -Np1 -i ../0000-fix-unsupported-tests.patch  # https://mixxx.zulipchat.com/#narrow/stream/109171-development/topic/ARM.20test.20failures
++}
+ 
+ build() {
+   cmake -DCMAKE_INSTALL_PREFIX=/usr \
