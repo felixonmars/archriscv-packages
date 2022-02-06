@@ -1,69 +1,64 @@
---- PKGBUILD.orig	2021-08-04 10:23:41.113984170 +0800
-+++ PKGBUILD	2021-08-04 22:33:19.600364447 +0800
-@@ -22,20 +22,19 @@
- prepare() {
-   cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-double"
-   cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-long-double"
--  cp -av "${pkgname}-${pkgver}" "${pkgname}-${pkgver}-quad"
- }
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,7 +20,7 @@ libfftw3_threads.so libfftw3_omp.so libfftw3_mpi.so libfftw3.so)
+ source=("http://www.fftw.org/${pkgname}-${pkgver}.tar.gz")
+ sha512sums=('2d34b5ccac7b08740dbdacc6ebe451d8a34cf9d9bfec85a5e776e87adf94abfd803c222412d8e10fbaa4ed46f504aa87180396af1b108666cde4314a55610b40')
+ b2sums=('3663872bd95a01d2c79af185f53918e1d1a9c91c620082402772c07f25b9b77d4920a78dc686fac6b51aa961b8d62b7e2cef3f3031e096bed40ced80b59b29d5')
+-_build_types=(single double long-double quad)
++_build_types=(single double long-double)
  
- build() {
+ prepare() {
+   local _i
+@@ -45,21 +45,13 @@ build() {
+     --enable-openmp
+   )
+   local _configure_single=(
+-    --enable-sse
+-    --enable-avx
+     --enable-single
+   )
+   local _configure_double=(
+-    --enable-sse2
+-    --enable-avx
+   )
+   local _configure_long_double=(
+     --enable-long-double
+   )
+-  local _configure_quad=(
+-    --disable-mpi
+-    --enable-quad-precision
+-  )
+   local _cmake_options=(
+     -B build
+     -S $pkgname-$pkgver-$_build_types
+@@ -69,11 +61,6 @@ build() {
+     -D ENABLE_THREADS=ON
+     -D ENABLE_FLOAT=ON
+     -D ENABLE_LONG_DOUBLE=ON
+-    -D ENABLE_QUAD_PRECISION=ON
+-    -D ENABLE_SSE=ON
+-    -D ENABLE_SSE2=ON
+-    -D ENABLE_AVX=ON
+-    -D ENABLE_AVX2=ON
+   )
+ 
+   # create missing FFTW3LibraryDepends.cmake
+@@ -84,7 +71,7 @@ build() {
+ 
    export F77='gfortran'
    # use upstream default CFLAGS while keeping our -march/-mtune
 -  CFLAGS+=" -O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math"
 +  CFLAGS+=" -O3 -fomit-frame-pointer -fstrict-aliasing"
-   # default configure call
-   _default_configure="./configure --prefix=/usr --enable-shared --enable-threads --enable-mpi --enable-openmp"
  
-   # configure single precision
-   (
-     cd "${pkgname}-${pkgver}"
--    ${_default_configure} --enable-sse --enable-avx --enable-single
-+    ${_default_configure} --enable-single
-     # NOTE: fix overlinking
-     sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
-   )
-@@ -43,7 +42,7 @@
-   # configure double precision
-   (
-     cd "${pkgname}-${pkgver}-double"
--    ${_default_configure} --enable-sse2 --enable-avx
-+    ${_default_configure}
-     # NOTE: fix overlinking
-     sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
-   )
-@@ -56,18 +55,10 @@
-     sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
-   )
- 
--  # configure quad precision
--  (
--    cd "${pkgname}-${pkgver}-quad"
--    ${_default_configure} --disable-mpi --enable-quad-precision
--    # NOTE: fix overlinking
--    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
--  )
- 
-   make -C "${pkgname}-${pkgver}"
-   make -C "${pkgname}-${pkgver}-double"
-   make -C "${pkgname}-${pkgver}-long-double"
--  make -C "${pkgname}-${pkgver}-quad"
- 
- # NOTE: cmake setup still missing MPI integration and needs patch for libquadmath
- #  _default_options=(
-@@ -111,7 +102,6 @@
-   make check -C "${pkgname}-${pkgver}"
-   make check -C "${pkgname}-${pkgver}-double"
-   make check -C "${pkgname}-${pkgver}-long-double"
--  make check -C "${pkgname}-${pkgver}-quad"
- 
- #  cd "${pkgname}-${pkgver}"
- #  make VERBOSE=1 -C build test
-@@ -124,7 +114,6 @@
-   make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}"
-   make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-double"
-   make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-long-double"
--  make DESTDIR="${pkgdir}" install -C "${pkgname}-${pkgver}-quad"
- 
-   cd "${pkgname}-${pkgver}"
- #  make VERBOSE=1 DESTDIR="${pkgdir}" -C build install
+   for _name in "${_build_types[@]}"; do
+     (
+@@ -99,9 +86,6 @@ build() {
+         long-double)
+         "${_configure[@]}" "${_configure_long_double[@]}"
+         ;;
+-        quad)
+-        "${_configure[@]}" "${_configure_quad[@]}"
+-        ;;
+       esac
+       # fix overlinking because of libtool
+       sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
