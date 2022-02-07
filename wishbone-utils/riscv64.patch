@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 7393bcbe3..5cf719936 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,9 +9,19 @@ arch=(x86_64)
+ url="https://github.com/litex-hub/wishbone-utils"
+ license=(BSD)
+ depends=(glibc gcc-libs)
+-makedepends=(rust)
+-source=($pkgname-$pkgver.tar.gz::https://github.com/litex-hub/wishbone-utils/archive/v$pkgver.tar.gz)
+-sha512sums=('ca61e335f97c3e5ed0b02d71601c4d2102c87ea40051f7345514c1624c06bdaa47bb6acca66c0709968c9e39faf570f49e5ec81cb444909029498043240e506d')
++makedepends=(rust git)
++source=($pkgname-$pkgver.tar.gz::https://github.com/litex-hub/wishbone-utils/archive/v$pkgver.tar.gz
++        "use_new_nix.patch")
++sha512sums=('ca61e335f97c3e5ed0b02d71601c4d2102c87ea40051f7345514c1624c06bdaa47bb6acca66c0709968c9e39faf570f49e5ec81cb444909029498043240e506d'
++            '1d8db883a7771de153410fa558ed09c7281e81f0b76f459b543b355e7a2ca9a805923c4017255c43d99ef9e2cc6173236e80c24627492ed5f66cb11262cd1aaf')
++options=(!lto)
++
++prepare() {
++  cd $pkgname-$pkgver/wishbone-tool/crates
++  git clone 'https://gitlab.com/susurrus/serialport-rs.git' --branch 3.3.0
++  patch -Np3 -i "../../../test.patch"
++  cargo update -p serialport -p nix
++}
+ 
+ build() {
+   cd $pkgname-$pkgver/wishbone-tool
