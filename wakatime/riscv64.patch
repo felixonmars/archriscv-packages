@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,12 +14,21 @@ license=('BSD')
+ depends=('glibc')
+ makedepends=('git' 'go')
+ checkdepends=('svn')
+-source=("${pkgname}-cli::git+https://github.com/${pkgname}/${pkgname}-cli#tag=v${pkgver}")
+-sha256sums=('SKIP')
++source=("${pkgname}-cli::git+https://github.com/${pkgname}/${pkgname}-cli#tag=v${pkgver}"
++        "${pkgname}-pull-645.patch::https://github.com/wakatime/wakatime-cli/pull/645.patch")
++sha256sums=('SKIP'
++            'a53e0d001d2a8e0bcf1e7c0ceb82a82d0ece4b65663af56387d898fb5b2e1e83')
+
+-_binname="${pkgname}-cli-linux-amd64"
++prepare() {
++  cd "${srcdir}/${pkgname}-cli"
++
++  patch -Np1 < "${srcdir}/${pkgname}-pull-645.patch"
++}
+
+ build() {
++  _GOARCH=$(go env GOARCH)
++  export _binname="${pkgname}-cli-linux-${_GOARCH}"
++
+   cd "${srcdir}/${pkgname}-cli"
+
+   mkdir -p build  # create build dir
+@@ -37,7 +46,7 @@ build() {
+     -buildmode=pie \
+     -mod=readonly \
+     -modcacherw \
+-    -ldflags "-linkmode external -extldflags '${LDFLAGS}' -X '${_repo}/pkg/version.OS=linux' -X '${_repo}/pkg/version.Arch=amd64' -X '${_repo}/pkg/version.BuildDate=${_date}' -X '${_repo}/pkg/version.Commit=${_commit}' -X '${_repo}/pkg/version.Version=${pkgver}'"
++    -ldflags "-linkmode external -extldflags '${LDFLAGS}' -X '${_repo}/pkg/version.OS=linux' -X '${_repo}/pkg/version.Arch=${_GOARCH}' -X '${_repo}/pkg/version.BuildDate=${_date}' -X '${_repo}/pkg/version.Commit=${_commit}' -X '${_repo}/pkg/version.Version=${pkgver}'"
+ }
+
+ check () {
