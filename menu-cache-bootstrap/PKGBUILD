@@ -1,0 +1,37 @@
+# $Id$
+# Maintainer:  Bartłomiej Piotrowski <bpiotrowski@archlinux.org>
+# Contributor: Angel Velasquez <angvp@archlinux.org>
+# Contributor: Juergen Hoetzel <juergen@archlinux.org>
+
+pkgname=menu-cache-bootstrap
+_pkgname=menu-cache
+pkgver=0.6.0
+pkgrel=1
+pkgdesc='Caching mechanism for freedesktop.org compliant menus - Bootstrap'
+arch=('i686' 'x86_64')
+license=('GPL2')
+url='http://lxde.org/'
+depends=('glib2')
+makedepends=('gtk-doc')
+provides=('menu-cache')
+source=(https://github.com/lxde/menu-cache/archive/$pkgver.tar.gz)
+md5sums=('696a345e500532a07f61863ed95565af')
+
+prepare() {
+  cd $_pkgname-$pkgver
+  NOCONFIGURE=1 ./autogen.sh
+}
+
+build() {
+  cd $_pkgname-$pkgver
+  CFLAGS+=' -fcommon'
+  ./configure --prefix=/usr --sysconfdir=/etc \
+    --libexecdir=/usr/lib \
+    --disable-static
+  make
+}
+
+package() {
+  cd $_pkgname-$pkgver
+  make DESTDIR="$pkgdir" install
+}
