@@ -1,21 +1,26 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,12 +11,16 @@ url="https://www.khronos.org/vulkan/"
- license=('custom')
- makedepends=(asciidoctor python3 dblatex source-highlight cmake ghostscript nodejs npm git)
+@@ -12,8 +12,10 @@ license=('custom')
+ makedepends=(python3 dblatex source-highlight cmake ghostscript nodejs npm git)
+ makedepends+=(rubygems graphicsmagick pango gdk-pixbuf2 jbigkit)
  groups=(vulkan-devel)
 -source=("https://github.com/KhronosGroup/${_pkgname}/archive/v${pkgver}.tar.gz")
--sha256sums=('c7fd5d0ff12eb795c2dde959dbfc0b12394341aedc45f28d457196eda22bdc4b')
+-sha256sums=('a88ad5f67a9bbd10536ab9ed35febe45afa2bb73070e6e8b261dbc068e4bc8bd')
 +source=("https://github.com/KhronosGroup/${_pkgname}/archive/v${pkgver}.tar.gz"
 +        "escape-string-regexp-esm.patch")
-+sha256sums=('c7fd5d0ff12eb795c2dde959dbfc0b12394341aedc45f28d457196eda22bdc4b'
++sha256sums=('a88ad5f67a9bbd10536ab9ed35febe45afa2bb73070e6e8b261dbc068e4bc8bd'
 +            'b81b5436f83ae566fd805f26653b8ace650822900e64c9fceae66a9f35b8e874')
  
  prepare() {
-   npm install escape-string-regexp
-   npm install he
+   export PATH="${PATH}:/build/.local/share/gem/ruby/3.0.0/bin"
+@@ -23,6 +25,10 @@ prepare() {
+      pygments.rb rouge text-hyphen
+ 
+   npm install escape-string-regexp@2.0.0 he lunr@2.3.6
 +
-+  patch -Np0 < escape-string-regexp-esm.patch
++  cd "${srcdir}/${_pkgname}-${pkgver}"
++
++  patch -Np1 -i ../escape-string-regexp-esm.patch
  }
  
  build() {
