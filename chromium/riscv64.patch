@@ -1,28 +1,28 @@
---- PKGBUILD.orig	2021-11-07 12:11:26.351795950 +0000
-+++ PKGBUILD	2021-11-07 12:11:11.021795115 +0000
-@@ -36,7 +36,8 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,7 +31,8 @@
+         sql-make-VirtualCursor-standard-layout-type.patch
          chromium-93-ffmpeg-4.4.patch
-         chromium-94-ffmpeg-roll.patch
-         unexpire-accelerated-video-decode-flag.patch
+         unbundle-ffmpeg-av_stream_get_first_dts.patch
 -        use-oauth2-client-switches-as-default.patch)
 +        use-oauth2-client-switches-as-default.patch
 +        riscv.patch)
- sha256sums=('38a37d737c6c9a7198402ca614746b2dbb7abbb793bb2cb02dc796b62a22efe7'
+ sha256sums=('c87266e20f860a32c48affc70a769368d1b876dbad768e3aa93ee3c335944171'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             'bc6373f2470a9e6d947a4deaee0612f730112f69552b933c54bb6e60b82dd6f1'
-@@ -52,7 +53,8 @@
+             'f561145514e9d30a696a82f6a6a4eca06e664b58d7cda30dad9afb2cef341a4d'
+@@ -41,7 +42,8 @@
+             'b94b2e88f63cfb7087486508b8139599c89f96d7a4181c61fec4b4e250ca327a'
              '1a9e074f417f8ffd78bcd6874d8e2e74a239905bf662f76a7755fa40dc476b57'
-             '56acb6e743d2ab1ed9f3eb01700ade02521769978d03ac43226dec94659b3ace'
-             '2a97b26c3d6821b15ef4ef1369905c6fa3e9c8da4877eb9af4361452a425290b'
+             '1f0c1a7a1eb67d91765c9f28df815f58e1c6dc7b37d0acd4d68cac8e5515786c'
 -            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
 +            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
-+            'c2b990f1d1ca5a668f1c215b28b346ca5413ff58a94feb42d209214c32ed6114')
++            '3c4a978e88afcb55f5c00e3841298f60d3a16bae987da4eee6c120e9ee4cdc81')
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -141,11 +143,17 @@
+@@ -118,6 +120,9 @@
    # Fixes for building with libstdc++ instead of libc++
-   patch -Np1 -i ../patches/chromium-95-quiche-include.patch
+   #patch -Np1 -i ../patches/
  
 +  # RISCV64
 +  patch -Np1 -i ../riscv.patch
@@ -30,43 +30,14 @@
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-   ln -s /usr/bin/java third_party/jdk/current/bin/
- 
-+  rm buildtools/third_party/eu-strip/bin/eu-strip
-+  ln -s /usr/bin/eu-strip buildtools/third_party/eu-strip/bin/eu-strip
-+
-   # Remove bundled libraries for which we will use the system copies; this
-   # *should* do what the remove_bundled_libraries.py script does, with the
-   # added benefit of not having to list all the remaining libraries
-@@ -173,6 +181,11 @@
-   export AR=ar
-   export NM=nm
- 
-+  export CFLAGS="${CFLAGS//-fexceptions/}"
-+  export CFLAGS="${CFLAGS//-fstack-clash-protection/}"
-+  export CXXFLAGS="${CXXFLAGS//-fexceptions/}"
-+  export CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
-+
-   local _flags=(
-     'custom_toolchain="//build/toolchain/linux/unbundle:default"'
-     'host_toolchain="//build/toolchain/linux/unbundle:default"'
-@@ -192,6 +205,8 @@
+@@ -170,6 +175,10 @@
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
 +    'use_thin_lto=false'
-+    'enable_swiftshader=true'  # ui/gl/features.gni defaults to false on riscv64
++    'is_clang=true'
++    'use_lld=false'
++    'enable_swiftshader=true'
    )
  
    if [[ -n ${_system_libs[icu]+set} ]]; then
-@@ -257,6 +272,10 @@
-     libEGL.so
-     libGLESv2.so
- 
-+    # SwiftShader VK
-+    libvk_swiftshader.so
-+    vk_swiftshader_icd.json
-+
-     chromedriver
-     chrome_crashpad_handler
-   )
