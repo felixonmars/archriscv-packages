@@ -1,10 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,6 +9,7 @@ arch=(x86_64)
- depends=(glibc)
- license=('Apache')
- makedepends=(go git)
-+options=(!lto)
- backup=('etc/alertmanager/alertmanager.yml' 'etc/conf.d/alertmanager')
- source=($pkgname-$pkgver.tar.gz::https://github.com/prometheus/alertmanager/archive/v${pkgver}.tar.gz
-         alertmanager.service
+@@ -2,7 +2,7 @@
+ 
+ pkgname=alertmanager
+ pkgver=0.23.0
+-pkgrel=3
++pkgrel=3.1
+ pkgdesc="Service which handles alerts sent by client applications such as the Prometheus server"
+ url="https://github.com/prometheus/alertmanager"
+ arch=(x86_64)
+@@ -26,7 +26,7 @@ build() {
+     -buildmode=pie \
+     -mod=readonly \
+     -modcacherw \
+-    -ldflags "-extldflags ${LDFLAGS} \
++    -ldflags "-extldflags \"${LDFLAGS} -Wl,-plugin-opt=-target-abi=lp64d\" \
+       -X github.com/prometheus/common/version.Version=$pkgver \
+       -X github.com/prometheus/common/version.Revision=$pkgver \
+       -X github.com/prometheus/common/version.Branch=tarball \
+@@ -39,7 +39,7 @@ build() {
+     -buildmode=pie \
+     -mod=readonly \
+     -modcacherw \
+-    -ldflags "-extldflags ${LDFLAGS} \
++    -ldflags "-extldflags \"${LDFLAGS} -Wl,-plugin-opt=-target-abi=lp64d\" \
+       -X github.com/prometheus/common/version.Version=$pkgver \
+       -X github.com/prometheus/common/version.Revision=$pkgver \
+       -X github.com/prometheus/common/version.Branch=tarball \
