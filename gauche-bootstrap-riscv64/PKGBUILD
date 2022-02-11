@@ -1,0 +1,35 @@
+# Maintainer: Alexander F. Rødseth <xyproto@archlinux.org>
+# Contributor: Stefan Husmann <stefan-husmann@t-online.de>
+# Contributor: Motohiro Ueki <ueki.com@gmail.com>
+# Contributor: nkoizu <nkoizu@gmail.com>
+
+_pkgname=gauche
+pkgname=gauche-bootstrap-riscv64
+pkgver=0.9.11
+pkgrel=1
+url='https://practical-scheme.net/gauche/'
+arch=(riscv64)
+pkgdesc='R7RS Scheme implementation (includes gosh) (for riscv64 bootstrapping)'
+depends=(libatomic_ops libxcrypt slib)
+provides=(gauche)
+conflicts=(gauche)
+makedepends=(autoconf)
+license=(BSD)
+# tarball in release page is preconfigured for first time installation
+source=("$_pkgname-$pkgver.tgz"::https://github.com/shirok/Gauche/releases/download/release${pkgver//\./_}/Gauche-$pkgver.tgz)
+sha256sums=('395e4ffcea496c42a5b929a63f7687217157c76836a25ee4becfcd5f130f38e4')
+
+build() {
+  cd Gauche-$pkgver
+  ./configure --prefix=/usr --with-slib=/usr/share/slib
+  make
+}
+
+package() {
+  cd Gauche-$pkgver
+  make DESTDIR="$pkgdir" install-pkg install-doc
+  install -Dm644 COPYING "$pkgdir/usr/share/licenses/$_pkgname/COPYING"
+  touch -d '17 May 2021 10:10' "$pkgdir"/usr/share/info/gauche-ref*info*.gz
+}
+
+# getver: practical-scheme.net/gauche/gmemo/index.cgi?ReleaseNotes
