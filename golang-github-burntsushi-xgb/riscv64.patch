@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,12 +10,15 @@ url="https://github.com/BurntSushi/xgb"
+ license=('BSD' 'custom:WTFPL')
+ depends=('go')
+ checkdepends=('xorg-server-xvfb')
+-source=("$pkgname-$_commit.tar.gz::https://github.com/BurntSushi/xgb/archive/$_commit.tar.gz")
+-sha512sums=('950e951a5f5b20567a32dc2a0770c00af9f72f97efe346adc6fdb73698b1919895bec9dad5dc2d73eef7ae87e2ff3c56fc9a673141246408acfd97703eda9da0')
++source=("$pkgname-$_commit.tar.gz::https://github.com/BurntSushi/xgb/archive/$_commit.tar.gz"
++        "fix-go-mod.patch::https://github.com/BurntSushi/xgb/pull/57.diff")
++sha512sums=('950e951a5f5b20567a32dc2a0770c00af9f72f97efe346adc6fdb73698b1919895bec9dad5dc2d73eef7ae87e2ff3c56fc9a673141246408acfd97703eda9da0'
++            'dcc1f8fe607ffbfab1de51728e510617a54a7f5a999ba19dbab2f88975f8f5f0f01127aa057dfa2fdbcb00e69c36dd3643f1f1772cca3354d546409bb5a22161')
+ 
+ prepare() {
+   cd xgb-$_commit
+   sed -i 's|fmt.Println("\\n")|fmt.Print("\\n\\n")|' examples/randr/main.go
++  patch -Np1 -i ../fix-go-mod.patch
+ }
+ 
+ check() {
