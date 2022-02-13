@@ -1,7 +1,7 @@
-Index: jdk11u-f412f2537f15/make/autoconf/build-aux/autoconf-config.guess
+Index: jdk11u-jdk-11.0.14-9/make/autoconf/build-aux/autoconf-config.guess
 ===================================================================
---- jdk11u-f412f2537f15.orig/make/autoconf/build-aux/autoconf-config.guess
-+++ jdk11u-f412f2537f15/make/autoconf/build-aux/autoconf-config.guess
+--- jdk11u-jdk-11.0.14-9.orig/make/autoconf/build-aux/autoconf-config.guess
++++ jdk11u-jdk-11.0.14-9/make/autoconf/build-aux/autoconf-config.guess
 @@ -1000,6 +1000,9 @@ EOF
      ppc:Linux:*:*)
  	echo powerpc-unknown-linux-gnu
@@ -12,10 +12,10 @@ Index: jdk11u-f412f2537f15/make/autoconf/build-aux/autoconf-config.guess
      s390:Linux:*:* | s390x:Linux:*:*)
  	echo ${UNAME_MACHINE}-ibm-linux
  	exit ;;
-Index: jdk11u-f412f2537f15/make/autoconf/build-aux/autoconf-config.sub
+Index: jdk11u-jdk-11.0.14-9/make/autoconf/build-aux/autoconf-config.sub
 ===================================================================
---- jdk11u-f412f2537f15.orig/make/autoconf/build-aux/autoconf-config.sub
-+++ jdk11u-f412f2537f15/make/autoconf/build-aux/autoconf-config.sub
+--- jdk11u-jdk-11.0.14-9.orig/make/autoconf/build-aux/autoconf-config.sub
++++ jdk11u-jdk-11.0.14-9/make/autoconf/build-aux/autoconf-config.sub
 @@ -302,6 +302,7 @@ case $basic_machine in
  	| pdp10 | pdp11 | pj | pjl \
  	| powerpc | powerpc64 | powerpc64le | powerpcle | ppcbe \
@@ -32,23 +32,24 @@ Index: jdk11u-f412f2537f15/make/autoconf/build-aux/autoconf-config.sub
  	| romp-* | rs6000-* \
  	| sh-* | sh[1234]-* | sh[24]a-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
  	| shle-* | sh[1234]le-* | sh3ele-* | sh64-* | sh64le-* \
-Index: jdk11u-f412f2537f15/make/autoconf/hotspot.m4
+Index: jdk11u-jdk-11.0.14-9/make/autoconf/hotspot.m4
 ===================================================================
---- jdk11u-f412f2537f15.orig/make/autoconf/hotspot.m4
-+++ jdk11u-f412f2537f15/make/autoconf/hotspot.m4
-@@ -355,7 +355,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURE
-   # Only enable Shenandoah on supported arches, and only if requested
+--- jdk11u-jdk-11.0.14-9.orig/make/autoconf/hotspot.m4
++++ jdk11u-jdk-11.0.14-9/make/autoconf/hotspot.m4
+@@ -356,7 +356,8 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURE
    AC_MSG_CHECKING([if shenandoah can be built])
    if HOTSPOT_CHECK_JVM_FEATURE(shenandoahgc); then
--    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-+    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" || test "x$OPENJDK_TARGET_CPU" = "xriscv64" ; then
+     if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || \
+-       test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
++       test "x$OPENJDK_TARGET_CPU" = "xaarch64" || \
++       test "x$OPENJDK_TARGET_CPU" = "xriscv64"; then
        AC_MSG_RESULT([yes])
      else
        DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES shenandoahgc"
-Index: jdk11u-f412f2537f15/make/autoconf/libraries.m4
+Index: jdk11u-jdk-11.0.14-9/make/autoconf/libraries.m4
 ===================================================================
---- jdk11u-f412f2537f15.orig/make/autoconf/libraries.m4
-+++ jdk11u-f412f2537f15/make/autoconf/libraries.m4
+--- jdk11u-jdk-11.0.14-9.orig/make/autoconf/libraries.m4
++++ jdk11u-jdk-11.0.14-9/make/autoconf/libraries.m4
 @@ -111,7 +111,7 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
      GLOBAL_LIBS=""
    fi
@@ -67,24 +68,20 @@ Index: jdk11u-f412f2537f15/make/autoconf/libraries.m4
    JDKLIB_LIBS="$BASIC_JDKLIB_LIBS"
    JDKEXE_LIBS=""
    JVM_LIBS="$BASIC_JVM_LIBS"
-Index: jdk11u-f412f2537f15/make/autoconf/platform.m4
+Index: jdk11u-jdk-11.0.14-9/make/autoconf/platform.m4
 ===================================================================
---- jdk11u-f412f2537f15.orig/make/autoconf/platform.m4
-+++ jdk11u-f412f2537f15/make/autoconf/platform.m4
-@@ -114,6 +114,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
+--- jdk11u-jdk-11.0.14-9.orig/make/autoconf/platform.m4
++++ jdk11u-jdk-11.0.14-9/make/autoconf/platform.m4
+@@ -122,7 +122,7 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU
+       ;;
+     riscv64)
+       VAR_CPU=riscv64
+-      VAR_CPU_ARCH=riscv
++      VAR_CPU_ARCH=riscv64
        VAR_CPU_BITS=64
        VAR_CPU_ENDIAN=little
        ;;
-+    riscv64)
-+      VAR_CPU=riscv64
-+      VAR_CPU_ARCH=riscv64
-+      VAR_CPU_BITS=64
-+      VAR_CPU_ENDIAN=little
-+      ;;
-     s390)
-       VAR_CPU=s390
-       VAR_CPU_ARCH=s390
-@@ -469,6 +475,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HEL
+@@ -518,6 +518,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HEL
      HOTSPOT_$1_CPU_DEFINE=SPARC
    elif test "x$OPENJDK_$1_CPU" = xppc; then
      HOTSPOT_$1_CPU_DEFINE=PPC32
@@ -93,10 +90,10 @@ Index: jdk11u-f412f2537f15/make/autoconf/platform.m4
    elif test "x$OPENJDK_$1_CPU" = xs390; then
      HOTSPOT_$1_CPU_DEFINE=S390
    elif test "x$OPENJDK_$1_CPU" = xs390x; then
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/abstractInterpreter_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/abstractInterpreter_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/abstractInterpreter_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/abstractInterpreter_riscv64.cpp
 @@ -0,0 +1,172 @@
 +/*
 + * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
@@ -270,10 +267,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/abstractInterpreter_riscv64.c
 +  *interpreter_frame->interpreter_frame_mirror_addr() =
 +    method->method_holder()->java_mirror();
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/assembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/assembler_riscv64.cpp
 @@ -0,0 +1,367 @@
 +/*
 + * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
@@ -642,10 +639,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.cpp
 +  }
 +}
 +
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/assembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/assembler_riscv64.hpp
 @@ -0,0 +1,1261 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -1908,10 +1905,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.hpp
 +class BiasedLockingCounters;
 +
 +#endif // CPU_RISCV64_ASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/assembler_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/assembler_riscv64.inline.hpp
 @@ -0,0 +1,47 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -1960,10 +1957,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/assembler_riscv64.inline.hpp
 +}
 +
 +#endif // CPU_RISCV64_ASSEMBLER_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/bytes_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/bytes_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/bytes_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/bytes_riscv64.hpp
 @@ -0,0 +1,167 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -2132,10 +2129,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/bytes_riscv64.hpp
 +#include OS_CPU_HEADER_INLINE(bytes)
 +
 +#endif // CPU_RISCV64_BYTES_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_CodeStubs_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_CodeStubs_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_CodeStubs_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_CodeStubs_riscv64.cpp
 @@ -0,0 +1,352 @@
 +/*
 + * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -2489,10 +2486,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_CodeStubs_riscv64.cpp
 +}
 +
 +#undef __
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_Defs_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_Defs_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_Defs_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_Defs_riscv64.hpp
 @@ -0,0 +1,85 @@
 +/*
 + * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -2579,10 +2576,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_Defs_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_C1_DEFS_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.cpp
 @@ -0,0 +1,31 @@
 +/*
 + * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
@@ -2615,10 +2612,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.cpp
 +//--------------------------------------------------------
 +
 +// No FPU stack on RISCV64
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.hpp
 @@ -0,0 +1,33 @@
 +/*
 + * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -2653,10 +2650,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FpuStackSim_riscv64.hpp
 +class FpuStackSim;
 +
 +#endif // CPU_RISCV64_C1_FPUSTACKSIM_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.cpp
 @@ -0,0 +1,391 @@
 +/*
 + * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -3049,10 +3046,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.cpp
 +bool FrameMap::validate_frame() {
 +  return true;
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.hpp
 @@ -0,0 +1,150 @@
 +/*
 + * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -3204,10 +3201,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_FrameMap_riscv64.hpp
 +
 +#endif // CPU_RISCV64_C1_FRAMEMAP_RISCV64_HPP
 +
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.cpp
 @@ -0,0 +1,290 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -3499,10 +3496,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64
 +}
 +
 +#undef __
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64.hpp
 @@ -0,0 +1,36 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -3540,10 +3537,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arith_riscv64
 +  void arith_op_single_cpu_right_constant(LIR_Code code, LIR_Opr left, LIR_Opr right, Register lreg, Register dreg);
 +  void arithmetic_idiv(LIR_Op3* op, bool is_irem);
 +#endif // CPU_RISCV64_C1_LIRASSEMBLER_ARITH_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.cpp
 @@ -0,0 +1,391 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -3936,10 +3933,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_ris
 +}
 +
 +#undef __
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_riscv64.hpp
 @@ -0,0 +1,51 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -3992,10 +3989,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_arraycopy_ris
 +  void arraycopy_load_args(Register src, Register src_pos, Register length,
 +                           Register dst, Register dst_pos);
 +#endif // CPU_RISCV64_C1_LIRASSEMBLER_ARRAYCOPY_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.cpp
 @@ -0,0 +1,2265 @@
 +/*
 + * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -6262,10 +6259,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.cpp
 +}
 +
 +#undef __
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.hpp
 @@ -0,0 +1,132 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -6399,10 +6396,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRAssembler_riscv64.hpp
 +  void store_parameter(jint c, int offset_from_rsp_in_words);
 +
 +#endif // CPU_RISCV64_C1_LIRASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRGenerator_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRGenerator_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRGenerator_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIRGenerator_riscv64.cpp
 @@ -0,0 +1,1066 @@
 +/*
 + * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -7470,10 +7467,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIRGenerator_riscv64.cpp
 +                                       CodeEmitInfo* info) {
 +  __ volatile_load_mem_reg(address, result, info);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIR_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIR_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIR_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LIR_riscv64.cpp
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -7530,10 +7527,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LIR_riscv64.cpp
 +         base()->type() == T_METADATA, "wrong type for addresses");
 +}
 +#endif // PRODUCT
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.cpp
 @@ -0,0 +1,33 @@
 +/*
 + * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -7568,10 +7565,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.cpp
 +void LinearScan::allocate_fpu_stack() {
 +  // No FPU stack on RISCV64
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.hpp
 @@ -0,0 +1,85 @@
 +/*
 + * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -7658,10 +7655,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_LinearScan_riscv64.hpp
 +
 +
 +#endif // CPU_RISCV64_C1_LINEARSCAN_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.cpp
 @@ -0,0 +1,443 @@
 +/*
 + * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -8106,10 +8103,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.cpp
 +         "invalid c1 float conditional branch index");
 +  (this->*c1_float_cond_branch[cmpFlag])(op1, op2, label, is_far, is_unordered);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.hpp
 @@ -0,0 +1,121 @@
 +/*
 + * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -8232,10 +8229,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_MacroAssembler_riscv64.hpp
 +                           bool is_far, bool is_unordered = false);
 +
 +#endif // CPU_RISCV64_C1_MACROASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_Runtime1_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_Runtime1_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_Runtime1_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_Runtime1_riscv64.cpp
 @@ -0,0 +1,1210 @@
 +/*
 + * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -9447,10 +9444,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_Runtime1_riscv64.cpp
 +#undef __
 +
 +const char *Runtime1::pd_name_for_address(address entry) { Unimplemented(); return 0; }
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_globals_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_globals_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_globals_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c1_globals_riscv64.hpp
 @@ -0,0 +1,72 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9524,10 +9521,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c1_globals_riscv64.hpp
 +define_pd_global(bool, TwoOperandLIRForm,            false );
 +
 +#endif // CPU_RISCV64_C1_GLOBALS_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c2_globals_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c2_globals_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c2_globals_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c2_globals_riscv64.hpp
 @@ -0,0 +1,91 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9620,10 +9617,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c2_globals_riscv64.hpp
 +define_pd_global(bool,  TrapBasedRangeChecks,        false); // Not needed.
 +
 +#endif // CPU_RISCV64_C2_GLOBALS_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c2_init_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c2_init_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c2_init_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/c2_init_riscv64.cpp
 @@ -0,0 +1,38 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9663,10 +9660,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/c2_init_riscv64.cpp
 +  guarantee(CodeEntryAlignment >= InteriorEntryAlignment, "" );
 +  reg_mask_init();
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/codeBuffer_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/codeBuffer_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/codeBuffer_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/codeBuffer_riscv64.hpp
 @@ -0,0 +1,36 @@
 +/*
 + * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9704,10 +9701,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/codeBuffer_riscv64.hpp
 +  void flush_bundle(bool start_new_bundle) {}
 +
 +#endif // CPU_RISCV64_CODEBUFFER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/compiledIC_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/compiledIC_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/compiledIC_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/compiledIC_riscv64.cpp
 @@ -0,0 +1,154 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9863,10 +9860,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/compiledIC_riscv64.cpp
 +}
 +
 +#endif // !PRODUCT
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/copy_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/copy_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/copy_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/copy_riscv64.hpp
 @@ -0,0 +1,60 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9928,10 +9925,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/copy_riscv64.hpp
 +}
 +
 +#endif // CPU_RISCV64_COPY_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/depChecker_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/depChecker_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/depChecker_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/depChecker_riscv64.cpp
 @@ -0,0 +1,30 @@
 +/*
 + * Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -9963,10 +9960,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/depChecker_riscv64.cpp
 +#include "depChecker_riscv64.hpp"
 +
 +// Nothing to do on riscv64
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/depChecker_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/depChecker_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/depChecker_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/depChecker_riscv64.hpp
 @@ -0,0 +1,31 @@
 +/*
 + * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -9999,10 +9996,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/depChecker_riscv64.hpp
 +// Nothing to do on riscv64
 +
 +#endif // CPU_RISCV64_DEPCHECKER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/disassembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/disassembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/disassembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/disassembler_riscv64.hpp
 @@ -0,0 +1,37 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -10041,10 +10038,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/disassembler_riscv64.hpp
 +  }
 +
 +#endif // CPU_RISCV64_DISASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/frame_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/frame_riscv64.cpp
 @@ -0,0 +1,691 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -10737,10 +10734,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.cpp
 +  vmassert(_last_Java_pc == NULL, "already walkable");
 +  _last_Java_pc = (address)_last_Java_sp[-1];
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/frame_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/frame_riscv64.hpp
 @@ -0,0 +1,209 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -10951,10 +10948,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.hpp
 +  static jint interpreter_frame_expression_stack_direction() { return -1; }
 +
 +#endif // CPU_RISCV64_FRAME_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/frame_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/frame_riscv64.inline.hpp
 @@ -0,0 +1,258 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -11214,10 +11211,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/frame_riscv64.inline.hpp
 +}
 +
 +#endif // CPU_RISCV64_FRAME_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.cpp
 @@ -0,0 +1,488 @@
 +/*
 + * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -11707,10 +11704,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_r
 +#undef __
 +
 +#endif // COMPILER1
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_riscv64.hpp
 @@ -0,0 +1,78 @@
 +/*
 + * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
@@ -11790,10 +11787,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/g1/g1BarrierSetAssembler_r
 +};
 +
 +#endif // CPU_RISCV64_GC_G1_G1BARRIERSETASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.cpp
 @@ -0,0 +1,224 @@
 +/*
 + * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -12019,10 +12016,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler
 +  }
 +  __ sd(tmp1, Address(xthread, in_bytes(JavaThread::allocated_bytes_offset())));
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler_riscv64.hpp
 @@ -0,0 +1,74 @@
 +/*
 + * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -12098,10 +12095,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/barrierSetAssembler
 +};
 +
 +#endif // CPU_RISCV64_GC_SHARED_BARRIERSETASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.cpp
 @@ -0,0 +1,123 @@
 +/*
 + * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -12226,10 +12223,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSet
 +    }
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSetAssembler_riscv64.hpp
 @@ -0,0 +1,43 @@
 +/*
 + * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -12274,10 +12271,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/cardTableBarrierSet
 +};
 +
 +#endif // #ifndef CPU_RISCV64_GC_SHARED_CARDTABLEBARRIERSETASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.cpp
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -12334,10 +12331,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAss
 +    BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAssembler_riscv64.hpp
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
@@ -12394,10 +12391,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shared/modRefBarrierSetAss
 +};
 +
 +#endif // CPU_RISCV64_GC_SHARED_MODREFBARRIERSETASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/c1/shenandoahBarrierSetC1_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/c1/shenandoahBarrierSetC1_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/c1/shenandoahBarrierSetC1_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/c1/shenandoahBarrierSetC1_riscv64.cpp
 @@ -0,0 +1,125 @@
 +/*
 + * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
@@ -12524,10 +12521,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/c1/shenandoahBa
 +
 +  return result;
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.cpp
 @@ -0,0 +1,740 @@
 +/*
 + * Copyright (c) 2018, 2020, Red Hat, Inc. All rights reserved.
@@ -13269,10 +13266,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarri
 +    _shenandoah_lrb = generate_shenandoah_lrb(&cgen);
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarrierSetAssembler_riscv64.hpp
 @@ -0,0 +1,96 @@
 +/*
 + * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
@@ -13370,10 +13367,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoahBarri
 +};
 +
 +#endif // CPU_RISCV64_GC_SHENANDOAH_SHENANDOAHBARRIERSETASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoah_riscv64.ad
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoah_riscv64.ad
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoah_riscv64.ad
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoah_riscv64.ad
 @@ -0,0 +1,196 @@
 +//
 +// Copyright (c) 2018, Red Hat, Inc. All rights reserved.
@@ -13571,10 +13568,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/gc/shenandoah/shenandoah_risc
 +
 +  ins_pipe(pipe_slow);
 +%}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/globalDefinitions_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/globalDefinitions_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/globalDefinitions_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/globalDefinitions_riscv64.hpp
 @@ -0,0 +1,50 @@
 +/*
 + * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -13626,10 +13623,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/globalDefinitions_riscv64.hpp
 +#define THREAD_LOCAL_POLL
 +
 +#endif // CPU_RISCV64_GLOBALDEFINITIONS_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/globals_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/globals_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/globals_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/globals_riscv64.hpp
 @@ -0,0 +1,108 @@
 +/*
 + * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -13739,10 +13736,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/globals_riscv64.hpp
 +          "Extend fence.i to fence.i + fence.")                         \
 +
 +#endif // CPU_RISCV64_GLOBALS_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icBuffer_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/icBuffer_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icBuffer_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/icBuffer_riscv64.cpp
 @@ -0,0 +1,79 @@
 +/*
 + * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
@@ -13823,10 +13820,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icBuffer_riscv64.cpp
 +  void* o = (void*)*p;
 +  return o;
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icache_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/icache_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icache_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/icache_riscv64.cpp
 @@ -0,0 +1,52 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -13880,10 +13877,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icache_riscv64.cpp
 +}
 +
 +#undef __
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icache_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/icache_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icache_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/icache_riscv64.hpp
 @@ -0,0 +1,42 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -13927,10 +13924,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/icache_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_ICACHE_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interp_masm_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interp_masm_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interp_masm_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interp_masm_riscv64.cpp
 @@ -0,0 +1,1969 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -15901,10 +15898,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interp_masm_riscv64.cpp
 +  bind(L);
 +}
 +#endif
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interp_masm_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interp_masm_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interp_masm_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interp_masm_riscv64.hpp
 @@ -0,0 +1,284 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -16190,10 +16187,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interp_masm_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_INTERP_MASM_RISCV64_64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interpreterRT_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interpreterRT_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interpreterRT_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interpreterRT_riscv64.cpp
 @@ -0,0 +1,295 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -16490,10 +16487,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interpreterRT_riscv64.cpp
 +  // return result handler
 +  return Interpreter::result_handler(m->result_type());
 +IRT_END
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interpreterRT_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interpreterRT_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interpreterRT_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/interpreterRT_riscv64.hpp
 @@ -0,0 +1,64 @@
 +/*
 + * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -16559,10 +16556,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/interpreterRT_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_INTERPRETERRT_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/javaFrameAnchor_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/javaFrameAnchor_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/javaFrameAnchor_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/javaFrameAnchor_riscv64.hpp
 @@ -0,0 +1,89 @@
 +/*
 + * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -16653,10 +16650,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/javaFrameAnchor_riscv64.hpp
 +  void set_last_Java_fp(intptr_t* java_fp)           { OrderAccess::release(); _last_Java_fp = java_fp; }
 +
 +#endif // CPU_RISCV64_JAVAFRAMEANCHOR_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/jniFastGetField_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/jniFastGetField_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/jniFastGetField_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/jniFastGetField_riscv64.cpp
 @@ -0,0 +1,196 @@
 +/*
 + * Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -16854,10 +16851,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/jniFastGetField_riscv64.cpp
 +address JNI_FastGetField::generate_fast_get_double_field() {
 +  return generate_fast_get_int_field0(T_DOUBLE);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/jniTypes_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/jniTypes_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/jniTypes_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/jniTypes_riscv64.hpp
 @@ -0,0 +1,108 @@
 +/*
 + * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -16967,10 +16964,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/jniTypes_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_JNITYPES_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/macroAssembler_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/macroAssembler_riscv64.cpp
 @@ -0,0 +1,4666 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -21638,10 +21635,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.cpp
 +  neg(dst, dst);
 +  bind(done);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/macroAssembler_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/macroAssembler_riscv64.hpp
 @@ -0,0 +1,894 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -22537,10 +22534,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.hpp
 +   ~SkipIfEqual();
 +};
 +#endif // CPU_RISCV64_MACROASSEMBLER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/macroAssembler_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/macroAssembler_riscv64.inline.hpp
 @@ -0,0 +1,30 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -22572,10 +22569,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/macroAssembler_riscv64.inline
 +#define CPU_RISCV64_MACROASSEMBLER_RISCV64_INLINE_HPP
 +
 +#endif // CPU_RISCV64_MACROASSEMBLER_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/methodHandles_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/methodHandles_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/methodHandles_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/methodHandles_riscv64.cpp
 @@ -0,0 +1,451 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -23028,10 +23025,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/methodHandles_riscv64.cpp
 +
 +void MethodHandles::trace_method_handle(MacroAssembler* _masm, const char* adaptername) {  }
 +#endif //PRODUCT
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/methodHandles_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/methodHandles_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/methodHandles_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/methodHandles_riscv64.hpp
 @@ -0,0 +1,58 @@
 +/*
 + * Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
@@ -23091,10 +23088,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/methodHandles_riscv64.hpp
 +                                  Register recv, Register method_temp,
 +                                  Register temp2,
 +                                  bool for_compiler_entry);
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/nativeInst_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/nativeInst_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/nativeInst_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/nativeInst_riscv64.cpp
 @@ -0,0 +1,407 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -23503,10 +23500,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/nativeInst_riscv64.cpp
 +  *(unsigned int*) membar = insn;
 +}
 +
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/nativeInst_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/nativeInst_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/nativeInst_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/nativeInst_riscv64.hpp
 @@ -0,0 +1,566 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -24074,10 +24071,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/nativeInst_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_NATIVEINST_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/registerMap_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/registerMap_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/registerMap_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/registerMap_riscv64.cpp
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
@@ -24111,10 +24108,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/registerMap_riscv64.cpp
 +address RegisterMap::pd_location(VMReg base_reg, int slot_idx) const {
 +  return location(base_reg->next(slot_idx));
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/registerMap_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/registerMap_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/registerMap_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/registerMap_riscv64.hpp
 @@ -0,0 +1,47 @@
 +/*
 + * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -24163,10 +24160,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/registerMap_riscv64.hpp
 +  void pd_initialize_from(const RegisterMap* map) {}
 +
 +#endif // CPU_RISCV64_REGISTERMAP_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_definitions_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/register_definitions_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_definitions_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/register_definitions_riscv64.cpp
 @@ -0,0 +1,159 @@
 +/*
 + * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -24327,10 +24324,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_definitions_riscv64.
 +REGISTER_DEFINITION(Register, t0);
 +REGISTER_DEFINITION(Register, t1);
 +REGISTER_DEFINITION(Register, t2);
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/register_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/register_riscv64.cpp
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -24387,10 +24384,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_riscv64.cpp
 +  };
 +  return is_valid() ? names[encoding()] : "noreg";
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/register_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/register_riscv64.hpp
 @@ -0,0 +1,264 @@
 +/*
 + * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -24656,10 +24653,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/register_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_REGISTER_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/relocInfo_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/relocInfo_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/relocInfo_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/relocInfo_riscv64.cpp
 @@ -0,0 +1,113 @@
 +/*
 + * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -24774,10 +24771,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/relocInfo_riscv64.cpp
 +
 +void metadata_Relocation::pd_fix_value(address x) {
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/relocInfo_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/relocInfo_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/relocInfo_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/relocInfo_riscv64.hpp
 @@ -0,0 +1,45 @@
 +/*
 + * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -24824,10 +24821,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/relocInfo_riscv64.hpp
 +  static bool mustIterateImmediateOopsInCode() { return false; }
 +
 +#endif // CPU_RISCV64_RELOCINFO_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/riscv64.ad
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/riscv64.ad
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/riscv64.ad
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/riscv64.ad
 @@ -0,0 +1,10060 @@
 +//
 +// Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -34889,10 +34886,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/riscv64.ad
 +// Local Variables:
 +// mode: c++
 +// End:
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/sharedRuntime_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/sharedRuntime_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/sharedRuntime_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/sharedRuntime_riscv64.cpp
 @@ -0,0 +1,2906 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -37800,10 +37797,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/sharedRuntime_riscv64.cpp
 +  _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 +}
 +#endif // COMPILER2
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubGenerator_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/stubGenerator_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubGenerator_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/stubGenerator_riscv64.cpp
 @@ -0,0 +1,2849 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -40654,10 +40651,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubGenerator_riscv64.cpp
 +void StubGenerator_generate(CodeBuffer* code, bool all) {
 +  StubGenerator g(code, all);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubRoutines_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/stubRoutines_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubRoutines_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/stubRoutines_riscv64.cpp
 @@ -0,0 +1,59 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -40718,10 +40715,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubRoutines_riscv64.cpp
 +address StubRoutines::riscv64::_string_indexof_linear_ul = NULL;
 +address StubRoutines::riscv64::_large_byte_array_inflate = NULL;
 +bool StubRoutines::riscv64::_completed = false;
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubRoutines_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/stubRoutines_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubRoutines_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/stubRoutines_riscv64.hpp
 @@ -0,0 +1,179 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -40902,10 +40899,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/stubRoutines_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_STUBROUTINES_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateInterpreterGenerator_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/templateInterpreterGenerator_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateInterpreterGenerator_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/templateInterpreterGenerator_riscv64.cpp
 @@ -0,0 +1,1841 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -42748,10 +42745,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateInterpreterGenerator_
 +}
 +
 +#endif // !PRODUCT
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateTable_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/templateTable_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateTable_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/templateTable_riscv64.cpp
 @@ -0,0 +1,4044 @@
 +/*
 + * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -46797,10 +46794,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateTable_riscv64.cpp
 +  __ slli(t0, x11, 3);
 +  __ add(esp, esp, t0);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateTable_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/templateTable_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateTable_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/templateTable_riscv64.hpp
 @@ -0,0 +1,42 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -46844,10 +46841,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/templateTable_riscv64.hpp
 +static void index_check(Register array, Register index);
 +
 +#endif // CPU_RISCV64_TEMPLATETABLE_RISCV64_64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmStructs_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmStructs_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmStructs_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmStructs_riscv64.hpp
 @@ -0,0 +1,43 @@
 +/*
 + * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -46892,10 +46889,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmStructs_riscv64.hpp
 +#define VM_LONG_CONSTANTS_CPU(declare_constant, declare_preprocessor_constant, declare_c1_constant, declare_c2_constant, declare_c2_preprocessor_constant)
 +
 +#endif // CPU_RISCV64_VMSTRUCTS_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.cpp
 @@ -0,0 +1,91 @@
 +/*
 + * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
@@ -46988,10 +46985,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.cpp
 +  strncpy(tmp, _cpu_desc, CPU_DETAILED_DESC_BUF_SIZE);
 +  return tmp;
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.hpp
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -47048,10 +47045,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_ext_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_VM_VERSION_EXT_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_riscv64.cpp
 @@ -0,0 +1,181 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -47234,10 +47231,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_riscv64.cpp
 +  get_processor_features();
 +  UNSUPPORTED_OPTION(CriticalJNINatives);
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vm_version_riscv64.hpp
 @@ -0,0 +1,62 @@
 +/*
 + * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -47301,10 +47298,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vm_version_riscv64.hpp
 +};
 +
 +#endif // CPU_RISCV64_VM_VERSION_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmreg_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmreg_riscv64.cpp
 @@ -0,0 +1,52 @@
 +/*
 + * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -47358,10 +47355,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.cpp
 +    regName[i] = "NON-GPR-FPR-VPR";
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmreg_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmreg_riscv64.hpp
 @@ -0,0 +1,54 @@
 +/*
 + * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -47417,10 +47414,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.hpp
 +}
 +
 +#endif // CPU_RISCV64_VMREG_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmreg_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vmreg_riscv64.inline.hpp
 @@ -0,0 +1,42 @@
 +/*
 + * Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -47464,10 +47461,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vmreg_riscv64.inline.hpp
 +}
 +
 +#endif // CPU_RISCV64_VM_VMREG_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vtableStubs_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vtableStubs_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vtableStubs_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/cpu/riscv64/vtableStubs_riscv64.cpp
 @@ -0,0 +1,260 @@
 +/*
 + * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
@@ -47729,38 +47726,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/cpu/riscv64/vtableStubs_riscv64.cpp
 +  const unsigned int icache_line_size = wordSize;
 +  return icache_line_size;
 +}
-Index: jdk11u-f412f2537f15/src/hotspot/os/linux/os_linux.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os/linux/os_linux.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/os/linux/os_linux.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/os/linux/os_linux.cpp
-@@ -1828,6 +1828,9 @@ void * os::dll_load(const char *filename
- #ifndef EM_AARCH64
-   #define EM_AARCH64    183               /* ARM AARCH64 */
- #endif
-+#ifndef EM_RISCV
-+  #define EM_RISCV      243               /* RISC-V */
-+#endif
- 
-   static const arch_t arch_array[]={
-     {EM_386,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
-@@ -1853,6 +1856,7 @@ void * os::dll_load(const char *filename
-     {EM_PARISC,      EM_PARISC,  ELFCLASS32, ELFDATA2MSB, (char*)"PARISC"},
-     {EM_68K,         EM_68K,     ELFCLASS32, ELFDATA2MSB, (char*)"M68k"},
-     {EM_AARCH64,     EM_AARCH64, ELFCLASS64, ELFDATA2LSB, (char*)"AARCH64"},
-+    {EM_RISCV,       EM_RISCV,   ELFCLASS64, ELFDATA2LSB, (char*)"RISC-V"},
-   };
- 
- #if  (defined IA32)
-@@ -1887,6 +1891,8 @@ void * os::dll_load(const char *filename
-   static  Elf32_Half running_arch_code=EM_68K;
- #elif  (defined SH)
-   static  Elf32_Half running_arch_code=EM_SH;
-+#elif  (defined RISCV)
-+  static  Elf32_Half running_arch_code=EM_RISCV;
- #else
-     #error Method os::dll_load requires that one of following is defined:\
-         AARCH64, ALPHA, ARM, AMD64, IA32, IA64, M68K, MIPS, MIPSEL, PARISC, __powerpc__, __powerpc64__, S390, SH, __sparc
-@@ -2599,6 +2605,8 @@ void os::get_summary_cpu_info(char* cpui
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/os/linux/os_linux.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os/linux/os_linux.cpp
+@@ -2618,6 +2618,8 @@ void os::get_summary_cpu_info(char* cpui
    strncpy(cpuinfo, "IA64", length);
  #elif defined(PPC)
    strncpy(cpuinfo, "PPC64", length);
@@ -47769,7 +47739,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/os/linux/os_linux.cpp
  #elif defined(S390)
    strncpy(cpuinfo, "S390", length);
  #elif defined(SPARC)
-@@ -3785,6 +3793,7 @@ size_t os::Linux::find_large_page_size()
+@@ -3807,6 +3809,7 @@ size_t os::Linux::find_large_page_size()
      IA32_ONLY(4 * M)
      IA64_ONLY(256 * M)
      PPC_ONLY(4 * M)
@@ -47777,10 +47747,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os/linux/os_linux.cpp
      S390_ONLY(1 * M)
      SPARC_ONLY(4 * M);
  #endif // ZERO
-Index: jdk11u-f412f2537f15/src/hotspot/os/posix/os_posix.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os/posix/os_posix.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/os/posix/os_posix.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/os/posix/os_posix.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/os/posix/os_posix.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os/posix/os_posix.cpp
 @@ -117,6 +117,7 @@ void os::check_dump_limit(char* buffer,
    VMError::record_coredump_status(buffer, success);
  }
@@ -47798,10 +47768,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os/posix/os_posix.cpp
  
  bool os::unsetenv(const char* name) {
    assert(name != NULL, "Null pointer");
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/assembler_linux_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/assembler_linux_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/assembler_linux_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/assembler_linux_riscv64.cpp
 @@ -0,0 +1,28 @@
 +/*
 + * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
@@ -47831,10 +47801,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/assembler_linux_risc
 +// nothing required here
 +
 +
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/atomic_linux_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/atomic_linux_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/atomic_linux_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/atomic_linux_riscv64.hpp
 @@ -0,0 +1,114 @@
 +/*
 + * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -47950,10 +47920,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/atomic_linux_riscv64
 +}
 +
 +#endif // OS_CPU_LINUX_RISCV64_ATOMIC_LINUX_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/bytes_linux_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/bytes_linux_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/bytes_linux_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/bytes_linux_riscv64.inline.hpp
 @@ -0,0 +1,46 @@
 +/*
 + * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -48001,10 +47971,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/bytes_linux_riscv64.
 +}
 +
 +#endif // OS_CPU_LINUX_RISCV64_BYTES_LINUX_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/copy_linux_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/copy_linux_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/copy_linux_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/copy_linux_riscv64.inline.hpp
 @@ -0,0 +1,116 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -48122,10 +48092,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/copy_linux_riscv64.i
 +}
 +
 +#endif // OS_CPU_LINUX_RISCV64_VM_COPY_LINUX_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/globals_linux_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/globals_linux_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/globals_linux_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/globals_linux_riscv64.hpp
 @@ -0,0 +1,45 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -48172,10 +48142,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/globals_linux_riscv6
 +extern __thread Thread *riscv64_currentThread;
 +
 +#endif // OS_CPU_LINUX_RISCV64_VM_GLOBALS_LINUX_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/linux_riscv64.ad
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/linux_riscv64.ad
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/linux_riscv64.ad
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/linux_riscv64.ad
 @@ -0,0 +1,69 @@
 +//
 +// Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
@@ -48246,10 +48216,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/linux_riscv64.ad
 +source %{
 +
 +%}
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/orderAccess_linux_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/orderAccess_linux_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/orderAccess_linux_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/orderAccess_linux_riscv64.hpp
 @@ -0,0 +1,73 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -48324,10 +48294,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/orderAccess_linux_ri
 +};
 +
 +#endif // OS_CPU_LINUX_RISCV64_ORDERACCESS_LINUX_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.cpp
 @@ -0,0 +1,731 @@
 +/*
 + * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -49060,10 +49030,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.cpp
 +    memmove(to, from, count * 8);
 +  }
 +};
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.hpp
 @@ -0,0 +1,61 @@
 +/*
 + * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
@@ -49126,10 +49096,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/os_linux_riscv64.hpp
 +  }
 +
 +#endif // OS_CPU_LINUX_RISCV64_VM_OS_LINUX_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/prefetch_linux_riscv64.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/prefetch_linux_riscv64.inline.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/prefetch_linux_riscv64.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/prefetch_linux_riscv64.inline.hpp
 @@ -0,0 +1,38 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -49169,10 +49139,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/prefetch_linux_riscv
 +}
 +
 +#endif // OS_CPU_LINUX_RISCV64_VM_PREFETCH_LINUX_RISCV64_INLINE_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/threadLS_linux_riscv64.s
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/threadLS_linux_riscv64.s
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/threadLS_linux_riscv64.s
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/threadLS_linux_riscv64.s
 @@ -0,0 +1,39 @@
 +/*
 +// Copyright (c) 2015, Red Hat Inc. All rights reserved.
@@ -49213,10 +49183,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/threadLS_linux_riscv
 +    ret
 +
 +    .size _ZN10JavaThread25riscv64_get_thread_helperEv, .-_ZN10JavaThread25riscv64_get_thread_helperEv
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.cpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.cpp
 @@ -0,0 +1,104 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -49322,10 +49292,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64
 +
 +void JavaThread::cache_global_variables() { }
 +
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64.hpp
 @@ -0,0 +1,80 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -49407,10 +49377,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/thread_linux_riscv64
 +  static void disable_register_stack_guard() {}
 +
 +#endif // OS_CPU_LINUX_RISCV64_THREAD_LINUX_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/vmStructs_linux_riscv64.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/vmStructs_linux_riscv64.hpp
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/vmStructs_linux_riscv64.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/os_cpu/linux_riscv64/vmStructs_linux_riscv64.hpp
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -49467,10 +49437,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/os_cpu/linux_riscv64/vmStructs_linux_risc
 +#define VM_LONG_CONSTANTS_OS_CPU(declare_constant, declare_preprocessor_constant, declare_c1_constant, declare_c2_constant, declare_c2_preprocessor_constant)
 +
 +#endif // OS_CPU_LINUX_RISCV64_VM_VMSTRUCTS_LINUX_RISCV64_HPP
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIR.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIR.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LIR.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIR.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LIR.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIR.cpp
 @@ -194,12 +194,50 @@ bool LIR_OprDesc::is_oop() const {
    }
  }
@@ -49768,10 +49738,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIR.cpp
  
  void LIR_OpLock::print_instr(outputStream* out) const {
    hdr_opr()->print(out);   out->print(" ");
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIR.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIR.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LIR.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIR.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LIR.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIR.hpp
 @@ -368,6 +368,10 @@ class LIR_OprDesc: public CompilationRes
    bool is_float_kind() const   { return is_pointer() ? pointer()->is_float_kind() : (kind_field() == fpu_register); }
    bool is_oop() const;
@@ -50280,10 +50250,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIR.hpp
    }
  
    void shift_left(LIR_Opr value, LIR_Opr count, LIR_Opr dst, LIR_Opr tmp);
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRAssembler.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRAssembler.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LIRAssembler.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRAssembler.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LIRAssembler.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRAssembler.cpp
 @@ -693,6 +693,7 @@ void LIR_Assembler::emit_op0(LIR_Op0* op
  
  void LIR_Assembler::emit_op2(LIR_Op2* op) {
@@ -50312,10 +50282,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRAssembler.cpp
  
      case lir_shl:
      case lir_shr:
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRAssembler.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRAssembler.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LIRAssembler.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRAssembler.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LIRAssembler.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRAssembler.hpp
 @@ -117,7 +117,9 @@ class LIR_Assembler: public CompilationR
    void append_patching_stub(PatchingStub* stub);
    void patching_epilog(PatchingStub* patch, LIR_PatchCode patch_code, Register obj, CodeEmitInfo* info);
@@ -50349,10 +50319,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRAssembler.hpp
  
    void call(        LIR_OpJavaCall* op, relocInfo::relocType rtype);
    void ic_call(     LIR_OpJavaCall* op);
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRGenerator.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRGenerator.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LIRGenerator.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRGenerator.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LIRGenerator.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRGenerator.cpp
 @@ -479,13 +479,32 @@ void LIRGenerator::array_range_check(LIR
                                      CodeEmitInfo* null_check_info, CodeEmitInfo* range_check_info) {
    CodeStub* stub = new RangeCheckStub(range_check_info, index, array);
@@ -50781,10 +50751,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRGenerator.cpp
    value = value_fixed;
    return value;
  }
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRGenerator.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRGenerator.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LIRGenerator.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRGenerator.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LIRGenerator.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LIRGenerator.hpp
 @@ -362,9 +362,11 @@ class LIRGenerator: public InstructionVi
  
    void new_instance    (LIR_Opr  dst, ciInstanceKlass* klass, bool is_unresolved, LIR_Opr  scratch1, LIR_Opr  scratch2, LIR_Opr  scratch3,  LIR_Opr scratch4, LIR_Opr  klass_reg, CodeEmitInfo* info);
@@ -50810,11 +50780,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LIRGenerator.hpp
    void increment_event_counter_impl(CodeEmitInfo* info,
                                      ciMethod *method, LIR_Opr step, int frequency,
                                      int bci, bool backedge, bool notify);
-Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LinearScan.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/c1/c1_LinearScan.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
-@@ -1241,12 +1241,19 @@ void LinearScan::add_register_hints(LIR_
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/c1/c1_LinearScan.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/c1/c1_LinearScan.cpp
+@@ -1242,12 +1242,19 @@ void LinearScan::add_register_hints(LIR_
        break;
      }
      case lir_cmove: {
@@ -50834,7 +50804,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
        if (move_to->is_register() && move_from->is_register()) {
          Interval* from = interval_at(reg_num(move_from));
          Interval* to = interval_at(reg_num(move_to));
-@@ -6061,6 +6068,16 @@ void EdgeMoveOptimizer::optimize_moves_a
+@@ -6073,6 +6080,16 @@ void EdgeMoveOptimizer::optimize_moves_a
        }
      }
  
@@ -50851,7 +50821,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
      TRACE_LINEAR_SCAN(4, tty->print("----- found instruction that is equal in all %d successors: ", num_sux); op->print());
  
      // insert instruction at end of current block
-@@ -6268,6 +6285,7 @@ void ControlFlowOptimizer::delete_unnece
+@@ -6280,6 +6297,7 @@ void ControlFlowOptimizer::delete_unnece
  
              if (prev_branch->stub() == NULL) {
  
@@ -50859,7 +50829,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
                LIR_Op2* prev_cmp = NULL;
                // There might be a cmove inserted for profiling which depends on the same
                // compare. If we change the condition of the respective compare, we have
-@@ -6290,6 +6308,7 @@ void ControlFlowOptimizer::delete_unnece
+@@ -6302,6 +6320,7 @@ void ControlFlowOptimizer::delete_unnece
                }
                // Guarantee because it is dereferenced below.
                guarantee(prev_cmp != NULL, "should have found comp instruction for branch");
@@ -50867,7 +50837,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
                if (prev_branch->block() == code->at(i + 1) && prev_branch->info() == NULL) {
  
                  TRACE_LINEAR_SCAN(3, tty->print_cr("Negating conditional branch and deleting unconditional branch at end of block B%d", block->block_id()));
-@@ -6297,8 +6316,11 @@ void ControlFlowOptimizer::delete_unnece
+@@ -6309,8 +6328,11 @@ void ControlFlowOptimizer::delete_unnece
                  // eliminate a conditional branch to the immediate successor
                  prev_branch->change_block(last_branch->block());
                  prev_branch->negate_cond();
@@ -50879,7 +50849,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
                  // if we do change the condition, we have to change the cmove as well
                  if (prev_cmove != NULL) {
                    prev_cmove->set_condition(prev_branch->cond());
-@@ -6306,6 +6328,7 @@ void ControlFlowOptimizer::delete_unnece
+@@ -6318,6 +6340,7 @@ void ControlFlowOptimizer::delete_unnece
                    prev_cmove->set_in_opr1(prev_cmove->in_opr2());
                    prev_cmove->set_in_opr2(t);
                  }
@@ -50887,7 +50857,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
                }
              }
            }
-@@ -6612,7 +6635,9 @@ void LinearScanStatistic::collect(Linear
+@@ -6624,7 +6647,9 @@ void LinearScanStatistic::collect(Linear
            break;
          }
  
@@ -50897,10 +50867,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/c1/c1_LinearScan.cpp
  
          case lir_branch:
          case lir_cond_float_branch: {
-Index: jdk11u-f412f2537f15/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
 @@ -103,7 +103,12 @@ void G1BarrierSetC1::pre_barrier(LIRAcce
      slow = new G1PreBarrierStub(pre_val);
    }
@@ -50929,10 +50899,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/gc/g1/c1/g1BarrierSetC1.cpp
    __ branch_destination(slow->continuation());
  }
  
-Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
 @@ -193,7 +193,12 @@ void BarrierSetC1::load_at_resolved(LIRA
    if (mask_boolean) {
      LabelObj* equalZeroLabel = new LabelObj();
@@ -50986,10 +50956,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shared/c1/barrierSetC1.cpp
      }
    }
  }
-Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.cpp
 @@ -90,7 +90,11 @@ void CardTableBarrierSetC1::post_barrier
  
      LabelObj* L_already_dirty = new LabelObj();
@@ -51003,10 +50973,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shared/c1/cardTableBarrierSetC1.
      __ move(dirty, card_addr);
      __ branch_destination(L_already_dirty->label());
    } else {
-Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierSetC1.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierSetC1.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierSetC1.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierSetC1.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierSetC1.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierSetC1.cpp
 @@ -101,7 +101,12 @@ void ShenandoahBarrierSetC1::pre_barrier
      slow = new ShenandoahPreBarrierStub(pre_val);
    }
@@ -51035,10 +51005,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shenandoah/c1/shenandoahBarrierS
    __ branch_destination(slow->continuation());
  
    return result;
-Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shenandoah/shenandoahArguments.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shenandoah/shenandoahArguments.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/gc/shenandoah/shenandoahArguments.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/gc/shenandoah/shenandoahArguments.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/gc/shenandoah/shenandoahArguments.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/shenandoah/shenandoahArguments.cpp
 @@ -31,7 +31,7 @@
  #include "utilities/defaultStream.hpp"
  
@@ -51048,10 +51018,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/gc/shenandoah/shenandoahArguments.c
    vm_exit_during_initialization("Shenandoah GC is not supported on this platform.");
  #endif
  
-Index: jdk11u-f412f2537f15/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
 @@ -96,22 +96,45 @@ void ZLoadBarrierStubC1::print_name(outp
  
  class LIR_OpZLoadBarrierTest : public LIR_Op {
@@ -51127,10 +51097,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/gc/z/c1/zBarrierSetC1.cpp
    __ branch_destination(stub->continuation());
  }
  
-Index: jdk11u-f412f2537f15/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
 @@ -102,7 +102,7 @@ inline T JfrBigEndian::read_unaligned(co
  inline bool JfrBigEndian::platform_supports_unaligned_reads(void) {
  #if defined(IA32) || defined(AMD64) || defined(PPC) || defined(S390)
@@ -51140,11 +51110,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/jfr/utilities/jfrBigEndian.hpp
    return false;
  #else
    #warning "Unconfigured platform"
-Index: jdk11u-f412f2537f15/src/hotspot/share/opto/c2compiler.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/c2compiler.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/opto/c2compiler.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/opto/c2compiler.cpp
-@@ -441,6 +441,9 @@ bool C2Compiler::is_intrinsic_supported(
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/opto/c2compiler.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/c2compiler.cpp
+@@ -455,6 +455,9 @@ bool C2Compiler::is_intrinsic_supported(
    case vmIntrinsics::_isWhitespace:
      if (!Matcher::match_rule_supported(Op_Whitespace)) return false;
      break;
@@ -51154,7 +51124,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/c2compiler.cpp
    case vmIntrinsics::_maxF:
      if (!Matcher::match_rule_supported(Op_MaxF)) return false;
      break;
-@@ -495,7 +498,6 @@ bool C2Compiler::is_intrinsic_supported(
+@@ -509,7 +512,6 @@ bool C2Compiler::is_intrinsic_supported(
    case vmIntrinsics::_indexOfIL:
    case vmIntrinsics::_indexOfIU:
    case vmIntrinsics::_indexOfIUL:
@@ -51162,10 +51132,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/c2compiler.cpp
    case vmIntrinsics::_toBytesStringU:
    case vmIntrinsics::_getCharsStringU:
    case vmIntrinsics::_getCharStringU:
-Index: jdk11u-f412f2537f15/src/hotspot/share/opto/memnode.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/memnode.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/opto/memnode.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/opto/memnode.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/opto/memnode.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/memnode.hpp
 @@ -842,8 +842,12 @@ class StorePConditionalNode : public Loa
  public:
    StorePConditionalNode( Node *c, Node *mem, Node *adr, Node *val, Node *ll ) : LoadStoreConditionalNode(c, mem, adr, val, ll) { }
@@ -51205,11 +51175,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/memnode.hpp
  };
  
  class CompareAndSwapNode : public LoadStoreConditionalNode {
-Index: jdk11u-f412f2537f15/src/hotspot/share/opto/stringopts.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/stringopts.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/opto/stringopts.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/opto/stringopts.cpp
-@@ -1484,6 +1484,7 @@ void PhaseStringOpts::copy_latin1_string
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/opto/stringopts.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/stringopts.cpp
+@@ -1534,6 +1534,7 @@ void PhaseStringOpts::copy_latin1_string
      } else {
        // No intrinsic available, use slow method
        kit.inflate_string_slow(src_array, dst_array, start, __ value(count));
@@ -51217,10 +51187,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/stringopts.cpp
      }
      ideal.sync_kit(&kit);
      // Multiply count by two since we now need two bytes per char
-Index: jdk11u-f412f2537f15/src/hotspot/share/opto/subnode.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/subnode.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/opto/subnode.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/opto/subnode.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/opto/subnode.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/subnode.hpp
 @@ -138,7 +138,11 @@ public:
    virtual Node* Identity(PhaseGVN* phase);
    const Type *add_id() const { return TypeInt::ZERO; }
@@ -51233,10 +51203,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/subnode.hpp
  
  #ifndef PRODUCT
    // CmpNode and subclasses include all data inputs (until hitting a control
-Index: jdk11u-f412f2537f15/src/hotspot/share/opto/type.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/type.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/opto/type.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/opto/type.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/opto/type.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/type.cpp
 @@ -466,9 +466,13 @@ void Type::Initialize_shared(Compile* cu
    TypeInt::CC_LE   = TypeInt::make(-1, 0, WidenMin);
    TypeInt::CC_GE   = TypeInt::make( 0, 1, WidenMin);  // == TypeInt::BOOL
@@ -51265,10 +51235,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/type.cpp
  const TypeInt *TypeInt::POS;    // Positive 32-bit integers or zero
  const TypeInt *TypeInt::POS1;   // Positive 32-bit integers
  const TypeInt *TypeInt::INT;    // 32-bit integers
-Index: jdk11u-f412f2537f15/src/hotspot/share/opto/type.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/type.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/opto/type.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/opto/type.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/opto/type.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/opto/type.hpp
 @@ -565,9 +565,13 @@ public:
    static const TypeInt *CC_LE;  // [-1,0]
    static const TypeInt *CC_GE;  // [0,1] == BOOL (!)
@@ -51283,10 +51253,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/opto/type.hpp
    static const TypeInt *POS;
    static const TypeInt *POS1;
    static const TypeInt *INT;
-Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/abstract_vm_version.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/abstract_vm_version.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/runtime/abstract_vm_version.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/runtime/abstract_vm_version.cpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/runtime/abstract_vm_version.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/abstract_vm_version.cpp
 @@ -196,6 +196,7 @@ const char* Abstract_VM_Version::jre_rel
                   IA32_ONLY("x86")                \
                   IA64_ONLY("ia64")               \
@@ -51295,11 +51265,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/abstract_vm_version.cpp
                   SPARC_ONLY("sparc")
  #endif // !ZERO
  #endif // !CPU
-Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/os.cpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/os.cpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/runtime/os.cpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/runtime/os.cpp
-@@ -1186,6 +1186,7 @@ void os::print_location(outputStream* st
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/runtime/os.cpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/os.cpp
+@@ -1208,6 +1208,7 @@ void os::print_location(outputStream* st
    st->print_cr(INTPTR_FORMAT " is an unknown value", p2i(addr));
  }
  
@@ -51307,7 +51277,7 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/os.cpp
  // Looks like all platforms can use the same function to check if C
  // stack is walkable beyond current frame. The check for fp() is not
  // necessary on Sparc, but it's harmless.
-@@ -1220,7 +1221,7 @@ bool os::is_first_C_frame(frame* fr) {
+@@ -1242,7 +1243,7 @@ bool os::is_first_C_frame(frame* fr) {
  
    return false;
  }
@@ -51316,11 +51286,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/os.cpp
  
  // Set up the boot classpath.
  
-Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/thread.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/thread.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/runtime/thread.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/runtime/thread.hpp
-@@ -1218,7 +1218,7 @@ class JavaThread: public Thread {
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/runtime/thread.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/thread.hpp
+@@ -1223,7 +1223,7 @@ class JavaThread: public Thread {
    address last_Java_pc(void)                     { return _anchor.last_Java_pc(); }
  
    // Safepoint support
@@ -51329,10 +51299,10 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/thread.hpp
    JavaThreadState thread_state() const           { return _thread_state; }
    void set_thread_state(JavaThreadState s)       {
      assert(current_or_null() == NULL || current_or_null() == this,
-Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/thread.inline.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/thread.inline.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/runtime/thread.inline.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/runtime/thread.inline.hpp
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/runtime/thread.inline.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/runtime/thread.inline.hpp
 @@ -120,7 +120,7 @@ inline void JavaThread::set_pending_asyn
    set_has_async_exception();
  }
@@ -51342,11 +51312,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/runtime/thread.inline.hpp
  inline JavaThreadState JavaThread::thread_state() const    {
    return (JavaThreadState) OrderAccess::load_acquire((volatile jint*)&_thread_state);
  }
-Index: jdk11u-f412f2537f15/src/hotspot/share/utilities/macros.hpp
+Index: jdk11u-jdk-11.0.14-9/src/hotspot/share/utilities/macros.hpp
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/hotspot/share/utilities/macros.hpp
-+++ jdk11u-f412f2537f15/src/hotspot/share/utilities/macros.hpp
-@@ -587,6 +587,15 @@
+--- jdk11u-jdk-11.0.14-9.orig/src/hotspot/share/utilities/macros.hpp
++++ jdk11u-jdk-11.0.14-9/src/hotspot/share/utilities/macros.hpp
+@@ -595,6 +595,15 @@
  #define NOT_AARCH64(code) code
  #endif
  
@@ -51362,11 +51332,11 @@ Index: jdk11u-f412f2537f15/src/hotspot/share/utilities/macros.hpp
  #ifdef VM_LITTLE_ENDIAN
  #define LITTLE_ENDIAN_ONLY(code) code
  #define BIG_ENDIAN_ONLY(code)
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDebuggerLocal.c
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDebuggerLocal.c
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDebuggerLocal.c
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDebuggerLocal.c
-@@ -57,6 +57,10 @@
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDebuggerLocal.c
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDebuggerLocal.c
+@@ -58,6 +58,10 @@
  #include "sun_jvm_hotspot_debugger_aarch64_AARCH64ThreadContext.h"
  #endif
  
@@ -51377,7 +51347,7 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDeb
  static jfieldID p_ps_prochandle_ID = 0;
  static jfieldID threadList_ID = 0;
  static jfieldID loadObjectList_ID = 0;
-@@ -396,7 +400,7 @@ JNIEXPORT jbyteArray JNICALL Java_sun_jv
+@@ -397,7 +401,7 @@ JNIEXPORT jbyteArray JNICALL Java_sun_jv
    return (err == PS_OK)? array : 0;
  }
  
@@ -51386,7 +51356,7 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDeb
  JNIEXPORT jlongArray JNICALL Java_sun_jvm_hotspot_debugger_linux_LinuxDebuggerLocal_getThreadIntegerRegisterSet0
    (JNIEnv *env, jobject this_obj, jint lwp_id) {
  
-@@ -421,6 +425,9 @@ JNIEXPORT jlongArray JNICALL Java_sun_jv
+@@ -422,6 +426,9 @@ JNIEXPORT jlongArray JNICALL Java_sun_jv
  #ifdef aarch64
  #define NPRGREG sun_jvm_hotspot_debugger_aarch64_AARCH64ThreadContext_NPRGREG
  #endif
@@ -51396,7 +51366,7 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDeb
  #if defined(sparc) || defined(sparcv9)
  #define NPRGREG sun_jvm_hotspot_debugger_sparc_SPARCThreadContext_NPRGREG
  #endif
-@@ -533,6 +540,44 @@ JNIEXPORT jlongArray JNICALL Java_sun_jv
+@@ -534,6 +541,44 @@ JNIEXPORT jlongArray JNICALL Java_sun_jv
    }
  #endif /* aarch64 */
  
@@ -51441,11 +51411,11 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/LinuxDeb
  #if defined(ppc64) || defined(ppc64le)
  #define REG_INDEX(reg) sun_jvm_hotspot_debugger_ppc64_PPC64ThreadContext_##reg
  
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.h
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.h
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.h
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.h
-@@ -74,6 +74,8 @@ combination of ptrace and /proc calls.
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.h
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.h
+@@ -43,6 +43,8 @@
  #elif defined(arm)
  #include <asm/ptrace.h>
  #define user_regs_struct  pt_regs
@@ -51454,10 +51424,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/libproc.
  #endif
  
  // This C bool type must be int for compatibility with Linux calls and
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.c
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.c
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.c
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.c
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.c
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.c
 @@ -134,6 +134,9 @@ static bool process_get_lwp_regs(struct
  #define ptrace_getregs(request, pid, addr, data) ptrace(request, pid, data, addr)
  #endif
@@ -51476,10 +51446,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/linux/native/libsaproc/ps_proc.
  
  #ifdef PTRACE_GETREGS_REQ
   if (ptrace_getregs(PTRACE_GETREGS_REQ, pid, user, NULL) < 0) {
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HotSpotAgent.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HotSpotAgent.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HotSpotAgent.java
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HotSpotAgent.java
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HotSpotAgent.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/HotSpotAgent.java
 @@ -35,6 +35,7 @@ import sun.jvm.hotspot.debugger.MachineD
  import sun.jvm.hotspot.debugger.MachineDescriptionAMD64;
  import sun.jvm.hotspot.debugger.MachineDescriptionPPC64;
@@ -51488,7 +51458,7 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/H
  import sun.jvm.hotspot.debugger.MachineDescriptionIntelX86;
  import sun.jvm.hotspot.debugger.MachineDescriptionSPARC32Bit;
  import sun.jvm.hotspot.debugger.MachineDescriptionSPARC64Bit;
-@@ -589,6 +590,8 @@ public class HotSpotAgent {
+@@ -591,6 +592,8 @@ public class HotSpotAgent {
              machDesc = new MachineDescriptionPPC64();
          } else if (cpu.equals("aarch64")) {
              machDesc = new MachineDescriptionAArch64();
@@ -51497,10 +51467,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/H
          } else if (cpu.equals("sparc")) {
              if (LinuxDebuggerLocal.getAddressSize()==8) {
                      machDesc = new MachineDescriptionSPARC64Bit();
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/MachineDescriptionRiscv64.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/MachineDescriptionRiscv64.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/MachineDescriptionRiscv64.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/MachineDescriptionRiscv64.java
 @@ -0,0 +1,40 @@
 +/*
 + * Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
@@ -51542,10 +51512,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +    return false;
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/LinuxCDebugger.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/LinuxCDebugger.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/LinuxCDebugger.java
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/LinuxCDebugger.java
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/LinuxCDebugger.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/LinuxCDebugger.java
 @@ -33,6 +33,7 @@ import sun.jvm.hotspot.debugger.cdbg.*;
  import sun.jvm.hotspot.debugger.x86.*;
  import sun.jvm.hotspot.debugger.amd64.*;
@@ -51578,10 +51548,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
         // Runtime exception thrown by LinuxThreadContextFactory if unknown cpu
         ThreadContext context = (ThreadContext) thread.getContext();
         return context.getTopFrame(dbg);
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64CFrame.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64CFrame.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64CFrame.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64CFrame.java
 @@ -0,0 +1,90 @@
 +/*
 + * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
@@ -51673,10 +51643,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +   private Address fp;
 +   private LinuxDebugger dbg;
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64ThreadContext.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64ThreadContext.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64ThreadContext.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/linux/riscv64/LinuxRISCV64ThreadContext.java
 @@ -0,0 +1,48 @@
 +/*
 + * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
@@ -51726,10 +51696,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +    return debugger.newAddress(getRegister(index));
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64Thread.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64Thread.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64Thread.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64Thread.java
 @@ -0,0 +1,88 @@
 +/*
 + * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
@@ -51819,10 +51789,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +        return id;
 +    }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadContext.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadContext.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadContext.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadContext.java
 @@ -0,0 +1,48 @@
 +/*
 + * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
@@ -51872,10 +51842,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +        return debugger.newAddress(getRegister(index));
 +    }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadFactory.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadFactory.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadFactory.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/proc/riscv64/ProcRISCV64ThreadFactory.java
 @@ -0,0 +1,46 @@
 +/*
 + * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
@@ -51923,10 +51893,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +        return new ProcRISCV64Thread(debugger, id);
 +    }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64Thread.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64Thread.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64Thread.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64Thread.java
 @@ -0,0 +1,55 @@
 +/*
 + * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
@@ -51983,10 +51953,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +    return context;
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadContext.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadContext.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadContext.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadContext.java
 @@ -0,0 +1,48 @@
 +/*
 + * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
@@ -52036,10 +52006,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +    return debugger.newAddress(getRegister(index));
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadFactory.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadFactory.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadFactory.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/remote/riscv64/RemoteRISCV64ThreadFactory.java
 @@ -0,0 +1,46 @@
 +/*
 + * Copyright (c) 2004, Oracle and/or its affiliates. All rights reserved.
@@ -52087,10 +52057,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +    return new RemoteRISCV64Thread(debugger, id);
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/risv64/RISCV64ThreadContext.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/risv64/RISCV64ThreadContext.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/risv64/RISCV64ThreadContext.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/debugger/risv64/RISCV64ThreadContext.java
 @@ -0,0 +1,172 @@
 +/*
 + * Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
@@ -52264,11 +52234,11 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/d
 +     * tie the implementation to, for example, the debugging system */
 +    public abstract Address getRegisterAsAddress(int index);
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/Threads.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/Threads.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/Threads.java
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/Threads.java
-@@ -36,6 +36,7 @@ import sun.jvm.hotspot.runtime.win32_x86
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/Threads.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/Threads.java
+@@ -38,6 +38,7 @@ import sun.jvm.hotspot.runtime.win32_aar
  import sun.jvm.hotspot.runtime.linux_x86.LinuxX86JavaThreadPDAccess;
  import sun.jvm.hotspot.runtime.linux_amd64.LinuxAMD64JavaThreadPDAccess;
  import sun.jvm.hotspot.runtime.linux_aarch64.LinuxAARCH64JavaThreadPDAccess;
@@ -52276,7 +52246,7 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
  import sun.jvm.hotspot.runtime.linux_ppc64.LinuxPPC64JavaThreadPDAccess;
  import sun.jvm.hotspot.runtime.linux_sparc.LinuxSPARCJavaThreadPDAccess;
  import sun.jvm.hotspot.runtime.bsd_x86.BsdX86JavaThreadPDAccess;
-@@ -94,6 +95,8 @@ public class Threads {
+@@ -98,6 +99,8 @@ public class Threads {
                  access = new LinuxPPC64JavaThreadPDAccess();
              } else if (cpu.equals("aarch64")) {
                  access = new LinuxAARCH64JavaThreadPDAccess();
@@ -52285,10 +52255,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
              } else {
                try {
                  access = (JavaThreadPDAccess)
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/linux_riscv64/LinuxRISCV64JavaThreadPDAccess.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/linux_riscv64/LinuxRISCV64JavaThreadPDAccess.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/linux_riscv64/LinuxRISCV64JavaThreadPDAccess.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/linux_riscv64/LinuxRISCV64JavaThreadPDAccess.java
 @@ -0,0 +1,132 @@
 +/*
 + * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
@@ -52422,10 +52392,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
 +    return debugger.getThreadForIdentifierAddress(threadIdAddr);
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64CurrentFrameGuess.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64CurrentFrameGuess.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64CurrentFrameGuess.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64CurrentFrameGuess.java
 @@ -0,0 +1,223 @@
 +/*
 + * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -52650,10 +52620,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
 +    pcFound = pc;
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64Frame.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64Frame.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64Frame.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64Frame.java
 @@ -0,0 +1,554 @@
 +/*
 + * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
@@ -53209,10 +53179,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
 +    }
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64JavaCallWrapper.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64JavaCallWrapper.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64JavaCallWrapper.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64JavaCallWrapper.java
 @@ -0,0 +1,59 @@
 +/*
 + * Copyright (c) 2003, Oracle and/or its affiliates. All rights reserved.
@@ -53273,10 +53243,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
 +    return lastJavaFPField.getValue(addr.addOffsetTo(anchorField.getOffset()));
 +  }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64RegisterMap.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64RegisterMap.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64RegisterMap.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/runtime/riscv64/RISCV64RegisterMap.java
 @@ -0,0 +1,53 @@
 +/*
 + * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
@@ -53331,10 +53301,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/r
 +  protected void initializeFromPD(RegisterMap map) {}
 +  protected Address getLocationPD(VMReg reg) { return null; }
 +}
-Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/utilities/PlatformInfo.java
+Index: jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/utilities/PlatformInfo.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/utilities/PlatformInfo.java
-+++ jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/utilities/PlatformInfo.java
+--- jdk11u-jdk-11.0.14-9.orig/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/utilities/PlatformInfo.java
++++ jdk11u-jdk-11.0.14-9/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/utilities/PlatformInfo.java
 @@ -54,7 +54,7 @@ public class PlatformInfo {
  
    public static boolean knownCPU(String cpu) {
@@ -53344,10 +53314,10 @@ Index: jdk11u-f412f2537f15/src/jdk.hotspot.agent/share/classes/sun/jvm/hotspot/u
  
      for(String s : KNOWN) {
        if(s.equals(cpu))
-Index: jdk11u-f412f2537f15/src/utils/hsdis/hsdis.c
+Index: jdk11u-jdk-11.0.14-9/src/utils/hsdis/hsdis.c
 ===================================================================
---- jdk11u-f412f2537f15.orig/src/utils/hsdis/hsdis.c
-+++ jdk11u-f412f2537f15/src/utils/hsdis/hsdis.c
+--- jdk11u-jdk-11.0.14-9.orig/src/utils/hsdis/hsdis.c
++++ jdk11u-jdk-11.0.14-9/src/utils/hsdis/hsdis.c
 @@ -31,12 +31,13 @@
  #include <errno.h>
  #include <inttypes.h>
@@ -53387,10 +53357,10 @@ Index: jdk11u-f412f2537f15/src/utils/hsdis/hsdis.c
    if (res == NULL)
      res = "architecture not set in Makefile!";
    return res;
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA1IntrinsicsOptionOnUnsupportedCPU.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA1IntrinsicsOptionOnUnsupportedCPU.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA1IntrinsicsOptionOnUnsupportedCPU.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA1IntrinsicsOptionOnUnsupportedCPU.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA1IntrinsicsOptionOnUnsupportedCPU.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA1IntrinsicsOptionOnUnsupportedCPU.java
 @@ -41,6 +41,7 @@ package compiler.intrinsics.sha.cli;
  
  import compiler.intrinsics.sha.cli.testcases.GenericTestCaseForOtherCPU;
@@ -53408,10 +53378,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUs
                  new UseSHAIntrinsicsSpecificTestCaseForUnsupportedCPU(
                          SHAOptionsBase.USE_SHA1_INTRINSICS_OPTION),
                  new GenericTestCaseForOtherCPU(
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA256IntrinsicsOptionOnUnsupportedCPU.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA256IntrinsicsOptionOnUnsupportedCPU.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA256IntrinsicsOptionOnUnsupportedCPU.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA256IntrinsicsOptionOnUnsupportedCPU.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA256IntrinsicsOptionOnUnsupportedCPU.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA256IntrinsicsOptionOnUnsupportedCPU.java
 @@ -41,6 +41,7 @@ package compiler.intrinsics.sha.cli;
  
  import compiler.intrinsics.sha.cli.testcases.GenericTestCaseForOtherCPU;
@@ -53429,10 +53399,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUs
                  new UseSHAIntrinsicsSpecificTestCaseForUnsupportedCPU(
                          SHAOptionsBase.USE_SHA256_INTRINSICS_OPTION),
                  new GenericTestCaseForOtherCPU(
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA512IntrinsicsOptionOnUnsupportedCPU.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA512IntrinsicsOptionOnUnsupportedCPU.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA512IntrinsicsOptionOnUnsupportedCPU.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA512IntrinsicsOptionOnUnsupportedCPU.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA512IntrinsicsOptionOnUnsupportedCPU.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHA512IntrinsicsOptionOnUnsupportedCPU.java
 @@ -41,6 +41,7 @@ package compiler.intrinsics.sha.cli;
  
  import compiler.intrinsics.sha.cli.testcases.GenericTestCaseForOtherCPU;
@@ -53450,10 +53420,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUs
                  new UseSHAIntrinsicsSpecificTestCaseForUnsupportedCPU(
                          SHAOptionsBase.USE_SHA512_INTRINSICS_OPTION),
                  new GenericTestCaseForOtherCPU(
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHAOptionOnUnsupportedCPU.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHAOptionOnUnsupportedCPU.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHAOptionOnUnsupportedCPU.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHAOptionOnUnsupportedCPU.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHAOptionOnUnsupportedCPU.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUseSHAOptionOnUnsupportedCPU.java
 @@ -40,6 +40,7 @@ package compiler.intrinsics.sha.cli;
  
  import compiler.intrinsics.sha.cli.testcases.GenericTestCaseForOtherCPU;
@@ -53471,10 +53441,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/TestUs
                  new UseSHASpecificTestCaseForUnsupportedCPU(
                          SHAOptionsBase.USE_SHA_OPTION),
                  new GenericTestCaseForOtherCPU(
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForOtherCPU.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForOtherCPU.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForOtherCPU.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForOtherCPU.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForOtherCPU.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForOtherCPU.java
 @@ -32,14 +32,15 @@ import jdk.test.lib.cli.predicate.OrPred
  
  /**
@@ -53502,10 +53472,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testca
          //  SHA-related options will not cause any warnings.
          CommandLineOptionTest.verifySameJVMStartup(null,
                  new String[] { ".*" + optionName + ".*" }, shouldPassMessage,
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForUnsupportedRiscv64CPU.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForUnsupportedRiscv64CPU.java
 ===================================================================
 --- /dev/null
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForUnsupportedRiscv64CPU.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testcases/GenericTestCaseForUnsupportedRiscv64CPU.java
 @@ -0,0 +1,115 @@
 +/*
 + * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
@@ -53622,10 +53592,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/intrinsics/sha/cli/testca
 +        }
 +    }
 +}
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Double.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Double.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Double.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Double.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Double.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Double.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53635,10 +53605,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRe
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Float.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Float.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Float.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Float.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Float.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Float.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53648,10 +53618,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRe
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Int.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Int.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Int.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Int.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Int.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ProdRed_Int.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53661,10 +53631,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ProdRe
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ReductionPerf.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ReductionPerf.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/ReductionPerf.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/ReductionPerf.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/ReductionPerf.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/ReductionPerf.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53674,10 +53644,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/Reduct
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions
   *      -XX:LoopUnrollLimit=250 -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Double.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Double.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Double.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Double.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Double.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Double.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8138583
@@ -53687,10 +53657,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Float.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Float.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Float.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Float.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Float.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRedAbsNeg_Float.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8138583
@@ -53700,10 +53670,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRedSqrt_Double.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRedSqrt_Double.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRedSqrt_Double.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRedSqrt_Double.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRedSqrt_Double.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRedSqrt_Double.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8135028
@@ -53713,10 +53683,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Double.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Double.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Double.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Double.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Double.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Double.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53726,10 +53696,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Float.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Float.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Float.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Float.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Float.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Float.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53739,10 +53709,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Int.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Int.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Int.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Int.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Int.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/loopopts/superword/SumRed_Int.java
 @@ -25,7 +25,7 @@
   * @test
   * @bug 8074981
@@ -53752,10 +53722,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/loopopts/superword/SumRed
   *
   * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:LoopUnrollLimit=250
   *      -XX:CompileThresholdScaling=0.1
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/runtime/criticalnatives/argumentcorruption/CheckLongArgs.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/runtime/criticalnatives/argumentcorruption/CheckLongArgs.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/runtime/criticalnatives/argumentcorruption/CheckLongArgs.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/runtime/criticalnatives/argumentcorruption/CheckLongArgs.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/runtime/criticalnatives/argumentcorruption/CheckLongArgs.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/runtime/criticalnatives/argumentcorruption/CheckLongArgs.java
 @@ -24,7 +24,7 @@
  
  /* @test
@@ -53765,10 +53735,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/runtime/criticalnatives/a
   * @run main/othervm/native -Xcomp -XX:+CriticalJNINatives compiler.runtime.criticalnatives.argumentcorruption.CheckLongArgs
   */
  package compiler.runtime.criticalnatives.argumentcorruption;
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/runtime/criticalnatives/lookup/LookUp.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/runtime/criticalnatives/lookup/LookUp.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/runtime/criticalnatives/lookup/LookUp.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/runtime/criticalnatives/lookup/LookUp.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/runtime/criticalnatives/lookup/LookUp.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/runtime/criticalnatives/lookup/LookUp.java
 @@ -24,7 +24,7 @@
  
  /* @test
@@ -53778,10 +53748,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/runtime/criticalnatives/l
   * @run main/othervm/native -Xcomp -XX:+CriticalJNINatives compiler.runtime.criticalnatives.lookup.LookUp
   */
  package compiler.runtime.criticalnatives.lookup;
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/testlibrary/sha/predicate/IntrinsicPredicates.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/testlibrary/sha/predicate/IntrinsicPredicates.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/compiler/testlibrary/sha/predicate/IntrinsicPredicates.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/testlibrary/sha/predicate/IntrinsicPredicates.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/compiler/testlibrary/sha/predicate/IntrinsicPredicates.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/compiler/testlibrary/sha/predicate/IntrinsicPredicates.java
 @@ -61,6 +61,7 @@ public class IntrinsicPredicates {
  
      public static final BooleanSupplier SHA1_INSTRUCTION_AVAILABLE
@@ -53806,19 +53776,19 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/compiler/testlibrary/sha/predicate
                new OrPredicate(new CPUSpecificPredicate("s390.*",    new String[] { "sha512"       }, null),
                new OrPredicate(new CPUSpecificPredicate("sparc.*",   new String[] { "sha512"       }, null),
                new OrPredicate(new CPUSpecificPredicate("ppc64.*",   new String[] { "sha"          }, null),
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/gc/shenandoah/TestWrongArrayMember.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/gc/shenandoah/TestWrongArrayMember.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/gc/shenandoah/TestWrongArrayMember.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/gc/shenandoah/TestWrongArrayMember.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/gc/shenandoah/TestWrongArrayMember.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/gc/shenandoah/TestWrongArrayMember.java
 @@ -54,4 +54,3 @@ public class TestWrongArrayMember {
          }
      }
  }
 -
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailStackTrace.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailStackTrace.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailStackTrace.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailStackTrace.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailStackTrace.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailStackTrace.java
 @@ -112,7 +112,7 @@ public class CheckForProperDetailStackTr
              // It's ok for ARM not to have symbols, because it does not support NMT detail
              // when targeting thumb2. It's also ok for Windows not to have symbols, because
@@ -53828,10 +53798,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/runtime/NMT/CheckForProperDetailSt
                  return; // we are done
              }
              output.reportDiagnosticSummary();
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/runtime/ReservedStack/ReservedStackTest.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/runtime/ReservedStack/ReservedStackTest.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/runtime/ReservedStack/ReservedStackTest.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/runtime/ReservedStack/ReservedStackTest.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/runtime/ReservedStack/ReservedStackTest.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/runtime/ReservedStack/ReservedStackTest.java
 @@ -239,7 +239,7 @@ public class ReservedStackTest {
          return Platform.isAix() ||
              (Platform.isLinux() &&
@@ -53841,10 +53811,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/runtime/ReservedStack/ReservedStac
              Platform.isOSX() ||
              Platform.isSolaris();
      }
-Index: jdk11u-f412f2537f15/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java
+Index: jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java
-+++ jdk11u-f412f2537f15/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java
+--- jdk11u-jdk-11.0.14-9.orig/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java
++++ jdk11u-jdk-11.0.14-9/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java
 @@ -45,7 +45,7 @@ import java.util.Set;
   */
  public class TestMutuallyExclusivePlatformPredicates {
@@ -53854,10 +53824,10 @@ Index: jdk11u-f412f2537f15/test/hotspot/jtreg/testlibrary_tests/TestMutuallyExcl
          BITNESS("is32bit", "is64bit"),
          OS("isAix", "isLinux", "isOSX", "isSolaris", "isWindows"),
          VM_TYPE("isClient", "isServer", "isGraal", "isMinimal", "isZero", "isEmbedded"),
-Index: jdk11u-f412f2537f15/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
+Index: jdk11u-jdk-11.0.14-9/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
-+++ jdk11u-f412f2537f15/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
+--- jdk11u-jdk-11.0.14-9.orig/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
++++ jdk11u-jdk-11.0.14-9/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
 @@ -54,8 +54,8 @@ public class TestCPUInformation {
              Events.assertField(event, "hwThreads").atLeast(1);
              Events.assertField(event, "cores").atLeast(1);
@@ -53869,10 +53839,10 @@ Index: jdk11u-f412f2537f15/test/jdk/jdk/jfr/event/os/TestCPUInformation.java
          }
      }
  }
-Index: jdk11u-f412f2537f15/test/lib/jdk/test/lib/Platform.java
+Index: jdk11u-jdk-11.0.14-9/test/lib/jdk/test/lib/Platform.java
 ===================================================================
---- jdk11u-f412f2537f15.orig/test/lib/jdk/test/lib/Platform.java
-+++ jdk11u-f412f2537f15/test/lib/jdk/test/lib/Platform.java
+--- jdk11u-jdk-11.0.14-9.orig/test/lib/jdk/test/lib/Platform.java
++++ jdk11u-jdk-11.0.14-9/test/lib/jdk/test/lib/Platform.java
 @@ -223,6 +223,10 @@ public class Platform {
          return isArch("arm.*");
      }
