@@ -1,20 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,9 +12,11 @@ makedepends=(zip autoconf2.13 python-setuptools python-psutil rust llvm clang ll
+@@ -12,9 +12,11 @@
  checkdepends=(mercurial git)
  options=(!lto)
  _relver=${pkgver}esr
 -source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc})
 +source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
 +        tests-skip-some-tests-on-rv64.patch)
- sha256sums=('36049694505ff5edd1a086480e5a3d29fedd3f0b0d4a8a27a271a66e8fc6cd1f'
+ sha256sums=('7e802832152c39588b9a5c8392e90c1b00036bf948fa4a97a7af0d1435ba09a1'
 -            'SKIP')
 +            'SKIP'
 +            '1518e134fd5448d48f960bedbe7db061d5a8b368d43db2cac7f4b1adf094c748')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
  
  # Make sure the duplication between bin and lib is found
-@@ -24,6 +26,7 @@ prepare() {
+@@ -24,6 +26,7 @@
    mkdir mozbuild
    cd firefox-$pkgver
  
@@ -22,7 +22,7 @@
    cat >../mozconfig <<END
  ac_add_options --enable-application=js
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
-@@ -33,12 +36,13 @@ ac_add_options --enable-release
+@@ -33,12 +36,13 @@
  ac_add_options --enable-hardening
  ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
@@ -37,7 +37,7 @@
  
  # System libraries
  ac_add_options --with-system-zlib
-@@ -59,43 +63,42 @@ build() {
+@@ -59,43 +63,42 @@
    export MOZBUILD_STATE_PATH="$srcdir/mozbuild"
    export MACH_USE_SYSTEM_PYTHON=1
  
