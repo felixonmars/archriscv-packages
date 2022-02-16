@@ -1,0 +1,108 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,9 +12,11 @@ makedepends=(zip autoconf2.13 python-setuptools python-psutil rust llvm clang ll
+ checkdepends=(mercurial git)
+ options=(!lto)
+ _relver=${pkgver}esr
+-source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc})
++source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
++        tests-skip-some-tests-on-rv64.patch)
+ sha256sums=('36049694505ff5edd1a086480e5a3d29fedd3f0b0d4a8a27a271a66e8fc6cd1f'
+-            'SKIP')
++            'SKIP'
++            '1518e134fd5448d48f960bedbe7db061d5a8b368d43db2cac7f4b1adf094c748')
+ validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
+ 
+ # Make sure the duplication between bin and lib is found
+@@ -24,6 +26,7 @@ prepare() {
+   mkdir mozbuild
+   cd firefox-$pkgver
+ 
++  patch -Np1 < "../tests-skip-some-tests-on-rv64.patch" 
+   cat >../mozconfig <<END
+ ac_add_options --enable-application=js
+ mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
+@@ -33,12 +36,13 @@ ac_add_options --enable-release
+ ac_add_options --enable-hardening
+ ac_add_options --enable-optimize
+ ac_add_options --enable-rust-simd
+-ac_add_options --enable-linker=lld
++ac_add_options --enable-linker=bfd
+ ac_add_options --disable-bootstrap
+ ac_add_options --disable-debug
+ ac_add_options --disable-debug-symbols
+ ac_add_options --disable-jemalloc
+ ac_add_options --disable-strip
++ac_add_options --disable-jit
+ 
+ # System libraries
+ ac_add_options --with-system-zlib
+@@ -59,43 +63,42 @@ build() {
+   export MOZBUILD_STATE_PATH="$srcdir/mozbuild"
+   export MACH_USE_SYSTEM_PYTHON=1
+ 
+-  # Do 3-tier PGO
+-  echo "Building instrumented JS..."
++  ## Do 3-tier PGO
++  #echo "Building instrumented JS..."
+   cat >.mozconfig ../mozconfig - <<END
+-ac_add_options --enable-profile-generate=cross
+ END
+   ./mach build
+ 
+-  echo "Profiling instrumented JS..."
+-  (
+-    local js="$PWD/obj/dist/bin/js"
+-    export LLVM_PROFILE_FILE="$PWD/js-%p-%m.profraw"
++  #echo "Profiling instrumented JS..."
++  #(
++  #  local js="$PWD/obj/dist/bin/js"
++  #  export LLVM_PROFILE_FILE="$PWD/js-%p-%m.profraw"
+ 
+-    cd js/src/octane
+-    "$js" run.js
++  #  cd js/src/octane
++  #  "$js" run.js
+ 
+-    cd ../../../third_party/webkit/PerformanceTests/ARES-6
+-    "$js" cli.js
++  #  cd ../../../third_party/webkit/PerformanceTests/ARES-6
++  #  "$js" cli.js
+ 
+-    cd ../SunSpider/sunspider-0.9.1
+-    "$js" sunspider-standalone-driver.js
+-  )
++  #  cd ../SunSpider/sunspider-0.9.1
++  #  "$js" sunspider-standalone-driver.js
++  #)
+ 
+-  llvm-profdata merge -o merged.profdata *.profraw
++  #illvm-profdata merge -o merged.profdata *.profraw
+ 
+-  stat -c "Profile data found (%s bytes)" merged.profdata
+-  test -s merged.profdata
++  #stat -c "Profile data found (%s bytes)" merged.profdata
++  #test -s merged.profdata
+ 
+-  echo "Removing instrumented JS..."
+-  ./mach clobber
++  #echo "Removing instrumented JS..."
++  #./mach clobber
+ 
+-  echo "Building optimized JS..."
+-  cat >.mozconfig ../mozconfig - <<END
+-ac_add_options --enable-lto=cross
+-ac_add_options --enable-profile-use=cross
+-ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
+-END
+-  ./mach build
++  #echo "Building optimized JS..."
++  #cat >.mozconfig ../mozconfig - <<END
++#ac_add_options --enable-lto=cross
++#ac_add_options --enable-profile-use=cross
++#ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
++#END
++#  ./mach build
+ }
+ 
+ check() {
