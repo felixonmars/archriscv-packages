@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,8 +13,10 @@ depends=(glpk)
+ makedepends=(swi-prolog)
+ optdepends=('swi-prolog: SWI Prolog interface')
+ options=(!docs)
+-source=(https://bugseng.com/products/ppl/download/ftp/releases/$pkgver/ppl-$pkgver.tar.gz)
+-sha256sums=('6bc36dd4a87abc429d8f9c00c53e334e5041a9b0857cfc00dbad6ef14294aac8')
++source=(https://bugseng.com/products/ppl/download/ftp/releases/$pkgver/ppl-$pkgver.tar.gz
++        fix-int-conversion.patch)
++sha256sums=('6bc36dd4a87abc429d8f9c00c53e334e5041a9b0857cfc00dbad6ef14294aac8'
++            'f659fdb9d3202771271b7923ca9841249b91c4c1d2fc88bb11f4569849d8a212')
+ validpgpkeys=('058E41DB299DE2DD0AC649CA881457CBB5944392') # Roberto Bagnara
+ 
+ prepare() {
+@@ -23,6 +25,7 @@ prepare() {
+   sed -i 's/-dump-runtime-variables/-&/g' configure            
+ # Fix detection of C++11 features (Fedora)
+   sed -i 's,== 201103L,>= 201103L,g' configure            
++  patch -Np1 -i ../fix-int-conversion.patch
+ }
+ 
+ build() {
