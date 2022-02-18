@@ -1,0 +1,51 @@
+diff --git PKGBUILD PKGBUILD
+index fc6efa4..c5248a4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,14 +17,17 @@ changelog=$pkgname.changelog
+ options=('!emptydirs')
+ source=(https://sourceforge.net/projects/qtpfsgui/files/luminance/$pkgver/luminance-hdr-$pkgver.tar.bz2
+         luminancehdr-openexr3.patch
+-        fix-headers.patch)
++        fix-headers.patch
++        disable-openmp.patch)
+ sha512sums=('d909194ff13df1d3a9ad5c08a0fad5b28831c1ff5317ec9240af16b21cc87dff162c9e2433c5ec1103e4a3a5001de14a9a1dd3d75b3cb24433c93694810c24f7'
+             '78da713154042f125511ddc7ad184f961c92fa679ff0aa5d33700b619a0eed973722ea9f51c44c58595043ea308f4f3c44f6613b88fbb41e5159849bc0f8741e'
+-            '6d7ae3df647ffb67a27ef2729c8e8fd04e2b400bd960744dd0172406bc27773156a2b0bd67a7b71157cc59d0f528fbe00882085baa42f503dd506baa2826d0e9')
++            '6d7ae3df647ffb67a27ef2729c8e8fd04e2b400bd960744dd0172406bc27773156a2b0bd67a7b71157cc59d0f528fbe00882085baa42f503dd506baa2826d0e9'
++            '70a4cf6d74fdcf31c3b19499134002bee0a03b65098b0f74429964be9418a7973306132bbbe279abdacfd4014428259979f129b5a222e893ec8dc5e114743d42')
+
+ prepare() {
+   patch -d luminance-hdr-$pkgver -p1 < luminancehdr-openexr3.patch
+   patch -d luminance-hdr-$pkgver -p1 < fix-headers.patch
++  patch -d luminance-hdr-$pkgver -p1 < disable-openmp.patch
+ }
+
+ build() {
+diff --git disable-openmp.patch disable-openmp.patch
+new file mode 100644
+index 0000000..f20b598
+--- /dev/null
++++ disable-openmp.patch
+@@ -0,0 +1,21 @@
++--- a/build_files/Modules/CompilerSettings.cmake       2021-01-06 16:38:00.000000000 +0100
+++++ b/build_files/Modules/CompilerSettings.cmake       2022-02-13 16:57:43.480751071 +0100
++@@ -53,11 +53,11 @@
++     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
++     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
++ ELSEIF(CMAKE_COMPILER_IS_GNUCC AND UNIX)
++-    EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
++-    IF(GCC_VERSION VERSION_GREATER 4.3 OR GCC_VERSION VERSION_EQUAL 4.3)
++-        MESSAGE(STATUS "GCC >= 4.3")
++-        FIND_PACKAGE(OpenMP REQUIRED)
++-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
++-        SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
++-    ENDIF()
+++    #EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
+++    #IF(GCC_VERSION VERSION_GREATER 4.3 OR GCC_VERSION VERSION_EQUAL 4.3)
+++    #    MESSAGE(STATUS "GCC >= 4.3")
+++    #    FIND_PACKAGE(OpenMP REQUIRED)
+++    #    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+++    #    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+++    #ENDIF()
++ ENDIF()
