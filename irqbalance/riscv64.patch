@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index eed9720..55486b5 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,12 +12,16 @@ license=('GPL2')
+ backup=('etc/irqbalance.env')
+ depends=('glibc')
+ makedepends=('glib2' 'libcap-ng' 'ncurses' 'numactl' 'systemd' 'systemd-libs')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/${pkgname}/${pkgname}/archive/v$pkgver.tar.gz")
+-sha512sums=('3d757198dbe680b010ed9233d73cbf3b4a150e6b07ef97d3e94f5fa0472a22b0b3800868634340fb413a18683ff95ff6a8f7fa51ace65d870651336479e32740')
+-b2sums=('0181ee57c4ddbdb55e1529cfd7da4b875320eff65cb606f925f0b4f4243b51e1349d4aba38690a78d7deab6d3f55ae8d6c45af44a904f03d7127678202f288db')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/${pkgname}/${pkgname}/archive/v$pkgver.tar.gz"
++        "fix_nonconst_format.patch")
++sha512sums=('3d757198dbe680b010ed9233d73cbf3b4a150e6b07ef97d3e94f5fa0472a22b0b3800868634340fb413a18683ff95ff6a8f7fa51ace65d870651336479e32740'
++            'dccc3067acf45678dcf5a13ee1f11ddaf1369be09eed9f91e1bb81cb4e61b97b7abecdd35017e13def098d2e79a1204307e718ef1916698d4da203e523a32fd4')
++b2sums=('0181ee57c4ddbdb55e1529cfd7da4b875320eff65cb606f925f0b4f4243b51e1349d4aba38690a78d7deab6d3f55ae8d6c45af44a904f03d7127678202f288db'
++        'c6fb62846680fb220d2d74d0032d1cd38adb84b5a365a0b24b49df052e3c0dd9bcadb3fb241781c5bbe98461b1a2413052536e6cf9fa12f7a572fe8a69be5622')
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
++  patch -Np1 -i "../fix_nonconst_format.patch"
+   # fix location of configuration and binary in service
+   sed -e 's|/path/to/|/etc/|g' \
+       -e 's|/usr/sbin|/usr/bin|g' \
