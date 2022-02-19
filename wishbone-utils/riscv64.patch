@@ -1,8 +1,8 @@
 diff --git PKGBUILD PKGBUILD
-index 7393bcbe3..5cf719936 100644
+index 7393bcb..a1ce008 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,9 +9,19 @@ arch=(x86_64)
+@@ -9,9 +9,25 @@ arch=(x86_64)
  url="https://github.com/litex-hub/wishbone-utils"
  license=(BSD)
  depends=(glibc gcc-libs)
@@ -11,15 +11,21 @@ index 7393bcbe3..5cf719936 100644
 -sha512sums=('ca61e335f97c3e5ed0b02d71601c4d2102c87ea40051f7345514c1624c06bdaa47bb6acca66c0709968c9e39faf570f49e5ec81cb444909029498043240e506d')
 +makedepends=(rust git)
 +source=($pkgname-$pkgver.tar.gz::https://github.com/litex-hub/wishbone-utils/archive/v$pkgver.tar.gz
-+        "use_new_nix.patch")
++        "git+https://gitlab.com/susurrus/serialport-rs.git#tag=3.3.0"
++        "use_new_nix.patch"
++        "use_local_serialport.patch")
 +sha512sums=('ca61e335f97c3e5ed0b02d71601c4d2102c87ea40051f7345514c1624c06bdaa47bb6acca66c0709968c9e39faf570f49e5ec81cb444909029498043240e506d'
-+            '1d8db883a7771de153410fa558ed09c7281e81f0b76f459b543b355e7a2ca9a805923c4017255c43d99ef9e2cc6173236e80c24627492ed5f66cb11262cd1aaf')
++            'SKIP'
++            'a1444f285c8b79a8f451ae9267236031d6b910dd1b12f64c10b9cb36f6a655bf26d37c7b39a1717b0b53def008ac29c8daf891f4d1c68352d48aee6cc4d6a798'
++            'c625f0882e7a67c7803697fd68da46dd3e54170bac63b45a243814df3bd55aa86c7520a1f87cae3eb5d4cf5144b6be59f96ca9479a2729701f095d9582b62462')
 +options=(!lto)
 +
 +prepare() {
++  cd serialport-rs
++  patch -Np1 -i "../use_new_nix.patch"
++  cd ..
 +  cd $pkgname-$pkgver/wishbone-tool/crates
-+  git clone 'https://gitlab.com/susurrus/serialport-rs.git' --branch 3.3.0
-+  patch -Np3 -i "../../../test.patch"
++  patch -Np3 -i "../../../use_local_serialport.patch"
 +  cargo update -p serialport -p nix
 +}
  
