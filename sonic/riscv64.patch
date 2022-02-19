@@ -1,0 +1,38 @@
+diff --git PKGBUILD PKGBUILD
+index 37b60887..93771bf5 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,15 +18,18 @@ source=(
+   'systemd.service'
+   'sysusers.conf'
+   'tmpfiles.conf'
++  'fix-jemallocator.patch'
+ )
+ sha512sums=('SKIP'
+             'f623f4076210f5387d3b3b6e61e0d45323a5d9fbc139a3a658d3f8c317cbf863976e0e9c604eb1f03ca42f2f339d733382961b2b73d33464ec8154d8a9e18475'
+             '0fd64f7959024ecab487924d277679b81c78d1ba7d57d2dc63f654409f23bb0cbb0109ac513b25f1b1785115c3a9916f8c4e230fe94963f0bbe84f2784ec76e4'
+-            '62b0bb63ba2eda59d530b38aeaf581f5b5fc5187c4615694be9e4a7e38dcb5ed55367b461ac483ab3d6c931d1754b980c8e48b5518388b8476437d988956883b')
++            '62b0bb63ba2eda59d530b38aeaf581f5b5fc5187c4615694be9e4a7e38dcb5ed55367b461ac483ab3d6c931d1754b980c8e48b5518388b8476437d988956883b'
++            '20303afc6102d4485ac2655a1fe1fb8c8169dd47246bc19f4839969b88c532b308b86d7abd7c4892fd3c5ddcf3b8f220f6852bf65cca8d8595c43488c9dc30d5')
+ b2sums=('SKIP'
+         'f4e605968aa9cc8a5dccf98c60bbce77502e7bcba74f7d3d7ffbe6fedd7e7ac21006837d7c99cba0bf2dfc50a58fc78744861d16aa902dadbbb367ec26d7e0be'
+         '5e75e9b670baded2f3956849d2b7b0a90f5a573629f5812d8332b26d203425f14e131eabb2bb485cddf533c27a67ebdb4e87671324d316fa083d7ecdbeba6221'
+-        'ea9795c42003660522d89156eced726bc7db686ef8545bc57504e55341982be2e2336e9d872ce17d5c1607e0cd98e9a2f28f5836bd60b56e510ec5fd59c77143')
++        'ea9795c42003660522d89156eced726bc7db686ef8545bc57504e55341982be2e2336e9d872ce17d5c1607e0cd98e9a2f28f5836bd60b56e510ec5fd59c77143'
++        '3a9a29ba55a2b1bf1ec9816d4840d03f805c27b9ebeb98365bda44f1b002251f78362e6f7dcf496c808dea1dbe4457ef36874083dda40e73a5d826ad98602578')
+ 
+ pkgver() {
+   cd "$pkgname"
+@@ -36,8 +39,11 @@ pkgver() {
+ prepare() {
+   cd "$pkgname"
+ 
++  # use the unrelease version of the tikv-jemallocator which fix the build error in riscv 
++  patch -N -p0 -i ../fix-jemallocator.patch
++
+   # download dependencies
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  cargo fetch --locked
+ }
+ 
+ build() {
