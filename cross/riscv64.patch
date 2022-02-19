@@ -1,0 +1,36 @@
+diff --git PKGBUILD PKGBUILD
+index 7f8b7d2..a872595 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,18 +12,26 @@ depends=('gcc-libs')
+ makedepends=('rust')
+ optdepends=('docker: provide container'
+             'podman: provide container')
+-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/rust-embedded/cross/archive/v${pkgver}.tar.gz")
+-sha256sums=('150ab0d7cd8f05f3d63df7aa0ea7ef32af6732c89712d671c6be1c40ecab1cdb')
+-b2sums=('a8fac885dbd953bcc9d5970483812348fe4ae0a2144d488112663c5c4263bc069bce5195ec8457deb405e42c7d44084b7f6ec3c38886503bfd1b4420b054a578')
++source=("${pkgname}-${pkgver}.tar.gz::https://github.com/rust-embedded/cross/archive/v${pkgver}.tar.gz"
++        "use_new_nix.patch")
++sha256sums=('150ab0d7cd8f05f3d63df7aa0ea7ef32af6732c89712d671c6be1c40ecab1cdb'
++            '5b10a778d37c76894d64f23acdf193a9ef1e569e50781b8d3573febcc4521979')
++b2sums=('a8fac885dbd953bcc9d5970483812348fe4ae0a2144d488112663c5c4263bc069bce5195ec8457deb405e42c7d44084b7f6ec3c38886503bfd1b4420b054a578'
++        '4b0d0b85463c92af6cb8f215e39eb8fa636d99445501300321e62efaf0d29f452e29a6cc38c4b678446fb96d0f1b9d66070be8f7c3b68814f1ccf32484c1c66f')
++
++prepare() {
++  cd ${pkgname}-${pkgver}
++  patch -Np1 -i "../use_new_nix.patch"
++}
+ 
+ build() {
+   cd ${pkgname}-${pkgver}
+-  cargo build --release --locked
++  cargo build --release
+ }
+ 
+ check() {
+   cd ${pkgname}-${pkgver}
+-  cargo test --release --locked
++  cargo test --release
+ }
+ 
+ package() {
