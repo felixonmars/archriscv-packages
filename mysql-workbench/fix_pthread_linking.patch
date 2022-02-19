@@ -1,0 +1,25 @@
+diff --git a/configure.cmake b/configure.cmake
+index 4c2b9c22..c8a94f3c 100644
+--- a/configure.cmake
++++ b/configure.cmake
+@@ -76,6 +76,7 @@ ENDFUNCTION()
+ 
+ # Figure out threading library
+ # Defines CMAKE_USE_PTHREADS_INIT and CMAKE_THREAD_LIBS_INIT.
++set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+ FIND_PACKAGE (Threads)
+ 
+ IF(UNIX)
+diff --git a/scripts/CMakeLists.txt b/scripts/CMakeLists.txt
+index 25cc7f3e..0123ac10 100644
+--- a/scripts/CMakeLists.txt
++++ b/scripts/CMakeLists.txt
+@@ -318,6 +318,8 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
+       ELSEIF (lib MATCHES "^\\-L")
+         # Search directory. Test on FreeBSD: -L/usr/local/lib -lunwind
+         SET(${var} "${${var}} ${lib} ")
++      ELSEIF (lib MATCHES "^\\-pthread")
++        SET(${var} "${${var}} ${lib} ")
+       ELSEIF(lib MATCHES "^/")
+         # Full path, convert to just filename, strip "lib" prefix and extension
+         GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
