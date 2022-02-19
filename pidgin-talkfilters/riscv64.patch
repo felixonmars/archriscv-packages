@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -7,18 +7,19 @@ pkgdesc="Implements GNU talkfilters in pidgin chats"
+ arch=('x86_64')
+ url="https://bitbucket.org/rekkanoryo/purple-plugin-pack"
+ license=('GPL')
+-depends=('libpurple' 'talkfilters')
+-makedepends=('intltool' 'gettext' 'python' 'pidgin')
+-source=(https://bitbucket.org/rekkanoryo/purple-plugin-pack/downloads/purple-plugin-pack-$pkgver.tar.bz2 python3.patch)
+-sha256sums=('2bbcf5e778a33968ba7f2864d2a6cb526a8984be3e4151642a583eee8eafb03c'
++depends=('libpurple' 'talkfilters' 'gtk2')
++makedepends=('mercurial' 'intltool' 'gettext' 'python' 'pidgin')
++source=("hg+https://keep.imfreedom.org/pidgin/purple-plugin-pack/#tag=pp_${pkgver//./_}" python3.patch)
++sha256sums=('SKIP'
+             '842292c95e61fb5a45b30eaed490d29ee67f725b46301e3590feafeb10014980')
+ 
+ build() {
+-  cd "$srcdir"/purple-plugin-pack-$pkgver
++  cd "$srcdir"/purple-plugin-pack
+ 
+   patch -Np1 -i ../python3.patch
+   sed -i -e 's|GETTEXT_PACKAGE=plugin_pack|GETTEXT_PACKAGE=pidgin_talkfilters|'\
+     configure.ac
++  python plugin_pack.py config_file > plugin_pack.m4
+   autoreconf -vfi
+   PYTHON=/usr/bin/python \
+     ./configure --prefix=/usr --with-plugins=talkfilters
+@@ -27,7 +28,7 @@ build() {
+ }
+ 
+ package() {
+-  cd "$srcdir"/purple-plugin-pack-$pkgver
++  cd "$srcdir"/purple-plugin-pack
+ 
+   make DESTDIR="$pkgdir" install
+ }
