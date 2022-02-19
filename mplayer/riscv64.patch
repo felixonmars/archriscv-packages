@@ -1,0 +1,32 @@
+diff --git PKGBUILD PKGBUILD
+index 27a0591..c7ba095 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,13 +27,16 @@ makedepends=('xorgproto' 'libxxf86vm' 'libmad' 'libxinerama' 'libmng' 'libxss'
+ options=('!emptydirs' '!lto')
+ source=(${pkgbase}-${pkgver}::"svn://svn.mplayerhq.hu/mplayer/trunk#revision=${pkgver}"
+         mplayer.desktop
+-        include-samba-4.0.patch)
++        include-samba-4.0.patch
++        "add_riscv64_support.patch")
+ sha512sums=('SKIP'
+             'd3c5cbf0035279c6f307e4e225473d7b77f9b56566537a26aa694e68446b9e3240333296da627ad5af83b04cc8f476d1a3f8c05e4cf81cd6e77153feb4ed74bc'
+-            '9debb8c58b996f6c716c22c86c720bf9dc49b4ee9b76c57519f791667ae1de2cc6f5add878fbf4ac02c6b6fd1865e1bcfa6105e75de4bf7ec596c338ed0cae99')
++            '9debb8c58b996f6c716c22c86c720bf9dc49b4ee9b76c57519f791667ae1de2cc6f5add878fbf4ac02c6b6fd1865e1bcfa6105e75de4bf7ec596c338ed0cae99'
++            'abca77dfe47e65bc89b3eac3a701c534a05c76b0758db39478593b41f24f7775daafe3414949141d56dca0dda1555d6982519c2aab1090b0d1f4a3ee37bcefe7')
+ 
+ prepare() {
+   cd ${pkgbase}-${pkgver}
++  patch -Np0 -i "../add_riscv64_support.patch"
+   patch -p1 < "../include-samba-4.0.patch"
+   ./version.sh
+ }
+@@ -45,7 +48,7 @@ build() {
+   export LDFLAGS="${LDFLAGS/,O1/}"
+   export LDFLAGS="${LDFLAGS/,--sort-common/}"
+   ./configure --prefix=/usr \
+-    --enable-runtime-cpudetection \
++    --disable-runtime-cpudetection \
+     --disable-gui \
+     --disable-arts \
+     --disable-liblzo \
