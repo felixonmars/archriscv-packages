@@ -1,7 +1,7 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,8 +12,7 @@ url="https://www.mozilla.org/firefox/"
- depends=(gtk3 libxt mime-types dbus-glib ffmpeg nss ttf-font libpulse)
+@@ -12,8 +12,7 @@
+ depends=(gtk3 libxt mime-types dbus-glib ffmpeg4.4 nss ttf-font libpulse)
  makedepends=(unzip zip diffutils yasm mesa imake inetutils xorg-server-xvfb
               autoconf2.13 rust clang llvm jack nodejs cbindgen nasm
 -             python-setuptools python-psutil python-zstandard lld dump_syms
@@ -10,20 +10,20 @@
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
              'pulseaudio: Audio support'
-@@ -23,10 +22,12 @@ optdepends=('networkmanager: Location detection via available WiFi networks'
+@@ -23,10 +22,12 @@
  options=(!emptydirs !makeflags !strip !lto !debug)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
          0001-Use-remoting-name-for-GDK-application-names.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch
          $pkgname.desktop identity-icons-brand.svg)
- sha256sums=('6c8a7dcb47122d033383fd62a1bcaefff0290a6c23d057898e8ff9c72749df28'
+ sha256sums=('3f2c87cf28645130777e875ddc9c67e8994c8d5c859f425f3ddced6fecb78d45'
              'SKIP'
              '8de6c0ecc70d2763936be6df4b91a3d2e806765bf510f987d6f2ffa2377c3f01'
 +            'bf8d70e26cf0e9d05e767bc2cd1498c616bd1fdbe310cb8de9e3e62acbfa4eb4'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -50,6 +51,8 @@ prepare() {
+@@ -50,6 +51,8 @@
    # https://bugzilla.mozilla.org/show_bug.cgi?id=1530052
    patch -Np1 -i ../0001-Use-remoting-name-for-GDK-application-names.patch
  
@@ -32,7 +32,7 @@
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
  
-@@ -58,14 +61,21 @@ ac_add_options --enable-application=browser
+@@ -58,15 +61,22 @@
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -51,15 +51,16 @@
 -ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
 +ac_add_options --disable-jit
 +ac_add_options --without-wasm-sandboxed-libraries
-+
+ 
 +ac_add_options --enable-optimize
 +ac_add_options --disable-debug
 +# rustc with opt-level 2 would segfault when compiling neqo-transport
 +export RUSTC_OPT_LEVEL=1
- 
++
  # Branding
  ac_add_options --enable-official-branding
-@@ -73,7 +83,8 @@ ac_add_options --enable-update-channel=release
+ ac_add_options --enable-update-channel=release
+@@ -73,7 +83,8 @@
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -69,7 +70,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -88,7 +99,7 @@ ac_add_options --with-system-nss
+@@ -88,7 +99,7 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -78,7 +79,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -106,39 +117,41 @@ build() {
+@@ -106,39 +117,41 @@
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -151,7 +152,7 @@
  }
  
  package() {
-@@ -206,12 +219,12 @@ END
+@@ -206,12 +219,12 @@
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
