@@ -1,13 +1,70 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 424292)
+--- PKGBUILD	(revision 437782)
 +++ PKGBUILD	(working copy)
-@@ -9,7 +9,7 @@
- arch=(x86_64)
- license=(LGPL)
- depends=(libxml2 glib2 libunwind libcap libelf python)
--makedepends=(gobject-introspection git valgrind bash-completion meson gmp gsl gtk3)
-+makedepends=(gobject-introspection git bash-completion meson gmp gsl gtk3)
- _commit=71c213f99ad5c8fc8f36a26238483f2bdf7d846a  # tags/1.18.5^0
- install=gstreamer.install
- source=("git+https://gitlab.freedesktop.org/gstreamer/gstreamer.git#commit=$_commit")
+@@ -10,7 +10,6 @@
+   gst-plugins-good
+   gst-plugins-bad
+   gst-plugin-gtk
+-  gst-plugin-msdk
+   gst-plugin-opencv
+   gst-plugin-qmlgl
+   gst-plugin-va
+@@ -50,7 +49,7 @@
+   libltc bluez-libs libavtp libbs2b bzip2 chromaprint libdca faac faad2
+   libfdk-aac fluidsynth libgme libkate liblrdf ladspa libde265 lilv lv2
+   libmicrodns mjpegtools libmpcdec neon openal libdvdnav rtmpdump sbc soundtouch
+-  spandsp libsrtp svt-hevc zvbi libnice webrtc-audio-processing wildmidi
++  spandsp libsrtp zvbi libnice webrtc-audio-processing wildmidi
+   zxing-cpp zbar nettle libxml2 gsm libopenmpt wpewebkit libldac libfreeaptx
+   qrencode json-glib libva libxkbcommon-x11
+ 
+@@ -134,6 +133,7 @@
+     -D gst-plugins-bad:iqa=disabled
+     -D gst-plugins-bad:isac=disabled
+     -D gst-plugins-bad:magicleap=disabled
++    -D gst-plugins-bad:msdk=disabled
+     -D gst-plugins-bad:onnx=disabled
+     -D gst-plugins-bad:openh264=disabled
+     -D gst-plugins-bad:openni2=disabled
+@@ -140,6 +140,7 @@
+     -D gst-plugins-bad:opensles=disabled
+     -D gst-plugins-bad:package-name="Arch Linux gst-plugins-bad $pkgver-$pkgrel"
+     -D gst-plugins-bad:package-origin="https://www.archlinux.org/"
++    -D gst-plugins-bad:svthevcenc=disabled
+     -D gst-plugins-bad:tinyalsa=disabled
+     -D gst-plugins-bad:voaacenc=disabled
+     -D gst-plugins-bad:voamrwbenc=disabled
+@@ -487,7 +488,7 @@
+     openjpeg2 opus libdvdnav libdvdread librsvg rtmpdump sbc libsndfile libltc
+     soundtouch spandsp srt libsrtp zvbi vulkan-icd-loader libxcb wayland libwebp
+     libnice webrtc-audio-processing wildmidi x265 zbar gsm libopenmpt libldac
+-    libfreeaptx qrencode json-glib libavtp libmicrodns svt-hevc zxing-cpp
++    libfreeaptx qrencode json-glib libavtp libmicrodns zxing-cpp
+   )
+ 
+   cd root; local files=(
+@@ -541,7 +542,6 @@
+     usr/lib/gstreamer-1.0/libgstspandsp.so
+     usr/lib/gstreamer-1.0/libgstsrt.so
+     usr/lib/gstreamer-1.0/libgstsrtp.so
+-    usr/lib/gstreamer-1.0/libgstsvthevcenc.so
+     usr/lib/gstreamer-1.0/libgstteletext.so
+     usr/lib/gstreamer-1.0/libgsttimecode.so
+     usr/lib/gstreamer-1.0/libgstttmlsubs.so
+@@ -566,15 +566,6 @@
+   ); _install
+ }
+ 
+-package_gst-plugin-msdk() {
+-  pkgdesc+=" - msdk plugin"
+-  depends=("gst-plugins-bad-libs=$pkgver" libmfx libva)
+-
+-  cd root; local files=(
+-    usr/lib/gstreamer-1.0/libgstmsdk.so
+-  ); _install
+-}
+-
+ package_gst-plugin-opencv() {
+   pkgdesc+=" - opencv plugin"
+   depends=("gst-plugins-base-libs=$pkgver" opencv)
