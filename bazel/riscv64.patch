@@ -1,0 +1,31 @@
+diff --git PKGBUILD PKGBUILD
+index c1b25526..07377e7c 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,11 +14,24 @@ depends=('java-environment=11' 'libarchive' 'zip' 'unzip')
+ makedepends=('git' 'protobuf' 'python')
+ options=('!distcc' '!strip')
+ source=("https://github.com/bazelbuild/bazel/releases/download/${pkgver}/bazel-${pkgver}-dist.zip"
+-        "https://github.com/bazelbuild/bazel/releases/download/${pkgver}/bazel-${pkgver}-dist.zip.sig")
++        "https://github.com/bazelbuild/bazel/releases/download/${pkgver}/bazel-${pkgver}-dist.zip.sig"
++        "01-fix-invalid-jni_md-select.patch"
++        "02-use-riscv64-jdk.patch"
++        "03-set-default-nojdk.patch")
+ sha512sums=('2a9a972d1cce6b50f959fec3d37506914208169c8aa36e5ec5f9a27942e9beff1080a544a18e9bd5eb13dc434c1864cda0594e6da5b78c2f41085abf808c22d7'
+-            'SKIP')
++            'SKIP'
++            '55bb59c8210f36acf7d3fab35fcb5c89a8f20f5bedadcb046f76b6abf2d2cf5d1894a590abc2da7ef05e5f5d9292fa35c1c1d95b9bd13051a214c83ea26dbad4'
++            '92ee280004d9f2344081f0244c5ffedc2c8bc6832edc6de32061ce2073d287ed7db3361f20806de4098e689afb923fa509b3388e8d1366d656d8f6fd8ed79184'
++            '546728a6062377346edefccb546fa9c6c76e1accd373338111368eb206edaadd1678ffcc0276f735c24a549ecd9d9a431dcbce1671b0c0342ef3911cd6ace555')
+ validpgpkeys=('71A1D0EFCFEB6281FD0437C93D5919B448457EE0')
+ 
++prepare() {
++  tar -czhf remotejdk11_linux_riscv64.tar.gz -C /usr/lib/jvm java-11-openjdk
++  patch -Np1 -i "01-fix-invalid-jni_md-select.patch"
++  patch -Np1 -i "02-use-riscv64-jdk.patch"
++  patch -Np1 -i "03-set-default-nojdk.patch"
++}
++
+ build() {
+   EMBED_LABEL=$pkgver EXTRA_BAZEL_ARGS="--host_javabase=@local_jdk//:jdk" ./compile.sh
+   ./output/bazel build scripts:bazel-complete.bash
