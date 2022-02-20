@@ -1,22 +1,10 @@
---- utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h	2021-11-25 22:20:08.918983110 +0800
-+++ utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h	2021-11-25 23:57:44.352396324 +0800
-@@ -133,6 +133,23 @@
+diff -r -u rocksdb-6.28.2-orig/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h rocksdb-6.28.2/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h
+--- rocksdb-6.28.2-orig/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h	2022-02-20 11:41:40.763464088 +0100
++++ rocksdb-6.28.2/utilities/transactions/lock/range/range_tree/lib/portability/toku_time.h	2022-02-20 11:43:35.093774434 +0100
+@@ -137,6 +137,10 @@
+   uint64_t result;
+   asm volatile("stckf %0" : "=Q"(result) : : "cc");
    return result;
- #elif defined(__powerpc__)
-   return __ppc_get_timebase();
-+#elif defined(__riscv) && __riscv_xlen == 32
-+  uint32_t cycles_lo, cycles_hi0, cycles_hi1;
-+  // Implemented in assembly because Clang insisted on branching.
-+  asm volatile(
-+    "rdcycleh %0\n"
-+    "rdcycle %1\n"
-+    "rdcycleh %2\n"
-+    "sub %0, %0, %2\n"
-+    "seqz %0, %0\n"
-+    "sub %0, zero, %0\n"
-+    "and %1, %1, %0\n"
-+    : "=r"(cycles_hi0), "=r"(cycles_lo), "=r"(cycles_hi1));
-+  return (static_cast<uint64_t>(cycles_hi1) << 32) | cycles_lo;
 +#elif defined(__riscv) && __riscv_xlen == 64
 +  uint64_t cycles;
 +  asm volatile("rdcycle %0" : "=r"(cycles));
