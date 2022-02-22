@@ -1,28 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -4,16 +4,15 @@
- # toolchain build order: linux-api-headers->glibc->binutils->gcc->binutils->glibc
+@@ -7,13 +7,13 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
  
--pkgbase=glibc
+ pkgbase=glibc
 -pkgname=(glibc lib32-glibc)
-+pkgname=glibc
- pkgver=2.33
--pkgrel=5
-+pkgrel=5.1
++pkgname=(glibc)
+ pkgver=2.35
+ pkgrel=2
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
 -makedepends=(git gd lib32-gcc-libs python)
 +makedepends=(git gd python)
  optdepends=('perl: for mtrace')
--options=(!strip staticlibs)
-+options=(!strip staticlibs !lto)
+ options=(!strip staticlibs !lto)
  #_commit=3de512be7ea6053255afed6154db9ee31d4e557a
- #source=(git+https://sourceware.org/git/glibc.git#commit=$_commit
- source=(https://ftp.gnu.org/gnu/glibc/glibc-$pkgver.tar.xz{,.sig}
-@@ -40,7 +39,7 @@ md5sums=('390bbd889c7e8e8a7041564cb6b27cca'
-          '7a09f1693613897add1791e7aead19c9')
+@@ -36,7 +36,7 @@ b2sums=('623c728884f070cd87ffeb9203f74206197c52405ac9bc44f3dd519a3468b8e8ae2536c
+         'edef5f724f68ea95c6b0127bd13a10245f548afc381b2d0a6d1d06ee9f87b7dd89c6becd35d5ae722bf838594eb870a747f67f07f46e7d63f8c8d1a43cce4a52')
  
  prepare() {
 -  mkdir -p glibc-build lib32-glibc-build
@@ -30,46 +25,39 @@
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc 
    cd glibc
-@@ -68,13 +67,12 @@ build() {
+@@ -57,12 +57,11 @@ build() {
+       --enable-bind-now
        --enable-cet
        --enable-kernel=4.4
-       --enable-lock-elision
 -      --enable-multi-arch
        --enable-stack-protector=strong
-       --enable-stackguard-randomization
--      --enable-static-pie
 -      --enable-systemtap
-+      #--enable-static-pie
        --disable-profile
+       --disable-crypt
        --disable-werror
 +      --disable-experimental-malloc
    )
  
    cd "$srcdir/glibc-build"
-@@ -86,6 +84,8 @@ build() {
- 
+@@ -76,46 +75,13 @@ build() {
+   # https://github.com/allanmcrae/toolchain/blob/f18604d70c5933c31b51a320978711e4e6791cf1/glibc/PKGBUILD
    # remove fortify for building libraries
-   CPPFLAGS=${CPPFLAGS/-D_FORTIFY_SOURCE=2/}
-+  # https://bugs.archlinux.org/task/73530
-+  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
+   CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
++  CPPFLAGS=${CPPFLAGS/-D_FORTIFY_SOURCE=2/}
  
-   #
-   CFLAGS=${CFLAGS/-fno-plt/}
-@@ -97,51 +97,17 @@ build() {
+   "$srcdir/glibc/configure" \
+       --libdir=/usr/lib \
        --libexecdir=/usr/lib \
-       ${_configure_flags[@]}
+       "${_configure_flags[@]}"
  
-+  # TODO: figure out fortify
-   # build libraries with fortify disabled
+-  # build libraries with fortify disabled
 -  echo "build-programs=no" >> configparms
--  make
+-  make -O
 -
 -  # re-enable fortify for programs
 -  sed -i "/build-programs=/s#no#yes#" configparms
--
--  echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
--  echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
--  make
+-  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
+-  make -O
 -
 -  # build info pages manually for reprducibility
 -  make info
@@ -83,38 +71,24 @@
 -  echo "sbindir=/usr/bin" >> configparms
 -  echo "rootsbindir=/usr/bin" >> configparms
 -
--  # remove fortify for building libraries
--  CPPFLAGS=${CPPFLAGS/-D_FORTIFY_SOURCE=2/}
--  CFLAGS=${CFLAGS/-fno-plt/}
--  CXXFLAGS=${CXXFLAGS/-fno-plt/}
--
 -  "$srcdir/glibc/configure" \
 -      --host=i686-pc-linux-gnu \
 -      --libdir=/usr/lib32 \
 -      --libexecdir=/usr/lib32 \
--      ${_configure_flags[@]}
+-      "${_configure_flags[@]}"
 -
 -  # build libraries with fortify disabled
 -  echo "build-programs=no" >> configparms
--  make
-+  #echo "build-programs=no" >> configparms
-+  #make
- 
-   # re-enable fortify for programs
--  sed -i "/build-programs=/s#no#yes#" configparms
-+  #sed -i "/build-programs=/s#no#yes#" configparms
- 
--  echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
--  echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
-+  #echo "CC += -D_FORTIFY_SOURCE=2" >> configparms
-+  #echo "CXX += -D_FORTIFY_SOURCE=2" >> configparms
-   make
+-  make -O
 -
- }
+-  # re-enable fortify for programs
+-  sed -i "/build-programs=/s#no#yes#" configparms
+-  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
+   make -O
  
- check() {
-@@ -154,7 +120,7 @@ check() {
-   make check || true
+ }
+@@ -152,7 +118,7 @@ check() {
+   make -O check
  }
  
 -package_glibc() {
@@ -122,8 +96,8 @@
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat')
-@@ -202,48 +168,6 @@ package_glibc() {
-       -name '*-*.so' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
+@@ -200,48 +166,6 @@ package_glibc() {
+       -name '*.so*' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
    fi
  
 -  # Provide tracing probes to libstdc++ for exceptions, possibly for other
@@ -161,11 +135,11 @@
 -  if check_option 'debug' n; then
 -    find "$pkgdir"/usr/lib32 -name '*.a' -type f -exec strip $STRIP_STATIC {} + 2> /dev/null || true
 -    find "$pkgdir"/usr/lib32 \
--      -not -name 'ld-*.so' \
--      -not -name 'libc-*.so' \
--      -not -name 'libpthread-*.so' \
--      -not -name 'libthread_db-*.so' \
--      -name '*-*.so' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
+-      -not -name 'ld-*.so*' \
+-      -not -name 'libc.so*' \
+-      -not -name 'libpthread.so*' \
+-      -not -name 'libthread_db.so*' \
+-      -name '*.so*' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
 -  fi
 -
 -  # Provided by lib32-libxcrypt; keep the old shared library for backwards compatibility
