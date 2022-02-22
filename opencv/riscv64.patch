@@ -1,12 +1,69 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 422645)
-+++ PKGBUILD	(working copy)
-@@ -48,7 +47,6 @@
-     -DINSTALL_PYTHON_EXAMPLES=ON \
-     -DCMAKE_INSTALL_PREFIX=/usr \
-     -DCPU_BASELINE_DISABLE=SSE3 \
--    -DCPU_BASELINE_REQUIRE=SSE2 \
-     -DOPENCV_EXTRA_MODULES_PATH="$srcdir/opencv_contrib-$pkgver/modules" \
-     -DOPENCV_SKIP_PYTHON_LOADER=ON \
-     -DOPENCV_PYTHON3_INSTALL_PATH=$_pythonpath \
+diff --git PKGBUILD PKGBUILD
+index 62b04ee4..51700b20 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -3,7 +3,7 @@
+ # Contributor: Tobias Powalowski <tpowa@archlinux.org>
+ 
+ pkgbase=opencv
+-pkgname=(opencv opencv-samples python-opencv opencv-cuda)
++pkgname=(opencv opencv-samples python-opencv)
+ pkgver=4.5.5
+ pkgrel=3
+ pkgdesc='Open Source Computer Vision Library'
+@@ -11,7 +11,7 @@ arch=(x86_64)
+ license=(BSD)
+ url='https://opencv.org/'
+ depends=(tbb openexr gst-plugins-base libdc1394 cblas lapack libgphoto2 openjpeg2 ffmpeg4.4 protobuf)
+-makedepends=(cmake python-numpy python-setuptools mesa eigen hdf5 lapacke qt5-base vtk glew ant java-environment pugixml openmpi cudnn fmt)
++makedepends=(cmake python-numpy python-setuptools mesa eigen hdf5 lapacke qt5-base vtk glew ant java-environment pugixml openmpi fmt)
+ optdepends=('opencv-samples: samples'
+             'vtk: for the viz module'
+             'glew: for the viz module'
+@@ -48,7 +48,6 @@ build() {
+          -DINSTALL_PYTHON_EXAMPLES=ON \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DCPU_BASELINE_DISABLE=SSE3 \
+-         -DCPU_BASELINE_REQUIRE=SSE2 \
+          -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
+          -DOPENCV_SKIP_PYTHON_LOADER=ON \
+          -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
+@@ -62,12 +61,6 @@ build() {
+  
+   cmake -B build -S $pkgname-$pkgver $_opts
+   cmake --build build
+-
+-  CFLAGS="${CFLAGS} -fno-lto" CXXFLAGS="${CXXFLAGS} -fno-lto" LDFLAGS="${LDFLAGS} -fno-lto" \
+-  cmake -B build-cuda -S $pkgname-$pkgver $_opts \
+-    -DWITH_CUDA=ON \
+-    -DWITH_CUDNN=ON
+-  cmake --build build-cuda
+ }
+ 
+ package_opencv() {
+@@ -109,25 +102,3 @@ package_python-opencv() {
+   # install license file
+   install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
+ }
+-
+-package_opencv-cuda() {
+-  pkgdesc+=' (with CUDA support)'
+-  depends+=(cudnn)
+-  conflicts=(opencv)
+-  provides=(opencv=$pkgver)
+-
+-  DESTDIR="$pkgdir" cmake --install build-cuda
+-
+-  # install license file
+-  install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
+-
+-  # Split samples
+-  rm -r "$pkgdir"/usr/share/opencv4/samples
+-
+-  # Add java symlinks expected by some binary blobs
+-  ln -sr "$pkgdir"/usr/share/java/{opencv4/opencv-${pkgver//./},opencv}.jar
+-  ln -sr "$pkgdir"/usr/lib/{libopencv_java${pkgver//./},libopencv_java}.so
+-
+-  # Split Python bindings
+-  rm -r "$pkgdir"/usr/lib/python3*
+-}
