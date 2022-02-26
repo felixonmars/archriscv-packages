@@ -1,29 +1,23 @@
 diff --git PKGBUILD PKGBUILD
-index fe7dfe9..24633af 100644
+index ce78769..57926cf 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,8 +14,10 @@ depends=("qt5-base" "qt5-x11extras"
-     "desktop-file-utils" "gtk-update-icon-cache")
+@@ -15,8 +15,10 @@ depends=("qt5-base" "qt5-x11extras"
  optdepends=("lib32-simplescreenrecorder: OpenGL recording of 32-bit applications")
  makedepends=("git" "cmake" "qt5-tools")
--source=("git+https://github.com/MaartenBaert/ssr.git#tag=$pkgver")
--md5sums=("SKIP")
-+source=("git+https://github.com/MaartenBaert/ssr.git#tag=$pkgver"
-+        "fix-elf-macro.patch")
-+md5sums=('SKIP'
-+         'e3c92c0a8cdacd49a4625e2bfe502cd4')
+ source=("git+https://github.com/MaartenBaert/ssr.git#tag=$pkgver"
++         riscv.patch::https://github.com/MaartenBaert/ssr/commit/a1962846e8d170e3bcd5f5fb61c432bbdbaa3855.patch
+          ffmpeg5.patch::https://patch-diff.githubusercontent.com/raw/MaartenBaert/ssr/pull/934.patch)
+ md5sums=('SKIP'
++         '46dde5e73f8d7cd26a0600c15d5da182'
+          '4ef035d6c45d146a06b9953075173185')
  
  install=simplescreenrecorder.install
+@@ -25,6 +27,7 @@ prepare() {
+   cd ssr
+   mkdir -p build
  
-@@ -25,7 +27,10 @@ prepare() {
++  patch -p1 -i ../riscv.patch   # Fix build with RISC-V
+   patch -p1 -i ../ffmpeg5.patch # Fix build with ffmpeg 5
  }
  
- build() {
--  cd ssr/build
-+  cd ssr
-+  patch -Np1 < ../fix-elf-macro.patch
-+
-+  cd build
-   # fPIC is only required for qt5 + gcc5
-   #CXXFLAGS="$CXXFLAGS -fPIC"
-   #./configure --prefix=/usr --disable-assert --with-qt5
