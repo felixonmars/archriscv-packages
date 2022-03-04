@@ -1,0 +1,21 @@
+diff --git PKGBUILD PKGBUILD
+index 3225727d..bcdf4125 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,11 +8,14 @@ arch=('x86_64')
+ url='https://sourceforge.net/projects/ibmswtpm2/'
+ license=('BSD')
+ depends=('openssl')
+-source=("https://downloads.sourceforge.net/${pkgname//-}/ibmtpm$pkgver.tar.gz")
+-sha512sums=('942baa26311472d6af6b2c3b3b4132718e5e2b1eaa7decb0f64d910cbb7acaa4814ac95b18b5f2a4ea43990978cd5577b8fd50b158a055ff475710ad2426f6cb')
++source=("https://downloads.sourceforge.net/${pkgname//-}/ibmtpm$pkgver.tar.gz"
++        "add_riscv64_support.patch")
++sha512sums=('942baa26311472d6af6b2c3b3b4132718e5e2b1eaa7decb0f64d910cbb7acaa4814ac95b18b5f2a4ea43990978cd5577b8fd50b158a055ff475710ad2426f6cb'
++            '03bc99ffa511b5c495b63458b7fd4945d1720d98b70c1fc085428b19c7a8735c7a61a0f34da139fec31e409e5559875edfebaaca01c534930750029de8a2fb35')
+ 
+ prepare() {
+ 	cd src
++	patch -Np2 -i "../add_riscv64_support.patch"
+ 	sed -e 's/$(CCFLAGS)/$(CPPFLAGS) & $(CFLAGS)/' \
+ 	    -e 's/$(LNFLAGS)/& $(LDFLAGS)/' \
+ 	    -e 's/-ggdb//' -e 's/-O0//' -e 's/-Werror//' \
