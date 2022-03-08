@@ -1,0 +1,136 @@
+diff --git a/doc/pacman.8.asciidoc b/doc/pacman.8.asciidoc
+index bb20562..ae52b80 100644
+--- a/doc/pacman.8.asciidoc
++++ b/doc/pacman.8.asciidoc
+@@ -191,6 +191,9 @@ Options
+ *\--confirm*::
+ 	Cancels the effects of a previous '\--noconfirm'.
+ 
++*\--force-install*::
++	Remove conflicting packages by default.
++
+ *\--disable-download-timeout*::
+ 	Disable defaults for low speed limit and timeout on downloads. Use this
+ 	if you have issues downloading files with proxy and/or security gateway.
+diff --git a/scripts/completion/bash_completion.in b/scripts/completion/bash_completion.in
+index 1c6cb1e..d9c6729 100644
+--- a/scripts/completion/bash_completion.in
++++ b/scripts/completion/bash_completion.in
+@@ -117,8 +117,8 @@ _pacman() {
+          info list needed nodeps assume-installed print refresh recursive search sysupgrade'
+         'c g i l p s u w y')
+   upgrade=('asdeps asexplicit needed nodeps assume-installed print recursive' 'p')
+-  common=('arch cachedir color config confirm dbpath debug gpgdir help hookdir logfile
+-           noconfirm noprogressbar noscriptlet quiet root verbose' 'b d h q r v')
++  common=('arch cachedir color config confirm dbpath debug force-install gpgdir help hookdir
++           logfile noconfirm noprogressbar noscriptlet quiet root verbose' 'b d h q r v')
+   core=('database files help query remove sync upgrade version' 'D F Q R S U V h')
+ 
+   for o in 'D database' 'F files' 'Q query' 'R remove' 'S sync' 'U upgrade'; do
+diff --git a/scripts/completion/zsh_completion.in b/scripts/completion/zsh_completion.in
+index 5fd8aeb..cb91b1a 100644
+--- a/scripts/completion/zsh_completion.in
++++ b/scripts/completion/zsh_completion.in
+@@ -30,6 +30,7 @@ _pacman_opts_common=(
+ 	'--config[An alternate configuration file]:config file:_files'
+ 	'--confirm[Always ask for confirmation]'
+ 	'--debug[Display debug messages]'
++	'--force-install[Remove conflicting packages by default]'
+ 	'--gpgdir[Set an alternate directory for GnuPG (instead of @sysconfdir@/pacman.d/gnupg)]: :_files -/'
+ 	'--hookdir[Set an alternate hook location]: :_files -/'
+ 	'--logfile[An alternate log file]:config file:_files'
+diff --git a/src/pacman/callback.c b/src/pacman/callback.c
+index 75c74f8..a1c0a48 100644
+--- a/src/pacman/callback.c
++++ b/src/pacman/callback.c
+@@ -479,16 +479,31 @@ void cb_question(void *ctx, alpm_question_t *question)
+ 				/* print conflict only if it contains new information */
+ 				if(strcmp(q->conflict->package1, q->conflict->reason->name) == 0
+ 						|| strcmp(q->conflict->package2, q->conflict->reason->name) == 0) {
+-					q->remove = noyes(_("%s and %s are in conflict. Remove %s?"),
+-							q->conflict->package1,
+-							q->conflict->package2,
+-							q->conflict->package2);
++					if (config->force_install) {
++						q->remove = yesno(_("%s and %s are in conflict. Remove %s?"),
++								q->conflict->package1,
++								q->conflict->package2,
++								q->conflict->package2);
++					} else {
++						q->remove = noyes(_("%s and %s are in conflict. Remove %s?"),
++								q->conflict->package1,
++								q->conflict->package2,
++								q->conflict->package2);
++					}
+ 				} else {
+-					q->remove = noyes(_("%s and %s are in conflict (%s). Remove %s?"),
+-							q->conflict->package1,
+-							q->conflict->package2,
+-							q->conflict->reason->name,
+-							q->conflict->package2);
++					if (config->force_install) {
++						q->remove = yesno(_("%s and %s are in conflict (%s). Remove %s?"),
++								q->conflict->package1,
++								q->conflict->package2,
++								q->conflict->reason->name,
++								q->conflict->package2);
++					} else {
++						q->remove = noyes(_("%s and %s are in conflict (%s). Remove %s?"),
++								q->conflict->package1,
++								q->conflict->package2,
++								q->conflict->reason->name,
++								q->conflict->package2);
++					}
+ 				}
+ 			}
+ 			break;
+diff --git a/src/pacman/conf.h b/src/pacman/conf.h
+index 04350d3..1ded614 100644
+--- a/src/pacman/conf.h
++++ b/src/pacman/conf.h
+@@ -50,6 +50,7 @@ typedef struct __config_t {
+ 	unsigned short version;
+ 	unsigned short help;
+ 	unsigned short noconfirm;
++	unsigned short force_install;
+ 	unsigned short noprogressbar;
+ 	unsigned short logmask;
+ 	unsigned short print;
+@@ -157,6 +158,7 @@ enum {
+ 	OP_LONG_FLAG_MIN = 1000,
+ 	OP_NOCONFIRM,
+ 	OP_CONFIRM,
++	OP_FORCE_INSTALL,
+ 	OP_CONFIG,
+ 	OP_IGNORE,
+ 	OP_DEBUG,
+diff --git a/src/pacman/pacman.c b/src/pacman/pacman.c
+index e398855..f638bbd 100644
+--- a/src/pacman/pacman.c
++++ b/src/pacman/pacman.c
+@@ -224,6 +224,7 @@ static void usage(int op, const char * const myname)
+ 		addlist(_("      --logfile <path> set an alternate log file\n"));
+ 		addlist(_("      --noconfirm      do not ask for any confirmation\n"));
+ 		addlist(_("      --confirm        always ask for confirmation\n"));
++		addlist(_("      --force-install  default to remove conflicting packages\n"));
+ 		addlist(_("      --disable-download-timeout\n"
+ 		          "                       use relaxed timeouts for download\n"));
+ 	}
+@@ -445,6 +446,9 @@ static int parsearg_global(int opt)
+ 		case OP_CONFIRM:
+ 			config->noconfirm = 0;
+ 			break;
++		case OP_FORCE_INSTALL:
++			config->force_install = 1;
++			break;
+ 		case OP_DBPATH:
+ 		case 'b':
+ 			free(config->dbpath);
+@@ -924,6 +928,7 @@ static int parseargs(int argc, char *argv[])
+ 		{"downloadonly", no_argument,     0, OP_DOWNLOADONLY},
+ 		{"refresh",    no_argument,       0, OP_REFRESH},
+ 		{"noconfirm",  no_argument,       0, OP_NOCONFIRM},
++		{"force-install", no_argument,    0, OP_FORCE_INSTALL},
+ 		{"confirm",    no_argument,       0, OP_CONFIRM},
+ 		{"config",     required_argument, 0, OP_CONFIG},
+ 		{"ignore",     required_argument, 0, OP_IGNORE},
