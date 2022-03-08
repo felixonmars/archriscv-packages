@@ -78,9 +78,12 @@
      --enable-bootstrap \
      $_confflags
  
-@@ -165,7 +168,7 @@ package_gcc-libs() {
+@@ -163,9 +166,9 @@ check() {
+ package_gcc-libs() {
+   pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
-   options=(!emptydirs !strip)
+-  options=(!emptydirs !strip)
++  options=(!emptydirs !strip staticlibs)
    provides=($pkgname-multilib libgo.so libgfortran.so libgphobos.so
 -            libubsan.so libasan.so libtsan.so liblsan.so)
 +            libubsan.so libasan.so liblsan.so)
@@ -101,7 +104,7 @@
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -192,14 +193,10 @@ package_gcc-libs() {
+@@ -192,24 +193,22 @@ package_gcc-libs() {
    rm -f "$pkgdir"/usr/lib/libgphobos.spec
  
    for lib in libgomp \
@@ -116,7 +119,12 @@
    # Install Runtime Library Exception
    install -Dm644 "$srcdir/gcc/COPYING.RUNTIME" \
      "$pkgdir/usr/share/licenses/gcc-libs/RUNTIME.LIBRARY.EXCEPTION"
-@@ -209,7 +206,6 @@ package_gcc() {
++
++  # Remove static library (.a) files except libatomic.a
++  find "$pkgdir" -name '*.a' ! -name libatomic.a -delete
+ }
+ 
+ package_gcc() {
    pkgdesc="The GNU Compiler Collection - C and C++ frontends"
    depends=("gcc-libs=$pkgver-$pkgrel" 'binutils>=2.28' libmpc zstd libisl.so)
    groups=('base-devel')
@@ -124,7 +132,7 @@
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs debug)
-@@ -223,22 +219,18 @@ package_gcc() {
+@@ -223,22 +222,18 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -149,7 +157,7 @@
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -249,20 +241,14 @@ package_gcc() {
+@@ -249,20 +244,14 @@ package_gcc() {
      "$pkgdir/usr/lib/bfd-plugins/"
  
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_{libsubinclude,toolexeclib}HEADERS
@@ -171,7 +179,7 @@
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -277,9 +263,6 @@ package_gcc() {
+@@ -277,9 +266,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -181,7 +189,7 @@
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -299,8 +282,6 @@ package_gcc-fortran() {
+@@ -299,8 +285,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -190,7 +198,7 @@
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -330,45 +311,6 @@ package_gcc-objc() {
+@@ -330,45 +314,6 @@ package_gcc-objc() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -236,7 +244,7 @@
  package_gcc-go() {
    pkgdesc='Go front-end for GCC'
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -378,11 +320,10 @@ package_gcc-go() {
+@@ -378,11 +323,10 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
@@ -249,7 +257,7 @@
    install -Dm755 gcc/go1 "$pkgdir/${_libdir}/go1"
  
    # Install Runtime Library Exception
-@@ -391,43 +332,6 @@ package_gcc-go() {
+@@ -391,43 +335,6 @@ package_gcc-go() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -293,7 +301,7 @@
  package_gcc-d() {
    pkgdesc="D frontend for GCC"
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -443,7 +347,6 @@ package_gcc-d() {
+@@ -443,7 +350,6 @@ package_gcc-d() {
  
    make -C $CHOST/libphobos DESTDIR="$pkgdir" install
    rm -f "$pkgdir/usr/lib/"lib{gphobos,gdruntime}.so*
