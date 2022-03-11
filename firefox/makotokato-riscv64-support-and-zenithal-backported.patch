@@ -31,9 +31,9 @@ Subject: [PATCH] Update authenticator-rs
  create mode 100644 third_party/rust/authenticator/src/linux/ioctl_riscv64.rs
 
 diff --unified --recursive --text a/.cargo/config.in b/.cargo/config.in
---- a/.cargo/config.in
-+++ b/.cargo/config.in
-@@ -17,11 +17,6 @@
+--- a/.cargo/config.in  2022-03-10 14:19:43.020478706 +0800
++++ b/.cargo/config.in  2022-03-10 14:21:21.873044017 +0800
+@@ -22,11 +22,6 @@
  replace-with = "vendored-sources"
  rev = "3bfc47d9a571d0842676043ba60716318e946c06"
  
@@ -45,7 +45,7 @@ diff --unified --recursive --text a/.cargo/config.in b/.cargo/config.in
  [source."https://github.com/mozilla/l10nregistry-rs.git"]
  git = "https://github.com/mozilla/l10nregistry-rs.git"
  replace-with = "vendored-sources"
-@@ -52,6 +47,16 @@
+@@ -57,6 +52,16 @@
  replace-with = "vendored-sources"
  rev = "a1a6ba41f0c610ebe751639f25f037474ca52941"
  
@@ -66,7 +66,7 @@ diff --git a/Cargo.lock b/Cargo.lock
 index 7e17939fad48b..8519d3d0e95a6 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
-@@ -203,8 +203,7 @@ dependencies = [
+@@ -316,8 +316,7 @@ dependencies = [
  [[package]]
  name = "authenticator"
  version = "0.3.1"
@@ -2004,96 +2004,6 @@ index 0000000000000..a784e9bf4600b
  gkrust_utils = { path = "../../../../xpcom/rust/gkrust_utils" }
  gecko_logger = { path = "../../../../xpcom/rust/gecko_logger" }
  rsdparsa_capi = { path = "../../../../dom/media/webrtc/sdp/rsdparsa_capi" }
-From 735487e921dfb35d5a52eb2ff5222d70ad0aefa7 Mon Sep 17 00:00:00 2001
-From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
-Date: Wed, 16 Jun 2021 23:19:59 +0900
-Subject: [PATCH] Add toolchain prefix to strip.
-
----
- build/autoconf/toolchain.m4             |  1 -
- build/moz.configure/toolchain.configure | 14 ++++++++++++++
- js/src/old-configure.in                 |  2 --
- old-configure.in                        |  2 --
- 4 files changed, 14 insertions(+), 5 deletions(-)
-
-diff --git a/build/autoconf/toolchain.m4 b/build/autoconf/toolchain.m4
-index 2a8744610c89c..407d0aa499088 100644
---- a/build/autoconf/toolchain.m4
-+++ b/build/autoconf/toolchain.m4
-@@ -82,7 +82,6 @@ AC_PROG_CXX
- AC_CHECK_PROGS(RANLIB, "${TOOLCHAIN_PREFIX}ranlib", :)
- AC_CHECK_PROGS(AS, "${TOOLCHAIN_PREFIX}as", :)
- AC_CHECK_PROGS(LIPO, "${TOOLCHAIN_PREFIX}lipo", :)
--AC_CHECK_PROGS(STRIP, "${TOOLCHAIN_PREFIX}strip", :)
- AC_CHECK_PROGS(OTOOL, "${TOOLCHAIN_PREFIX}otool", :)
- AC_CHECK_PROGS(INSTALL_NAME_TOOL, "${TOOLCHAIN_PREFIX}install_name_tool", :)
- AC_CHECK_PROGS(OBJCOPY, "${TOOLCHAIN_PREFIX}objcopy", :)
-diff --git a/build/moz.configure/toolchain.configure b/build/moz.configure/toolchain.configure
-index 218e4ec049d49..69e7c93a3d2fc 100755
---- a/build/moz.configure/toolchain.configure
-+++ b/build/moz.configure/toolchain.configure
-@@ -2690,6 +2690,20 @@ def nm_names(toolchain_prefix, c_compiler):
- check_prog("NM", nm_names, paths=clang_search_path, when=target_is_linux)
- 
- 
-+@depends(toolchain_prefix)
-+def strip_names(toolchain_prefix):
-+    return tuple('%s%s' % (p, "strip") for p in (toolchain_prefix or ()) + ('',))
-+
-+
-+option(env='STRIP', nargs=1, help='Path to the strip program', when=target_is_unix)
-+
-+strip = check_prog('STRIP', strip_names,
-+                   input='STRIP', paths=clang_search_path,
-+                   allow_missing=True, when=target_is_unix)
-+
-+add_old_configure_assignment('STRIP', strip)
-+
-+
- option("--enable-cpp-rtti", help="Enable C++ RTTI")
- 
- add_old_configure_assignment("_MOZ_USE_RTTI", "1", when="--enable-cpp-rtti")
-diff --git a/js/src/old-configure.in b/js/src/old-configure.in
-index 77652f67529ca..b8ded24428578 100644
---- a/js/src/old-configure.in
-+++ b/js/src/old-configure.in
-@@ -92,7 +92,6 @@ else
-     AC_PROG_CC
-     AC_PROG_CXX
-     MOZ_PATH_PROGS(AS, $AS as, $CC)
--    AC_CHECK_PROGS(STRIP, strip, :)
- fi
- 
- MOZ_TOOL_VARIABLES
-@@ -515,7 +514,6 @@ case "$target" in
-         WIN32_GUI_EXE_LDFLAGS=-mwindows
-     else
-         TARGET_COMPILER_ABI=msvc
--        STRIP='echo not_strip'
-         # aarch64 doesn't support subsystems below 6.02
-         if test "$CPU_ARCH" = "aarch64"; then
-             WIN32_SUBSYSTEM_VERSION=6.02
-diff --git a/old-configure.in b/old-configure.in
-index de2642f71d0fd..223230c480d86 100644
---- a/old-configure.in
-+++ b/old-configure.in
-@@ -104,7 +104,6 @@ else
-     esac
-     AC_PROG_CXX
-     MOZ_PATH_PROGS(AS, $AS as, $CC)
--    AC_CHECK_PROGS(STRIP, strip, :)
-     AC_CHECK_PROGS(OTOOL, otool, :)
- fi
- 
-@@ -608,7 +607,6 @@ case "$target" in
-         LDFLAGS="$LDFLAGS -Wl,--no-insert-timestamp"
-     else
-         TARGET_COMPILER_ABI=msvc
--        STRIP='echo not_strip'
-         # aarch64 doesn't support subsystems below 6.02
-         if test "$CPU_ARCH" = "aarch64"; then
-             WIN32_SUBSYSTEM_VERSION=6.02
-
 From a418c651c88cd2682c4cfe61e9f57b5389078c09 Mon Sep 17 00:00:00 2001
 From: Makoto Kato <m_kato@ga2.so-net.ne.jp>
 Date: Thu, 17 Jun 2021 21:50:49 +0900
@@ -2573,13 +2483,14 @@ index edc5ef5ff2d98..f6240163e1440 100644
  version = "5.1.2"
 diff --git a/Cargo.toml b/Cargo.toml
 index 1c2437f1f5675..2923c7e5ea9bf 100644
---- a/Cargo.toml        2022-02-12 19:57:40.588292400 +0800
-+++ b/Cargo.toml        2022-02-12 20:02:49.719201868 +0800
-@@ -100,12 +100,13 @@
+--- a/Cargo.toml        2022-03-10 14:19:47.963772765 +0800
++++ b/Cargo.toml        2022-03-10 14:33:46.354649188 +0800
+@@ -103,13 +103,14 @@
  moz_asserts = { path = "mozglue/static/rust/moz_asserts" }
  
  # Other overrides
 +authenticator = { git = "https://github.com/makotokato/authenticator-rs", rev="eed8919d50559f4959e2d7d2af7b4d48869b5366" }
+ async-task = { git = "https://github.com/smol-rs/async-task", rev="f6488e35beccb26eb6e85847b02aa78a42cd3d0e" }
  chardetng = { git = "https://github.com/hsivonen/chardetng", rev="3484d3e3ebdc8931493aa5df4d7ee9360a90e76b" }
  chardetng_c = { git = "https://github.com/hsivonen/chardetng_c", rev="ed8a4c6f900a90d4dbc1d64b856e61490a1c3570" }
  coremidi = { git = "https://github.com/chris-zen/coremidi.git", rev="fc68464b5445caf111e41f643a2e69ccce0b4f83" }
@@ -2590,6 +2501,7 @@ index 1c2437f1f5675..2923c7e5ea9bf 100644
  minidump_writer_linux = { git = "https://github.com/msirringhaus/minidump_writer_linux.git", rev = "029ac0d54b237f27dc7d8d4e51bc0fb076e5e852" }
  
  # Patch mio 0.6 to use winapi 0.3 and miow 0.3, getting rid of winapi 0.2.
+
 diff --git a/third_party/rust/alsa/.cargo-checksum.json b/third_party/rust/alsa/.cargo-checksum.json
 index 17227c0a74d16..2bd6b2e2ce47b 100644
 --- a/third_party/rust/alsa/.cargo-checksum.json
