@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -38,12 +38,13 @@ build() {
+     # --shared-v8
+     # --shared-http-parser
+ 
+-  make
++  # -fno-strict-aliasing for gcc>=10: https://github.com/nodejs/node/issues/33899
++  make CFLAGS="-fno-strict-aliasing $CFLAGS" CXXFLAGS="-fno-strict-aliasing $CXXFLAGS"
+ }
+ 
+ check() {
+   cd node-$pkgver
+-  make test || :
++  make CFLAGS="-fno-strict-aliasing $CFLAGS" CXXFLAGS="-fno-strict-aliasing $CXXFLAGS" test || :
+ }
+ 
+ package() {
