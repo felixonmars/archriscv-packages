@@ -1,0 +1,121 @@
+diff --git a/doc/acknow.tex b/doc/acknow.tex
+index b10d4447..733652af 100644
+--- a/doc/acknow.tex
++++ b/doc/acknow.tex
+@@ -74,6 +74,8 @@ \section{Acknowledgements}
+ 
+ \item \MyEMail{jasper@simulistics.com} {Jasper Taylor} for his ports to arm32/Linux and arm64/Linux (2021).
+ 
++\item \MyEMail{jasper@simulistics.com} {Jasper Taylor} for his ports to RISC-V 64 bits/Linux (2022).
++
+ \end{itemize}
+ 
+ Many thanks to Paulo Moura for his continuous help (in particular
+diff --git a/src/EnginePl/machine.h b/src/EnginePl/machine.h
+index b2bda63e..b31176d2 100644
+--- a/src/EnginePl/machine.h
++++ b/src/EnginePl/machine.h
+@@ -149,7 +149,8 @@ void M_Check_Magic_Words(void); /* not compiled if not needed */
+ 
+ #elif defined(M_riscv64)
+ 
+-#    define M_USED_REGS            {"s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11", 0}
++	/* using s1-s5 causes problem with CTRL+C with -O3 */
++#    define M_USED_REGS            {/*"s1", "s2", "s3", "s4", "s5",*/ "s6", "s7", "s8", "s9", "s10", "s11", 0}
+ 
+ #elif defined(M_x86_64) && !defined(_MSC_VER) && !defined(__clang__)
+ 
+diff --git a/src/Ma2Asm/Makefile.in b/src/Ma2Asm/Makefile.in
+index ff52e862..1aa64e88 100644
+--- a/src/Ma2Asm/Makefile.in
++++ b/src/Ma2Asm/Makefile.in
+@@ -21,7 +21,7 @@ ma2asm@OBJ_SUFFIX@: ma2asm.c ma_protos.h ma_parser.h ../Wam2Ma/bt_string.c \
+ 
+ ma2asm_inst@OBJ_SUFFIX@: ma2asm_inst.c ma_parser.h ../EnginePl/wam_regs.h \
+                ix86_any.c ppc32_any.c sparc32_any.c sparc64_any.c \
+-               mips32_any.c alpha_any.c x86_64_any.c arm32_any.c arm64_any.c
++               mips32_any.c alpha_any.c x86_64_any.c arm32_any.c arm64_any.c riscv64_any.c
+ 	$(CC) $(CFLAGS) $(FORCE_MAP) -c ma2asm_inst.c
+ 
+ ma2asm@EXE_SUFFIX@: ma2asm@OBJ_SUFFIX@ ma_parser@OBJ_SUFFIX@ \
+diff --git a/src/Ma2Asm/riscv64_any.c b/src/Ma2Asm/riscv64_any.c
+index be6fbe16..71ee9df6 100644
+--- a/src/Ma2Asm/riscv64_any.c
++++ b/src/Ma2Asm/riscv64_any.c
+@@ -42,6 +42,31 @@
+ #include <string.h>
+ 
+ /* Supported arch: RISC-V 64 bits on GNU/Linux
++ *
++ *  Integer Register Convention
++ *  Register ABI name Meaning                                Saver
++ *     x0     zero    Hard-wired zero                        n/a
++ *     x1      ra     Return address                         Caller
++ *     x2      sp     Stack pointer                          Callee
++ *     x3      gp     Global pointer                         n/a
++ *     x4      tp     Thread pointer                         n/a
++ *   x5-x7    t0-t2   Temporary registers                    Caller
++ *     x8     s0/fp   Callee-saved register / Frame pointer  Callee
++ *     x9      s1     Callee-saved register                  Callee
++ *  x10-x11  a0-a1    Function arguments / Return value      Caller
++ *  x12-x17  a2-a7    Function arguments                     Caller
++ *  x18-x27  s2-s11   Callee-saved registers                 Callee
++ *  x28-x31  t3-t6    Temporary registers                    Caller
++ *
++ *
++ *  Floating-point Register Convention
++ *  Register ABI name Meaning                                Saver
++ *   f0-f7   ft0-ft7  Temporary registers                    Caller
++ *   f8-f9   fs0-fs1  Callee-saved registers                 Callee
++ *  f10-f11  fa0-fa1  Function arguments / return value      Caller
++ *  f12-f17  fa2-fa7  Function arguments                     Caller
++ *  f18-f27  fs2-fs11 Callee-saved registers                 Callee
++ *  f28-f31  ft8-ft11 Temporary registers                    Caller
+  */
+ 
+ 
+@@ -530,7 +555,7 @@ Call_C_Arg_String(int offset, StringInf *s)
+ int
+ Call_C_Arg_Mem_L(int offset, Bool adr_of, char *name, int index)
+ {
+-  char dest[8];
++  char dest[20];
+ 
+   offset -= dbl_args_so_far;
+   if (offset < MAX_ARGS_IN_REGS)
+@@ -564,7 +589,7 @@ Call_C_Arg_Mem_L(int offset, Bool adr_of, char *name, int index)
+ int
+ Call_C_Arg_Reg_X(int offset, Bool adr_of, int index)
+ {
+-  char dest[8];
++  char dest[20];
+ 
+   offset -= dbl_args_so_far;
+   if (offset < MAX_ARGS_IN_REGS)
+@@ -605,7 +630,7 @@ Call_C_Arg_Reg_X(int offset, Bool adr_of, int index)
+ int
+ Call_C_Arg_Reg_Y(int offset, Bool adr_of, int index)
+ {
+-  char dest[8];
++  char dest[20];
+ 
+   offset -= dbl_args_so_far;
+   if (offset < MAX_ARGS_IN_REGS)
+@@ -651,7 +676,7 @@ Call_C_Arg_Reg_Y(int offset, Bool adr_of, int index)
+ int
+ Call_C_Arg_Foreign_L(int offset, Bool adr_of, int index)
+ {
+-  char dest[8];
++  char dest[20];
+ 
+   offset -= dbl_args_so_far;
+   if (offset < MAX_ARGS_IN_REGS)
+@@ -685,7 +710,7 @@ Call_C_Arg_Foreign_L(int offset, Bool adr_of, int index)
+ int
+ Call_C_Arg_Foreign_D(int offset, Bool adr_of, int index)
+ {
+-  char dest[8];
++  char dest[20];
+ 
+   if (adr_of)
+     return Call_C_Arg_Mem_L(offset, adr_of, "pl_foreign_double", index);
