@@ -1,22 +1,22 @@
-diff --git PKGBUILD PKGBUILD
-index 782e1ef..1d06b42 100644
---- PKGBUILD
-+++ PKGBUILD
-@@ -18,8 +18,15 @@ makedepends=(
-   git
+--- PKGBUILD	(revision 1156562)
++++ PKGBUILD	(working copy)
+@@ -19,8 +19,10 @@
  )
  _commit=79aaf908a602e03a16698976791c82baafa794d0
--source=(git+https://github.com/stenzek/duckstation.git#commit=${_commit})
--sha256sums=(SKIP)
-+source=(git+https://github.com/stenzek/duckstation.git#commit=${_commit}
-+        "add_riscv64_support.patch")
-+sha256sums=('SKIP'
-+            '18a2f7647da74972a20c042b5c43658500e66c397ea2d5337f4c75ba58ea1722')
-+
-+prepare() {
-+  cd duckstation
-+  patch -Np1 -i "../add_riscv64_support.patch"
-+}
+ source=(git+https://github.com/stenzek/duckstation.git#commit=${_commit}
++        add_riscv64_support.patch
+         glibc-2.34.patch)
+ sha256sums=('SKIP'
++            '18a2f7647da74972a20c042b5c43658500e66c397ea2d5337f4c75ba58ea1722'
+             'fef29c81a9a42451a64a1cc32c6489b67bd9464ed5eedca4c03bc7853b8f2a11')
  
  pkgver() {
-   cd duckstation
+@@ -31,6 +33,8 @@
+ 
+ prepare() {
+   patch -d duckstation -p1 < glibc-2.34.patch # Fix build with glibc 2.34
++
++  patch -d duckstation -Np1 -i "../add_riscv64_support.patch"
+ }
+ 
+ build() {
