@@ -1,8 +1,6 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 391859)
-+++ PKGBUILD	(working copy)
-@@ -32,7 +32,7 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,7 +34,7 @@ build() {
  
  	# mark stack as non-executable: http://bugs.archlinux.org/task/12434
  	./Configure --prefix=/usr --openssldir=/etc/ssl --libdir=lib \
@@ -11,3 +9,13 @@ Index: PKGBUILD
  		"-Wa,--noexecstack ${CPPFLAGS} ${CFLAGS} ${LDFLAGS}"
  
  	make depend
+@@ -48,7 +48,8 @@ check() {
+ 	# revert this patch for make test
+ 	patch -p0 -R -i "$srcdir/ca-dir.patch"
+ 
+-	make test
++	# https://github.com/openssl/openssl/issues/12242
++	make TESTS=-test_afalg test
+ 
+ 	patch -p0 -i "$srcdir/ca-dir.patch"
+ 	# re-run make to re-generate CA.pl from th patched .in file.
