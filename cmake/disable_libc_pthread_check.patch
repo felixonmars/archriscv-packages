@@ -1,0 +1,22 @@
+diff --git a/Modules/FindThreads.cmake b/Modules/FindThreads.cmake
+index e4d6cf3c..086083c8 100644
+--- a/Modules/FindThreads.cmake
++++ b/Modules/FindThreads.cmake
+@@ -159,11 +159,12 @@ if(CMAKE_HAVE_PTHREAD_H)
+     # We list some pthread functions in PTHREAD_C_CXX_TEST_SOURCE test code.
+     # If the pthread functions already exist in C library, we could just use
+     # them instead of linking to the additional pthread library.
+-    if(CMAKE_C_COMPILER_LOADED)
+-      CHECK_C_SOURCE_COMPILES("${PTHREAD_C_CXX_TEST_SOURCE}" CMAKE_HAVE_LIBC_PTHREAD)
+-    elseif(CMAKE_CXX_COMPILER_LOADED)
+-      CHECK_CXX_SOURCE_COMPILES("${PTHREAD_C_CXX_TEST_SOURCE}" CMAKE_HAVE_LIBC_PTHREAD)
+-    endif()
++    # Do not check and just use them, or libatomic may not link on riscv.
++    # if(CMAKE_C_COMPILER_LOADED)
++    #   CHECK_C_SOURCE_COMPILES("${PTHREAD_C_CXX_TEST_SOURCE}" CMAKE_HAVE_LIBC_PTHREAD)
++    # elseif(CMAKE_CXX_COMPILER_LOADED)
++    #   CHECK_CXX_SOURCE_COMPILES("${PTHREAD_C_CXX_TEST_SOURCE}" CMAKE_HAVE_LIBC_PTHREAD)
++    # endif()
+     if(CMAKE_HAVE_LIBC_PTHREAD)
+       set(CMAKE_THREAD_LIBS_INIT "")
+       set(CMAKE_HAVE_THREADS_LIBRARY 1)

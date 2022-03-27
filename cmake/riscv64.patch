@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 55c8f15b..eb3e6ad8 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,15 @@ license=('custom')
+ depends=('curl' 'libarchive' 'hicolor-icon-theme' 'jsoncpp' 'libjsoncpp.so' 'libuv' 'rhash')
+ makedepends=('qt6-base' 'python-sphinx' 'emacs')
+ optdepends=('qt6-base: cmake-gui')
+-source=("https://www.cmake.org/files/v${pkgver%.*}/${pkgname}-${pkgver}.tar.gz")
+-sha512sums=('a35003468153b99770ac6bbdeaa611a231a1104560da36aca0f393b8b71dbb44d854378504d2ec6b4af615f78efe18d91453fe15a1b7ec58129aa0289a5a1507')
++source=("https://www.cmake.org/files/v${pkgver%.*}/${pkgname}-${pkgver}.tar.gz"
++        "disable_libc_pthread_check.patch")
++sha512sums=('a35003468153b99770ac6bbdeaa611a231a1104560da36aca0f393b8b71dbb44d854378504d2ec6b4af615f78efe18d91453fe15a1b7ec58129aa0289a5a1507'
++            'b5daf57be79fa584002e8a653ab9277cdf917344c6335fc13070bc45b7936839f1814692a766e61550a5f4f9051a8833db941631443c14a2db8adcd2cdc8810e')
++
++prepare() {
++  cd ${pkgname}-${pkgver}
++  patch -Np1 -i "../disable_libc_pthread_check.patch"
++}
+ 
+ build() {
+   cd ${pkgname}-${pkgver}
