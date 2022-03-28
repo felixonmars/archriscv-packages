@@ -1,8 +1,17 @@
 diff --git PKGBUILD PKGBUILD
-index f7852143..8d5452c2 100644
+index f78521436..18a631286 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,6 +18,7 @@ _srcname=archlinux-linux
+@@ -2,7 +2,7 @@
+ 
+ pkgbase=linux
+ pkgver=5.17.arch1
+-pkgrel=1
++pkgrel=1.1
+ pkgdesc='Linux'
+ _srctag=v${pkgver%.*}-${pkgver##*.}
+ url="https://github.com/archlinux/linux/commits/$_srctag"
+@@ -18,6 +18,7 @@
  source=(
    "$_srcname::git+https://github.com/archlinux/linux?signed#tag=$_srctag"
    config         # the main kernel config file
@@ -10,7 +19,7 @@ index f7852143..8d5452c2 100644
  )
  validpgpkeys=(
    'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
-@@ -26,7 +27,8 @@ validpgpkeys=(
+@@ -26,7 +27,8 @@
    'C7E7849466FE2358343588377258734B41C31549'  # David Runge <dvzrv@archlinux.org>
  )
  sha256sums=('SKIP'
@@ -20,7 +29,7 @@ index f7852143..8d5452c2 100644
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +56,14 @@ prepare() {
+@@ -54,6 +56,14 @@
    make olddefconfig
    diff -u ../config .config || :
  
@@ -35,16 +44,7 @@ index f7852143..8d5452c2 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -61,7 +71,7 @@ prepare() {
- build() {
-   cd $_srcname
-   make all
--  make htmldocs
-+  #make htmldocs
- }
- 
- _package() {
-@@ -87,6 +97,9 @@ _package() {
+@@ -87,6 +97,9 @@
    echo "Installing modules..."
    make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 modules_install
  
@@ -54,7 +54,7 @@ index f7852143..8d5452c2 100644
    # remove build and source links
    rm "$modulesdir"/{source,build}
  }
-@@ -102,19 +115,16 @@ _package-headers() {
+@@ -102,19 +115,19 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -65,11 +65,12 @@ index f7852143..8d5452c2 100644
 -  # required when STACK_VALIDATION is enabled
 -  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
 -
--  # required when DEBUG_INFO_BTF_MODULES is enabled
--  install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
+   # required when DEBUG_INFO_BTF_MODULES is enabled
+   install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
+ 
 +  # add xfs and shmem for aufs building
 +  mkdir -p "$builddir"/{fs/xfs,mm}
- 
++
    echo "Installing headers..."
    cp -t "$builddir" -a include
 -  cp -t "$builddir/arch/x86" -a arch/x86/include
@@ -79,7 +80,7 @@ index f7852143..8d5452c2 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -136,7 +146,7 @@ _package-headers() {
+@@ -136,7 +149,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
@@ -88,12 +89,3 @@ index f7852143..8d5452c2 100644
      echo "Removing $(basename "$arch")"
      rm -r "$arch"
    done
-@@ -192,7 +202,7 @@ _package-docs() {
-   ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
- }
- 
--pkgname=("$pkgbase" "$pkgbase-headers" "$pkgbase-docs")
-+pkgname=("$pkgbase" "$pkgbase-headers")
- for _p in "${pkgname[@]}"; do
-   eval "package_$_p() {
-     $(declare -f "_package${_p#$pkgbase}")
