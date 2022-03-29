@@ -1,16 +1,14 @@
-diff --git PKGBUILD PKGBUILD
-index 1aa7dac..23c281d 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,6 +41,7 @@ source=(git+https://github.com/fcitx/mozc.git#commit=${_mozc_commit}
+@@ -41,6 +41,7 @@
          git+https://github.com/open-source-parsers/jsoncpp.git#commit=${_jsoncpp_commit}
          git+https://github.com/google/protobuf.git#commit=${_protobuf_commit}
          git+https://github.com/abseil/abseil-cpp.git#commit=${_abseil_cpp_commit}
 +        "add_limits_header.patch"
  	)
  sha512sums=('SKIP'
-             'cadb43138597371d13d21a2766ba38f0940a73bd961a1142f3713f700d1b8e75bdb6ccc0600ea57518ad5bf1931eed329cd11faeb87b191aa460e379ed1fed93'
-@@ -51,7 +52,8 @@ sha512sums=('SKIP'
+             '606f45d48a9dad0e80a566cab0001910de3c6b2f634ec52c6ef6f44745b55ae8e181b3e3cdf90525a08be1f180eb35900672c90c6ab4f43679a178e863378bbc'
+@@ -51,7 +52,8 @@
              'SKIP'
              'SKIP'
              'SKIP'
@@ -20,11 +18,11 @@ index 1aa7dac..23c281d 100644
  validpgpkeys=('2CC8A0609AD2A479C65B6D5C8E8B898CBF2412F9')  # Weng Xuetian
  
  pkgver(){
-@@ -85,6 +87,10 @@ prepare() {
-   
-   ## use libstdc++ instead of libc++
-   sed "/stdlib=libc++/d;/-lc++/d" -i gyp/common.gypi
-+
+@@ -88,6 +90,10 @@
+ 
+   # adjust QT_BASE_PATH
+   sed 's|path = QT_BASE_PATH|path = "/usr/include/qt"|' -i WORKSPACE.bazel
++  
 +  cd third_party/abseil-cpp
 +  patch -Np1 -i "$srcdir/add_limits_header.patch"
 +  cd -
