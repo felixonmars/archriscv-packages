@@ -1,11 +1,9 @@
-diff --git PKGBUILD PKGBUILD
-index f78521436..18a631286 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -2,7 +2,7 @@
  
  pkgbase=linux
- pkgver=5.17.arch1
+ pkgver=5.17.1.arch1
 -pkgrel=1
 +pkgrel=1.1
  pkgdesc='Linux'
@@ -23,28 +21,24 @@ index f78521436..18a631286 100644
    'C7E7849466FE2358343588377258734B41C31549'  # David Runge <dvzrv@archlinux.org>
  )
  sha256sums=('SKIP'
--            '05381b085c83737922a85fa6f42aa61b3d1400840a7952bf8524726e1d8f74f8')
-+            '05381b085c83737922a85fa6f42aa61b3d1400840a7952bf8524726e1d8f74f8'
+-            'bd1e57c15d4eb62024d2ee935b54d36e74e73b22c3800b45ecf9233521a9f74b')
++            'bd1e57c15d4eb62024d2ee935b54d36e74e73b22c3800b45ecf9233521a9f74b'
 +            'caaf6b74a595ff96c42f182c2703efb4ee271132927328841cd7cecbab89b46f')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +56,14 @@
+@@ -54,6 +56,10 @@
    make olddefconfig
    diff -u ../config .config || :
  
 +  patch -Np0 < ../unmatched.config-patch
-+  # save patched .config as patch wont modify mtime
-+  mv .config ../.config
-+  make mrproper
-+  # restore patched .config
-+  mv ../.config .config
++  echo >> .config  # let make detect changes after patching
 +  make olddefconfig
 +
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -87,6 +97,9 @@
+@@ -87,6 +93,9 @@
    echo "Installing modules..."
    make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 modules_install
  
@@ -54,7 +48,7 @@ index f78521436..18a631286 100644
    # remove build and source links
    rm "$modulesdir"/{source,build}
  }
-@@ -102,19 +115,19 @@
+@@ -102,19 +111,19 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -80,7 +74,7 @@ index f78521436..18a631286 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -136,7 +149,7 @@
+@@ -136,7 +145,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
