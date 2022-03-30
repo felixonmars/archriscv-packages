@@ -1,13 +1,13 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,11 +17,18 @@ license=(custom GPL)
+@@ -17,22 +17,31 @@
  depends=(libtorrent-rasterbar qt6-base)
  makedepends=(cmake boost qt6-tools qt6-svg)
  optdepends=('python: needed for torrent search tab')
 -source=(https://downloads.sourceforge.net/sourceforge/qbittorrent/${pkgname}-${pkgver}.tar.xz{,.asc})
 +source=(https://downloads.sourceforge.net/sourceforge/qbittorrent/${pkgname}-${pkgver}.tar.xz{,.asc}
 +        prefer_pthread.patch)
- sha256sums=('1386f000ce1d791469c3ea03e3951ca25f67f534e66896592bd12357dda9a8ec'
+ sha256sums=('efa580924e96605bae916b9a8ae1f3fce82a5130647ae41d74d689761262463d'
 -            'SKIP')
 +            'SKIP'
 +            '96a36b520700895f6bae43fe055364e4725b476b751b00aa80749cd2c22f366c')
@@ -21,3 +21,18 @@
  build() {
    cmake -B build -S $pkgbase-$pkgver \
      -DCMAKE_INSTALL_PREFIX=/usr \
+-    -DQT6=ON
++    -DQT6=ON \
++    -DCMAKE_EXE_LINKER_FLAGS="-latomic"
+   cmake --build build
+ 
+   cmake -B build-nox -S $pkgbase-$pkgver \
+     -DCMAKE_INSTALL_PREFIX=/usr \
+     -DQT6=ON \
+     -DGUI=OFF \
+-    -DSYSTEMD=ON
++    -DSYSTEMD=ON \
++    -DCMAKE_EXE_LINKER_FLAGS="-latomic"
+   cmake --build build-nox
+ }
+ 
