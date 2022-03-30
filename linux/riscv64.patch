@@ -18,18 +18,17 @@
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +56,10 @@
+@@ -54,6 +56,9 @@
    make olddefconfig
    diff -u ../config .config || :
  
 +  patch -Np0 < ../riscv64.config-patch
-+  echo >> .config  # let make detect changes after patching
 +  make olddefconfig
 +
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -87,6 +93,9 @@
+@@ -87,6 +92,9 @@
    echo "Installing modules..."
    make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 modules_install
  
@@ -39,7 +38,7 @@
    # remove build and source links
    rm "$modulesdir"/{source,build}
  }
-@@ -102,19 +111,19 @@
+@@ -102,19 +110,16 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -53,9 +52,6 @@
    # required when DEBUG_INFO_BTF_MODULES is enabled
    install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
  
-+  # add xfs and shmem for aufs building
-+  mkdir -p "$builddir"/{fs/xfs,mm}
-+
    echo "Installing headers..."
    cp -t "$builddir" -a include
 -  cp -t "$builddir/arch/x86" -a arch/x86/include
@@ -65,7 +61,7 @@
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -136,7 +145,7 @@
+@@ -136,7 +141,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do

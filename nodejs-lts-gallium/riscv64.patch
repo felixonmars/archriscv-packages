@@ -1,39 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,9 +14,11 @@ optdepends=('npm: nodejs package manager')
- options=(!lto)
- provides=("nodejs=$pkgver")
- conflicts=(nodejs)
--source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz)
-+source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz
-+        "fix-cherry-pick-v8.patch::https://github.com/nodejs/node/pull/41566.patch")
- # https://nodejs.org/download/release/latest-gallium/SHASUMS256.txt.asc
--sha256sums=(98b1de1ff92a292b93d2b2c93bc2a98656647b3d0c0d5623069f4f8047a8b4a0)
-+sha256sums=('98b1de1ff92a292b93d2b2c93bc2a98656647b3d0c0d5623069f4f8047a8b4a0'
-+            'f826c84f6cb04b83cef9a40ea7c8fb2d7e96f09041e7dde977cd6d1c6d0f9af9')
- validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesborins@google.com>
-               77984A986EBC2AA786BC0F66B01FBB92821C587A  # Gibson Fahnestock <gibfahn@gmail.com>
-               B9AE9905FFD7803F25714661B63B535A4C206CA9  # Evan Lucas <evanlucas@me.com>
-@@ -26,6 +28,13 @@ validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesbor
-               C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C  # Richard Lau <rlau@redhat.com>
-               74F12602B6F1C4E913FAA37AD3A89613643B6201) # Danielle Adams <adamzdanielle@gmail.com>
- 
-+prepare() {
-+  cd node-v${pkgver}
-+
-+  # https://github.com/nodejs/node/pull/41566
-+  patch -Np1 < ../fix-cherry-pick-v8.patch
-+}
-+
- build() {
-   cd node-v${pkgver}
- 
-@@ -43,12 +52,13 @@ build() {
+@@ -43,12 +43,12 @@ build() {
      # --shared-v8
      # --shared-http-parser
  
 -  make
-+  # -fno-strict-aliasing for gcc10: https://github.com/nodejs/node/issues/33899
 +  make CFLAGS="-fno-strict-aliasing $CFLAGS" CXXFLAGS="-fno-strict-aliasing $CXXFLAGS"
  }
  

@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,14 +15,21 @@ checkdepends=(cppunit)
+ optdepends=('python: to use the Python bindings'
+             'msgpack-cxx: linking against opendht')
+ _commit=90022ee3e8640f0d6165c7471b2e87b5209abf7c
+-source=(git+${url}#commit=${_commit})
+-sha256sums=(SKIP)
++source=(git+${url}#commit=${_commit}
++        ${pkgname}-fix-atomic.patch::https://patch-diff.githubusercontent.com/raw/savoirfairelinux/opendht/pull/598.patch)
++sha256sums=('SKIP'
++            '71ce12d718f1d5c26b5c6b1ad9e2a965de30bcf08ce6a3ea58778f1dce16a229')
+ 
+ pkgver() {
+   cd ${pkgname}
+   git describe --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./;s/-/+/'
+ }
+ 
++prepare() {
++  cd "${pkgname}"
++  patch -Np1 < ../${pkgname}-fix-atomic.patch
++}
++
+ build() {
+   cmake -B build -S ${pkgname} \
+     -DCMAKE_BUILD_TYPE=None \

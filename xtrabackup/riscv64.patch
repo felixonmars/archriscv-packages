@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index 534fed20..de2dcc7f 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,9 +10,9 @@ arch=('x86_64')
+ url='https://www.percona.com/software/mysql-database/percona-xtrabackup'
+ license=('GPL')
+ depends=('libaio' 'libev' 'libgcrypt' 'curl' 'perl-dbd-mysql' 'numactl')
+-makedepends=('cmake' 'python-sphinx' 'zlib' 'vim' 'libedit' 'libevent' 'protobuf' 're2')
++makedepends=('cmake' 'python-sphinx' 'zlib' 'vim' 'libedit' 'libevent' 'protobuf' 're2' 'clang')
+ optdepends=('qpress: for compressed backups')
+-options=('debug')
++options=('debug' '!lto')
+ source=("https://www.percona.com/downloads/Percona-XtraBackup-LATEST/Percona-XtraBackup-${pkgver//_/-}/source/tarball/percona-xtrabackup-${pkgver//_/-}.tar.gz"
+         "https://boostorg.jfrog.io/artifactory/main/release/$_boost_ver/source/boost_${_boost_ver//./_}.tar.gz")
+ 
+@@ -21,6 +21,7 @@ sha256sums=('0bcfc60b2b19723ea348e43b04bd904c49142f58d326ab32db11e69dda00b733'
+ build() {
+   mkdir build
+   cd build
++  export CC=clang CXX=clang++ CFLAGS="${CFLAGS//-fstack-clash-protection/}" CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
+   cmake -DBUILD_CONFIG=xtrabackup_release \
+         -DCMAKE_BUILD_TYPE=Release \
+         -DMYSQL_DATADIR=/var/lib/mysql \
