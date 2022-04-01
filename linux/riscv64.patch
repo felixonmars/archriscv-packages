@@ -12,23 +12,26 @@
    'C7E7849466FE2358343588377258734B41C31549'  # David Runge <dvzrv@archlinux.org>
  )
  sha256sums=('SKIP'
--            'bd1e57c15d4eb62024d2ee935b54d36e74e73b22c3800b45ecf9233521a9f74b')
-+            'bd1e57c15d4eb62024d2ee935b54d36e74e73b22c3800b45ecf9233521a9f74b'
+-            '3bbdd34b664cb331616469d0900951a175392a1244d3cc6a3d1f30c432434460')
++            '3bbdd34b664cb331616469d0900951a175392a1244d3cc6a3d1f30c432434460'
 +            'bd12e0202382ba7796b93364ebec2f70a71f9260e827a19acf7d10f275391751')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +56,9 @@
+@@ -54,6 +56,12 @@
    make olddefconfig
    diff -u ../config .config || :
  
 +  patch -Np0 < ../riscv64.config-patch
++  mv .config .config.1
++  make mrproper
++  mv .config.1 .config
 +  make olddefconfig
 +
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -87,6 +92,9 @@
+@@ -87,6 +95,9 @@
    echo "Installing modules..."
    make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 modules_install
  
@@ -38,7 +41,7 @@
    # remove build and source links
    rm "$modulesdir"/{source,build}
  }
-@@ -102,19 +110,16 @@
+@@ -102,19 +113,16 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -61,7 +64,7 @@
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -136,7 +141,7 @@
+@@ -136,7 +144,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
