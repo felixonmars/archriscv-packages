@@ -1,0 +1,31 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,7 +9,7 @@ url="https://github.com/kushview/element"
+ license=(GPL3)
+ groups=(pro-audio)
+ depends=(gcc-libs glibc hicolor-icon-theme libx11 libxext)
+-makedepends=(alsa-lib boost curl freetype2 git gtk3 imagemagick jack juce
++makedepends=(alsa-lib boost clang curl freetype2 git gtk3 imagemagick jack juce
+ ladspa ldoc libxcomposite libxcursor libxinerama lilv lua lv2 pango readline
+ serd sord sratom suil waf xorg-xrandr)
+ checkdepends=(xorg-server-xvfb)
+@@ -31,6 +31,10 @@ b2sums=('SKIP'
+         'SKIP'
+         'SKIP')
+ validpgpkeys=('52CB000FABB9DBE345CD478980A5F4BE60360CDE') # Michael Fisher <mfisher@kushview.net>
++# Can't use -Wl,-plugin-opt=-target-abi=lp64d, because both CFLAGS and CXXFLAGS need it,
++# but specifying both will cause LLVMgold to complain about multiple -target-abi.
++# Also, -ffat-lto-objects can't resolve the compile error here. We have to set !lto
++options+=(!lto)
+ 
+ prepare() {
+   cd $pkgname
+@@ -45,7 +49,7 @@ prepare() {
+ 
+ build() {
+   cd $pkgname
+-  export LINKFLAGS="$LDFLAGS"
++  export CC=clang CXX=clang++ LINKFLAGS="$LDFLAGS"
+   waf configure --prefix=/usr \
+                 --enable-docking \
+                 --test
