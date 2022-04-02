@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,15 @@ arch=('any')
+ url="https://github.com/nfnt/resize"
+ license=('custom:ISC')
+ depends=('go')
+-source=("$pkgname-$_commit.tar.gz::https://github.com/nfnt/resize/archive/$_commit.tar.gz")
+-sha512sums=('658fe80affcdf5df30009daeb3879406e42c7beb40267a8f3fd55e0522d701cb6db794018fbdd6fb04fc6ee7e464ba612d0aa691867fa6dbe297e29e26b8b298')
++source=("$pkgname-$_commit.tar.gz::https://github.com/nfnt/resize/archive/$_commit.tar.gz"
++        "$pkgname-add-go_mod.patch::https://github.com/nfnt/resize/pull/70.patch")
++sha512sums=('658fe80affcdf5df30009daeb3879406e42c7beb40267a8f3fd55e0522d701cb6db794018fbdd6fb04fc6ee7e464ba612d0aa691867fa6dbe297e29e26b8b298'
++            'fc398cbd4a399e98026f2e5384ca8628208fd1f97604458c10db4452037987d4cf7205e50f0c600c1de8ca491f8c2926bb6439bf19fb35df36ba6866a4234016')
++prepare() {
++  cd "$srcdir/resize-$_commit"
++  
++  patch -Np1 -i "$srcdir/$pkgname-add-go_mod.patch"
++}
+ 
+ check() {
+   export GOPATH="$srcdir/build:/usr/share/gocode"
