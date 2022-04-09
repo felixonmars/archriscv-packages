@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index c3a4deb..871c6b9 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,8 +17,16 @@ optdepends=('svt-av1: SVT-AV1 encoder support'
+             'mkvtoolnix-cli: mkvmerge support'
+             'ffms2: FFMS2 chunk detection support'
+             'vapoursynth-plugin-lsmashsource: L-SMASH chunk detection support')
+-source=("$pkgname-$pkgver.tar.gz"::https://github.com/master-of-zen/Av1an/archive/refs/tags/$pkgver.tar.gz)
+-sha256sums=('67afe7ad356e91c3a5da6ed8085f796e9bcd7cb8c4f1df48b00d4c9f4db460c7')
++source=("$pkgname-$pkgver.tar.gz"::https://github.com/master-of-zen/Av1an/archive/refs/tags/$pkgver.tar.gz
++        "fix-ffmpeg-sys.patch")
++sha256sums=('67afe7ad356e91c3a5da6ed8085f796e9bcd7cb8c4f1df48b00d4c9f4db460c7'
++            'b79c0460bb535e9d7ff59b93a029fc7d4b03e0786805048e1d254ffa0dc1864a')
++
++prepare() {
++  cd "Av1an-${pkgver}"
++  patch -p0 -Ni ../fix-ffmpeg-sys.patch
++  cargo update -p ffmpeg-next
++}
+ 
+ build() {
+   cd "Av1an-${pkgver}"
