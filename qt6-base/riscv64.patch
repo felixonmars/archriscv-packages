@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index 937ea28..5913f2b 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,14 +28,17 @@ options=(debug)
+ _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
+ source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz
+         qt6-base-cflags.patch
+-        qt6-base-nostrip.patch)
++        qt6-base-nostrip.patch
++        qt6-base-fix-qtcore-libatomic-linkage.patch.base64::https://codereview.qt-project.org/changes/qt%2Fqtbase~405494/revisions/23/patch?download)
+ sha256sums=('b865aae43357f792b3b0a162899d9bf6a1393a55c4e5e4ede5316b157b1a0f99'
+             '5411edbe215c24b30448fac69bd0ba7c882f545e8cf05027b2b6e2227abc5e78'
+-            '4b93f6a79039e676a56f9d6990a324a64a36f143916065973ded89adc621e094')
++            '4b93f6a79039e676a56f9d6990a324a64a36f143916065973ded89adc621e094'
++            'ee73827cda605edac9c793be98224043bd063a64115139a46096961011303478')
+ 
+ prepare() {
+   patch -d $_pkgfn -p1 < qt6-base-cflags.patch # Use system CFLAGS
+   patch -d $_pkgfn -p1 < qt6-base-nostrip.patch # Don't strip binaries with qmake
++  base64 -d qt6-base-fix-qtcore-libatomic-linkage.patch.base64 | patch -d $_pkgfn -p1
+ }
+ 
+ build() {
