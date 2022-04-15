@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 6699e76..a6fbeb3 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,12 +17,20 @@ groups=(qt6)
+ options=(debug)
+ _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
+ source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz
+-        qt6-webengine-system-icu.patch::https://code.qt.io/cgit/qt/qtwebengine-chromium.git/patch/?id=75f0f4eb)
++        qt6-webengine-system-icu.patch::https://code.qt.io/cgit/qt/qtwebengine-chromium.git/patch/?id=75f0f4eb
++        qt6-webengine-chromium-riscv64.patch
++        qt6-webengine-cmake-riscv64.patch)
+ sha256sums=('2001b45dd81dcb7ad1bc6cf1aa32f2eca5367a11fed49656053c75676c4d093d'
+-            'ec28b71135f293f624365a50be0c329e396eaa9433655386af146614837e82a2')
++            'ec28b71135f293f624365a50be0c329e396eaa9433655386af146614837e82a2'
++            '7bef378ec8b0298b0f35895351762ab324f1ff258eeea162b0dde8818436acba'
++            'fdf8bb4f09adefa432ed7ab3b0e2f375f5b99fcb80d39415f3c574cbe6b71fb2')
+
+ prepare() {
+   patch -d $_pkgfn/src/3rdparty -p1 < qt6-webengine-system-icu.patch # Fix build with system ICU
++
++  # ported from openSUSE (see https://build.opensuse.org/package/show/openSUSE:Factory:RISCV/chromium)
++  patch -d $_pkgfn/src/3rdparty -p1 < qt6-webengine-chromium-riscv64.patch # Fix riscv64 build for Chromium
++  patch -d $_pkgfn -p1 < qt6-webengine-cmake-riscv64.patch # Fix Qt's CMake architecture detection
+ }
+
+ build() {
