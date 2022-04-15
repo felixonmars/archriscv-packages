@@ -11,9 +11,33 @@ for _dir in $(git diff --name-only upstream/master | cut -d / -f 1 | uniq); do
   pushd $_dir
   _tmp=$(mktemp -d)
   cd $_tmp
-  asp checkout $_dir || continue
-  cd $_dir/trunk
-  cp $ORIGDIR/$_dir/* ./
+
+  PKGBASE=$_dir
+  svn checkout svn://svn.archlinux.org/packages/$PKGBASE || svn checkout svn://svn.archlinux.org/community/$PKGBASE || continue
+
+  cd $PKGBASE/trunk
+
+  PKGNAME=$(. PKGBUILD; echo $pkgname)
+  for _REPO in core extra community; do
+    if pacman -Sql $_REPO | grep "^$PKGNAME$" >/dev/null; then
+      REPO=$_REPO
+      break
+    fi
+  done
+
+  if [[ -z "$REPO" ]]; then
+    # Actually triggers for rotten packages
+    error "Cannot find package in x86 repo."
+    exit 1
+  fi
+
+  ARCH=$(. PKGBUILD; echo $arch)
+  if ! cd ../repos/$REPO-$ARCH; then
+    error "Release directory does not exist for $REPO-$ARCH."
+    exit 1
+  fi
+
+  cp $ORIGDIR/$PKGBASE/* ./
   patch -p0 -i ./riscv64.patch || exit 1
   popd
 done
