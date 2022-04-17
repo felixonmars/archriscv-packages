@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,10 +8,17 @@ arch=(x86_64)
+ url='https://github.com/JuliaLinearAlgebra/libblastrampoline'
+ license=(MIT)
+ depends=(glibc)
+-source=(https://github.com/JuliaLinearAlgebra/libblastrampoline/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
+-sha256sums=('55ac0c8f9cb91b2ed2db014be8394c9dadf3b5f26bd8af6dca9d6f20ca72b8fd')
++source=(https://github.com/JuliaLinearAlgebra/libblastrampoline/archive/v$pkgver/$pkgname-$pkgver.tar.gz
++        $pkgname-add-riscv64-support.patch::https://github.com/JuliaLinearAlgebra/libblastrampoline/commit/205b3e81cd730918528dfb2f700fec7ea5b9f0d2.patch)
++sha256sums=('55ac0c8f9cb91b2ed2db014be8394c9dadf3b5f26bd8af6dca9d6f20ca72b8fd'
++            'e9c16b0f46d2195d8e44d8ad103779b826eae48244565b79cb4c80aeed1efd0d')
+ options=(!lto)
+ 
++prepare() {
++  cd $pkgname-$pkgver
++  patch -Np1 -i ../$pkgname-add-riscv64-support.patch
++}
++
+ build() {
+   cd $pkgname-$pkgver/src
+   make\
