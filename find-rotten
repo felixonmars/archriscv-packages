@@ -22,17 +22,21 @@ def is_rotten(package):
     with tempfile.TemporaryDirectory() as tempdir:
         sh.asp.checkout(package, _cwd=tempdir, _env=ENV)
 
-        package_dir = os.path.join(tempdir, package, "trunk")
-        shutil.copytree(package, package_dir, dirs_exist_ok=True)
-
         try:
-            sh.patch("-sNp0", "-i", "riscv64.patch", _cwd=package_dir, _env=ENV)
-        except sh.ErrorReturnCode as e:
-            if e.exit_code == 1:
-                stdout = e.stdout.decode('ascii')
-                if RE_HUNK_FAILED.search(stdout) or RE_REVERSED.search(stdout):
-                    return True
-            raise e
+            for repo_dir in os.scandir(os.path.join(tempdir, package, "repos")):
+                if not repo_dir.name.split('-')[0] in ['core', 'extra', 'community']:
+                    continue
+                shutil.copytree(package, repo_dir.path, dirs_exist_ok=True)
+                try:
+                    sh.patch("-sNp0", "-i", "riscv64.patch", _cwd=repo_dir.path, _env=ENV)
+                except sh.ErrorReturnCode as e:
+                    if e.exit_code == 1:
+                        stdout = e.stdout.decode('ascii')
+                        if RE_HUNK_FAILED.search(stdout) or RE_REVERSED.search(stdout):
+                            return True
+                    raise e
+        except FileNotFoundError as e:
+            return True
 
     return False
 
