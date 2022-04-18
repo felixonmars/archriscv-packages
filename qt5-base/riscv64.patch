@@ -1,0 +1,35 @@
+diff --git PKGBUILD PKGBUILD
+index 367243f1..410aad43 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,10 +31,12 @@ groups=('qt' 'qt5')
+ _pkgfqn=${pkgbase/5-/}
+ source=(git+https://invent.kde.org/qt/qt/$_pkgfqn#commit=$_commit
+         qmake-cflags.patch
+-        qmake-config.patch)
++        qmake-config.patch
++        "add-feature-forkfd_pidfd.patch")
+ sha256sums=('SKIP'
+             '5411edbe215c24b30448fac69bd0ba7c882f545e8cf05027b2b6e2227abc5e78'
+-            '4abc22150fa3e06b2fdcec32146abc9be4e316692aa4d5bd5aa53b4b726783fa')
++            '4abc22150fa3e06b2fdcec32146abc9be4e316692aa4d5bd5aa53b4b726783fa'
++            '975b90f20f2804b250c3f53fc35eab4d5e21f9d5ae1fcee978ca3644a91a2614')
+ options=(debug)
+ 
+ pkgver() {
+@@ -46,6 +48,7 @@ prepare() {
+   cd ${_pkgfqn}
+   patch -p1 < ../qmake-cflags.patch # Use system CFLAGS in qmake
+   patch -p1 < ../qmake-config.patch # Don't strip binaries with qmake and use -ltcg, cf. QTBUG-73834
++  patch -p1 < "../add-feature-forkfd_pidfd.patch"
+ }
+ 
+ build() {
+@@ -71,6 +74,7 @@ build() {
+     -no-use-gold-linker \
+     -no-reduce-relocations \
+     -no-strip \
++    -no-feature-forkfd_pidfd \
+     -ltcg
+ # No configure flag for fat static libs with lto
+   bin/qmake CONFIG+=fat-static-lto -- -redo
