@@ -1,7 +1,7 @@
---- PKGBUILD	(版本 439382)
-+++ PKGBUILD	(工作副本)
+--- PKGBUILD	(revision 442457)
++++ PKGBUILD	(working copy)
 @@ -12,8 +12,7 @@
- depends=(gtk3 libxt mime-types dbus-glib ffmpeg4.4 nss ttf-font libpulse)
+ depends=(gtk3 libxt mime-types dbus-glib ffmpeg nss ttf-font libpulse)
  makedepends=(unzip zip diffutils yasm mesa imake inetutils xorg-server-xvfb
               autoconf2.13 rust clang llvm jack nodejs cbindgen nasm
 -             python-setuptools python-psutil python-zstandard lld dump_syms
@@ -10,28 +10,33 @@
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
              'pulseaudio: Audio support'
-@@ -22,9 +21,11 @@
+@@ -22,9 +21,13 @@
              'xdg-desktop-portal: Screensharing with Wayland')
  options=(!emptydirs !makeflags !strip !lto !debug)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
 +        makotokato-riscv64-support-and-zenithal-backported.patch
++        Remove-VideoFrameSurfaceVAAPI-and-use-VideoFrameSurface-only.patch
          $pkgname.desktop identity-icons-brand.svg)
- sha256sums=('c144b6016aaa8ceab8154b9f0b2bbeee6cbc22ab7f811fcece28d36e49565890'
+ sha256sums=('76d22279ce99588a728bb2d034064be0d5918b5900631f2148d4565b8a72e00b'
              'SKIP'
-+            '9d07f897dac63225fa734da490583aaa72868ccf6305d621916d7405d0bf9a83'
++            '4f50b78e7ad77de7e7a4844971856505820a1ffbd3fec78926a2b0a314e3d089'
++            '3da2f17fd6f4f53043e3a854822c39e4e8697fde72e03f5281532432edc6f801'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -45,6 +46,8 @@
+@@ -45,6 +48,11 @@
    mkdir mozbuild
    cd firefox-$pkgver
  
 +  patch -Np1 -i ../makotokato-riscv64-support-and-zenithal-backported.patch
 +
++  #https://bugzilla.mozilla.org/show_bug.cgi?id=1758610
++  patch -Np1 -i ../Remove-VideoFrameSurfaceVAAPI-and-use-VideoFrameSurface-only.patch
++
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
  
-@@ -53,15 +56,22 @@
+@@ -53,15 +61,22 @@
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -59,7 +64,7 @@
  # Branding
  ac_add_options --enable-official-branding
  ac_add_options --enable-update-channel=release
-@@ -68,7 +78,8 @@
+@@ -68,7 +83,8 @@
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -69,7 +74,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -83,7 +94,7 @@
+@@ -83,7 +99,7 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -78,7 +83,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -101,39 +112,41 @@
+@@ -101,39 +117,41 @@
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -151,7 +156,7 @@
  }
  
  package() {
-@@ -201,12 +214,12 @@
+@@ -201,12 +219,12 @@
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
