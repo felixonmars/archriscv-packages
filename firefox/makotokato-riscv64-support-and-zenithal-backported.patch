@@ -66,7 +66,7 @@ diff --git a/Cargo.lock b/Cargo.lock
 index 7e17939fad48b..8519d3d0e95a6 100644
 --- a/Cargo.lock
 +++ b/Cargo.lock
-@@ -316,8 +316,7 @@ dependencies = [
+@@ -317,8 +317,7 @@ dependencies = [
  [[package]]
  name = "authenticator"
  version = "0.3.1"
@@ -1995,9 +1995,9 @@ index 0000000000000..a784e9bf4600b
 +pub const _HIDIOCGRDESC: __u32 = 2416199682;
 --- a/toolkit/library/rust/shared/Cargo.toml    2022-02-10 20:41:52.387673027 +0800
 +++ b/toolkit/library/rust/shared/Cargo.toml    2022-02-12 17:34:42.861720793 +0800
-@@ -24,7 +24,7 @@
- cubeb-pulse = { git = "https://github.com/mozilla/cubeb-pulse-rs", rev="f2456201dbfdc467b80f0ff6bbb1b8a6faf7df02", optional = true, features=["pulse-dlopen"] }
- cubeb-sys = { version = "0.9", optional = true, features=["gecko-in-tree"] }
+@@ -28,7 +28,7 @@
+ audioipc-client = { git = "https://github.com/mozilla/audioipc-2", rev = "515bb210a93f520642fd3a60f391652680b3e988", optional = true }
+ audioipc-server = { git = "https://github.com/mozilla/audioipc-2", rev = "515bb210a93f520642fd3a60f391652680b3e988", optional = true }
  encoding_glue = { path = "../../../../intl/encoding_glue" }
 -authenticator = "0.3.1"
 +authenticator = { git = "https://github.com/makotokato/authenticator-rs", rev = "eed8919d50559f4959e2d7d2af7b4d48869b5366" }
@@ -2014,7 +2014,7 @@ Subject: [PATCH] signal handler
  1 file changed, 9 insertions(+)
 --- a/js/src/wasm/WasmSignalHandlers.cpp        2022-02-12 19:29:33.566924464 +0800
 +++ b/js/src/wasm/WasmSignalHandlers.cpp        2022-02-12 19:50:29.499985612 +0800
-@@ -156,6 +156,11 @@
+@@ -162,6 +162,11 @@
  #      define R01_sig(p) ((p)->uc_mcontext.gp_regs[1])
  #      define R32_sig(p) ((p)->uc_mcontext.gp_regs[32])
  #    endif
@@ -2026,10 +2026,10 @@ Subject: [PATCH] signal handler
  #  elif defined(__NetBSD__)
  #    define EIP_sig(p) ((p)->uc_mcontext.__gregs[_REG_EIP])
  #    define EBP_sig(p) ((p)->uc_mcontext.__gregs[_REG_EBP])
-@@ -376,6 +381,10 @@
- #    define PC_sig(p) R32_sig(p)
- #    define SP_sig(p) R01_sig(p)
- #    define FP_sig(p) R01_sig(p)
+@@ -404,6 +410,10 @@
+ #    define FP_sig(p) RFP_sig(p)
+ #    define SP_sig(p) RSP_sig(p)
+ #    define LR_sig(p) RRA_sig(p)
 +#elif defined(__riscv) && __riscv_xlen == 64
 +#  define PC_sig(p) EPC_sig(p)
 +#  define SP_sig(p) X02_sig(p)
