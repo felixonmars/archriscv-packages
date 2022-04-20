@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,8 +13,10 @@ optdepends=('rpm: RHEL/CentOS based image support')
+ makedepends=('go' 'btrfs-progs')
+ provides=('trivy')
+ conflicts=('trivy')
+-source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz")
+-b2sums=('736d55b342dce653f2e73c6f0c08ab9707d22a03c99a8d9fce9a61f5681c3f23450d7e698d9e2b63c8e2a6d79d42763ec454461d5837673a973fd4e82fe3cb54')
++source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/v${pkgver}.tar.gz"
++        fix-libc.patch)
++b2sums=('736d55b342dce653f2e73c6f0c08ab9707d22a03c99a8d9fce9a61f5681c3f23450d7e698d9e2b63c8e2a6d79d42763ec454461d5837673a973fd4e82fe3cb54'
++        '385c02c2e8d6e783b2718aa53340094ef7444a2567f294f0e0f1399c0982df87c12f2fccb6c35fe1cf8ae8a896268e1e30c8bc211b40ece0a712c1c40f7c4b27')
+ 
+ prepare() {
+   cd ${pkgname}-${pkgver}
+@@ -23,6 +25,10 @@ prepare() {
+     -exec sed "s|\(../\)*imgs/\(.*\.[a-z]\{3\}\)|${url}/raw/main/docs/imgs/\2|g" -i {} \;
+ 
+   rm -Rf docs/{build,imgs}
++
++  patch -p0 -Ni ../fix-libc.patch
++  go get -d modernc.org/libc
++  go get -d modernc.org/sqlite
+ }
+ 
+ build() {
