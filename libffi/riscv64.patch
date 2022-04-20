@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index 172b7568..278e460e 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,9 +14,17 @@ depends=('glibc')
+ checkdepends=('dejagnu')
+ provides=('libffi.so')
+ options=('debug')
+-source=(https://github.com/libffi/libffi/releases/download/v$pkgver/libffi-$pkgver.tar.gz)
+-sha256sums=('540fb721619a6aba3bdeef7d940d8e9e0e6d2c193595bc243241b77ff9e93620')
+-b2sums=('a8137bc895b819f949fd7705e405be627219c6d1fdef280253330f7407d4a548bb057d7bb0e9225d1767d42f9bf5f0ab3c455db1c3470d7cc876bb7b7d55d308')
++source=(https://github.com/libffi/libffi/releases/download/v$pkgver/libffi-$pkgver.tar.gz
++        'libffi-fix-riscv-ffi_arg-size.patch::https://patch-diff.githubusercontent.com/raw/libffi/libffi/pull/680.patch')
++sha256sums=('540fb721619a6aba3bdeef7d940d8e9e0e6d2c193595bc243241b77ff9e93620'
++            'ccb83f3e8dda59977d3f36c33fc38e727830a29966f619dc0424f78ad6d51b83')
++b2sums=('a8137bc895b819f949fd7705e405be627219c6d1fdef280253330f7407d4a548bb057d7bb0e9225d1767d42f9bf5f0ab3c455db1c3470d7cc876bb7b7d55d308'
++        '6f5117afa110cfe18163576113b4a1467cfa1027ea80f061f2a1dbd745a9a8f91d42f95d9c42d9b05a55882e479cfe48218f36d36b493071433379ca1462e4e4')
++
++prepare() {
++  cd $pkgname-$pkgver
++  patch  -Np1 -i $srcdir/libffi-fix-riscv-ffi_arg-size.patch
++}
+ 
+ build() {
+   cd $pkgname-$pkgver
