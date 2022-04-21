@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,12 +8,16 @@ arch=('x86_64')
+ url="https://github.com/imsnif/diskonaut"
+ license=('MIT')
+ makedepends=('cargo')
+-source=(https://github.com/imsnif/${pkgname}/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz)
+-b2sums=('20d4fbd713c82dd19901574361d80161e717eaefcf4568a9b1b52723f235b94999dc1579ad37461013661de7be569e7608a0c63de576bf9fa59d6d897f725aa6')
++source=(https://github.com/imsnif/${pkgname}/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz
++        fix.patch)
++b2sums=('20d4fbd713c82dd19901574361d80161e717eaefcf4568a9b1b52723f235b94999dc1579ad37461013661de7be569e7608a0c63de576bf9fa59d6d897f725aa6'
++        'cc1e887fcb57bcbf676b1fa8f652adc5ec00948d73ccfcdd782221061202b072d6acd77594fb845d9d720ea970e8c60dd9d4825219de9b02deb64a93d651c1e1')
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  patch -p0 -Ni ../fix.patch
++  cargo update -p libc
++  cargo fetch --locked
+ }
+ 
+ build() {
