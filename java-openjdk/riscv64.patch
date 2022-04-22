@@ -1,58 +1,78 @@
-diff --git PKGBUILD PKGBUILD
---- PKGBUILD
-+++ PKGBUILD
-@@ -17,15 +17,17 @@
- arch=('x86_64')
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 443512)
++++ PKGBUILD	(working copy)
+@@ -19,7 +19,7 @@
  url='https://openjdk.java.net/'
  license=('custom')
--makedepends=('java-environment>=11' 'cpio' 'unzip' 'zip' 'libelf' 'libcups' 'libx11'
+ makedepends=('java-environment>=11' 'cpio' 'unzip' 'zip' 'libelf' 'libcups' 'libx11'
 -             'libxrender' 'libxtst' 'libxt' 'libxext' 'libxrandr' 'alsa-lib' 'pandoc'
-+makedepends=('java-environment>=15' 'cpio' 'unzip' 'zip' 'libelf' 'libcups' 'libx11'
 +             'libxrender' 'libxtst' 'libxt' 'libxext' 'libxrandr' 'alsa-lib'
               'graphviz' 'freetype2' 'libjpeg-turbo' 'giflib' 'libpng' 'lcms2'
               'libnet' 'bash' 'harfbuzz' 'gcc-libs' 'glibc')
+ options=(!lto)
+@@ -26,15 +26,22 @@
  source=(https://github.com/openjdk/jdk${_majorver}u/archive/${_git_tag}.tar.gz
-+        java17-riscv64.patch
          freedesktop-java.desktop
          freedesktop-jconsole.desktop
-         freedesktop-jshell.desktop)
- sha256sums=('8c076203a6f85ab916b3e54de1992bcbcc5ffe580c52b1ac8d52ca7afb9f02d1'
-+            'bbf96674558a801a7db691bff53bceb53f7ac39cd589c0c7f700f4522266436e'
-             '85c4742764590783160af74587a47269e6797fbdf17ec485c7644bd239adf61d'
-             'abac1ab09a33a3654378bc69be5a7cf075263ab3ae9efec1eb25cf388e711bb7'
-             'e7cce0ecf868f656d8dc2eb25ab82ab665526a0a28aba20f02632dd29962dac3')
-@@ -33,6 +35,7 @@
+-        freedesktop-jshell.desktop)
++        freedesktop-jshell.desktop
++
++        # see https://build.opensuse.org/package/show/home:Andreas_Schwab:riscv:java/java-18-openjdk
++        java18-riscv.patch
++        riscv-zifencei.patch)
+ sha256sums=('831df6eafa1698bf2dd524241a740669c9c737f1bf5872100746e745ba6dd6ea'
+             '58bf779332d21151ba47719926ddcc8811ac7bbf414222141dcf40ac54cfaa2d'
+             '3a50ded3918024de4e441a46744c8e342faf46441b53c8bac7d589055a28a13c'
+-            '2cace78ec911f73578991370914753c5b6abe9f7304bcbcb7a3077b8dbc7c867')
++            '2cace78ec911f73578991370914753c5b6abe9f7304bcbcb7a3077b8dbc7c867'
++            '99fe86d70a1f383bfdf893b1a8e013c187caa8972d2dbc3bee8212ceda04e6b3'
++            '980c0f3f5ee9988051decd8dc08224b06887309a85779b35f472d210ed2354f1')
+ 
  case "${CARCH}" in
    x86_64) _JARCH='x86_64';;
    i686)   _JARCH='x86';;
 +  riscv64)_JARCH='riscv64';;
  esac
-
+ 
  _jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk
-@@ -44,6 +47,13 @@
+@@ -46,6 +53,14 @@
                lib/libjsound.{so,debuginfo}
                lib/libsplashscreen.{so,debuginfo})
-
+ 
 +prepare() {
 +  cd "$srcdir/$_jdkdir"
-+  patch -Np1 -i ../java17-riscv64.patch
++  patch -Np1 -i "$srcdir/java18-riscv.patch"
++  patch -Np1 -i "$srcdir/riscv-zifencei.patch"
 +
 +  sed -i '/zLargePages.inline.hpp/a #include "gc/z/zList.inline.hpp"' src/hotspot/share/gc/z/zPhysicalMemory.cpp
 +}
 +
  build() {
    cd ${_jdkdir}
-
-@@ -96,6 +106,12 @@
+ 
+@@ -68,14 +83,6 @@
+     _CXXFLAGS=${CXXFLAGS/-fno-plt/}
+   fi
+ 
+-  # TODO: Should be rechecked for the next releases
+-  # compiling with -fexceptions leads to:
+-  # /usr/bin/ld: /build/java-openjdk/src/jdk17u-jdk-17.0.3-2/build/linux-x86_64-server-release/hotspot/variant-server/libjvm/objs/zPhysicalMemory.o: in function `ZList<ZMemory>::~ZList()':
+-  # /build/java-openjdk/src/jdk17u-jdk-17.0.3-2/src/hotspot/share/gc/z/zList.hpp:54: undefined reference to `ZListNode<ZMemory>::~ZListNode()'
+-  # collect2: error: ld returned 1 exit status
+-  _CFLAGS=${CFLAGS/-fexceptions/}
+-  _CXXFLAGS=${CXXFLAGS/-fexceptions/}
+-
+   # CFLAGS, CXXFLAGS and LDFLAGS are ignored as shown by a warning
+   # in the output of ./configure unless used like such:
+   #  --with-extra-cflags="${CFLAGS}"
+@@ -106,6 +113,9 @@
      ${NUM_PROC_OPT}
      #--disable-javac-server
-
-+    # build system does not recognize qemu-system-riscv64
-+    # --build="riscv64-unknown-linux-gnu"
-+
-+  # Runtime.exec fails strangely if qemu binfmt does not have P flag
+ 
++  # riscv64: requires P flag on qemu-user, or
 +  # export _JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"  # or fork
 +
    make images legacy-jre-image docs
-
+ 
    # https://bugs.openjdk.java.net/browse/JDK-8173610
