@@ -1,98 +1,102 @@
 diff --git PKGBUILD PKGBUILD
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,6 +16,7 @@
-   "https://github.com/kubernetes/kubernetes/archive/v${pkgver}/kubernetes-${pkgver}.tar.gz"
-   "${pkgbase}-1.23.0-gotags.patch"
-   "${pkgbase}-1.23.0-static_cgo_enabled.patch"
-+  "add-riscv64-support.patch"
-   "10-kubeadm-kubelet.conf"
-   "50-kubelet-sysctl.conf"
-   "kubelet-modules.conf"
-@@ -35,6 +36,7 @@
- sha512sums=('95ccd27680cefa1f0e367259a373236866c85b8b0534bed364101b5177c718de0bcd6631136e84b910a2fce00f4c119aef043782228658f852d6753f6606c316'
+@@ -39,6 +39,7 @@ source=(
+   kube-proxy.service
+   kube-scheduler.env
+   kube-scheduler.service
++  add-riscv64-support.patch
+ )
+ sha512sums=('b351556267c21a6691bced0c837e259425bb3a9f47e0dfe995e27c8d78a48eaa29dca34928ec5898cbe59e80976a6b76ae3e85aeb4eeb79339ecf19c94a9dab7'
              'da59a9d6e3fd9625d2803e441f6f06c8b272ee5a220eb32426f09245e62c5f19bda324a752ead05111471f7ccd11fe9777630ae9b7ae387fcd94f65a7f1ed5b8'
-             'affcabbceadddb3f4178b9fba3e15f06bc6a21a6aa1c7b37c48defd1a81f674bc20198458ca7afdf1d979e2175d12648a70bb29d78ddaf7f5897241cd8d56dbe'
-+            'faba6b03ea87469a9b4588e6dfcb7a193407759a867b2b6894a6d44c45dff0df72ac1a27abaacd76b393adc317c93e2f0a02e5e29d03a15e13d9d1934936893e'
-             '5f7132636b6afe9f00dc450c58073c0829942fa44070e7ec5a2c227c485c83f076bdea081d207f926b44d02700be65bf19a61f5d8d1472edd480f980e6ffbc3a'
-             'ed5ba22b37eaa9f4950ff3b57d60dd7866fcd5b8bd5197eab3170470528e8d91379483d3eb724589e695184f9b0ed506ebaee73ecca0dc40afdb5f35e79d178a'
-             'c318b64a03da07dfe435b2d8c368e55b0ab567da78c57ed814a7864fa75aeac52b28cf562b4afd8daa52168af93b318c1fead557ee676e950af25d422c276a17'
-@@ -53,6 +55,7 @@
- b2sums=('edfcd8649995cf944225cf3bc276a7b7cac5ae055e4255319c924b1b80776d939c6630dbd4f074c2b606e16d5abc5c45e72a11b42dda428c8e29411521b63bf7'
+@@ -57,7 +58,8 @@ sha512sums=('b351556267c21a6691bced0c837e259425bb3a9f47e0dfe995e27c8d78a48eaa29d
+             'c5c16d97afc0fa455981a56794547a4e6e8a710b1b686ccf84645c8001a601fa41b624ad0009bf21e56ec2da35874ac7808731b4a5b9b0fd80fc188714708f23'
+             'dd4efa137462905f9e29a99d69b747ae35e58ba8152794bfa417325953dd5059bad96fabfabf73ce1ee2310dc4ab4d1b95c8d931d33b81c67addcb614a51be54'
+             'ba277f765959ddb8aa0dee5a86cd9df1f40fb3f6ea1001f24825dbf21bd9342981d13894301170431729f76e710f70c23481e4061c64be29517ff497490f1ef3'
+-            '2c25c0e11a7b2d6d61e03f9afe7ba21f9497495ab02e85f2623ce8c71019fb8a1af16197ab3968d5da050c2188c3e67372aa43322ac91af84f7da61bf73596bc')
++            '2c25c0e11a7b2d6d61e03f9afe7ba21f9497495ab02e85f2623ce8c71019fb8a1af16197ab3968d5da050c2188c3e67372aa43322ac91af84f7da61bf73596bc'
++            'faba6b03ea87469a9b4588e6dfcb7a193407759a867b2b6894a6d44c45dff0df72ac1a27abaacd76b393adc317c93e2f0a02e5e29d03a15e13d9d1934936893e')
+ b2sums=('2b0d3001bb344a0d22ca9f6e8582cd0528652bb9c4698989425ee7ebf35514d9a05ecd5f55da2198e0543cc870620d2a796977adbc275e0aa97521f90dfbf325'
          '1f6e88cc5817584c72fd2166d50217f06bf29c66b9317c7b9d1a331d8a8192ad189bdfb0e3f0c467916432e9e6a54891753324cfb9ac12396aee66a65dd851da'
          'b06a21c5d4c349c8e9756022681085dc8a6bc4211a8e4700ccf10757a72a0da5e455f36adccfb41c1dd0d61d1df073c2a09e2074e10664f6de37a722c6d1401a'
-+        '4bb18835fe5c411362a2e990298543ee79544bf9d29efdd0d2880665386eee208c39f79a3c2e7166ec496c43c9d4a95be200755900c2a01e568488b25c0ced2a'
-         'dbab30d7e1b566027fec9d6a95dd41ed8f64399c39aac07fb4513ce21050eeeb4a226adfd513f76921c305945dfa4a140602ede574dd5eb4cd287e0f2df21714'
-         '27a8dcbbe06fa7aea122fc87ca663710ae2179c995270d94e22c905422e2639f3c9c81eef6723467c76366062381d8bd65e84ef79f47fed7c240973a55f5cb0e'
-         'a03b8a2ce6a606068cad278c6b8039181968c132a935448bf45e1b3668357487da1528569ed582b107db0654a1614b784a73c726729aad42abed18a4c15ce5b6'
-@@ -75,6 +78,7 @@
-   patch -Np1 -i ../"${pkgbase}-1.23.0-gotags.patch"
+@@ -75,13 +77,16 @@ b2sums=('2b0d3001bb344a0d22ca9f6e8582cd0528652bb9c4698989425ee7ebf35514d9a05ecd5
+         '082474a56525f7ea52315fbf9d765081d9f6bbd20ab4213bc2d2a6ddb8a3764987e365f08f157be6deec53f9c1bf2fb6c99595f5649c631e8610fcf81ed61eab'
+         '5ce796468c442d76f311d1c620576dcd2c784fcd40ecaa68ca3a6d7c089e8703506f712ee918f89ddb4debfe061cea3939fa4f2d2a77553dd1cd7aa4fae17729'
+         '4f35d3b5296839dd68885b924a41725a3479c2725c77887038c7d402a6aa754e37fe0d3697e746a1b65a5236f9e927df01e99a66d37d227cb801965575403788'
+-        '95a5345e044b8fe9be01fc6230f20b3b12118c6f1fcc3e7ebbfd4d3a3d205dfb492ff0c11397d3dae9abc0cbba83c659ea23803b71c8e240dddc30bf4791dbc5')
++        '95a5345e044b8fe9be01fc6230f20b3b12118c6f1fcc3e7ebbfd4d3a3d205dfb492ff0c11397d3dae9abc0cbba83c659ea23803b71c8e240dddc30bf4791dbc5'
++        '4bb18835fe5c411362a2e990298543ee79544bf9d29efdd0d2880665386eee208c39f79a3c2e7166ec496c43c9d4a95be200755900c2a01e568488b25c0ced2a')
+ 
+ prepare() {
+   # the -tags can only be a space separated list
+   patch -Np1 -d $pkgbase-$pkgver -i ../$pkgbase-1.23.0-gotags.patch
    # set static builds CGO_ENABLED=1 for full RELRO
-   patch -Np1 -i ../"${pkgbase}-1.23.0-static_cgo_enabled.patch"
-+  patch -Np1 -i ../"add-riscv64-support.patch"
+   patch -Np1 -d $pkgbase-$pkgver -i ../$pkgbase-1.23.0-static_cgo_enabled.patch
++  # add riscv64 support
++  patch -Np1 -d $pkgbase-$pkgver -i ../add-riscv64-support.patch
  }
-
+ 
  build() {
-@@ -108,7 +112,7 @@
-   install="${pkgname}.install"
-
-   cd "${pkgbase}-${pkgver}"
--  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
-+  install -vDm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin"
-   # service override for kubelet.service
-   install -vDm 644 "../10-${pkgname}-kubelet.conf" \
-     "${pkgdir}/usr/lib/systemd/system/kubelet.service.d/10-${pkgname}.conf"
-@@ -124,7 +128,7 @@
-   groups=(kubernetes-tools)
-
-   cd "${pkgbase}-${pkgver}"
--  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
-+  install -vDm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin"
+@@ -117,7 +122,7 @@ package_kubeadm() {
+   depends=(glibc crictl)
+   install=$pkgname.install
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin"
    # man pages
-   install -vDm 644 "docs/man/man1/${pkgname}"* -t "$pkgdir/usr/share/man/man1"
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1/"
+   # service override for kubelet.service
+@@ -132,7 +137,7 @@ package_kubectl() {
+   depends=(glibc)
+   groups=(kubernetes-tools)
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin"
+   # man pages
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1"
    # shell completion
-@@ -144,7 +148,7 @@
-   install=${pkgname}.install
-
-   cd "${pkgbase}-${pkgver}"
--  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
-+  install -vDm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin"
+@@ -153,7 +158,7 @@ package_kubelet() {
+   backup=(etc/$pkgbase/$pkgname.env)
+   install=$pkgname.install
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin"
+   # man pages
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1/"
    # config
-   install -vDm 644 "../${pkgname}.env" -t "$pkgdir/etc/kubernetes/"
-   # service
-@@ -167,7 +171,7 @@
-   backup=(etc/kubernetes/kube-apiserver.env)
-
-   cd "${pkgbase}-${pkgver}"
--  install -vDm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
-+  install -vDm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin"
+@@ -174,7 +179,7 @@ package_kube-apiserver() {
+   groups=(kubernetes-control-plane)
+   backup=(etc/$pkgbase/$pkgname.env)
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin"
+   # man pages
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1/"
    # config
-   install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
-   # service
-@@ -186,7 +190,7 @@
-   backup=(etc/kubernetes/${pkgname}.env)
-
-   cd "${pkgbase}-${pkgver}"
--  install -Dm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
-+  install -Dm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin"
+@@ -189,7 +194,7 @@ package_kube-controller-manager() {
+   groups=(kubernetes-control-plane)
+   backup=(etc/$pkgbase/$pkgname.env)
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin"
+   # man pages
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1/"
    # config
-   install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
-   # service
-@@ -205,7 +209,7 @@
-   backup=(etc/kubernetes/${pkgname}.env)
-
-   cd "${pkgbase}-${pkgver}"
--  install -Dm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin/"
-+  install -Dm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin/"
+@@ -204,7 +209,7 @@ package_kube-proxy() {
+   groups=(kubernetes-control-plane kubernetes-node)
+   backup=(etc/$pkgbase/$pkgname.env)
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin/"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin/"
+   # man pages
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1/"
    # config
-   install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
-   # service
-@@ -222,7 +226,7 @@
-   backup=(etc/kubernetes/${pkgname}.env)
-
-   cd "${pkgbase}-${pkgver}"
--  install -Dm 755 "_output/local/bin/linux/amd64/${pkgname}" -t "$pkgdir/usr/bin"
-+  install -Dm 755 "_output/local/bin/linux/riscv64/${pkgname}" -t "$pkgdir/usr/bin"
+@@ -221,7 +226,7 @@ package_kube-scheduler() {
+   groups=(kubernetes-control-plane)
+   backup=(etc/$pkgbase/$pkgname.env)
+ 
+-  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin"
++  install -vDm 755 $pkgbase-$pkgver/_output/local/bin/linux/riscv64/$pkgname -t "$pkgdir/usr/bin"
+   # man pages
+   install -vDm 644 $pkgbase-$pkgver/docs/man/man1/$pkgname* -t "$pkgdir/usr/share/man/man1/"
    # config
-   install -vDm 644 "../${pkgname}.env" -t "${pkgdir}/etc/kubernetes/"
-   # service
