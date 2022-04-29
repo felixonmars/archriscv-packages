@@ -1,11 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,6 +16,9 @@ b2sums=('e38ba2e85dd06c89ebe0e1debd5354e40b8016b0907d6207f7f8fa4e20ccb29d637fa6e
+@@ -10,12 +10,18 @@ license=('Apache')
+ depends=('typescript')
+ makedepends=('jq' 'yarn')
+ checkdepends=('npm')
+-source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+-b2sums=('e38ba2e85dd06c89ebe0e1debd5354e40b8016b0907d6207f7f8fa4e20ccb29d637fa6e5978bee439cd15f1eb7c107712da1b9a66baa748215cb7c4d2c7f1c52')
++source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
++        "typescript-language-server-mocha-timeout.patch")
++b2sums=('e38ba2e85dd06c89ebe0e1debd5354e40b8016b0907d6207f7f8fa4e20ccb29d637fa6e5978bee439cd15f1eb7c107712da1b9a66baa748215cb7c4d2c7f1c52'
++        '730767552883bc2802aff2f43d93caa3da7314606070bcf571e324d00e552ada3702824986dafeefa360c199e25f3edcc159c6745e56759d96f659b53b243845')
+ 
  prepare() {
    cd $pkgname-$pkgver
    yarn --frozen-lockfile
 +
 +  # Increase tests' timeout
++  patch -Np1 -i $srcdir/typescript-language-server-mocha-timeout.patch
 +  sed -i 's#})\.timeout(10000)#})\.timeout(40000)#' ./src/*.spec.ts ./src/**/*.spec.ts
  }
  
