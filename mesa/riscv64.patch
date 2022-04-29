@@ -1,19 +1,18 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 442898)
+--- PKGBUILD	(revision 444265)
 +++ PKGBUILD	(working copy)
-@@ -4,7 +4,7 @@
- # Contributor: Andreas Radke <andyrtr@archlinux.org>
- 
+@@ -6,3 +6,3 @@
  pkgbase=mesa
 -pkgname=('vulkan-mesa-layers' 'opencl-mesa' 'vulkan-intel' 'vulkan-radeon' 'vulkan-swrast' 'libva-mesa-driver' 'mesa-vdpau' 'mesa')
 +pkgname=('vulkan-mesa-layers' 'opencl-mesa' 'vulkan-radeon' 'libva-mesa-driver' 'mesa-vdpau' 'mesa')
  pkgdesc="An open-source implementation of the OpenGL specification"
- pkgver=22.0.1
- pkgrel=3
-@@ -39,15 +39,16 @@
-   CXXFLAGS+=' -g1'
- 
+@@ -14,3 +14,3 @@
+              'libomxil-bellagio' 'libclc' 'clang' 'libglvnd' 'libunwind' 'lm_sensors' 'libxrandr'
+-             'valgrind' 'glslang' 'vulkan-icd-loader' 'directx-headers' 'cmake' 'meson')
++             'valgrind' 'glslang' 'vulkan-icd-loader' 'cmake' 'meson')
+ url="https://www.mesa3d.org/"
+@@ -41,4 +41,5 @@
    # https://gitlab.freedesktop.org/mesa/mesa/-/issues/6229
 -  CFLAGS+=' -mtls-dialect=gnu'
 -  CXXFLAGS+=' -mtls-dialect=gnu'
@@ -21,63 +20,25 @@ Index: PKGBUILD
 +  # CFLAGS+=' -mtls-dialect=gnu'
 +  # CXXFLAGS+=' -mtls-dialect=gnu'
  
-   arch-meson mesa-$pkgver build \
-     -D b_ndebug=true \
+@@ -47,5 +48,5 @@
      -D platforms=x11,wayland \
 -    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,svga,swrast,iris,crocus,zink,d3d12 \
 -    -D vulkan-drivers=amd,intel,swrast \
 -    -D vulkan-layers=device-select,intel-nullhw,overlay \
-+    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,swrast,zink,d3d12 \
++    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,swrast,zink \
 +    -D vulkan-drivers=amd \
 +    -D vulkan-layers=device-select,overlay \
      -D dri3=enabled \
-     -D egl=enabled \
+@@ -53,3 +54,3 @@
      -D gallium-extra-hud=true \
-@@ -65,6 +66,7 @@
-     -D glx=dri \
-     -D libunwind=enabled \
+-    -D gallium-nine=true \
++    -D gallium-nine=false \
+     -D gallium-omx=bellagio \
+@@ -67,2 +68,3 @@
      -D llvm=enabled \
 +    -D draw-use-llvm=false \
      -D lmsensors=enabled \
-     -D osmesa=true \
-     -D shared-glapi=enabled \
-@@ -119,18 +121,6 @@
-   install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
- }
- 
--package_vulkan-intel() {
--  pkgdesc="Intel's Vulkan mesa driver"
--  depends=('wayland' 'libx11' 'libxshmfence' 'libdrm' 'zstd')
--  optdepends=('vulkan-mesa-layers: additional vulkan layers')
--  provides=('vulkan-driver')
--
--  _install fakeinstall/usr/share/vulkan/icd.d/intel_icd*.json
--  _install fakeinstall/usr/lib/libvulkan_intel.so
--
--  install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
--}
--
- package_vulkan-radeon() {
-   pkgdesc="Radeon's Vulkan mesa driver"
-   depends=('wayland' 'libx11' 'libxshmfence' 'libelf' 'libdrm' 'llvm-libs')
-@@ -143,20 +133,6 @@
-   install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
- }
- 
--package_vulkan-swrast() {
--  pkgdesc="Vulkan software rasteriser driver"
--  depends=('wayland' 'libx11' 'libxshmfence' 'libdrm' 'zstd' 'llvm-libs')
--  optdepends=('vulkan-mesa-layers: additional vulkan layers')
--  conflicts=('vulkan-mesa')
--  replaces=('vulkan-mesa')
--  provides=('vulkan-driver')
--
--  _install fakeinstall/usr/share/vulkan/icd.d/lvp_icd*.json
--  _install fakeinstall/usr/lib/libvulkan_lvp.so
--
--  install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
--}
--
- package_libva-mesa-driver() {
-   pkgdesc="VA-API implementation for gallium"
-   depends=('libdrm' 'libx11' 'llvm-libs' 'expat' 'libelf' 'libxshmfence')
+@@ -199,3 +201,2 @@
+   _install fakeinstall/usr/lib/bellagio
+-  _install fakeinstall/usr/lib/d3d
+   _install fakeinstall/usr/lib/lib{gbm,glapi}.so*
