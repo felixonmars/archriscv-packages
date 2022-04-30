@@ -24,7 +24,7 @@ def is_rotten(package):
 
         try:
             for repo_dir in os.scandir(os.path.join(tempdir, package, "repos")):
-                if not repo_dir.name.split('-')[0] in ['core', 'extra', 'community']:
+                if not repo_dir.name.split('-')[0] in ['core', 'extra', 'community'] or 'testing' in repo_dir.name:
                     continue
                 shutil.copytree(package, repo_dir.path, dirs_exist_ok=True)
                 try:
@@ -45,7 +45,7 @@ def done_callback(futures, future):
     package_name = futures[future]
     exc = future.exception()
     if exc:
-        logger.exception(f"unexpected error occured when checking {package_name}",
+        logger.exception(f"unexpected error occurred when checking {package_name}",
                          exc_info=exc)
         return
 
