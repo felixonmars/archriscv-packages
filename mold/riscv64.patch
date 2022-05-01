@@ -1,13 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,7 +41,18 @@ check() {
+@@ -42,7 +42,19 @@ check() {
    cd "$pkgname"
-
+ 
    # temporarily remove failing tests
 -  for failing_test in exception; do
 +  # some tests contain x86-64 assembly
 +  # some tests use gcc despite CC=clang, see https://github.com/rui314/mold/issues/358
 +  for failing_test in exception \
++                      debug-macro-section \
 +                      discard \
 +                      dynamic-list2 \
 +                      gc-sections \
@@ -19,11 +20,13 @@
 +  do
      rm -vf "test/elf/$failing_test.sh"
    done
-
-@@ -51,5 +62,7 @@ check() {
+ 
+@@ -51,6 +63,8 @@ check() {
+     LTO=1 \
      SYSTEM_MIMALLOC=1 \
      SYSTEM_TBB=1 \
 +    CC=clang \
 +    CXX=clang++ \
      check
  }
+ 
