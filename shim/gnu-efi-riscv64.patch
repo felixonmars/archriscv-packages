@@ -1,0 +1,1058 @@
+diff --git a/Make.defaults b/Make.defaults
+index 5ce8f7c..63fd6cf 100755
+--- a/Make.defaults
++++ b/Make.defaults
+@@ -36,7 +36,7 @@
+ 
+ TOPDIR ?= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+ 
+-ARCHES = ia32 x86_64 ia64 aarch64 arm mips64el
++ARCHES = ia32 x86_64 ia64 aarch64 arm mips64el riscv64
+ 
+ #
+ # Variables below overridable from command-line:
+@@ -156,10 +156,12 @@ endif
+ ifneq ($(ARCH),aarch64)
+ ifneq ($(ARCH),arm)
+ ifneq ($(ARCH),mips64el)
++ifneq ($(ARCH),riscv64)
+ export HAVE_EFI_OBJCOPY=y
+ endif
+ endif
+ endif
++endif
+ 
+ ifeq ($(ARCH),arm)
+ CFLAGS += -marm
+diff --git a/apps/bltgrid.c b/apps/bltgrid.c
+index a0eb8c7..955d929 100644
+--- a/apps/bltgrid.c
++++ b/apps/bltgrid.c
+@@ -85,6 +85,7 @@ draw_boxes(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop)
+ 				  info->HorizontalResolution,
+ 				  info->VerticalResolution,
+ 				  0);
++		FreePool(PixelBuffer);
+ 		return;
+ 	}
+ 	Print(L"Never found the active video mode?\n");
+diff --git a/apps/lfbgrid.c b/apps/lfbgrid.c
+index ac50f4e..ba903c7 100644
+--- a/apps/lfbgrid.c
++++ b/apps/lfbgrid.c
+@@ -51,7 +51,8 @@ draw_boxes(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop)
+ 	UINTN NumPixels;
+ 	UINT32 *PixelBuffer;
+ 	UINT32 CopySize, BufferSize;
+-#if defined(__x86_64__) || defined(__aarch64__)
++#if defined(__x86_64__) || defined(__aarch64__) || \
++    (defined (__riscv) && __riscv_xlen == 64)
+ 	UINT64 FrameBufferAddr;
+ #elif defined(__i386__) || defined(__arm__)
+ 	UINT32 FrameBufferAddr;
+@@ -115,7 +116,8 @@ draw_boxes(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop)
+ 			Print(L"No linear framebuffer on this device.\n");
+ 			return;
+ 		}
+-#if defined(__x86_64__) || defined(__aarch64__)
++#if defined(__x86_64__) || defined(__aarch64__) || \
++    (defined (__riscv) && __riscv_xlen == 64)
+ 		FrameBufferAddr = (UINT64)gop->Mode->FrameBufferBase;
+ #elif defined(__i386__) || defined(__arm__)
+ 		FrameBufferAddr = (UINT32)(UINT64)gop->Mode->FrameBufferBase;
+diff --git a/gnuefi/crt0-efi-aarch64.S b/gnuefi/crt0-efi-aarch64.S
+index a96b5eb..a5d98ce 100644
+--- a/gnuefi/crt0-efi-aarch64.S
++++ b/gnuefi/crt0-efi-aarch64.S
+@@ -34,7 +34,7 @@ coff_header:
+ 	.short	4				// nr_sections
+ 	.long	0 				// TimeDateStamp
+ 	.long	0				// PointerToSymbolTable
+-	.long	1				// NumberOfSymbols
++	.long	0				// NumberOfSymbols
+ 	.short	section_table - optional_header	// SizeOfOptionalHeader
+ 	.short	0x206				// Characteristics.
+ 						// IMAGE_FILE_DEBUG_STRIPPED |
+diff --git a/gnuefi/crt0-efi-arm.S b/gnuefi/crt0-efi-arm.S
+index 1efc21c..d220691 100644
+--- a/gnuefi/crt0-efi-arm.S
++++ b/gnuefi/crt0-efi-arm.S
+@@ -34,7 +34,7 @@ coff_header:
+ 	.short	4				// nr_sections
+ 	.long	0 				// TimeDateStamp
+ 	.long	0				// PointerToSymbolTable
+-	.long	1				// NumberOfSymbols
++	.long	0				// NumberOfSymbols
+ 	.short	section_table - optional_header	// SizeOfOptionalHeader
+ 	.short	0x306				// Characteristics.
+ 						// IMAGE_FILE_32BIT_MACHINE |
+diff --git a/gnuefi/crt0-efi-ia32.S b/gnuefi/crt0-efi-ia32.S
+index 2c56746..f583a4b 100644
+--- a/gnuefi/crt0-efi-ia32.S
++++ b/gnuefi/crt0-efi-ia32.S
+@@ -73,5 +73,6 @@ _start:
+ #define IMAGE_REL_ABSOLUTE	0
+ 	.section .reloc, "a"
+ 	.long	.dummy1-.dummy0				// Page RVA
+-	.long	10					// Block Size (2*4+2)
++	.long	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
++	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+ 	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+diff --git a/gnuefi/crt0-efi-ia64.S b/gnuefi/crt0-efi-ia64.S
+index 40c3c83..cd00b8d 100644
+--- a/gnuefi/crt0-efi-ia64.S
++++ b/gnuefi/crt0-efi-ia64.S
+@@ -82,6 +82,6 @@ _start_plabel:
+ 
+ 	.section .reloc, "a"
+ 	data4	_start_plabel				// Page RVA
+-	data4	12					// Block Size (2*4+2*2)
++	data4	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
+ 	data2	(IMAGE_REL_BASED_DIR64<<12) +  0	// reloc for plabel's entry point
+ 	data2	(IMAGE_REL_BASED_DIR64<<12) +  8	// reloc for plabel's global pointer
+diff --git a/gnuefi/crt0-efi-mips64el.S b/gnuefi/crt0-efi-mips64el.S
+index 6a62aca..6d26f66 100644
+--- a/gnuefi/crt0-efi-mips64el.S
++++ b/gnuefi/crt0-efi-mips64el.S
+@@ -35,7 +35,7 @@ coff_header:
+ 	.short	2				// nr_sections
+ 	.long	0 				// TimeDateStamp
+ 	.long	0				// PointerToSymbolTable
+-	.long	1				// NumberOfSymbols
++	.long	0				// NumberOfSymbols
+ 	.short	section_table - optional_header	// SizeOfOptionalHeader
+ 	.short	0x206				// Characteristics.
+ 						// IMAGE_FILE_DEBUG_STRIPPED |
+diff --git a/gnuefi/crt0-efi-riscv64.S b/gnuefi/crt0-efi-riscv64.S
+new file mode 100644
+index 0000000..ec0e25e
+--- /dev/null
++++ b/gnuefi/crt0-efi-riscv64.S
+@@ -0,0 +1,161 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++/*
++ * Copright (C) 2014 Linaro Ltd. <ard.biesheuvel@linaro.org>
++ * Copright (C) 2018 Alexander Graf <agraf@suse.de>
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice and this list of conditions, without modification.
++ * 2. The name of the author may not be used to endorse or promote products
++ *    derived from this software without specific prior written permission.
++ *
++ * Alternatively, this software may be distributed under the terms of the
++ * GNU General Public License as published by the Free Software Foundation;
++ * either version 2 of the License, or (at your option) any later version.
++ */
++
++#ifndef EFI_SUBSYSTEM
++#define EFI_SUBSYSTEM 10
++#endif
++
++	.section	.text.head
++
++	/*
++	 * Magic "MZ" signature for PE/COFF
++	 */
++	.globl	ImageBase
++ImageBase:
++	.ascii	"MZ"
++	.skip	58				// 'MZ' + pad + offset == 64
++	.long	pe_header - ImageBase		// Offset to the PE header.
++pe_header:
++	.ascii	"PE"
++	.short 	0
++coff_header:
++	.short	0x5064				// riscv64
++	.short	4				// nr_sections
++	.long	0 				// TimeDateStamp
++	.long	0				// PointerToSymbolTable
++	.long	0				// NumberOfSymbols
++	.short	section_table - optional_header	// SizeOfOptionalHeader
++	.short	0x206				// Characteristics.
++						// IMAGE_FILE_DEBUG_STRIPPED |
++						// IMAGE_FILE_EXECUTABLE_IMAGE |
++						// IMAGE_FILE_LINE_NUMS_STRIPPED
++optional_header:
++	.short	0x20b				// PE32+ format
++	.byte	0x02				// MajorLinkerVersion
++	.byte	0x14				// MinorLinkerVersion
++	.long	_data - _start			// SizeOfCode
++	.long	_data_size			// SizeOfInitializedData
++	.long	0				// SizeOfUninitializedData
++	.long	_start - ImageBase		// AddressOfEntryPoint
++	.long	_start - ImageBase		// BaseOfCode
++
++extra_header_fields:
++	.quad	0				// ImageBase
++	.long	0x1000				// SectionAlignment
++	.long	0x200				// FileAlignment
++	.short	0				// MajorOperatingSystemVersion
++	.short	0				// MinorOperatingSystemVersion
++	.short	0				// MajorImageVersion
++	.short	0				// MinorImageVersion
++	.short	0				// MajorSubsystemVersion
++	.short	0				// MinorSubsystemVersion
++	.long	0				// Win32VersionValue
++
++	.long	_erodata - ImageBase		// SizeOfImage
++
++	// Everything before the kernel image is considered part of the header
++	.long	_start - ImageBase		// SizeOfHeaders
++	.long	0				// CheckSum
++	.short	EFI_SUBSYSTEM			// Subsystem
++	.short	0				// DllCharacteristics
++	.quad	0				// SizeOfStackReserve
++	.quad	0				// SizeOfStackCommit
++	.quad	0				// SizeOfHeapReserve
++	.quad	0				// SizeOfHeapCommit
++	.long	0				// LoaderFlags
++	.long	0x6				// NumberOfRvaAndSizes
++
++	.quad	0				// ExportTable
++	.quad	0				// ImportTable
++	.quad	0				// ResourceTable
++	.quad	0				// ExceptionTable
++	.quad	0				// CertificationTable
++	.quad	0				// BaseRelocationTable
++
++	// Section table
++section_table:
++	/*
++	 * The EFI application loader requires a relocation section
++	 * because EFI applications must be relocatable.  This is a
++	 * dummy section as far as we are concerned.
++	 */
++	.ascii	".text\0\0\0"
++	.long	_evtext - _start	// VirtualSize
++	.long	_start - ImageBase	// VirtualAddress
++	.long	_etext - _start		// SizeOfRawData
++	.long	_start - ImageBase	// PointerToRawData
++
++	.long	0			// PointerToRelocations
++	.long	0			// PointerToLineNumbers
++	.short	0			// NumberOfRelocations
++	.short	0			// NumberOfLineNumbers
++	.long	0x60000020		// Characteristics (section flags)
++
++	.ascii	".data\0\0\0"
++	.long	_evdata - _data		// VirtualSize
++	.long	_data - ImageBase	// VirtualAddress
++	.long	_edata - _data		// SizeOfRawData
++	.long	_data - ImageBase	// PointerToRawData
++
++	.long	0			// PointerToRelocations (0 for executables)
++	.long	0			// PointerToLineNumbers (0 for executables)
++	.short	0			// NumberOfRelocations  (0 for executables)
++	.short	0			// NumberOfLineNumbers  (0 for executables)
++	.long	0xc0000040		// Characteristics (section flags)
++
++	.ascii	".sbat\0\0\0"
++	.long	_epsbat - _sbat		// VirtualSize
++	.long	_sbat - ImageBase	// VirtualAddress
++	.long	_esbat - _sbat		// SizeOfRawData
++	.long	_sbat - ImageBase	// PointerToRawData
++
++	.long	0			// PointerToRelocations (0 for executables)
++	.long	0			// PointerToLineNumbers (0 for executables)
++	.short	0			// NumberOfRelocations  (0 for executables)
++	.short	0			// NumberOfLineNumbers  (0 for executables)
++	.long	0x40000040		// Characteristics (section flags)
++
++	.ascii	".reloc\0\0"
++	.long	_evrodata -_rodata	// VirtualSize
++	.long	_rodata - ImageBase	// VirtualAddress
++	.long	_erodata - _rodata	// SizeOfRawData
++	.long	_rodata - ImageBase	// PointerToRawData
++
++	.long	0			// PointerToRelocations (0 for executables)
++	.long	0			// PointerToLineNumbers (0 for executables)
++	.short	0			// NumberOfRelocations  (0 for executables)
++	.short	0			// NumberOfLineNumbers  (0 for executables)
++	.long	0x42000040		// Characteristics (section flags)
++
++	.align	12
++	.globl _start
++_start:
++	addi		sp, sp, -24
++	sd		a0, 0(sp)
++	sd		a1, 8(sp)
++	sd		ra, 16(sp)
++	lla		a0, ImageBase
++	lla		a1, _DYNAMIC
++	call		_relocate
++	bne		a0, zero, 0f
++	ld		a1, 8(sp)
++	ld		a0, 0(sp)
++	call		efi_main
++	ld		ra, 16(sp)
++0:	addi		sp, sp, 24
++	ret
+diff --git a/gnuefi/crt0-efi-x86_64.S b/gnuefi/crt0-efi-x86_64.S
+index 1a87dbd..7235673 100644
+--- a/gnuefi/crt0-efi-x86_64.S
++++ b/gnuefi/crt0-efi-x86_64.S
+@@ -71,6 +71,7 @@ _start:
+ #define IMAGE_REL_ABSOLUTE	0
+ 	.section .reloc, "a"
+ 	.long	.dummy1-.dummy0				// Page RVA
+-	.long	10					// Block Size (2*4+2)
++	.long	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
++	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+ 	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+ 
+diff --git a/gnuefi/elf_riscv64_efi.lds b/gnuefi/elf_riscv64_efi.lds
+new file mode 100644
+index 0000000..bb64d81
+--- /dev/null
++++ b/gnuefi/elf_riscv64_efi.lds
+@@ -0,0 +1,77 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++
++OUTPUT_FORMAT("elf64-littleriscv", "elf64-littleriscv", "elf64-littleriscv")
++OUTPUT_ARCH(riscv)
++ENTRY(_start)
++SECTIONS {
++.text 0x0 :
++	{
++		_text = .;
++		*(.text.head)
++		*(.text)
++		*(.text.*)
++		*(.gnu.linkonce.t.*)
++		*(.srodata)
++		*(.rodata*)
++		. = ALIGN(16);
++	}
++	_etext = .;
++	_text_size = . - _text;
++.dynamic  :
++	{ *(.dynamic) }
++.data :
++	ALIGN(4096)
++	{
++		_data = .;
++		*(.sdata)
++		*(.data)
++		*(.data1)
++		*(.data.*)
++		*(.got.plt)
++		*(.got)
++
++		/* the EFI loader doesn't seem to like a .bss section, so we stick
++		   it all into .data: */
++		. = ALIGN(16);
++		_bss = .;
++		*(.sbss)
++		*(.scommon)
++		*(.dynbss)
++		*(.bss)
++		*(COMMON)
++		. = ALIGN(16);
++		_bss_end = .;
++	}
++
++.rela.text :
++	{ *(.rela.text) *(.rela.text*) }
++.rela.dyn :
++	{ *(.rela.dyn) }
++.rela.plt :
++	{ *(.rela.plt) }
++.rela.got :
++	{ *(.rela.got) }
++.rela.data :
++	{ *(.rela.data) *(.rela.data*) }
++	. = ALIGN(512);
++	_edata = .;
++	_data_size = . - _data;
++
++	. = ALIGN(4096);
++.dynsym   :
++	{ *(.dynsym) }
++	. = ALIGN(4096);
++.dynstr   :
++	{ *(.dynstr) }
++	. = ALIGN(4096);
++.note.gnu.build-id :
++	{ *(.note.gnu.build-id) }
++/DISCARD/ :
++	{
++		*(.rel.reloc)
++		*(.eh_frame)
++		*(.note.GNU-stack)
++	}
++.comment 0 :
++	{ *(.comment) }
++}
+diff --git a/gnuefi/reloc_riscv64.c b/gnuefi/reloc_riscv64.c
+new file mode 100644
+index 0000000..73e8d13
+--- /dev/null
++++ b/gnuefi/reloc_riscv64.c
+@@ -0,0 +1,91 @@
++// SPDX-License-Identifier: GPL-2.0+
++/* reloc_riscv.c - position independent ELF shared object relocator
++   Copyright (C) 2018 Alexander Graf <agraf@suse.de>
++   Copyright (C) 2014 Linaro Ltd. <ard.biesheuvel@linaro.org>
++   Copyright (C) 1999 Hewlett-Packard Co.
++	Contributed by David Mosberger <davidm@hpl.hp.com>.
++
++    All rights reserved.
++
++    Redistribution and use in source and binary forms, with or without
++    modification, are permitted provided that the following conditions
++    are met:
++
++    * Redistributions of source code must retain the above copyright
++      notice, this list of conditions and the following disclaimer.
++    * Redistributions in binary form must reproduce the above
++      copyright notice, this list of conditions and the following
++      disclaimer in the documentation and/or other materials
++      provided with the distribution.
++    * Neither the name of Hewlett-Packard Co. nor the names of its
++      contributors may be used to endorse or promote products derived
++      from this software without specific prior written permission.
++
++    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
++    CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
++    INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
++    MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
++    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
++    BE LIABLE FOR ANYDIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
++    OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
++    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
++    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
++    TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
++    THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++    SUCH DAMAGE.
++*/
++
++#include <efi.h>
++
++#include <elf.h>
++
++#define Elf_Dyn		Elf64_Dyn
++#define Elf_Rela	Elf64_Rela
++#define ELF_R_TYPE	ELF64_R_TYPE
++
++EFI_STATUS EFIAPI _relocate(long ldbase, Elf_Dyn *dyn)
++{
++	long relsz = 0, relent = 0;
++	Elf_Rela *rel = NULL;
++	unsigned long *addr;
++	int i;
++
++	for (i = 0; dyn[i].d_tag != DT_NULL; ++i) {
++		switch (dyn[i].d_tag) {
++		case DT_RELA:
++			rel = (Elf_Rela *)((unsigned long)dyn[i].d_un.d_ptr + ldbase);
++			break;
++		case DT_RELASZ:
++			relsz = dyn[i].d_un.d_val;
++			break;
++		case DT_RELAENT:
++			relent = dyn[i].d_un.d_val;
++			break;
++		default:
++			break;
++		}
++	}
++
++	if (!rel && relent == 0)
++		return EFI_SUCCESS;
++
++	if (!rel || relent == 0)
++		return EFI_LOAD_ERROR;
++
++	while (relsz > 0) {
++		/* apply the relocs */
++		switch (ELF_R_TYPE(rel->r_info)) {
++		case R_RISCV_RELATIVE:
++			addr = (unsigned long *)(ldbase + rel->r_offset);
++			*addr = ldbase + rel->r_addend;
++			break;
++		default:
++			/* Panic */
++			while (1) ;
++		}
++		rel = (Elf_Rela *)((char *)rel + relent);
++		relsz -= relent;
++	}
++	return EFI_SUCCESS;
++}
+diff --git a/inc/arm/efibind.h b/inc/arm/efibind.h
+index c48a05f..acd4417 100644
+--- a/inc/arm/efibind.h
++++ b/inc/arm/efibind.h
+@@ -38,7 +38,7 @@ typedef int32_t             intptr_t;
+  * This prevents GCC from emitting GOT based relocations, and use R_ARM_REL32
+  * relative relocations instead, which are more suitable for static binaries.
+  */
+-#ifdef __GNUC__
++#if defined(__GNUC__) && !__STDC_HOSTED__
+ #pragma GCC visibility push (hidden)
+ #endif
+ 
+diff --git a/inc/efi.h b/inc/efi.h
+index bd99451..f87477b 100644
+--- a/inc/efi.h
++++ b/inc/efi.h
+@@ -50,6 +50,8 @@ Revision History
+ #include "arm/efibind.h"
+ #elif defined (_M_MIPS64) || defined(__mips64__)
+ #include "mips64el/efibind.h"
++#elif defined (__riscv) && __riscv_xlen == 64
++#include "riscv64/efibind.h"
+ #else
+ #error Usupported architecture
+ #endif
+diff --git a/inc/efiapi.h b/inc/efiapi.h
+index 96e9e4a..17aa5f8 100644
+--- a/inc/efiapi.h
++++ b/inc/efiapi.h
+@@ -343,6 +343,18 @@ EFI_STATUS
+ #define EFI_IMAGE_MACHINE_AARCH64   0xAA64
+ #endif
+ 
++#if !defined(EFI_IMAGE_MACHINE_RISCV32)
++#define EFI_IMAGE_MACHINE_RISCV32   0x5032
++#endif
++
++#if !defined(EFI_IMAGE_MACHINE_RISCV64)
++#define EFI_IMAGE_MACHINE_RISCV64   0x5064
++#endif
++
++#if !defined(EFI_IMAGE_MACHINE_RISCV128)
++#define EFI_IMAGE_MACHINE_RISCV128  0x5128
++#endif
++
+ // Image Entry prototype
+ 
+ typedef 
+diff --git a/inc/efilib.h b/inc/efilib.h
+index af47019..57f3051 100644
+--- a/inc/efilib.h
++++ b/inc/efilib.h
+@@ -33,6 +33,8 @@ Revision History
+ #include "arm/efilibplat.h"
+ #elif defined (_M_MIPS64) || defined(__mips64__)
+ #include "mips64el/efilibplat.h"
++#elif defined (__riscv) && __riscv_xlen == 64
++#include "riscv64/efilibplat.h"
+ #endif
+ #include "efilink.h"
+ #include "efirtlib.h"
+@@ -281,9 +283,9 @@ SetMem (
+ 
+ VOID EFIAPI
+ CopyMem (
+-    IN VOID     *Dest,
+-    IN VOID     *Src,
+-    IN UINTN    len
++    IN VOID           *Dest,
++    IN CONST VOID     *Src,
++    IN UINTN          len
+     );
+ 
+ INTN
+diff --git a/inc/efirtlib.h b/inc/efirtlib.h
+index 5071493..8643061 100644
+--- a/inc/efirtlib.h
++++ b/inc/efirtlib.h
+@@ -32,6 +32,8 @@ Revision History
+ #include "arm/efilibplat.h"
+ #elif defined (_M_MIPS64) || defined(__mips64__)
+ #include "mips64el/efilibplat.h"
++#elif defined (__riscv) && __riscv_xlen == 64
++#include "riscv64/efilibplat.h"
+ #endif
+ 
+ 
+diff --git a/inc/riscv64/efibind.h b/inc/riscv64/efibind.h
+new file mode 100644
+index 0000000..a74a147
+--- /dev/null
++++ b/inc/riscv64/efibind.h
+@@ -0,0 +1,129 @@
++/*
++ * Copright (C) 2014 - 2015 Linaro Ltd.
++ * Author: Ard Biesheuvel <ard.biesheuvel@linaro.org>
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice and this list of conditions, without modification.
++ * 2. The name of the author may not be used to endorse or promote products
++ *    derived from this software without specific prior written permission.
++ *
++ * Alternatively, this software may be distributed under the terms of the
++ * GNU General Public License as published by the Free Software Foundation;
++ * either version 2 of the License, or (at your option) any later version.
++ */
++
++#include <stdint.h>
++
++//
++// Basic EFI types of various widths
++//
++
++
++
++typedef uint64_t                UINT64;
++typedef int64_t                 INT64;
++typedef uint32_t                UINT32;
++typedef int32_t                 INT32;
++typedef uint16_t                UINT16;
++typedef uint16_t                CHAR16;
++typedef int16_t                 INT16;
++typedef uint8_t                 UINT8;
++typedef int8_t                  INT8;
++typedef char                    CHAR8;
++#ifndef BOOLEAN
++typedef uint8_t                 BOOLEAN;
++#endif
++#undef VOID
++#define VOID                    void
++typedef int64_t                 INTN;
++typedef uint64_t                UINTN;
++
++#define EFI_ERROR_MASK          0x8000000000000000
++#define EFIERR(a)               (EFI_ERROR_MASK | a)
++#define EFIERR_OEM(a)           (0xc000000000000000 | a)
++
++#define BAD_POINTER             0xFBFBFBFBFBFBFBFB
++#define MAX_ADDRESS             0xFFFFFFFFFFFFFFFF
++
++#define BREAKPOINT()            while(1);
++
++//
++// Pointers must be aligned to these address to function
++//
++#define MIN_ALIGNMENT_SIZE      8
++
++#define ALIGN_VARIABLE(Value, Adjustment) \
++   (UINTN)Adjustment = 0; \
++   if((UINTN)Value % MIN_ALIGNMENT_SIZE) \
++       (UINTN)Adjustment = MIN_ALIGNMENT_SIZE - ((UINTN)Value % MIN_ALIGNMENT_SIZE); \
++   Value = (UINTN)Value + (UINTN)Adjustment
++
++//
++// Define macros to build data structure signatures from characters.
++//
++#define EFI_SIGNATURE_16(A,B)             ((A) | (B<<8))
++#define EFI_SIGNATURE_32(A,B,C,D)         (EFI_SIGNATURE_16(A,B)     | (EFI_SIGNATURE_16(C,D)     << 16))
++#define EFI_SIGNATURE_64(A,B,C,D,E,F,G,H) (EFI_SIGNATURE_32(A,B,C,D) | ((UINT64)(EFI_SIGNATURE_32(E,F,G,H)) << 32))
++
++//
++// EFIAPI - prototype calling convention for EFI function pointers
++// BOOTSERVICE - prototype for implementation of a boot service interface
++// RUNTIMESERVICE - prototype for implementation of a runtime service interface
++// RUNTIMEFUNCTION - prototype for implementation of a runtime function that is not a service
++// RUNTIME_CODE - pragma macro for declaring runtime code
++//
++#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options
++#define EFIAPI                  // Substitute expresion to force C calling convention
++#endif
++#define BOOTSERVICE
++#define RUNTIMESERVICE
++#define RUNTIMEFUNCTION
++#define RUNTIME_CODE(a)         alloc_text("rtcode", a)
++#define BEGIN_RUNTIME_DATA()    data_seg("rtdata")
++#define END_RUNTIME_DATA()      data_seg("")
++
++#define VOLATILE                volatile
++#define MEMORY_FENCE            __sync_synchronize
++
++//
++// When build similiar to FW, then link everything together as
++// one big module. For the MSVC toolchain, we simply tell the
++// linker what our driver init function is using /ENTRY.
++//
++#if defined(_MSC_EXTENSIONS)
++#define EFI_DRIVER_ENTRY_POINT(InitFunction) \
++    __pragma(comment(linker, "/ENTRY:" # InitFunction))
++#else
++#define EFI_DRIVER_ENTRY_POINT(InitFunction)    \
++    UINTN                                       \
++    InitializeDriver (                          \
++        VOID    *ImageHandle,                   \
++        VOID    *SystemTable                    \
++        )                                       \
++    {                                           \
++        return InitFunction(ImageHandle,        \
++                SystemTable);                   \
++    }                                           \
++                                                \
++    EFI_STATUS efi_main(                        \
++        EFI_HANDLE image,                       \
++        EFI_SYSTEM_TABLE *systab                \
++        ) __attribute__((weak,                  \
++                alias ("InitializeDriver")));
++#endif
++
++#define LOAD_INTERNAL_DRIVER(_if, type, name, entry) \
++   (_if)->LoadInternal(type, name, entry)
++
++//
++// Some compilers don't support the forward reference construct:
++//  typedef struct XXXXX
++//
++// The following macro provide a workaround for such cases.
++#define INTERFACE_DECL(x)       struct x
++
++#define uefi_call_wrapper(func, va_num, ...) func(__VA_ARGS__)
++#define EFI_FUNCTION
+diff --git a/inc/riscv64/efilibplat.h b/inc/riscv64/efilibplat.h
+new file mode 100644
+index 0000000..0a61b24
+--- /dev/null
++++ b/inc/riscv64/efilibplat.h
+@@ -0,0 +1,7 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++
++VOID
++InitializeLibPlatform (
++    IN EFI_HANDLE           ImageHandle,
++    IN EFI_SYSTEM_TABLE     *SystemTable
++    );
+diff --git a/inc/riscv64/efisetjmp_arch.h b/inc/riscv64/efisetjmp_arch.h
+new file mode 100644
+index 0000000..2bb4efd
+--- /dev/null
++++ b/inc/riscv64/efisetjmp_arch.h
+@@ -0,0 +1,38 @@
++#ifndef GNU_EFI_RISCV64_SETJMP_H
++#define GNU_EFI_RISCV64_SETJMP_H
++
++#define JMPBUF_ALIGN 8
++
++typedef struct {
++	/* GP regs */
++	UINT64	s0;
++	UINT64	s1;
++	UINT64	s2;
++	UINT64	s3;
++	UINT64	s4;
++	UINT64	s5;
++	UINT64	s6;
++	UINT64	s7;
++	UINT64	s8;
++	UINT64	s9;
++	UINT64	s10;
++	UINT64	s11;
++	UINT64	sp;
++	UINT64	ra;
++
++	/* FP regs */
++	UINT64	fs0;
++	UINT64	fs1;
++	UINT64	fs2;
++	UINT64	fs3;
++	UINT64	fs4;
++	UINT64	fs5;
++	UINT64	fs6;
++	UINT64	fs7;
++	UINT64	fs8;
++	UINT64	fs9;
++	UINT64	fs10;
++	UINT64	fs11;
++} ALIGN(JMPBUF_ALIGN) jmp_buf[1];
++
++#endif /* GNU_EFI_RISCV64_SETJMP_H */
+diff --git a/lib/hand.c b/lib/hand.c
+index e28b195..0447ddc 100644
+--- a/lib/hand.c
++++ b/lib/hand.c
+@@ -488,6 +488,7 @@ LibInstallProtocolInterfaces (
+ 
+         Index += 1;
+     }
++    ms_va_end (args);
+ 
+     //
+     // If there was an error, remove all the interfaces that were
+@@ -506,6 +507,7 @@ LibInstallProtocolInterfaces (
+         }        
+ 
+         *Handle = OldHandle;
++        ms_va_end (args);
+     }
+ 
+     //
+@@ -552,6 +554,7 @@ LibUninstallProtocolInterfaces (
+             DEBUG((D_ERROR, "LibUninstallProtocolInterfaces: failed %g, %r\n", Protocol, Handle));
+         }
+     }
++    ms_va_end (args);
+ }    
+ 
+ 
+@@ -607,6 +610,7 @@ LibReinstallProtocolInterfaces (
+ 
+         Index += 1;
+     }
++    ms_va_end (args);
+ 
+     //
+     // If there was an error, undo all the interfaces that were
+@@ -624,7 +628,8 @@ LibReinstallProtocolInterfaces (
+             uefi_call_wrapper(BS->ReinstallProtocolInterface, 4, Handle, Protocol, NewInterface, OldInterface);
+ 
+             Index -= 1;
+-        }        
++        }
++        ms_va_end (args);
+     }
+ 
+     //
+diff --git a/lib/misc.c b/lib/misc.c
+index c9a4b0b..54eb446 100644
+--- a/lib/misc.c
++++ b/lib/misc.c
+@@ -110,9 +110,9 @@ SetMem (
+ 
+ VOID EFIAPI
+ CopyMem (
+-    IN VOID     *Dest,
+-    IN VOID     *Src,
+-    IN UINTN    len
++    IN VOID           *Dest,
++    IN CONST VOID     *Src,
++    IN UINTN          len
+     )
+ {
+     RtCopyMem (Dest, Src, len);
+@@ -246,7 +246,7 @@ LibGetVariableAndSize (
+     OUT UINTN               *VarSize
+     )
+ {
+-    EFI_STATUS              Status;
++    EFI_STATUS              Status = EFI_SUCCESS;
+     VOID                    *Buffer;
+     UINTN                   BufferSize;
+ 
+@@ -386,7 +386,9 @@ LibInsertToTailOfBootOrder (
+ 
+     VarSize += sizeof(UINT16);
+     NewBootOptionArray = AllocatePool (VarSize);
+-    
++    if (!NewBootOptionArray)
++        return EFI_OUT_OF_RESOURCES;
++
+     for (Index = 0; Index < ((VarSize/sizeof(UINT16)) - 1); Index++) {
+         NewBootOptionArray[Index] = BootOptionArray[Index];
+     }
+@@ -403,9 +405,7 @@ LibInsertToTailOfBootOrder (
+                 VarSize, (VOID*) NewBootOptionArray
+                 );
+ 
+-    if (NewBootOptionArray) {
+-        FreePool (NewBootOptionArray);
+-    }
++    FreePool (NewBootOptionArray);
+     if (BootOptionArray) {
+         FreePool (BootOptionArray);
+     }
+diff --git a/lib/print.c b/lib/print.c
+index becbc5e..d33e74d 100644
+--- a/lib/print.c
++++ b/lib/print.c
+@@ -1377,7 +1377,7 @@ ValueToString (
+         *(p1++) = (CHAR8)r + '0';
+     }
+ 
+-    c = (Comma ? ca[(p1 - str) % 3] : 999) + 1;
++    c = (UINTN) (Comma ? ca[(p1 - str) % 3] : 999) + 1;
+     while (p1 != str) {
+ 
+         c -= 1;
+diff --git a/lib/riscv64/initplat.c b/lib/riscv64/initplat.c
+new file mode 100644
+index 0000000..ed42037
+--- /dev/null
++++ b/lib/riscv64/initplat.c
+@@ -0,0 +1,11 @@
++// SPDX-License-Identifier: GPL-2.0+
++
++#include "lib.h"
++
++VOID
++InitializeLibPlatform (
++    IN EFI_HANDLE           ImageHandle EFI_UNUSED,
++    IN EFI_SYSTEM_TABLE     *SystemTable EFI_UNUSED
++    )
++{
++}
+diff --git a/lib/riscv64/math.c b/lib/riscv64/math.c
+new file mode 100644
+index 0000000..3653e42
+--- /dev/null
++++ b/lib/riscv64/math.c
+@@ -0,0 +1,62 @@
++// SPDX-License-Identifier: BSD-2-Clause-Patent
++/*
++ * This code is based on EDK II MdePkg/Library/BaseLib/Math64.c
++ * Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.
++ */
++
++#include "lib.h"
++
++/**
++ * LShiftU64() - left shift
++ */
++UINT64
++LShiftU64 (
++	IN UINT64   Operand,
++	IN UINTN    Count
++)
++{
++	return Operand << Count;
++}
++
++/**
++ * RShiftU64() - right shift
++ */
++UINT64
++RShiftU64 (
++	IN UINT64   Operand,
++	IN UINTN    Count
++)
++{
++	return Operand >> Count;
++}
++
++/**
++ * MultU64x32() - multiply
++ */
++UINT64
++MultU64x32 (
++	IN UINT64   Multiplicand,
++	IN UINTN    Multiplier
++)
++{
++	return Multiplicand * Multiplier;
++}
++
++/**
++ * DivU64x32() - divide
++ */
++UINT64
++DivU64x32 (
++	IN UINT64   Dividend,
++	IN UINTN    Divisor,
++	OUT UINTN   *Remainder OPTIONAL
++)
++{
++	ASSERT(Divisor != 0);
++
++	if (Remainder) {
++		*Remainder = Dividend % Divisor;
++	}
++
++	return Dividend / Divisor;
++}
+diff --git a/lib/riscv64/setjmp.S b/lib/riscv64/setjmp.S
+new file mode 100644
+index 0000000..fa187d1
+--- /dev/null
++++ b/lib/riscv64/setjmp.S
+@@ -0,0 +1,69 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Copyright Heinrich Schuchardt <xypron.glpk@gmx.de>
++ */
++
++	.text
++	.p2align 3
++
++#define GREG_LIST \
++	REG_ONE(s0, 0); \
++	REG_ONE(s1, 8); \
++	REG_ONE(s2, 16); \
++	REG_ONE(s3, 24); \
++	REG_ONE(s4, 32); \
++	REG_ONE(s5, 40); \
++	REG_ONE(s6, 48); \
++	REG_ONE(s7, 56); \
++	REG_ONE(s8, 64); \
++	REG_ONE(s9, 72); \
++	REG_ONE(s10, 80); \
++	REG_ONE(s11, 88); \
++	REG_ONE(sp, 96); \
++	REG_ONE(ra, 104);
++
++#define FREG_LIST \
++	FREG_ONE(fs0,  112); \
++	FREG_ONE(fs1,  120); \
++	FREG_ONE(fs2,  128); \
++	FREG_ONE(fs3,  136); \
++	FREG_ONE(fs4,  144); \
++	FREG_ONE(fs5,  152); \
++	FREG_ONE(fs6,  160); \
++	FREG_ONE(fs7,  168); \
++	FREG_ONE(fs8,  176); \
++	FREG_ONE(fs9,  184); \
++	FREG_ONE(fs10, 192); \
++	FREG_ONE(fs11, 200);
++
++#define REG_ONE(R, P) sd R, P(a0)
++#define FREG_ONE(R, P) fsd R, P(a0)
++
++	.globl setjmp
++	.type setjmp, @function
++
++setjmp:
++	GREG_LIST
++#ifndef __riscv_float_abi_soft
++	FREG_LIST
++#endif
++	li a0, 0
++	ret
++
++#undef REG_ONE
++#undef FREG_ONE
++
++#define REG_ONE(R, P) ld R, P(a0)
++#define FREG_ONE(R, P) fld R, P(a0)
++
++	.globl longjmp
++	.type longjmp, @function
++
++longjmp:
++	GREG_LIST
++#ifndef __riscv_float_abi_soft
++	FREG_LIST
++#endif
++	seqz a0, a1
++	add a0, a0, a1
++	ret
+diff --git a/lib/smbios.c b/lib/smbios.c
+index d349fb6..23bb477 100644
+--- a/lib/smbios.c
++++ b/lib/smbios.c
+@@ -44,7 +44,7 @@ LibGetSmbiosSystemGuidAndSerialNumber (
+     }
+ 
+     Smbios.Hdr = (SMBIOS_HEADER *)SmbiosTable->TableAddress;
+-    SmbiosEnd.Raw = (UINT8 *)(SmbiosTable->TableAddress + SmbiosTable->TableLength);
++    SmbiosEnd.Raw = (UINT8 *)((UINTN)SmbiosTable->TableAddress + SmbiosTable->TableLength);
+     for (Index = 0; Index < SmbiosTable->TableLength ; Index++) {
+         if (Smbios.Hdr->Type == 1) {
+             if (Smbios.Hdr->Length < 0x19) {
+diff --git a/lib/str.c b/lib/str.c
+index b78bf86..77c859d 100644
+--- a/lib/str.c
++++ b/lib/str.c
+@@ -238,7 +238,7 @@ xtoi (
+         }
+ 
+         if ((c >= '0'  &&  c <= '9')  ||  (c >= 'A'  &&  c <= 'F')) {
+-            u = (u << 4)  |  (c - (c >= 'A' ? 'A'-10 : '0'));
++            u = (u << 4)  |  ((UINTN)c - (c >= 'A' ? 'A'-10 : '0'));
+         } else {
+             break;
+         }
