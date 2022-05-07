@@ -1,6 +1,6 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 444265)
+--- PKGBUILD	(revision 444750)
 +++ PKGBUILD	(working copy)
 @@ -6,3 +6,3 @@
  pkgbase=mesa
@@ -12,7 +12,13 @@ Index: PKGBUILD
 -             'valgrind' 'glslang' 'vulkan-icd-loader' 'directx-headers' 'cmake' 'meson')
 +             'valgrind' 'glslang' 'vulkan-icd-loader' 'cmake' 'meson')
  url="https://www.mesa3d.org/"
-@@ -41,4 +41,5 @@
+@@ -32,3 +32,4 @@
+   cd mesa-$pkgver
+-
++  # Workaround to disable llvmpipe without turning off draw-use-llvm
++  sed -i 's|if draw_with_llvm|if false|' src/gallium/meson.build
+ }
+@@ -41,4 +42,5 @@
    # https://gitlab.freedesktop.org/mesa/mesa/-/issues/6229
 -  CFLAGS+=' -mtls-dialect=gnu'
 -  CXXFLAGS+=' -mtls-dialect=gnu'
@@ -20,7 +26,7 @@ Index: PKGBUILD
 +  # CFLAGS+=' -mtls-dialect=gnu'
 +  # CXXFLAGS+=' -mtls-dialect=gnu'
  
-@@ -47,5 +48,5 @@
+@@ -47,5 +49,5 @@
      -D platforms=x11,wayland \
 -    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,svga,swrast,iris,crocus,zink,d3d12 \
 -    -D vulkan-drivers=amd,intel,swrast \
@@ -29,15 +35,11 @@ Index: PKGBUILD
 +    -D vulkan-drivers=amd \
 +    -D vulkan-layers=device-select,overlay \
      -D dri3=enabled \
-@@ -53,3 +54,3 @@
+@@ -53,3 +55,3 @@
      -D gallium-extra-hud=true \
 -    -D gallium-nine=true \
 +    -D gallium-nine=false \
      -D gallium-omx=bellagio \
-@@ -67,2 +68,3 @@
-     -D llvm=enabled \
-+    -D draw-use-llvm=false \
-     -D lmsensors=enabled \
 @@ -199,3 +201,2 @@
    _install fakeinstall/usr/lib/bellagio
 -  _install fakeinstall/usr/lib/d3d
