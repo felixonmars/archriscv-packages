@@ -1,33 +1,15 @@
-diff --git PKGBUILD PKGBUILD
-index 5a10dc6..f75dae8 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,7 +29,8 @@ source=("https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-community
- 	"https://downloads.sourceforge.net/project/boost/boost/${_boost_version}/boost_${_boost_version//./_}.tar.bz2"
- 	'0001-mysql-workbench-no-check-for-updates.patch'
- 	'0002-disable-unsupported-operating-system-warning.patch'
--	'arch_linux_profile.xml')
-+	'arch_linux_profile.xml'
-+	"fix_pthread_linking.patch")
- sha256sums=('a6753b08be1157cd6d67fea7cf6a195ea0af46c7bfa2a6462e102375cba864c8'
-             'SKIP'
-             'd869369eb6de4f2bb2db8d3b31b7b73968e356e5ffc4354f4b96658ab1e48b22'
-@@ -40,9 +41,13 @@ sha256sums=('a6753b08be1157cd6d67fea7cf6a195ea0af46c7bfa2a6462e102375cba864c8'
-             '4eb3b8d442b426dc35346235c8733b5ae35ba431690e38c6a8263dce9fcbb402'
-             'cdf687f23bc6e8d52dbee9fa02b23d755e80f88476f0fc2e7c4c71cdfed3792f'
-             '2d0f6dcf38f22e49ef7ab9de0230484f1ffac41b7ac40feaf5ef4538ae2f7a18'
--            'd816164098c90c432b4fe590708c14f95ab137abfe16ad1b7d498b2e83c0e265')
-+            'd816164098c90c432b4fe590708c14f95ab137abfe16ad1b7d498b2e83c0e265'
-+            '6fedf11d3e5b8a1786a570dfc17bf5eaae9572071f686f600fd95aec251c97cc')
+@@ -74,6 +74,8 @@ prepare() {
  
- prepare() {
-+	cd "${srcdir}/mysql-${_mysql_version}"
-+	patch -Np1 -i "../fix_pthread_linking.patch"
+ 	# be happy with more recent antlr
+ 	sed -i "/set(ANTLR_JAR_FILENAME/s/4.9.1/${_antlr4_version}/" CMakeLists.txt
 +
- 	cd "${srcdir}/mysql-workbench-community-${pkgver}-src/"
++	sed -i 's|unixodbc_conf.h|unixODBC/unixodbc_conf.h|' build/cmake/Modules/FindUNIXODBC.cmake plugins/migration/CMakeLists.txt
+ }
  
- 	# Disable 'Help' -> 'Check for Updates'
-@@ -118,7 +123,7 @@ build() {
+ build() {
+@@ -144,7 +146,7 @@ build() {
  	cmake "${srcdir}/mysql-workbench-community-${pkgver}-src" \
  		-Wno-dev \
  		-DCMAKE_INSTALL_PREFIX:PATH=/usr \
