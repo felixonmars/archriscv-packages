@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,8 +11,10 @@ depends=('gcc-libs')
+ makedepends=('git' 'rust')
+ options=('!lto')
+ _commit='ef6187aaa9ff7a2940d840cd320a7cd428fd617d'
+-source=("$pkgname::git+$url.git#commit=$_commit")
+-b2sums=('SKIP')
++source=("$pkgname::git+$url.git#commit=$_commit"
++        "$pkgname-tikv-jemallocator.patch::https://github.com/rcoh/angle-grinder/pull/165.patch")
++b2sums=('SKIP'
++        '3ef4a8dc865a51f5c5a91168d3c3bc36ad9da47f3f50e79eca83e5cc43af65b8d578a82858e3db4296a15b5453d92013bfd8da5a6d25c450b2796e1a19fd7a81')
+ 
+ pkgver() {
+   cd "$pkgname"
+@@ -23,7 +25,9 @@ pkgver() {
+ prepare() {
+   cd "$pkgname"
+ 
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  patch -Np1 -i "$srcdir/$pkgname-tikv-jemallocator.patch"
++
++  cargo fetch --locked
+ }
+ 
+ build() {
