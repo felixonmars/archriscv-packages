@@ -1,4 +1,7 @@
 #!/bin/bash
+
+source /usr/share/makepkg/util/message.sh
+
 ORIGDIR=$PWD
 for _dir in $(git diff --name-only upstream/master | cut -d / -f 1 | uniq); do
   if [[ ! -e "$_dir"/riscv64.patch ]]; then
