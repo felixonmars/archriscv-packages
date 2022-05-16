@@ -2,6 +2,11 @@
 
 source /usr/share/makepkg/util/message.sh
 
+if [[ -e riscv64.patch ]]; then
+  error "riscv64.patch is found in root directory."
+  exit 1
+fi
+
 ORIGDIR=$PWD
 for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 | uniq); do
   if [[ ! -e "$_dir"/riscv64.patch ]]; then
