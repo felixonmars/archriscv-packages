@@ -1,0 +1,42 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,12 +11,28 @@ license=('MIT')
+ depends=('glibc' 'v2ray-domain-list-community' 'v2ray-geoip')
+ makedepends=('go' 'git')
+ backup=(etc/v2ray/config.json)
+-source=("https://github.com/v2fly/v2ray-core/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+-sha512sums=('d8f374bfa723ce4ed8b8d633123cc7e8fd748b33218e55cc277cac1e69626ae44cb3096e62f8e50062faab5757d1e7c0ff36414e5920ee6d496f02ca8a68a7f0')
++source=("https://github.com/v2fly/v2ray-core/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
++        "$pkgname-go-1.17-readRequest.patch::https://github.com/v2fly/v2ray-core/pull/1370.patch"
++        "$pkgname-InitializeServerConfig-sleep.patch::https://github.com/v2fly/v2ray-core/pull/1786.patch"
++        "v2ray-testTCPConn2-timeout.patch")
++sha512sums=('d8f374bfa723ce4ed8b8d633123cc7e8fd748b33218e55cc277cac1e69626ae44cb3096e62f8e50062faab5757d1e7c0ff36414e5920ee6d496f02ca8a68a7f0'
++            '5e2b47337aeba9a2041b7f1d9289066c40d80e3cb8fd3c255983453d0243835d6c170dabc1c3d6105d5ed872b27a160f5ba6515d07e4f7a08e98891c53f536ee'
++            '36553288b92bbf7d1ae65cc9efec95f1ca695f73e17804a72270e96382c685dea1dcae69ecfd9603bf7af0cf730080ac59c61c4b91cb724191e985032d5a5a03'
++            '48afc3599c1e5c0d463e1fba378d0c44bce85e05456ca0280e6216852fc775cb8eee0546459b233e950ff4de1bd635012f216ea9bbc8c0a8bc805f3e306a01f1')
+ 
+ prepare() {
+   cd v2ray-core-$pkgver
+   sed -i 's|/usr/local/bin|/usr/bin|;s|/usr/local/etc|/etc|' release/config/systemd/system/*.service
++
++  # adapt Go 1.17
++  patch -Np1 -i $srcdir/$pkgname-go-1.17-readRequest.patch
++
++  # wait enough time for v2ray to start
++  patch -Np1 -i $srcdir/$pkgname-InitializeServerConfig-sleep.patch
++
++  # increase inlined timeouts
++  # reported to upstream as https://github.com/v2fly/v2ray-core/issues/1830
++  patch -Np1 -i $srcdir/v2ray-testTCPConn2-timeout.patch
+ }
+ 
+ build() {
+@@ -31,7 +47,7 @@ build() {
+ 
+ check() {
+   cd v2ray-core-$pkgver
+-  go test -p 1 -tags json -v -timeout 30m ./...
++  go test -p 1 -tags json -v -timeout 4h ./...
+ }
+ 
+ package() {
