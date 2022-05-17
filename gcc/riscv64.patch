@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index 97e827cf..514a502d 100644
+index 71009cec..27db70fd 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -7,7 +7,7 @@
@@ -10,7 +10,7 @@ index 97e827cf..514a502d 100644
 +pkgname=(gcc gcc-libs gcc-fortran gcc-objc gcc-go libgccjit)
  pkgver=12.1.0
  _majorver=${pkgver%%.*}
- pkgrel=1
+ pkgrel=2
 @@ -18,13 +18,9 @@ url='https://gcc.gnu.org'
  makedepends=(
    binutils
@@ -25,20 +25,21 @@ index 97e827cf..514a502d 100644
    python
    zstd
  )
-@@ -89,18 +85,20 @@ build() {
-       --enable-gnu-unique-object \
-       --enable-linker-build-id \
-       --enable-lto \
--      --enable-multilib \
-+      --disable-multilib \
-       --enable-plugin \
-       --enable-shared \
-       --enable-threads=posix \
-       --disable-libssp \
-       --disable-libstdcxx-pch \
-       --disable-werror \
--      --with-build-config=bootstrap-lto \
-       --enable-link-serialization=1"
+@@ -90,19 +86,21 @@ build() {
+       --enable-gnu-unique-object
+       --enable-linker-build-id
+       --enable-lto
+-      --enable-multilib
++      --disable-multilib
+       --enable-plugin
+       --enable-shared
+       --enable-threads=posix
+       --disable-libssp
+       --disable-libstdcxx-pch
+       --disable-werror
+-      --with-build-config=bootstrap-lto
+       --enable-link-serialization=1
+   )
  
    cd gcc-build
  
@@ -48,16 +49,16 @@ index 97e827cf..514a502d 100644
    # Credits @allanmcrae
    # https://github.com/allanmcrae/toolchain/blob/f18604d70c5933c31b51a320978711e4e6791cf1/gcc/PKGBUILD
    # TODO: properly deal with the build issues resulting from this
-@@ -108,7 +106,7 @@ build() {
+@@ -110,7 +108,7 @@ build() {
    CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
  
    "$srcdir/gcc/configure" \
 -    --enable-languages=c,c++,ada,fortran,go,lto,objc,obj-c++ \
 +    --enable-languages=c,c++,fortran,go,lto,objc,obj-c++ \
      --enable-bootstrap \
-     $_confflags
+     "${_confflags[@]:?_confflags unset}"
  
-@@ -122,6 +120,10 @@ build() {
+@@ -124,6 +122,10 @@ build() {
    # make documentation
    make -O -C $CHOST/libstdc++-v3/doc doc-man-doxygen
  
@@ -68,7 +69,7 @@ index 97e827cf..514a502d 100644
    # Build libgccjit separately, to avoid building all compilers with --enable-host-shared
    # which brings a performance penalty
    cd "${srcdir}"/libgccjit-build
-@@ -153,9 +155,9 @@ check() {
+@@ -155,9 +157,9 @@ check() {
  package_gcc-libs() {
    pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
@@ -80,7 +81,7 @@ index 97e827cf..514a502d 100644
    replaces=($pkgname-multilib)
  
    cd gcc-build
-@@ -166,11 +168,9 @@ package_gcc-libs() {
+@@ -168,11 +170,9 @@ package_gcc-libs() {
               libgfortran \
               libgo \
               libgomp \
@@ -94,7 +95,7 @@ index 97e827cf..514a502d 100644
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -178,24 +178,22 @@ package_gcc-libs() {
+@@ -180,24 +180,22 @@ package_gcc-libs() {
    make -C $CHOST/libstdc++-v3/po DESTDIR="$pkgdir" install
  
    for lib in libgomp \
@@ -122,7 +123,7 @@ index 97e827cf..514a502d 100644
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs debug)
-@@ -209,22 +207,18 @@ package_gcc() {
+@@ -211,22 +209,18 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -147,7 +148,7 @@ index 97e827cf..514a502d 100644
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -235,20 +229,14 @@ package_gcc() {
+@@ -237,20 +231,14 @@ package_gcc() {
      "$pkgdir/usr/lib/bfd-plugins/"
  
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_{libsubinclude,toolexeclib}HEADERS
@@ -169,7 +170,7 @@ index 97e827cf..514a502d 100644
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -263,9 +251,6 @@ package_gcc() {
+@@ -265,9 +253,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -179,7 +180,7 @@ index 97e827cf..514a502d 100644
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -285,8 +270,6 @@ package_gcc-fortran() {
+@@ -287,8 +272,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -188,7 +189,7 @@ index 97e827cf..514a502d 100644
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -316,45 +299,6 @@ package_gcc-objc() {
+@@ -318,45 +301,6 @@ package_gcc-objc() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -234,7 +235,7 @@ index 97e827cf..514a502d 100644
  package_gcc-go() {
    pkgdesc='Go front-end for GCC'
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -364,11 +308,10 @@ package_gcc-go() {
+@@ -366,11 +310,10 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
@@ -247,7 +248,7 @@ index 97e827cf..514a502d 100644
    install -Dm755 gcc/go1 "$pkgdir/${_libdir}/go1"
  
    # Install Runtime Library Exception
-@@ -377,40 +320,6 @@ package_gcc-go() {
+@@ -379,40 +322,6 @@ package_gcc-go() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
