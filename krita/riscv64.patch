@@ -1,26 +1,26 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,14 +16,21 @@ optdepends=('poppler-qt5: PDF filter' 'ffmpeg: to save animations'
-             'python-pyqt5: for the Python plugins' 'libheif: HEIF filter'
+@@ -17,10 +17,12 @@ optdepends=('poppler-qt5: PDF filter' 'ffmpeg: to save animations'
              'kseexpr: SeExpr generator layer' 'kimageformats: PSD support' 'libmypaint: support for MyPaint brushes'
              'krita-plugin-gmic: GMic plugin')
--source=(https://download.kde.org/stable/krita/$_pkgver/$pkgname-$_pkgver.tar.gz{,.sig})
-+source=(https://download.kde.org/stable/krita/$_pkgver/$pkgname-$_pkgver.tar.gz{,.sig}
+ source=(https://download.kde.org/stable/krita/$_pkgver/$pkgname-$_pkgver.tar.gz{,.sig}
+-        krita-kxmlgui-5.94.patch)
++        krita-kxmlgui-5.94.patch
 +        $pkgname-support-compiling-on-risc-v.patch::https://invent.kde.org/graphics/krita/-/merge_requests/1416.patch)
  sha256sums=('edd76d1b3e5fd00cffb90c4fdaa4dafecc8bf3638d1f7bccf463ec11ea3e0e62'
--            'SKIP')
-+            'SKIP'
+             'SKIP'
+-            'd9beba0f430efd0f8091e7718ba4f316e2979b75d467ac990191201a6de262a2')
++            'd9beba0f430efd0f8091e7718ba4f316e2979b75d467ac990191201a6de262a2'
 +            '475048d165fed3408e90382aabe846fef4a63a1eb1ea1639caf9f67512c062ad')
  validpgpkeys=('05D00A8B73A686789E0A156858B9596C722EA3BD'  # Boudewijn Rempt <foundation@krita.org>
                'E9FB29E74ADEACC5E3035B8AB69EB4CF7468332F'  # Dmitry Kazakov (main key) <dimula73@gmail.com>
                '064182440C674D9F8D0F6F8B4DA79EDA231C852B') # Stichting Krita Foundation <foundation@krita.org>
- options=(debug)
+@@ -28,6 +30,8 @@ options=(debug)
  
-+prepare() {
+ prepare() {
+   patch -d $pkgname-$_pkgver -p1 < krita-kxmlgui-5.94.patch # Fix crash with kxmlgui 5.94
 +  cd $pkgname-$_pkgver
 +  patch -Np1 -i ../$pkgname-support-compiling-on-risc-v.patch
-+}
-+
+ }
+ 
  build() {
-   cmake -B build -S $pkgname-$_pkgver \
-     -DBUILD_TESTING=OFF \
