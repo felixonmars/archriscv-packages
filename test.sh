@@ -45,7 +45,7 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
     error "Release directory does not exist for $REPO-any."
     exit 1
   elif ! cd ../repos/$REPO-x86_64; then
-    error "Release directory does not exist for $REPO-$ARCH."
+    error "Release directory does not exist for $REPO-x86_64."
     exit 1
   fi
 
