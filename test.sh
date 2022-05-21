@@ -40,7 +40,7 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
   fi
 
   ARCH=$(. PKGBUILD; echo $arch)
-  if ! cd ../repos/$REPO-$ARCH; then
+  if [ "${ARCH}" != "any" ] && ! cd ../repos/$REPO-x86_64; then
     error "Release directory does not exist for $REPO-$ARCH."
     exit 1
   fi
