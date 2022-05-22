@@ -1,5 +1,3 @@
-diff --git PKGBUILD PKGBUILD
-index 3e665b8a..a5da9820 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -5,7 +5,7 @@
@@ -9,9 +7,9 @@ index 3e665b8a..a5da9820 100644
 -pkgname=(rust lib32-rust-libs rust-musl rust-wasm rust-src)
 +pkgname=(rust rust-musl rust-wasm rust-src)
  epoch=1
- pkgver=1.60.0
+ pkgver=1.61.0
  pkgrel=1
-@@ -16,25 +16,31 @@ license=(MIT Apache)
+@@ -16,8 +16,8 @@ license=(MIT Apache)
  options=(!emptydirs !strip !lto)
  _llvm_ver=13.0.1
  depends=(gcc-libs llvm-libs curl libssh2 gcc)
@@ -22,26 +20,24 @@ index 3e665b8a..a5da9820 100644
  checkdepends=(procps-ng gdb)
  source=(
    "https://static.rust-lang.org/dist/rustc-$pkgver-src.tar.gz"{,.asc}
-   "https://github.com/llvm/llvm-project/releases/download/llvmorg-$_llvm_ver/compiler-rt-$_llvm_ver.src.tar.xz"{,.sig}
-+  "git+https://github.com/rust-lang/libc.git#tag=0.2.116"
-   0001-cargo-Change-libexec-dir.patch
+@@ -26,6 +26,9 @@ source=(
    0001-bootstrap-Change-libexec-dir.patch
    0002-compiler-Change-LLVM-targets.patch
    0003-compiler-Use-wasm-ld-for-wasm-targets.patch
-+  "replace_patched_libc_cc.patch"
-+  "libc_add_missing_syscalls.patch"::"https://github.com/rust-lang/libc/pull/2664.patch"
++  git+https://github.com/rust-lang/libc.git#tag=0.2.116
++  replace_patched_libc_cc.patch
++  libc_add_missing_syscalls.patch::https://github.com/rust-lang/libc/pull/2664.patch
  )
- sha256sums=('20ca826d1cf674daf8e22c4f8c4b9743af07973211c839b85839742314c838b7'
+ sha256sums=('ad0b4351675aa9abdf4c7e066613bd274c4391c5506db152983426376101daed'
              'SKIP'
-             '7b33955031f9a9c5d63077dedb0f99d77e4e7c996266952c1cec55626dca5dfc'
-             'SKIP'
+@@ -34,7 +37,10 @@ sha256sums=('ad0b4351675aa9abdf4c7e066613bd274c4391c5506db152983426376101daed'
+             'c901a9bb036c29ca092f7dbc8b447efdd9aa1044a902a88f9d024cb22681dc19'
+             '60c6dfc100d292284af2187cfefc1d0d928139ca557d27bc6bef88edefccff70'
+             '8dcb566da29a92ecf3eb6afe094d9c7766d08230d90fd666bfd022c018ae676a'
+-            '26bf232d144b81a303ed91f6a331ddf004c5d9fefd41a11e36b61812a34459aa')
++            '26bf232d144b81a303ed91f6a331ddf004c5d9fefd41a11e36b61812a34459aa'
 +            'SKIP'
-             '0f8cfbe0387dd62909fe9cb9523223ae1c2319494e2caf5fa4d0592198631b3e'
-             '7a69e38716957ff074c5f932a82bbea1d9a3713a3f39d9085977cdc8df336c43'
-             '2ef851be0562d13431c5c81df0161f92984e79845fe986182225f2dae58a9452'
--            'f8ea25693ba42c7e185aa8677218783fe0cd60a3370926cb6996ec898b43d691')
-+            'f8ea25693ba42c7e185aa8677218783fe0cd60a3370926cb6996ec898b43d691'
-+            'b5ccc2dba05888de1c6fff7c4d41f8d3f42be4d88689cb27115087c7d9ea3268'
++            'ce04009c497f6f5499f6870196266e953ca3c33af4d404abf420e4f46514be57'
 +            '46efe435c3bf2f78a2434043e1eeb63620c5b50600eaef56a8e04f253f90dd8f')
  validpgpkeys=(108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
                474E22316ABF4785A88C6E8EA2C794A986419D8A  # Tom Stellard <tstellar@redhat.com>
@@ -75,7 +71,7 @@ index 3e665b8a..a5da9820 100644
  
  # LLVM crashes when passing an object through ThinLTO twice.  This is triggered
  # when using rust code in cross-language LTO if libstd was built using ThinLTO.
-@@ -101,12 +107,14 @@ codegen-units-std = 1
+@@ -104,12 +110,14 @@ deny-warnings = false
  [dist]
  compression-formats = ["gz"]
  
@@ -92,7 +88,7 @@ index 3e665b8a..a5da9820 100644
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -117,6 +125,10 @@ sanitizers = false
+@@ -120,6 +128,10 @@ sanitizers = false
  profiler = false
  wasi-root = "/usr/share/wasi-sysroot"
  END
@@ -103,7 +99,7 @@ index 3e665b8a..a5da9820 100644
  }
  
  _pick() {
-@@ -146,9 +158,7 @@ build() {
+@@ -149,9 +161,7 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -114,7 +110,7 @@ index 3e665b8a..a5da9820 100644
  
    mkdir -p usr/share/bash-completion
    mv etc/bash_completion.d usr/share/bash-completion/completions
-@@ -156,8 +166,7 @@ build() {
+@@ -159,8 +169,7 @@ build() {
    mkdir -p usr/share/licenses/rust
    mv -t usr/share/licenses/rust usr/share/doc/rust/{COPYRIGHT,LICENSE*}
  
@@ -124,7 +120,7 @@ index 3e665b8a..a5da9820 100644
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -172,19 +181,6 @@ package_rust() {
+@@ -175,19 +184,6 @@ package_rust() {
    cp -a dest-rust/* "$pkgdir"
  }
  
