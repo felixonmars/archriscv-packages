@@ -1,29 +1,20 @@
 diff --git PKGBUILD PKGBUILD
-index 4764afc4..fb30a672 100644
+index 4764afc4..be95fbe4 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,8 +13,22 @@
-             'unrar: unpacking archives'
-             'p7zip: unpacking archives')
- changelog=$pkgname.changelog
--source=(https://github.com/nzbget/$pkgname/releases/download/v$pkgver/$pkgname-$pkgver-src.tar.gz)
--sha256sums=('4e8fc1beb80dc2af2d6a36a33a33f44dedddd4486002c644f4c4793043072025')
-+source=(https://github.com/nzbget/$pkgname/releases/download/v$pkgver/$pkgname-$pkgver-src.tar.gz
-+        "config.guess::https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;h=160ecf0951b98437659d21c66e9a3a02056260bc"
-+        "config.sub::https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;h=dba16e84c77c7d25871d80c24deff717faf4c094")
-+sha256sums=('4e8fc1beb80dc2af2d6a36a33a33f44dedddd4486002c644f4c4793043072025'
-+            '1416b16261f1819a1b09fd78cba8c96c4f064967d7aae0959221596f1defda78'
-+            'deb02c26f43b2ea64276c9ede77ec0f53d08e6256710f3c0a12275712085c348')
-+
+@@ -16,6 +16,15 @@
+ source=(https://github.com/nzbget/$pkgname/releases/download/v$pkgver/$pkgname-$pkgver-src.tar.gz)
+ sha256sums=('4e8fc1beb80dc2af2d6a36a33a33f44dedddd4486002c644f4c4793043072025')
+ 
 +prepare() {
 +  # https://github.com/nzbget/nzbget/issues/755
 +  # https://github.com/nzbget/nzbget/pull/765
-+  cd ${pkgname}-${pkgver}/posix
-+  
-+  cp ${srcdir}/config.guess . && chmod +x config.guess
-+  cp ${srcdir}/config.sub . && chmod +x config.sub
++  cd ${pkgname}-${pkgver}
++  _sharedir=/usr/share/autoconf/build-aux
++  cp ${_sharedir}/config.guess posix
++  cp ${_sharedir}/config.sub posix
 +}
 +
- 
  build() {
    cd $pkgname-$pkgver
+ 
