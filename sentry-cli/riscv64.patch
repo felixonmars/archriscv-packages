@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,7 +21,15 @@ build() {
+ 
+ check() {
+   cd $pkgname-$pkgver
+-  cargo test --release --locked -- --skip command_bash_hook --skip vcs --skip send_event
++  cargo test --release --locked -- --skip command_bash_hook --skip vcs --skip send_event \
++      --skip command_update
++    # Before running the command_update test, sentry-cli will first try to get list of filename
++    # from the github release page and get version information with current arch and platform
++    # string as pattern.
++    # However this project didn't officially support RISC-V, so the test will fail.
++    # Since they skip execution in their integration test, it is ok to skip the test here too.
++    # Ref:
++    # https://github.com/getsentry/sentry-cli/blob/3beed9b6affd0f22e60dbae823a7ae1374c6f975/src/commands/update.rs#L40
+ }
+ 
+ package() {
