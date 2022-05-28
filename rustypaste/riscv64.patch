@@ -1,22 +1,13 @@
-diff --git PKGBUILD PKGBUILD
-index 640533fd..ffd36ccb 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,7 +16,7 @@ b2sums=('7990b54805e7130862e6047f9393fe5c539dc4ded32e4d74bd4fedc34c610717dccdd10
+@@ -16,7 +16,9 @@ b2sums=('a46cae0327a32c3b3c4e70bf0fc8d5ae11e3b01e87f3240fd125264c6cada25129a9979
  
  prepare() {
    cd ${pkgname}-${pkgver}
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++  cargo update -p ring
 +  cargo fetch --locked
  }
  
  build() {
-@@ -24,6 +24,8 @@ build() {
-   export RUSTUP_TOOLCHAIN=stable
-   export CARGO_TARGET_DIR=target
-   CFLAGS+=' -ffat-lto-objects'
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
-   cargo build --release --frozen
- }
- 
