@@ -1,0 +1,29 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+
+pkgname=opensbi
+pkgver=1.0
+pkgrel=1
+pkgdesc='RISC-V Open Source Supervisor Binary Interface'
+arch=('riscv64')
+url='https://github.com/riscv-software-src/opensbi'
+license=('BSD')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/riscv-software-src/opensbi/archive/v$pkgver.tar.gz"
+        https://github.com/riscv-software-src/opensbi/commit/5d53b55aa77ffeefd4012445dfa6ad3535e1ff2c.patch)
+sha512sums=('7efc2440df1aa7b3bfdd7b44f9c87f8cf15d0aff5a318b742bc591f7599a68e383bbae161a507fb0bb5520cb49fd7ff0f8f0bf5897868319f0f74270addfea26'
+            '3fdeb22db1c93a0ace08d93767f1d98d414364f29c2034059cbe3609cbc2fd9fb0a1df9bbdabaaf4101e5f1a701799892e8caab9edd63bb8fbc131e0082c0c4b')
+
+prepare() {
+  cd $pkgname-$pkgver
+  # opensbi-1.0/lib/sbi/sbi_tlb.c:190: Error: unrecognized opcode `fence.i'
+  patch -p1 -i ../5d53b55aa77ffeefd4012445dfa6ad3535e1ff2c.patch
+}
+
+build() {
+  cd $pkgname-$pkgver
+  make PLATFORM=generic
+}
+
+package() {
+  cd $pkgname-$pkgver
+  make PLATFORM=generic I="$pkgdir/usr" INSTALL_LIB_PATH=lib install
+}
