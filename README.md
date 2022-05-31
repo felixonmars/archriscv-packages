@@ -9,4 +9,6 @@ Homepage, image downloads and porting progress: https://archriscv.felixc.at
 
 Detailed package status page: https://archriscv.felixc.at/.status/status.htm
 
+Wiki/Contribution Guide: <https://github.com/felixonmars/archriscv-packages/wiki>
+
 IRC: #archlinuxriscv at libera.chat
