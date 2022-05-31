@@ -1,17 +1,17 @@
-From 356177353d835916f103305db475c79b0ee66781 Mon Sep 17 00:00:00 2001
-From: Coelacanthus <coelacanthus@outlook.com>
-Date: Mon, 24 Jan 2022 13:02:12 +0800
-Subject: [PATCH] Disable Chez Scheme because of no RISC-V support
-
----
- PKGBUILD | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
 diff --git PKGBUILD PKGBUILD
-index 1872407..aeb831c 100644
+index 995d5068..ff79e278 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -26,7 +26,7 @@ prepare() {
+@@ -21,12 +21,16 @@
+ prepare() {
+   cd "$pkgbase-$pkgver"
+   echo "Icon=drracket" >> share/pkgs/drracket/drracket/drracket.desktop
++  _sharedir=/usr/share/autoconf/build-aux
++  for _file in "config.guess" "config.sub"; do
++    find -name "${_file}" -exec  cp -v "${_sharedir}/${_file}" {} \;   
++  done
+ }
+ 
  build() {
    cd "$pkgbase-$pkgver/src"
    [ "$CARCH" == "x86_64" ] && export CFLAGS+=" -fPIC"
@@ -20,6 +20,3 @@ index 1872407..aeb831c 100644
    make
  }
  
--- 
-2.34.1
-
