@@ -1,30 +1,26 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 446423)
+--- PKGBUILD	(revision 447422)
 +++ PKGBUILD	(working copy)
-@@ -30,7 +30,8 @@
+@@ -25,6 +25,7 @@
+ source=(https://commondatastorage.googleapis.com/chromium-browser-official/$pkgname-$pkgver.tar.xz
+         https://github.com/foutrelis/chromium-launcher/archive/v$_launcher_ver/chromium-launcher-$_launcher_ver.tar.gz
+         https://github.com/stha09/chromium-patches/releases/download/chromium-${pkgver%%.*}-patchset-$_gcc_patchset/chromium-${pkgver%%.*}-patchset-$_gcc_patchset.tar.xz
++        riscv.patch
+         iwyu-add-utility-for-std-exchange.patch
          enable-GlobalMediaControlsCastStartStop.patch
-         chromium-libxml-unbundle.patch
-         sql-make-VirtualCursor-standard-layout-type.patch
--        use-oauth2-client-switches-as-default.patch)
-+        use-oauth2-client-switches-as-default.patch
-+        riscv.patch)
- sha256sums=('9c5896e4135563453ac10d15698c18ef61eb5535dc611325b230ece4c5a8d8f7'
+         roll-src-third_party-ffmpeg.patch
+@@ -35,6 +36,7 @@
+ sha256sums=('1a3797d36901fa3ba63744b9a870b65a8890c9a850442c160196bc64df886b1f'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '8ed519d21ccd8b382ddd384e9c15306a60d2e3495f48a62dea07c9be9bbffebd'
-@@ -39,7 +40,8 @@
+             '53de0f936fd571e578ba2fbf348c8741116cdcceac3ea6fae5008d8f054a7698'
++            '6d195f8140f2c21eb04aafd5cfd2e44c75d601bff6443f83ed6642ca5e575c89'
+             '6f666ef0acb08704ca58cc0d5e97e7ce64d8fea51042e593adae1ce15a61231c'
              '779fb13f2494209d3a7f1f23a823e59b9dded601866d3ab095937a1a04e19ac6'
-             'fd3bf124aacc45f2d0a4f1dd86303fa7f2a3d4f4eeaf33854631d6cb39e12485'
-             'b94b2e88f63cfb7087486508b8139599c89f96d7a4181c61fec4b4e250ca327a'
--            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
-+            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
-+            '8fb61af2d8db7547474a2b9859a21cbd1fd1590ba11c8ca40d1a424624b20f89')
- 
- # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
- # Keys are the names in the above script; values are the dependencies in Arch
-@@ -111,6 +113,9 @@
-   # Fixes for building with libstdc++ instead of libc++
-   #patch -Np1 -i ../patches/
+             '30df59a9e2d95dcb720357ec4a83d9be51e59cc5551365da4c0073e68ccdec44'
+@@ -120,6 +122,9 @@
+   patch -Np1 -i ../patches/chromium-102-fenced_frame_utils-include.patch
+   patch -Np1 -i ../patches/chromium-102-regex_pattern-array.patch
  
 +  # RISCV64
 +  patch -Np1 -i ../riscv.patch
@@ -32,7 +28,7 @@ Index: PKGBUILD
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -164,6 +169,10 @@
+@@ -173,6 +178,10 @@
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
