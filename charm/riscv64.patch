@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,6 +39,17 @@ prepare() {
+   # create directory for build output
+   mkdir build
+ 
++  # bump dependencies
++  # remove this line after https://github.com/charmbracelet/charm/pull/148 is merged
++  go get -u modernc.org/sqlite github.com/dgraph-io/badger/v3
++
++  # replace dependency github.com/jacobsa/crypto with https://github.com/jacobsa/crypto/pull/14
++  # upstream is not responding at https://github.com/charmbracelet/charm/issues/147
++  go mod edit -replace github.com/jacobsa/crypto=github.com/piggynl/jacobsa-crypto@xorblock-generic
++
++  # update go.sum after the go.mod changes
++  go mod tidy
++
+   # download dependencies
+   go mod download
+ }
