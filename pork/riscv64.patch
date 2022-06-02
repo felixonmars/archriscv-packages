@@ -1,24 +1,10 @@
-diff --git PKGBUILD PKGBUILD
-index 8ce72d1..82978b5 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,11 +9,17 @@ arch=('x86_64')
- url="http://dev.ojnk.net/"
- license=('GPL')
- depends=('ncurses' 'perl')
--source=(https://downloads.sourceforge.net/sourceforge/ojnk/$pkgname-$pkgver.tar.gz{,.asc})
-+source=(https://downloads.sourceforge.net/sourceforge/ojnk/$pkgname-$pkgver.tar.gz{,.asc}
-+        fix-format-security.patch)
- sha256sums=('f0d4cad21017fd75b3c200342c54dd56d9ff7bc38d1e9b3c8ba686ba53d585ed'
--            'SKIP')
-+            'SKIP'
-+            'dd29a9a7832eaf8ddf46e9ed4247090ac1aa740e7b410de84401f0f9a0b77b32')
- validpgpkeys=('7A4533F19780BF32793C1820DAD25608075C69BC') # Ryan McCabe (Odin) <odin@numb.org>
+@@ -20,6 +20,7 @@ validpgpkeys=('7A4533F19780BF32793C1820DAD25608075C69BC') # Ryan McCabe (Odin) <
  
-+prepare() {
-+  patch -Np1 -i $srcdir/fix-format-security.patch -d $pkgname-$pkgver
-+}
-+
- build() {
+ prepare() {
    cd $pkgname-$pkgver
- 
++  autoreconf -fiv
+   patch -Np1 -i ../fix-format-security.patch
+   patch -Np1 -i ../perl-5.36.patch
+ }
