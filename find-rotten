@@ -24,7 +24,8 @@ def is_rotten(package):
 
         try:
             for repo_dir in os.scandir(os.path.join(tempdir, package, "repos")):
-                if not repo_dir.name.split('-')[0] in ['core', 'extra', 'community'] or 'testing' in repo_dir.name or 'staging' in repo_dir.name:
+                if not repo_dir.name.split('-')[0] in ['core', 'extra',
+                                                       'community'] or 'testing' in repo_dir.name or 'staging' in repo_dir.name:
                     continue
                 shutil.copytree(package, repo_dir.path, dirs_exist_ok=True)
                 try:
@@ -63,6 +64,12 @@ def main():
 
     if ghosts := packages - all_packages:
         logger.warning("nonexistent packages: \n{}\n".format("\n".join(sorted(ghosts))))
+
+    with open('qemu-user-blacklist.txt') as qemu_user_blacklist:
+        qemu_user_blacklist_packages = set(qemu_user_blacklist.read().split())
+        if qemu_user_blacklist_ghosts := qemu_user_blacklist_packages - all_packages:
+            logger.warning("nonexistent packages in qemu-user-blacklist.txt: \n{}\n".format(
+                "\n".join(sorted(qemu_user_blacklist_ghosts))))
 
     packages = packages & all_packages
 
