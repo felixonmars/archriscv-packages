@@ -1,0 +1,75 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,6 +18,7 @@
+ source=(
+   "$_srcname::git+https://github.com/zen-kernel/zen-kernel?signed#tag=$_srctag"
+   config         # the main kernel config file
++  riscv64.config-patch
+ )
+ validpgpkeys=(
+   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
+@@ -26,7 +27,8 @@
+   'C5ADB4F3FEBBCE27A3E54D7D9AE4078033F8024D'  # Steven Barrett <steven@liquorix.net>
+ )
+ sha256sums=('SKIP'
+-            '28dd57a4c54e3c69bf58e763c87e3a815fc9d37d6ae2376e1374fbf448077a89')
++            '28dd57a4c54e3c69bf58e763c87e3a815fc9d37d6ae2376e1374fbf448077a89'
++            'b0679aabb8fdc8f51e7e0416d9519bc7f329f62aedc370999b4f8fcbe32c5b49')
+ 
+ export KBUILD_BUILD_HOST=archlinux
+ export KBUILD_BUILD_USER=$pkgbase
+@@ -54,6 +56,12 @@
+   make olddefconfig
+   diff -u ../config .config || :
+ 
++  patch -Np0 < ../riscv64.config-patch
++  mv .config .config.1
++  make mrproper
++  mv .config.1 .config
++  make olddefconfig
++
+   make -s kernelrelease > version
+   echo "Prepared $pkgbase version $(<version)"
+ }
+@@ -88,6 +96,9 @@
+   make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+     DEPMOD=/doesnt/exist modules_install  # Suppress depmod
+ 
++  echo "Installing dtbs..."
++  make INSTALL_DTBS_PATH="$pkgdir/usr/share/dtbs/$kernver" dtbs_install
++
+   # remove build and source links
+   rm "$modulesdir"/{source,build}
+ }
+@@ -103,19 +114,16 @@
+   install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
+     localversion.* version vmlinux
+   install -Dt "$builddir/kernel" -m644 kernel/Makefile
+-  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
++  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
+   cp -t "$builddir" -a scripts
+ 
+-  # required when STACK_VALIDATION is enabled
+-  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
+-
+   # required when DEBUG_INFO_BTF_MODULES is enabled
+   install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
+ 
+   echo "Installing headers..."
+   cp -t "$builddir" -a include
+-  cp -t "$builddir/arch/x86" -a arch/x86/include
+-  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
++  cp -t "$builddir/arch/riscv" -a arch/riscv/include
++  install -Dt "$builddir/arch/riscv/kernel" -m644 arch/riscv/kernel/asm-offsets.s
+ 
+   install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
+   install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
+@@ -137,7 +145,7 @@
+   echo "Removing unneeded architectures..."
+   local arch
+   for arch in "$builddir"/arch/*/; do
+-    [[ $arch = */x86/ ]] && continue
++    [[ $arch = */riscv/ ]] && continue
+     echo "Removing $(basename "$arch")"
+     rm -r "$arch"
+   done
