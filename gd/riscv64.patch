@@ -1,0 +1,29 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 448169)
++++ PKGBUILD	(working copy)
+@@ -11,9 +11,11 @@
+ optdepends=('perl: bdftogd script')
+ checkdepends=('ttf-liberation')
+ source=("https://github.com/libgd/libgd/archive/${pkgname}-${pkgver}.tar.gz"
+-        'https://github.com/libgd/libgd/commit/bdc281eadb1d58d5c0c7bbc1125ee4674256df08.patch')
++        'https://github.com/libgd/libgd/commit/bdc281eadb1d58d5c0c7bbc1125ee4674256df08.patch'
++        skip-failing-tests.patch)
+ sha256sums=('24429f9d0dbe0f865aaa4b1a63558242396ba9134e6cfd32ca5e486a84483350'
+-            '1e7bdb17e76ad6b1384222b449b9011ee131d3e1f105f9b30495a9c34b2cd5eb')
++            '1e7bdb17e76ad6b1384222b449b9011ee131d3e1f105f9b30495a9c34b2cd5eb'
++            '22fd7c51e96a345d777d789960c29e75745fb650fbd90de424a328edfedabda5')
+ 
+ prepare() {
+   cd libgd-${pkgname}-${pkgver}
+@@ -21,6 +23,10 @@
+   # Re-add macros that are used in PHP
+   # See https://github.com/php/php-src/pull/7490
+   patch -p1 -R -i "$srcdir/bdc281eadb1d58d5c0c7bbc1125ee4674256df08.patch"
++
++  # 2 tests fail on aarch64 (and riscv64): https://github.com/libgd/libgd/issues/745
++  # upstream disabled them only for aarch64: https://github.com/libgd/libgd/commit/4ff557bc31fc12fba0a57554bf5f596e7fb3f15b
++  patch -Np1 -i "$srcdir/skip-failing-tests.patch"
+ }
+ 
+ build() {
