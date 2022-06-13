@@ -1,0 +1,27 @@
+diff --git a/dpf/Makefile.base.mk b/dpf/Makefile.base.mk
+index 5496a6ea..fbb4358d 100644
+--- a/dpf/Makefile.base.mk
++++ b/dpf/Makefile.base.mk
+@@ -67,6 +67,9 @@ ifneq (,$(filter aarch64%,$(TARGET_PROCESSOR)))
+ CPU_AARCH64=true
+ CPU_ARM_OR_AARCH64=true
+ endif
++ifneq (,$(filter riscv64,$(TARGET_PROCESSOR)))
++CPU_RISCV64=true
++endif
+ 
+ # ---------------------------------------------------------------------------------------------------------------------
+ # Set PKG_CONFIG (can be overridden by environment variable)
+@@ -129,7 +132,11 @@ endif
+ # Set build and link flags
+ 
+ BASE_FLAGS = -Wall -Wextra -pipe -MD -MP
+-BASE_OPTS  = -O3 -ffast-math -mtune=generic -fdata-sections -ffunction-sections
++BASE_OPTS  = -O3 -ffast-math -fdata-sections -ffunction-sections
++
++ifneq ($(CPU_RISCV64),true)
++BASE_OPTS += -mtune=generic
++endif
+ 
+ ifeq ($(CPU_I386_OR_X86_64),true)
+ BASE_OPTS += -msse -msse2
