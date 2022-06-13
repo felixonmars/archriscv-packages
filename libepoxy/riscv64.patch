@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,8 +14,10 @@ makedepends=(git meson mesa-libgl systemd doxygen graphviz)
+ checkdepends=(xorg-server-xvfb)
+ options=(debug)
+ _commit=c84bc9459357a40e46e2fec0408d04fbdde2c973  # tags/1.5.10^0
+-source=("git+https://github.com/anholt/libepoxy#commit=$_commit")
+-sha256sums=('SKIP')
++source=("git+https://github.com/anholt/libepoxy#commit=$_commit"
++        "$pkgname-dlwrap-riscv64.patch::https://github.com/anholt/libepoxy/pull/270.patch")
++sha256sums=('SKIP'
++            'ce1dd6cbcf62f43b4019712f829d0220446262a18f81dc569b771b2cb031364d')
+ validpgpkeys=('53EF3DC3B63E2899271BD26322E8091EEA11BBB7') # Emmanuele Bassi <ebassi@gnome.org>
+ 
+ pkgver() {
+@@ -25,6 +27,7 @@ pkgver() {
+ 
+ prepare() {
+   cd libepoxy
++  patch -Np1 -i $srcdir/$pkgname-dlwrap-riscv64.patch
+ }
+ 
+ build() {
