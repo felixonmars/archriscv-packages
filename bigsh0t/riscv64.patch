@@ -1,21 +1,19 @@
---- PKGBUILD	(revision 1229934)
+--- PKGBUILD	(revision 1237843)
 +++ PKGBUILD	(working copy)
-@@ -9,9 +9,16 @@
+@@ -9,11 +9,14 @@
  license=(GPL)
  depends=(gcc-libs)
  makedepends=(cmake python)
 -source=($pkgname-$pkgver::https://bitbucket.org/leo_sutic/bigsh0t/get/$pkgver.tar.gz)
 -sha256sums=('7808e1ebd6329f3f52f66c76f3db65571f2422247a1e654f1617efcad3aaa484')
 +source=($pkgname-$pkgver::https://bitbucket.org/leo_sutic/bigsh0t/get/$pkgver.tar.gz
-+        'remove-march-and-disable-sse.patch')
++        disable-sse.patch)
 +sha256sums=('7808e1ebd6329f3f52f66c76f3db65571f2422247a1e654f1617efcad3aaa484'
-+            'd5312d660b4c102e41757a1f4450c0746e0d6dbfe5be5573ae251cdd25dedbe9')
++            '01a5a279263ba0572bf3b8db4b97f7087847eba24726693d7c99c078623d0b71')
  
-+prepare(){
-+  cd leo_sutic-$pkgname-dd6b0f7f2977
-+  patch -Np1 -i  '../remove-march-and-disable-sse.patch'
-+}
-+
+ prepare() {
+   sed -e 's|-march=native||' -i leo_sutic-$pkgname-*/CMakeLists.txt # Don't use -march=native
++  patch -Np1 leo_sutic-$pkgname-*/CMakeLists.txt 'disable-sse.patch'
+ }
+ 
  build() {
-   cmake -B build -S leo_sutic-$pkgname-* \
-     -DCMAKE_INSTALL_PREFIX=/usr
