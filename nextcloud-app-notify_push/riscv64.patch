@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,9 +18,11 @@ install="$pkgname.install"
+ groups=(nextcloud-apps)
+ _archive="${pkgname##*-}-$pkgver"
+ source=("$url/archive/v$pkgver/$_archive.tar.gz"
+-        "$pkgname.service")
++        "$pkgname.service"
++        "$pkgname-add-sleep.patch::https://github.com/nextcloud/notify_push/pull/171.patch")
+ sha256sums=('c53ccb6df9fd7319d9ec3a3c21b5a602666b88bd6e05e769dd9fc290eefa2df0'
+-            'b22b470f9e02d2bbe0c266431948daaadd7e7f007c27a989bdfcb063ee58fac6')
++            'b22b470f9e02d2bbe0c266431948daaadd7e7f007c27a989bdfcb063ee58fac6'
++            '24d0db1f384893f6d5d91b74e7a937357f271e5c2691ae5b8cd289e184124521')
+ 
+ # BEGIN boilerplate nextcloud app version clamping, see also other packages in group
+ # 1. Call respective function helpers in check() and package() *after* cd'ing to the source directory
+@@ -59,7 +61,10 @@ _nextcloud_app_package() {
+ 
+ prepare() {
+ 	cd "$_archive"
+-	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++	patch -Np1 -i ../$pkgname-add-sleep.patch
++	echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++	cargo update -p ring
++	cargo fetch --locked
+ 	sed -i -e "s/@ARCH@/$CARCH/" "../$pkgname.service"
+ }
+ 
