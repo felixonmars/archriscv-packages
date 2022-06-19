@@ -1,29 +1,25 @@
 diff --git PKGBUILD PKGBUILD
-index 5b50f2db..ee263107 100644
+index d1285890..2564f9c4 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,14 +18,22 @@ options=(debug)
+@@ -16,8 +16,18 @@ optdepends=('pipewire: WebRTC desktop sharing under Wayland')
+ groups=(qt6)
+ options=(debug)
  _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
- source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz
-         qt6-webengine-system-icu.patch::https://code.qt.io/cgit/qt/qtwebengine-chromium.git/patch/?id=75f0f4eb
--        qtbug-103778.patch::https://code.qt.io/cgit/qt/qtwebengine.git/patch/?id=8d0bd4b1)
-+        qtbug-103778.patch::https://code.qt.io/cgit/qt/qtwebengine.git/patch/?id=8d0bd4b1
+-source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
+-sha256sums=('ad7a33b21a956deda37c587d50f821ca3816403ae31ba9b5d59d01561ad66e47')
++source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz
 +        qt6-webengine-chromium-riscv64.patch
 +        qt6-webengine-cmake-riscv64.patch)
- sha256sums=('2001b45dd81dcb7ad1bc6cf1aa32f2eca5367a11fed49656053c75676c4d093d'
-             'ec28b71135f293f624365a50be0c329e396eaa9433655386af146614837e82a2'
--            '28c07aebc9725905d7b569b1eae815fec11f51433a21eab29177a29af67f8552')
-+            '28c07aebc9725905d7b569b1eae815fec11f51433a21eab29177a29af67f8552'
++sha256sums=('ad7a33b21a956deda37c587d50f821ca3816403ae31ba9b5d59d01561ad66e47'
 +            '7bef378ec8b0298b0f35895351762ab324f1ff258eeea162b0dde8818436acba'
 +            'fdf8bb4f09adefa432ed7ab3b0e2f375f5b99fcb80d39415f3c574cbe6b71fb2')
- 
- prepare() {
-   patch -d $_pkgfn/src/3rdparty -p1 < qt6-webengine-system-icu.patch # Fix build with system ICU
-   patch -d $_pkgfn -p1 < qtbug-103778.patch # Fix local->remote navigation
 +
++prepare() {
 +  # ported from openSUSE (see https://build.opensuse.org/package/show/openSUSE:Factory:RISCV/chromium)
 +  patch -d $_pkgfn/src/3rdparty -p1 < qt6-webengine-chromium-riscv64.patch # Fix riscv64 build for Chromium
 +  patch -d $_pkgfn -p1 < qt6-webengine-cmake-riscv64.patch # Fix Qt's CMake architecture detection
- }
++}
  
  build() {
+   cmake -B build -S $_pkgfn -G Ninja \
