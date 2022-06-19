@@ -1,11 +1,9 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 441595)
+--- PKGBUILD	(revision 448935)
 +++ PKGBUILD	(working copy)
-@@ -19,7 +19,9 @@
-         don-t-move-DBG_VALUE-instructions.patch
+@@ -21,7 +21,9 @@
          no-strict-aliasing-DwarfCompileUnit.patch
-         disable-bswap-for-spir.patch
+         disable-A-B-A-B-and-BSWAP-in-InstCombine.patch
+         disable-DIArgList-in-SPIR-V.patch
 -        llvm-config.h)
 +        llvm-config.h
 +        backport-riscv-insn-directive.patch::https://github.com/llvm/llvm-project/commit/283879793dc787225992496587581ec77b6b0610.patch
@@ -13,10 +11,10 @@ Index: PKGBUILD
  sha256sums=('ec6b80d82c384acad2dc192903a6cf2cdbaffb889b84bfb98da9d71e630fc834'
              'SKIP'
              'a7e902a7612d0fdabe436a917468b043cc296bc89d8954bfc3126f737beb9ac4'
-@@ -26,7 +28,9 @@
-             'f7d69f84241416398fdb3df8bb44f9fae3c49d89889c7ffa3b37aa2e9d78f708'
+@@ -30,7 +32,9 @@
              'd1eff24508e35aae6c26a943dbaa3ef5acb60a145b008fd1ef9ac6f6c4faa662'
-             'af163392fbc19d65d11ab4b1510a2eae39b417d6228023b3ba5395b138bb41f5'
+             '34cc0d79a30599cb2287b47b4e9a1a5bf03d57a1f8bb35be3fe976ffc4a604f6'
+             '8642da2d556092e4284873ba6ddc6c9a67841f42cc16f923bcd523e4b304a3ff'
 -            '597dc5968c695bbdbb0eac9e8eb5117fcd2773bc91edf5ec103ecffffab8bc48')
 +            '597dc5968c695bbdbb0eac9e8eb5117fcd2773bc91edf5ec103ecffffab8bc48'
 +            '03917e6e558a2de500aa59478e66aaff317d338c2282345d1d4d85fda4e3bf4d'
@@ -24,10 +22,10 @@ Index: PKGBUILD
  validpgpkeys+=('B6C8F98282B944E3B0D5C2530FC3042E345AD05D') # Hans Wennborg <hans@chromium.org>
  validpgpkeys+=('474E22316ABF4785A88C6E8EA2C794A986419D8A') # Tom Stellard <tstellar@redhat.com>
  
-@@ -47,6 +51,13 @@
- 
-   # Fix an ISPC build failure (https://github.com/ispc/ispc/issues/2189)
-   patch -Np2 -i ../disable-bswap-for-spir.patch
+@@ -57,6 +61,14 @@
+   # Patches needed for ISPC for Xe only
+   patch -Np2 -i ../disable-A-B-A-B-and-BSWAP-in-InstCombine.patch
+   patch -Np2 -i ../disable-DIArgList-in-SPIR-V.patch
 +
 +  # Backport llvm14 feature for Rust 1.59.0
 +  # Related: https://github.com/rust-lang/stdarch/issues/1291
@@ -35,6 +33,7 @@ Index: PKGBUILD
 +
 +  # Backport getHostCPUName fix for RISC-V
 +  patch -Np2 -i ../backport-riscv-getHostCPUName.patch
++
  }
  
  build() {
