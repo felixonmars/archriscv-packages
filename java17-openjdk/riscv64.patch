@@ -1,0 +1,43 @@
+diff --git PKGBUILD PKGBUILD
+index e45aa5b..a9e1c30 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,15 +19,17 @@
+ url='https://openjdk.java.net/'
+ license=('custom')
+ makedepends=('java-environment=17' 'cpio' 'unzip' 'zip' 'libelf' 'libcups' 'libx11'
+-             'libxrender' 'libxtst' 'libxt' 'libxext' 'libxrandr' 'alsa-lib' 'pandoc'
++             'libxrender' 'libxtst' 'libxt' 'libxext' 'libxrandr' 'alsa-lib'
+              'graphviz' 'freetype2' 'libjpeg-turbo' 'giflib' 'libpng' 'lcms2'
+              'libnet' 'bash' 'harfbuzz' 'gcc-libs' 'glibc')
+ options=(!lto)
+ source=(https://github.com/openjdk/jdk${_majorver}u/archive/${_git_tag}.tar.gz
++        java17-riscv64.patch
+         freedesktop-java.desktop
+         freedesktop-jconsole.desktop
+         freedesktop-jshell.desktop)
+ sha256sums=('22575340d080a396442658356583d9c7dc0c44cefa52842fbfcf23eef23c39a0'
++            '1186a0d2fad675b8461cdbdffe38eaa7edae65abc53546a45974b7caa97dc68e'
+             '85c4742764590783160af74587a47269e6797fbdf17ec485c7644bd239adf61d'
+             'abac1ab09a33a3654378bc69be5a7cf075263ab3ae9efec1eb25cf388e711bb7'
+             'e7cce0ecf868f656d8dc2eb25ab82ab665526a0a28aba20f02632dd29962dac3')
+@@ -35,6 +37,7 @@
+ case "${CARCH}" in
+   x86_64) _JARCH='x86_64';;
+   i686)   _JARCH='x86';;
++  riscv64)_JARCH='riscv64';;
+ esac
+ 
+ _jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk
+@@ -46,6 +49,11 @@
+               lib/libjsound.{so,debuginfo}
+               lib/libsplashscreen.{so,debuginfo})
+ 
++prepare() {
++  cd ${_jdkdir}
++  patch -Np1 -i ../java17-riscv64.patch
++}
++
+ build() {
+   cd ${_jdkdir}
+ 
