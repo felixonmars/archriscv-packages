@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index 3a4f5ae4..1c91ea94 100644
+index 4e4b59fa..aa9e140d 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -69,7 +69,6 @@ build() {
@@ -31,7 +31,7 @@ index 3a4f5ae4..1c91ea94 100644
  }
  
  check() {
-@@ -114,22 +120,18 @@ check() {
+@@ -114,23 +120,19 @@ check() {
  package_gcc11-libs() {
    pkgdesc="Runtime libraries shipped by GCC (11.x.x)"
    depends=('glibc>=2.27')
@@ -44,30 +44,28 @@ index 3a4f5ae4..1c91ea94 100644
 -  rmdir "${pkgdir}/${_libdir}"/../lib
    rm -f "$pkgdir/$_libdir/libgcc_eh.a"
  
-   for lib in libatomic \
-              libgfortran \
-              libgomp \
--             libitm \
-              libquadmath \
--             libsanitizer/{a,l,ub,t}san \
--             libstdc++-v3/src \
--             libvtv; do
-+             libsanitizer/{a,l,ub}san \
-+             libstdc++-v3/src; do
-     make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
+   for lib in libasan.so \
+-             libatomic.so \
++             libatomic.{so,a} \
+              libgfortran.so \
+              libgomp.so \
+-             libitm.so \
+              liblsan.so \
+              libquadmath.so \
+              libstdc++.so \
+-             libtsan.so \
+              libubsan.so; do
+     ln -s /usr/lib/$lib "$pkgdir/$_libdir/$lib"
    done
+@@ -159,6 +161,7 @@ package_gcc11() {
  
-@@ -141,6 +143,9 @@ package_gcc11-libs() {
+   make -C $CHOST/libgcc DESTDIR="$pkgdir" install
+   rm -rf "${pkgdir}/${_libdir}"/../lib
++  rm -rf "${pkgdir}/${_libdir}"/libgcc_s.so*
  
-   # remove conflicting files
-   rm -rf "${pkgdir}"/usr/share/locale
-+
-+  # Remove static library (.a) files except libatomic.a
-+  find "$pkgdir" -name '*.a' ! -name libatomic.a -delete
- }
- 
- package_gcc11() {
-@@ -173,11 +178,9 @@ package_gcc11() {
+   make -C $CHOST/libstdc++-v3/src DESTDIR="$pkgdir" install
+   make -C $CHOST/libstdc++-v3/include DESTDIR="$pkgdir" install
+@@ -175,11 +178,9 @@ package_gcc11() {
      "$pkgdir/${_libdir}/bfd-plugins/"
  
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_{libsubinclude,toolexeclib}HEADERS
