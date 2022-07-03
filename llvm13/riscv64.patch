@@ -1,0 +1,39 @@
+diff --git PKGBUILD PKGBUILD
+index 4f19d29..0448ba7 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,14 +16,18 @@
+         don-t-override-__attribute__-no_stack_protector.patch
+         don-t-move-DBG_VALUE-instructions.patch
+         disable-A-B-A-B-and-BSWAP-in-InstCombine.patch
+-        disable-DIArgList-in-SPIR-V.patch)
++        disable-DIArgList-in-SPIR-V.patch
++        backport-riscv-insn-directive.patch::https://github.com/llvm/llvm-project/commit/283879793dc787225992496587581ec77b6b0610.patch
++        backport-riscv-getHostCPUName.patch::https://github.com/llvm/llvm-project/commit/a706a5ef225125e4afd37c7709cf697514cd2187.patch)
+ sha256sums=('ec6b80d82c384acad2dc192903a6cf2cdbaffb889b84bfb98da9d71e630fc834'
+             'SKIP'
+             'a7e902a7612d0fdabe436a917468b043cc296bc89d8954bfc3126f737beb9ac4'
+             '9f0a4578b94eb8853b83af2f65e92705254b4b56d96f9a941714d174b932f465'
+             'f7d69f84241416398fdb3df8bb44f9fae3c49d89889c7ffa3b37aa2e9d78f708'
+             '34cc0d79a30599cb2287b47b4e9a1a5bf03d57a1f8bb35be3fe976ffc4a604f6'
+-            '8642da2d556092e4284873ba6ddc6c9a67841f42cc16f923bcd523e4b304a3ff')
++            '8642da2d556092e4284873ba6ddc6c9a67841f42cc16f923bcd523e4b304a3ff'
++            '03917e6e558a2de500aa59478e66aaff317d338c2282345d1d4d85fda4e3bf4d'
++            '1e70261ff41e29f91dfe5299f760f40e71618e7b71b0977335c63172482e6a99')
+ validpgpkeys+=('B6C8F98282B944E3B0D5C2530FC3042E345AD05D') # Hans Wennborg <hans@chromium.org>
+ validpgpkeys+=('474E22316ABF4785A88C6E8EA2C794A986419D8A') # Tom Stellard <tstellar@redhat.com>
+ 
+@@ -46,6 +50,13 @@
+   # Patches needed for ISPC for Xe only
+   patch -Np2 -i ../disable-A-B-A-B-and-BSWAP-in-InstCombine.patch
+   patch -Np2 -i ../disable-DIArgList-in-SPIR-V.patch
++
++  # Backport llvm14 feature for Rust 1.59.0
++  # Related: https://github.com/rust-lang/stdarch/issues/1291
++  patch -Np2 -i ../backport-riscv-insn-directive.patch
++
++  # Backport getHostCPUName fix for RISC-V
++  patch -Np2 -i ../backport-riscv-getHostCPUName.patch
+ }
+ 
+ build() {
