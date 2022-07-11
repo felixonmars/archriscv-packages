@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index 3d16d17b..f4a1e2ca 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -5,7 +5,7 @@
@@ -7,42 +9,38 @@
 -pkgname=(rust lib32-rust-libs rust-musl rust-wasm rust-src)
 +pkgname=(rust rust-musl rust-wasm rust-src)
  epoch=1
- pkgver=1.61.0
+ pkgver=1.62.0
  pkgrel=1
 @@ -16,8 +16,8 @@ license=(MIT Apache)
  options=(!emptydirs !strip !lto)
- _llvm_ver=13.0.1
+ _llvm_ver=14.0.6
  depends=(gcc-libs llvm-libs curl libssh2 gcc)
 -makedepends=(rust "llvm=$_llvm_ver" libffi lib32-gcc-libs perl python cmake musl
 -             ninja wasi-libc lld)
 +makedepends=(rust "llvm=$_llvm_ver" libffi perl python cmake musl
-+             ninja wasi-libc lld git)
++             ninja wasi-libc lld llvm13-libs)
  checkdepends=(procps-ng gdb)
  source=(
    "https://static.rust-lang.org/dist/rustc-$pkgver-src.tar.gz"{,.asc}
-@@ -26,6 +26,9 @@ source=(
+@@ -26,6 +26,7 @@ source=(
    0001-bootstrap-Change-libexec-dir.patch
    0002-compiler-Change-LLVM-targets.patch
    0003-compiler-Use-wasm-ld-for-wasm-targets.patch
-+  git+https://github.com/rust-lang/libc.git#tag=0.2.116
 +  replace_patched_libc_cc.patch
-+  libc_add_missing_syscalls.patch::https://github.com/rust-lang/libc/pull/2664.patch
  )
- sha256sums=('ad0b4351675aa9abdf4c7e066613bd274c4391c5506db152983426376101daed'
+ sha256sums=('7d0878809b64d206825acae3eb7f60afb2212d81e3de1adf4c11c6032b36c027'
              'SKIP'
-@@ -34,7 +37,10 @@ sha256sums=('ad0b4351675aa9abdf4c7e066613bd274c4391c5506db152983426376101daed'
+@@ -34,7 +35,8 @@ sha256sums=('7d0878809b64d206825acae3eb7f60afb2212d81e3de1adf4c11c6032b36c027'
              'c901a9bb036c29ca092f7dbc8b447efdd9aa1044a902a88f9d024cb22681dc19'
-             '60c6dfc100d292284af2187cfefc1d0d928139ca557d27bc6bef88edefccff70'
-             '8dcb566da29a92ecf3eb6afe094d9c7766d08230d90fd666bfd022c018ae676a'
+             '839c342ea915ca55adaf1de5d18676ae8e7474265debde0f9e424c17abf2d51f'
+             'ae69ccf45641064c950d8f8cabf74858e0c33f3ddc069930a994d7bf327c3215'
 -            '26bf232d144b81a303ed91f6a331ddf004c5d9fefd41a11e36b61812a34459aa')
 +            '26bf232d144b81a303ed91f6a331ddf004c5d9fefd41a11e36b61812a34459aa'
-+            'SKIP'
-+            'ce04009c497f6f5499f6870196266e953ca3c33af4d404abf420e4f46514be57'
-+            '46efe435c3bf2f78a2434043e1eeb63620c5b50600eaef56a8e04f253f90dd8f')
++            '908de2d6d84358289ff2667aca3360a3bc91cbe8d2687ee5b02474088282ff37')
  validpgpkeys=(108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
                474E22316ABF4785A88C6E8EA2C794A986419D8A  # Tom Stellard <tstellar@redhat.com>
                B6C8F98282B944E3B0D5C2530FC3042E345AD05D) # Hans Wennborg <hans@chromium.org>
-@@ -53,6 +59,8 @@ prepare() {
+@@ -53,6 +55,8 @@ prepare() {
    # Use our wasm-ld
    patch -Np1 -i ../0003-compiler-Use-wasm-ld-for-wasm-targets.patch
  
@@ -51,7 +49,7 @@
    cat >config.toml <<END
  changelog-seen = 2
  profile = "user"
-@@ -62,9 +70,8 @@ link-shared = true
+@@ -62,9 +66,8 @@ link-shared = true
  
  [build]
  target = [
@@ -63,7 +61,7 @@
    "wasm32-unknown-unknown",
    "wasm32-wasi",
  ]
-@@ -90,7 +97,6 @@ description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
+@@ -90,7 +93,6 @@ description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
  rpath = false
  backtrace-on-ice = true
  remap-debuginfo = true
@@ -71,7 +69,7 @@
  
  # LLVM crashes when passing an object through ThinLTO twice.  This is triggered
  # when using rust code in cross-language LTO if libstd was built using ThinLTO.
-@@ -104,12 +110,14 @@ deny-warnings = false
+@@ -104,12 +106,14 @@ deny-warnings = false
  [dist]
  compression-formats = ["gz"]
  
@@ -88,18 +86,16 @@
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -120,6 +128,10 @@ sanitizers = false
+@@ -120,6 +124,8 @@ sanitizers = false
  profiler = false
  wasi-root = "/usr/share/wasi-sysroot"
  END
 +
-+  cargo update -p bootstrap -p std
-+  cd ${srcdir}/libc
-+  patch -Np1 -i "../libc_add_missing_syscalls.patch"
++  cargo update -p bootstrap
  }
  
  _pick() {
-@@ -149,9 +161,7 @@ build() {
+@@ -149,9 +155,7 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -110,7 +106,7 @@
  
    mkdir -p usr/share/bash-completion
    mv etc/bash_completion.d usr/share/bash-completion/completions
-@@ -159,8 +169,7 @@ build() {
+@@ -159,8 +163,7 @@ build() {
    mkdir -p usr/share/licenses/rust
    mv -t usr/share/licenses/rust usr/share/doc/rust/{COPYRIGHT,LICENSE*}
  
@@ -120,7 +116,7 @@
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -175,19 +184,6 @@ package_rust() {
+@@ -175,19 +178,6 @@ package_rust() {
    cp -a dest-rust/* "$pkgdir"
  }
  
