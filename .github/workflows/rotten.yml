@@ -1,5 +1,5 @@
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: { }
   schedule:
     - cron: '0 0 * * *'
 
@@ -9,9 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux/archlinux:latest
     steps:
-      - uses: actions/checkout@v2
       - name: Install dependencies
-        run: pacman -Syu --noconfirm asp patch python python-sh
+        run: pacman -Syu --noconfirm asp patch python python-sh python-gitpython python-pygithub
+      - name: Fix git unsafe repository
+        run: git config --global --add safe.directory /__w/archriscv-packages/archriscv-packages
+      - uses: actions/checkout@v3
+      - uses: fregante/setup-git-user@v1
       - name: Check for rotten patches
         run: python find-rotten
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}

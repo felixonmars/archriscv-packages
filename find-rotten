@@ -8,14 +8,22 @@ import shutil
 import tempfile
 
 import sh
+from git import Repo
+from github import Github
 
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 ENV = os.environ.copy()
 ENV["LANG"] = "C"
+
 RE_HUNK_FAILED = re.compile(r"^\d+ out of \d+ hunks? FAILED", re.MULTILINE)
 RE_REVERSED = re.compile(r"^Reversed \(or previously applied\) patch detected")
+RE_PR_RM_PACKAGE = re.compile(r"^(rm|rmv)(pkg|patch): ([^ ]+)")
+
+repo = Repo()
+g = Github(ENV["GITHUB_TOKEN"])
+gh_repo = g.get_repo(ENV["GITHUB_REPO"])
 
 
 def is_rotten(package):
@@ -51,6 +59,18 @@ def done_callback(futures, future):
         return
 
 
+# call this after making changes to repo index
+def commit_rm_package_push_pr(package):
+    repo.index.commit(f"rmvpatch: {package}")
+    branch_name = repo.active_branch.name
+    repo.git.push("origin", branch_name)
+    gh_repo.create_pull(title=f"rmvpatch: {package}",
+                        body="This package has been removed in Arch.",
+                        base="master",
+                        head=branch_name)
+    logger.info(f"created rmvpatch PR for {package}")
+
+
 def main():
     packages = set()
     for dirent in os.scandir():
@@ -62,8 +82,24 @@ def main():
 
     all_packages = set(sh.asp("list-all").stdout.decode("ascii").strip().split())
 
+    pulls = gh_repo.get_pulls(state='open', sort='created', base='master')
+    rm_package_in_pr = set()
+    for pr in pulls:
+        if match := RE_PR_RM_PACKAGE.match(pr.title):
+            rm_package_in_pr.add(match.group(3))
+
     if ghosts := packages - all_packages:
         logger.warning("nonexistent packages: \n{}\n".format("\n".join(sorted(ghosts))))
+
+        for ghost in ghosts:
+            if ghost in rm_package_in_pr:
+                continue
+            current_branch = repo.active_branch
+            new_branch = repo.create_head(f"actions-rm-{ghost}")
+            new_branch.checkout()
+            repo.index.remove(ghost, working_tree=True, r=True)
+            commit_rm_package_push_pr(ghost)
+            current_branch.checkout()
 
     with open('qemu-user-blacklist.txt') as qemu_user_blacklist:
         qemu_user_blacklist_packages = set(qemu_user_blacklist.read().split())
