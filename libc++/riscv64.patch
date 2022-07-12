@@ -1,31 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,14 +15,16 @@ makedepends=('clang' 'cmake' 'llvm' 'libunwind' 'ninja' 'python')
+@@ -14,15 +14,20 @@ depends=('gcc-libs')
+ makedepends=('clang' 'cmake' 'ninja' 'python')
+ checkdepends=('llvm')
  options=(!lto)
- source=("https://github.com/llvm/llvm-project/releases/download/llvmorg-$pkgver/llvm-$pkgver.src.tar.xz"{,.sig}
-         "https://github.com/llvm/llvm-project/releases/download/llvmorg-$pkgver/libcxx-$pkgver.src.tar.xz"{,.sig}
--        "https://github.com/llvm/llvm-project/releases/download/llvmorg-$pkgver/libcxxabi-$pkgver.src.tar.xz"{,.sig})
-+        "https://github.com/llvm/llvm-project/releases/download/llvmorg-$pkgver/libcxxabi-$pkgver.src.tar.xz"{,.sig}
-+        "libc++abi-fix-demangler-for-long-double.patch")
- noextract=("${source[@]##*/}")
- sha512sums=('05fbe8708ac3d0dfef3a9135ee88185a95ed492095429a97d33b8aadb0187e59ad42d1a7184f02b5c84fdd31f3d7227c65bd292ed0aa039b29522e59cf90a965'
-             'SKIP'
-             '72970fbb3db44a652e89ace7843e992b4f118c978fa0fa7035bf5825cb6958cf71f7c80b56c1970977177bb3bcbf81309d4f01c29b3ac1cd057be54baf55e56f'
-             'SKIP'
-             '1a7c032ee34643518be01edddc16b1c872f339ed2944d31573438d38a018abc801a53f3fbd97e6a3d6ee58a6ed55d9703a8531ac7290c1d6e3e5593b97186749'
+-source=("https://github.com/llvm/llvm-project/releases/download/llvmorg-$pkgver/llvm-project-$pkgver.src.tar.xz"{,.sig})
++source=("https://github.com/llvm/llvm-project/releases/download/llvmorg-$pkgver/llvm-project-$pkgver.src.tar.xz"{,.sig}
++        "${pkgname}abi-fix-demangler-for-long-double.patch")
+ sha512sums=('6fc6eeb60fac698702d1aac495fc0161eb7216a1f8db2020af8fccec5837831f7cc20dc2a169bf4f0b5f520748280b4a86621f3697d622aa58faaa45dbfaad13'
 -            'SKIP')
 +            'SKIP'
 +            'bac4a928f0dab60623f1931eb99d4d495a0c4bd40a03bff024b25c2c5b6a4d4ada21ffd5df351149cecafd0b26282156baf11b7dac66e6a66278b1d3df261745')
  validpgpkeys=('474E22316ABF4785A88C6E8EA2C794A986419D8A' # Tom Stellard <tstellar@redhat.com> (.1 releases)
                'B6C8F98282B944E3B0D5C2530FC3042E345AD05D') # Hans Wennborg <hans@chromium.org> (.0 releases)
   
-@@ -32,6 +34,9 @@ prepare() {
-   bsdtar --strip-components 1 -zxf "${source[2]##*/}" -C llvm/projects/libcxx
-   bsdtar --strip-components 1 -zxf "${source[4]##*/}" -C llvm/projects/libcxxabi
-   sed -i 's/CREDITS.TXT/CREDITS/' llvm/projects/libcxx/LICENSE.TXT llvm/projects/libcxxabi/LICENSE.TXT
+ prepare() {
+   mkdir -p build
+   sed -i 's/CREDITS.TXT/CREDITS/' llvm-project-$pkgver.src/libcxx{,abi}/LICENSE.TXT
 +
 +  # patch modified from https://reviews.llvm.org/D126480
-+  patch -d llvm/projects -Np1 -i $srcdir/libc++abi-fix-demangler-for-long-double.patch
++  patch -d llvm-project-$pkgver.src -Np1 -i "${srcdir}/${pkgname}abi-fix-demangler-for-long-double.patch"
  }
   
  build() {
