@@ -1,0 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index 0d5c9ae05..4dfce2691 100755
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,13 +13,19 @@ url="https://github.com/rhboot/efibootmgr"
+ license=(GPL2)
+ depends=(glibc popt)
+ makedepends=(efivar git)
+-source=($pkgname::git+https://github.com/rhboot/efibootmgr#tag=$_commit?signed)
+-sha512sums=('SKIP')
++source=($pkgname::git+https://github.com/rhboot/efibootmgr#tag=$_commit?signed
++        "fix-type.patch")
++sha512sums=('SKIP'
++            '441c49481f4a61796b569b9c47e25f0c44a76c7a7d504b1571f6dc2a9c0c266f0e641eba1c1bee7b81374393322de312c8808dcde882743a141c663d7d101568')
+ validpgpkeys=(
+   'B00B48BC731AA8840FED9FB0EED266B70F4FEF10'  # Peter Jones <pjones@redhat.com>
+   '039A9CEA19DE9508C36875AA2532F9176A95A442'  # Robbie Harwood (work) <rharwood@redhat.com>
+ )
+ 
++prepare() {
++  patch -Np1 -i "../fix-type.patch" -d $pkgname
++}
++
+ build() {
+   make libdir=/usr/lib sbindir=/usr/bin EFIDIR=arch -C $pkgname
+ }
