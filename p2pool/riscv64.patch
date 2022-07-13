@@ -1,0 +1,31 @@
+diff --git PKGBUILD PKGBUILD
+index 259542c5..53900855 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,19 +10,24 @@ license=('GPL3')
+ url="https://github.com/SChernykh/p2pool"
+ depends=('curl' 'libuv' 'libsodium' 'zeromq')
+ makedepends=('cmake' 'git')
+-source=("${pkgname}"::"git+https://github.com/SChernykh/${pkgname}#commit=${_commit}")
+-b2sums=('SKIP')
++source=("${pkgname}"::"git+https://github.com/SChernykh/${pkgname}#commit=${_commit}"
++        "fix-cast-qual.patch")
++b2sums=('SKIP'
++        '26e2c1ec9ab9deb8bed68688369b2ad682ebd5c84696c78048f31ee4374f4e592edefdc6a0dabcbb5a4f20fa60728f6c40e2d30fb1b5fd6ed6f1c4951cedd5e8')
+ options=(!lto)
+ 
+ prepare() {
+   cd ${pkgname}
+   git submodule init
+   git submodule update
++  patch -Np1 -i "${srcdir}/fix-cast-qual.patch" -d external/src/RandomX
+   mkdir -p build
+ }
+ 
+ build() {
+   cd ${pkgname}/build
++  CFLAGS+=" -Wno-error=cast-align"
++  CXXFLAGS+=" -Wno-error=cast-align"
+   cmake .. -DCMAKE_BUILD_TYPE=Release
+   make -j$(nproc)
+ }
