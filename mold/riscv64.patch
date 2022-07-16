@@ -1,32 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -42,7 +42,19 @@ check() {
+@@ -42,11 +42,20 @@ build() {
+ check() {
    cd "$pkgname"
- 
-   # temporarily remove failing tests
--  for failing_test in exception; do
-+  # some tests contain x86-64 assembly
-+  # some tests use gcc despite CC=clang, see https://github.com/rui314/mold/issues/358
-+  for failing_test in exception \
-+                      debug-macro-section \
-+                      discard \
-+                      dynamic-list2 \
-+                      gc-sections \
-+                      lto-gcc \
-+                      reloc-rodata \
-+                      run \
-+                      strip \
-+                      unresolved-symbols
+
++  for failing_test in lto-gcc gnu-unique package-metadata tls-common
 +  do
-     rm -vf "test/elf/$failing_test.sh"
-   done
- 
-@@ -51,6 +63,8 @@ check() {
++    rm -vf "test/elf/$failing_test.sh"
++  done
++
+   make \
+     PREFIX=/usr \
      LTO=1 \
      SYSTEM_MIMALLOC=1 \
      SYSTEM_TBB=1 \
-+    CC=clang \
-+    CXX=clang++ \
++    TEST_CC=clang \
++    TEST_CXX=clang++ \
++    TEST_GCC=clang \
++    TEST_GXX=clang++ \
      check
  }
- 
