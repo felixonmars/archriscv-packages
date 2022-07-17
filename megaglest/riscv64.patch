@@ -1,24 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,11 +11,19 @@ license=('GPL3')
- depends=('curl' 'megaglest-data' 'xerces-c' 'sdl2' 'libvorbis' 'openal' 'libgl' 'lua51' 'icu' 'ftgl' 'glew'
-          'libircclient' 'miniupnpc' 'wxgtk3' 'glu' 'libx11' 'libminiupnpc.so')
- makedepends=('ftjam' 'cmake' 'mesa')
--source=(https://github.com/MegaGlest/megaglest-source/releases/download/${pkgver}/megaglest-source-${pkgver}.tar.xz{,.asc})
-+source=(https://github.com/MegaGlest/megaglest-source/releases/download/${pkgver}/megaglest-source-${pkgver}.tar.xz{,.asc}
-+        ftp-fixes.patch::https://github.com/MegaGlest/megaglest-source/commit/5a3520540276a6fd06f7c88e571b6462978e3eab.patch)
+@@ -16,14 +16,16 @@ source=(https://github.com/MegaGlest/megaglest-source/releases/download/${pkgver
+         https://github.com/MegaGlest/megaglest-source/commit/5801b1fa.patch
+         https://github.com/MegaGlest/megaglest-source/commit/412b37d0.patch
+         https://github.com/MegaGlest/megaglest-source/commit/e09ba53c.patch
+-        fbd0cfb1.patch)
++        fbd0cfb1.patch
++        $pkgname-ftp-fixes.patch::https://github.com/MegaGlest/megaglest-source/commit/5a3520540276a6fd06f7c88e571b6462978e3eab.patch)
  sha256sums=('09fef67bc6878b1afbb0b403fec9fcf7dc270d500fdc62ed98e5f210e398ccb9'
--            'SKIP')
-+            'SKIP'
+             'SKIP'
+             'dbb8e5b6953bd2f86ecbb9c60ac00c0c25299f2738fbdc39996adaed844cd6ed'
+             'f3e12b58b39f97109d5d077b7ea7b31a5f21355c55f837584aa2ea62030889c6'
+             '2acda6052ccedd7d0f77067c9b5f01a3a1c5f2ed6b46dc962b18dfdac9515906'
+             '1a01f115bc9653c151fed83b1e6c0b71a4508083777158934be975f8b5b089ff'
+-            '5dc0096ea581ca9436b2de528f913ac99de7a1a5d00bc7e8d52117298fd1eeb5')
++            '5dc0096ea581ca9436b2de528f913ac99de7a1a5d00bc7e8d52117298fd1eeb5'
 +            'b8104c81839e8282f624891b3e102f27de0852950e13f52b938a7c65d54bb357')
  validpgpkeys=('0DA321A44B30EF477E9A6DB8DE45EB9E71EEB59B')
  
-+prepare() {
-+  cd megaglest-${pkgver}
-+
-+  patch -Np1 -i ../ftp-fixes.patch
-+}
-+
- build() {
-   cd megaglest-${pkgver}
+ prepare() {
+@@ -34,6 +36,7 @@ prepare() {
+   patch -p1 < ../412b37d0.patch
+   patch -p1 < ../e09ba53c.patch
+   patch -p1 < ../fbd0cfb1.patch
++  patch -p1 < ../$pkgname-ftp-fixes.patch
+ }
  
+ build() {
