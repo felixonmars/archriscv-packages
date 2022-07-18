@@ -1,12 +1,22 @@
 diff --git PKGBUILD PKGBUILD
-index 4a6226f..acff618 100644
+index 480965d..1007cd8 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,6 +20,7 @@ pkgver() {
+@@ -12,6 +12,7 @@ depends=('gcc-libs')
+ makedepends=('clang' 'ninja' 'python' 'git')
+ source=(git+https://gn.googlesource.com/gn#commit=$_commit)
+ sha256sums=('SKIP')
++options=(!lto)
+ 
+ pkgver() {
+   cd $pkgname
+@@ -20,6 +21,9 @@ pkgver() {
  
  build() {
    cd $pkgname
-+  export LDFLAGS="$LDFLAGS -Wl,-plugin-opt=-target-abi=lp64d"
++  # clang does not support it
++  CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
++  CFLAGS="${CFLAGS//-fstack-clash-protection/}"
    ./build/gen.py
    ninja -C out
  }
