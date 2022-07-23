@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,15 +29,19 @@ backup=('etc/syslog-ng/scl.conf'
+         'etc/logrotate.d/syslog-ng'
+         'etc/default/syslog-ng@default')
+ source=(https://github.com/balabit/syslog-ng/releases/download/syslog-ng-$pkgver/$pkgname-$pkgver.tar.gz
+-        syslog-ng.conf syslog-ng.logrotate)
++        syslog-ng.conf syslog-ng.logrotate
++        syslog-ng-remove-json-c-submodule.patch)
+ sha512sums=('beebd89c54a415469dc58630ac1900d632ef351f6a13fad4a95ce7bb1760b16d6cfdcede02225a35e97ebce7dae151c6aa228f3d378463e8b873c4f71ed86ab7'
+             '36629a566a8343574dc07430e744e20ce90574be0cc856bc43340f834cd6642a8f08889b9ba15996d088aeebeee4bc3ca64411265046c17c8e125fbed8948ded'
+-            'cd39f545a6a855c866a466bf846e33940b2c2dd1fc2eaf50cce29c68e1a5753c7c4b56411e4f01c152f32e155104a98dd755a96319767f47c73a8853f720b2cc')
++            'cd39f545a6a855c866a466bf846e33940b2c2dd1fc2eaf50cce29c68e1a5753c7c4b56411e4f01c152f32e155104a98dd755a96319767f47c73a8853f720b2cc'
++            '5c08ff8560122fe68a5b06bc2aa9abbd35a413c36ebd68b5289440599e11680b1c2be5e07ce61284cde64c67f3b88228e92d9683731af32d4350f5d30fac81f0')
+ 
+ prepare() {
+   cd $pkgname-$pkgver
+   sed -i -e 's,/bin/,/usr/bin/,' -e 's,/sbin/,/bin/,' contrib/systemd/syslog-ng@.service
+   sed -i -e 's|/var/run|/run|g' contrib/systemd/syslog-ng@default
++  rm -rf lib/jsonc
++  patch -Np1 < ../syslog-ng-remove-json-c-submodule.patch
+ }
+ 
+ build() {
