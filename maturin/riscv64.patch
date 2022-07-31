@@ -1,23 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,13 +11,19 @@ depends=(gcc-libs glibc rust)
- makedepends=(bzip2 git)
- # disable LTO until ring can be built with it: https://github.com/briansmith/ring/issues/1444
- options=(!lto)
--source=($pkgname-$pkgver.tar.gz::https://github.com/PyO3/$pkgname/archive/refs/tags/v$pkgver.tar.gz)
--sha512sums=('836c9e7450a7203db59391876ea52a7fe7c64e3803beb49a5152832aaafee6dd7ce7e6d751772c9ccbb075f5cc7b7299719c7ebf63a0d2abd27070b78268efd8')
--b2sums=('6e6be3f69dcf95724cbeca1e816b6d28bdaddcaa118064386cf270e5b44ec9772aa324104d00614b68df35d6e7e2f161652ebe4f6019270c7d949394acfff447')
-+source=($pkgname-$pkgver.tar.gz::https://github.com/PyO3/$pkgname/archive/refs/tags/v$pkgver.tar.gz
-+        $pkgname-add-riscv64-support.patch::https://github.com/PyO3/maturin/pull/1001.patch)
-+sha512sums=('836c9e7450a7203db59391876ea52a7fe7c64e3803beb49a5152832aaafee6dd7ce7e6d751772c9ccbb075f5cc7b7299719c7ebf63a0d2abd27070b78268efd8'
-+            'e8f5b03171db4acf2bda9fa4491da0e2f35a807d9a30960a3a1a6defcd64e69bdca47a49097b5fc17b6d34db4299141c700a04092941c40f2ba7ac0d79f568b1')
-+b2sums=('6e6be3f69dcf95724cbeca1e816b6d28bdaddcaa118064386cf270e5b44ec9772aa324104d00614b68df35d6e7e2f161652ebe4f6019270c7d949394acfff447'
-+        '2a96e0f014416e7a0f623f115d858c44494eaa0c18f38f2c3c537ee44b2f3302c0a24a7baae69542aabe6b3a4a224ba8f715f4487afbf9f8129602f23130830f')
+@@ -17,7 +17,9 @@ b2sums=('d554d6fac430acb9300f66065cbe7a6fb22c8384cc4c9ac26b575de7ffb3581e5ed8ca0
  
  prepare() {
    cd $pkgname-$pkgver
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  patch -Np1 -i ../$pkgname-add-riscv64-support.patch
 +  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
 +  cargo update -p ring
 +  cargo fetch --locked
