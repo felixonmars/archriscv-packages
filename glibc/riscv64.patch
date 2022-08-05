@@ -1,31 +1,32 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,13 +7,13 @@
+@@ -7,14 +7,14 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
  
  pkgbase=glibc
 -pkgname=(glibc lib32-glibc)
 +pkgname=(glibc)
- pkgver=2.35
- pkgrel=2
+ pkgver=2.36
+ _commit=c804cd1c00adde061ca51711f63068c103e94eef
+ pkgrel=1
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
 -makedepends=(git gd lib32-gcc-libs python)
 +makedepends=(git gd python)
- optdepends=('perl: for mtrace')
- options=(!strip staticlibs !lto)
- #_commit=3de512be7ea6053255afed6154db9ee31d4e557a
-@@ -36,7 +36,7 @@ b2sums=('623c728884f070cd87ffeb9203f74206197c52405ac9bc44f3dd519a3468b8e8ae2536c
+ options=(debug staticlibs !lto)
+ source=(git+https://sourceware.org/git/glibc.git#commit=${_commit}
+         locale.gen.txt
+@@ -34,7 +34,7 @@ b2sums=('SKIP'
          'edef5f724f68ea95c6b0127bd13a10245f548afc381b2d0a6d1d06ee9f87b7dd89c6becd35d5ae722bf838594eb870a747f67f07f46e7d63f8c8d1a43cce4a52')
  
  prepare() {
 -  mkdir -p glibc-build lib32-glibc-build
 +  mkdir -p glibc-build
  
-   [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc 
+   [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc
    cd glibc
-@@ -57,12 +57,11 @@ build() {
+@@ -54,12 +54,11 @@ build() {
        --enable-bind-now
        --enable-cet
        --enable-kernel=4.4
@@ -39,7 +40,7 @@
    )
  
    cd "$srcdir/glibc-build"
-@@ -76,46 +75,13 @@ build() {
+@@ -73,46 +72,13 @@ build() {
    # https://github.com/allanmcrae/toolchain/blob/f18604d70c5933c31b51a320978711e4e6791cf1/glibc/PKGBUILD
    # remove fortify for building libraries
    CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
@@ -59,7 +60,7 @@
 -  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
 -  make -O
 -
--  # build info pages manually for reprducibility
+-  # build info pages manually for reproducibility
 -  make info
 -
 -  cd "$srcdir/lib32-glibc-build"
@@ -86,8 +87,8 @@
 -  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
    make -O
  
- }
-@@ -152,7 +118,7 @@ check() {
+   # pregenerate C.UTF-8 locale until it is built into glibc
+@@ -153,7 +119,7 @@ check() {
    make -O check
  }
  
@@ -95,19 +96,17 @@
 +package() {
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
-   optdepends=('gd: for memusagestat')
-@@ -200,48 +166,6 @@ package_glibc() {
-       -name '*.so*' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
-   fi
- 
+   optdepends=('gd: for memusagestat'
+@@ -190,33 +156,4 @@ package_glibc() {
+   install -dm755 "$pkgdir/usr/lib/locale"
+   cp -r "$srcdir/C.UTF-8" -t "$pkgdir/usr/lib/locale"
+   sed -i '/#C\.UTF-8 /d' "$pkgdir/etc/locale.gen"
+-
 -  # Provide tracing probes to libstdc++ for exceptions, possibly for other
 -  # libraries too. Useful for gdb's catch command.
 -  install -Dm644 "$srcdir/sdt.h" "$pkgdir/usr/include/sys/sdt.h"
 -  install -Dm644 "$srcdir/sdt-config.h" "$pkgdir/usr/include/sys/sdt-config.h"
--
-   # Provided by libxcrypt; keep the old shared library for backwards compatibility
-   rm -f "$pkgdir"/usr/include/crypt.h "$pkgdir"/usr/lib/libcrypt.{a,so}
- }
+-}
 -
 -package_lib32-glibc() {
 -  pkgdesc='GNU C Library (32-bit)'
@@ -131,17 +130,4 @@
 -
 -  # Symlink /usr/lib32/locale to /usr/lib/locale
 -  ln -s ../lib/locale "$pkgdir/usr/lib32/locale"
--
--  if check_option 'debug' n; then
--    find "$pkgdir"/usr/lib32 -name '*.a' -type f -exec strip $STRIP_STATIC {} + 2> /dev/null || true
--    find "$pkgdir"/usr/lib32 \
--      -not -name 'ld-*.so*' \
--      -not -name 'libc.so*' \
--      -not -name 'libpthread.so*' \
--      -not -name 'libthread_db.so*' \
--      -name '*.so*' -type f -exec strip $STRIP_SHARED {} + 2> /dev/null || true
--  fi
--
--  # Provided by lib32-libxcrypt; keep the old shared library for backwards compatibility
--  rm -f "$pkgdir"/usr/lib32/libcrypt.{a,so}
--}
+ }
