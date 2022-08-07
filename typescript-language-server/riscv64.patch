@@ -1,19 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,9 +13,16 @@ checkdepends=('npm')
- source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
- b2sums=('a0ffd35d64fa7af08247a822703d761c334c64fb262ed78b9a9caba6bdad1972c909e72562d3fb8cbc32d99068d48071be3e98609967c8a1261f73f76e90f972')
+@@ -10,12 +10,17 @@ license=('Apache')
+ depends=('typescript')
+ makedepends=('jq' 'yarn')
+ checkdepends=('npm')
+-source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+-b2sums=('abc14da68d240dcb686ddfe53161e5f2e84856f4c343bace31bef3ed070a44ef942e2e916c69bb274a5a846e4c5ac3a69db99756afdc772589fd98c59100a538')
++source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
++        "typescript-language-server-mocha-timeout.patch")
++b2sums=('abc14da68d240dcb686ddfe53161e5f2e84856f4c343bace31bef3ed070a44ef942e2e916c69bb274a5a846e4c5ac3a69db99756afdc772589fd98c59100a538'
++        'f7fddd6ff5bf962c41aa3d45efa8c4c9b4d10cd05f6aef6d002eda6d2069d9c1dd43848e4e79f3e5a343ea96863aa65adc69c5756bb22163f2870af58a40399c')
  
-+source+=("typescript-language-server-mocha-timeout.patch")
-+b2sums+=('730767552883bc2802aff2f43d93caa3da7314606070bcf571e324d00e552ada3702824986dafeefa360c199e25f3edcc159c6745e56759d96f659b53b243845')
-+
  prepare() {
    cd $pkgname-$pkgver
    yarn --frozen-lockfile
 +
 +  # Increase tests' timeout
 +  patch -Np1 -i $srcdir/typescript-language-server-mocha-timeout.patch
-+  sed -i 's#})\.timeout(10000)#})\.timeout(40000)#' ./src/*.spec.ts ./src/**/*.spec.ts
  }
  
  build() {
