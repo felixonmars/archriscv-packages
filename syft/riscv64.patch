@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,9 +8,19 @@ arch=('x86_64')
+ url="https://github.com/anchore/syft"
+ license=('Apache')
+ makedepends=('go' 'git')
+-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/anchore/${pkgname}/archive/v${pkgver}.tar.gz")
+-sha512sums=('e48c357cb72678685f957d796b6d565836df4bad5ff6a1177d756ee6cc88e60dabae1513b0dacb1c1cbdd99c9641bd0662509098804e4bfc1183d1e1ee85a8d9')
+-b2sums=('15f4da31fd49de7fa9996bfaebc34e9b63cce646accac0f324b6ff79a1a965f673bf1594d7563ff36ccc975a6ab0b074fae2498701b07d7453c36a886aea693f')
++source=("${pkgname}-${pkgver}.tar.gz::https://github.com/anchore/${pkgname}/archive/v${pkgver}.tar.gz"
++        "fix-libc-deps.patch")
++sha512sums=('e48c357cb72678685f957d796b6d565836df4bad5ff6a1177d756ee6cc88e60dabae1513b0dacb1c1cbdd99c9641bd0662509098804e4bfc1183d1e1ee85a8d9'
++            '5898fa1689b581a5ddba2f5b532831fb37536ebb48a5fd6d39fe6b5a8d5ceab71156935523dd1468388bb16a276ffafe10e8e1b195fb4ee6e44aeaf1f91aec69')
++b2sums=('15f4da31fd49de7fa9996bfaebc34e9b63cce646accac0f324b6ff79a1a965f673bf1594d7563ff36ccc975a6ab0b074fae2498701b07d7453c36a886aea693f'
++        '218e03c8fa21cca303cf8f41fecbeee0d7a385f1f27c0666f3d8e2f5e99bc7fd208968c634d0067d2d6196f959197f2757e8788a50cd48fd5e87408deebb79ad')
++
++prepare() {
++  cd "${pkgname}-${pkgver}"
++  patch -Ni "${srcdir}/fix-libc-deps.patch"
++  go get -d modernc.org/libc
++  go get -d modernc.org/sqlite
++}
+ 
+ build(){
+   cd "${pkgname}-${pkgver}"
