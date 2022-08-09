@@ -1,27 +1,28 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,14 +9,25 @@ arch=('x86_64')
+@@ -9,14 +9,26 @@ arch=('x86_64')
  url="https://zellij.dev"
  license=('MIT')
  depends=('gcc-libs')
 -makedepends=('cargo' 'mandown')
 -source=("${pkgname}-${pkgver}.tar.gz::https://github.com/zellij-org/${pkgname}/archive/v${pkgver}.tar.gz")
--sha512sums=('c833bcda941718b693e51985d7bbc5710ca6017ef5cfb43e295804e7aecc5fc5fa24bd546cc1b6130481520b2c40da5846454a880c2258fcd02f0122021fcb3c')
+-sha512sums=('0c2106139f147838462ce430e6331fec68c6e5deaf0b31ef211a3ad6ebe9238c35624080de4eded3ac3fd83e763bdcfeecd967ade95d6cca7b60676057d332fa')
 +makedepends=('cargo' 'git' 'mandown')
 +source=("${pkgname}-${pkgver}.tar.gz::https://github.com/zellij-org/${pkgname}/archive/v${pkgver}.tar.gz"
 +        "git+https://github.com/wasmerio/wasmer.git#tag=1.0.0"
 +        "add_riscv64_support.patch"
 +        "use_local_wasmer.patch")
-+sha512sums=('c833bcda941718b693e51985d7bbc5710ca6017ef5cfb43e295804e7aecc5fc5fa24bd546cc1b6130481520b2c40da5846454a880c2258fcd02f0122021fcb3c'
++sha512sums=('0c2106139f147838462ce430e6331fec68c6e5deaf0b31ef211a3ad6ebe9238c35624080de4eded3ac3fd83e763bdcfeecd967ade95d6cca7b60676057d332fa'
 +            'SKIP'
 +            '395316c9a2d56b4a9d43834593c6a9f328d6f1f9e13ef508f2c81a2c1ec9f501f38ad7fb63b98e3c394389c91ba169c64fa6f3ab93ef3e5ae9150895c5fc2703'
 +            '336674f122ec1f1cb7bbde1ebec49f19d84d6a60571f6b8902bc77082416265d7d86efbfa441c3084c7ad8808e0898b068eb5941f9dfe507964a83251b3c3bf4')
  options=('!lto')
  
  prepare() {
-+  cd wasmer
-+  patch -Np1 -i "../add_riscv64_support.patch"
-+  cd ..
++  (
++    cd wasmer
++    patch -Np1 -i "../add_riscv64_support.patch"
++  )
    cd "$pkgname-$pkgver"
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 +  patch -Np1 -i "../use_local_wasmer.patch"
