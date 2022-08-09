@@ -26,7 +26,7 @@
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc
    cd glibc
-@@ -54,12 +54,11 @@ build() {
+@@ -54,9 +54,7 @@ build() {
        --enable-bind-now
        --enable-cet
        --enable-kernel=4.4
@@ -36,33 +36,10 @@
        --disable-profile
        --disable-crypt
        --disable-werror
-+      --disable-experimental-malloc
-   )
+@@ -91,30 +89,6 @@ build() {
+   # build info pages manually for reproducibility
+   make info
  
-   cd "$srcdir/glibc-build"
-@@ -73,46 +72,13 @@ build() {
-   # https://github.com/allanmcrae/toolchain/blob/f18604d70c5933c31b51a320978711e4e6791cf1/glibc/PKGBUILD
-   # remove fortify for building libraries
-   CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2/}
-+  CPPFLAGS=${CPPFLAGS/-D_FORTIFY_SOURCE=2/}
- 
-   "$srcdir/glibc/configure" \
-       --libdir=/usr/lib \
-       --libexecdir=/usr/lib \
-       "${_configure_flags[@]}"
- 
--  # build libraries with fortify disabled
--  echo "build-programs=no" >> configparms
--  make -O
--
--  # re-enable fortify for programs
--  sed -i "/build-programs=/s#no#yes#" configparms
--  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
--  make -O
--
--  # build info pages manually for reproducibility
--  make info
--
 -  cd "$srcdir/lib32-glibc-build"
 -  export CC="gcc -m32 -mstackrealign"
 -  export CXX="g++ -m32 -mstackrealign"
@@ -85,10 +62,12 @@
 -  # re-enable fortify for programs
 -  sed -i "/build-programs=/s#no#yes#" configparms
 -  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
-   make -O
- 
+-  make -O
+-
    # pregenerate C.UTF-8 locale until it is built into glibc
-@@ -153,7 +119,7 @@ check() {
+   # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)
+   locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
+@@ -153,7 +127,7 @@ check() {
    make -O check
  }
  
@@ -97,7 +76,7 @@
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat'
-@@ -190,33 +156,4 @@ package_glibc() {
+@@ -190,33 +164,4 @@ package_glibc() {
    install -dm755 "$pkgdir/usr/lib/locale"
    cp -r "$srcdir/C.UTF-8" -t "$pkgdir/usr/lib/locale"
    sed -i '/#C\.UTF-8 /d' "$pkgdir/etc/locale.gen"
