@@ -1,0 +1,20 @@
+--- a/python/mozbuild/mozbuild/frontend/context.py	2022-08-11 13:38:13.948809808 +0800
++++ b/python/mozbuild/mozbuild/frontend/context.py	2022-08-11 13:39:07.755427950 +0800
+@@ -669,6 +669,17 @@
+                 context.config.substs.get("MOZ_FILE_PREFIX_MAP_FLAGS"),
+                 ("CXXFLAGS", "CFLAGS"),
+             ),
++            (
++                # Disable floating-point contraction by default.
++                "FP_CONTRACT",
++                (
++                    ["-Xclang"]
++                    if context.config.substs.get("CC_TYPE") == "clang-cl"
++                    else []
++                )
++                + ["-ffp-contract=off"],
++                ("CXXFLAGS", "CFLAGS"),
++            ),
+         )
+ 
+         TargetCompileFlags.__init__(self, context)
