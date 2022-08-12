@@ -1,0 +1,23 @@
+diff --git a/desmume/src/libretro-common/features/features_cpu.c b/desmume/src/libretro-common/features/features_cpu.c
+index 0980821f..1b3f0a50 100644
+--- a/desmume/src/libretro-common/features/features_cpu.c
++++ b/desmume/src/libretro-common/features/features_cpu.c
+@@ -232,6 +232,9 @@ retro_time_t cpu_features_get_time_usec(void)
+ 
+ #if defined(__x86_64__) || defined(__i386__) || defined(__i486__) || defined(__i686__)
+ #define CPU_X86
++#elif defined(__ARM_ARCH) || defined(__TARGET_ARCH_ARM) || defined(_M_ARM) || defined(__arm__) || \
++      defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) || defined(__AARCH64EL__)
++#define CPU_ARM
+ #endif
+ 
+ #if defined(_MSC_VER) && !defined(_XBOX)
+@@ -310,7 +313,7 @@ static void arm_enable_runfast_mode(void)
+ }
+ #endif
+ 
+-#if defined(__linux__) && !defined(CPU_X86)
++#if defined(__linux__) && defined(CPU_ARM)
+ #if __ARM_ARCH
+ #include <sys/auxv.h>
+ #endif
