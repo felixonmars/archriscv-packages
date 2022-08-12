@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,11 +13,17 @@ url="https://sourceware.org/elfutils/"
+ license=(LGPL3 GPL3)
+ makedepends=(bzip2 curl gcc-libs libarchive libmicrohttpd sqlite xz zlib zstd)
+ options=(debug staticlibs)
+-source=(https://sourceware.org/$pkgbase/ftp/$pkgver/$pkgbase-$pkgver.tar.bz2{,.sig})
++source=(https://sourceware.org/$pkgbase/ftp/$pkgver/$pkgbase-$pkgver.tar.bz2{,.sig}
++        skip-run-backtrace-native.patch
++        elflint.patch)
+ sha512sums=('a9b9e32b503b8b50a62d4e4001097ed2721d3475232a6380e6b9853bd1647aec016440c0ca7ceb950daf1144f8db9814ab43cf33cc0ebef7fc91e9e775c9e874'
+-            'SKIP')
++            'SKIP'
++            'f36fa06ea2806694669580611c0a8c18e499a375e4421a378ad073cb5a2f23f9336d3ecb13222b7d958de5ca1d7b17d20650517abfd706f3205273688a42e2f8'
++            'f67a3e1ae01d8b34568525bd483344ce6cf4103e43d388dfb375cb5d0c129a407f2683845c648ecc5cdd72626bd2dc1c2230acfab1c5187c52d075a34565538a')
+ b2sums=('00ba3efa689d137808f5f53ecda93fd006be0c18d690ce76616ed1dba442281098579fa4b9a9e91b8ba865a3de15968f0ae06703a7b50b15c48a4beb5c970a46'
+-        'SKIP')
++        'SKIP'
++        '4ed05c6e03a7f7da03a7cbb77a00e6b9bdd3d69e3c2dea42db59189f6600895570ac48d0de8f129fd14e2e689a121524df6d1bf666faa5f241d069761d2e2a57'
++        '4cba064fadc4f01ad8312f619722fe0104c9fe6480c82917053f02e46dd0aaa92a053c9900f6a99816038b1220eaca29f7f2359ba6242346e5e536298f59a773')
+ validpgpkeys=(
+   '47CC0331081B8BC6D0FD4DA08370665B57816A6A'  # Mark J. Wielaard <mark@klomp.org>
+   'EC3CFE88F6CA0788774F5C1D1AA44BE649DE760A'  # Mark Wielaard <mjw@gnu.org>
+@@ -36,6 +42,8 @@ _pick() {
+ prepare() {
+   (
+   cd $pkgbase-$pkgver
++  patch -p1 -i ../skip-run-backtrace-native.patch
++  patch -p1 -i ../elflint.patch
+   autoreconf -fiv
+   )
+ 
