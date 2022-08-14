@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index a573d5d..e11db13 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,7 +23,17 @@ sha512sums=('9ff42deaf28a45be26cf0211b11878be873467bee0bdb128efec3c1a9d4f7214f53
+ 
+ prepare() {
+   cd "prometheus_wireguard_exporter-${pkgver}"
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++
++  # RISC-V Patches:
++
++  # The upstream `ring' package does not support riscv yet.
++  # This workaround comes from https://github.com/felixonmars/archriscv-packages/wiki/%E6%88%91%E4%BB%AC%E7%9A%84%E5%B7%A5%E4%BD%9C%E4%B9%A0%E6%83%AF
++  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++  cargo update -p ring
++
++  # rustc(1) recognizes `riscv64gc' instead of `riscv64'. Thus,
++  # as the convention, we removed `--target'.
++  cargo fetch --locked
+ }
+ 
+ build() {
