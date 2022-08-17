@@ -1,6 +1,8 @@
---- PKGBUILD
-+++ PKGBUILD
-@@ -7,14 +7,14 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 452986)
++++ PKGBUILD	(working copy)
+@@ -7,7 +7,7 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
  
  pkgbase=glibc
@@ -8,7 +10,8 @@
 +pkgname=(glibc)
  pkgver=2.36
  _commit=c804cd1c00adde061ca51711f63068c103e94eef
- pkgrel=1
+ pkgrel=2
+@@ -14,7 +14,7 @@
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
@@ -17,8 +20,8 @@
  options=(debug staticlibs !lto)
  source=(git+https://sourceware.org/git/glibc.git#commit=${_commit}
          locale.gen.txt
-@@ -34,7 +34,7 @@ b2sums=('SKIP'
-         'edef5f724f68ea95c6b0127bd13a10245f548afc381b2d0a6d1d06ee9f87b7dd89c6becd35d5ae722bf838594eb870a747f67f07f46e7d63f8c8d1a43cce4a52')
+@@ -36,7 +36,7 @@
+         '5fdd133c367af2f5454ea1eea7907de12166fb95eb59dbe33eae16aa9e26209b6585972bc1c80e36a0af4bfb04296acaf940ee78cd624cdcbab9669dff46c051')
  
  prepare() {
 -  mkdir -p glibc-build lib32-glibc-build
@@ -26,7 +29,7 @@
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc
    cd glibc
-@@ -54,9 +54,7 @@ build() {
+@@ -61,9 +61,7 @@
        --enable-bind-now
        --enable-cet
        --enable-kernel=4.4
@@ -36,7 +39,7 @@
        --disable-profile
        --disable-crypt
        --disable-werror
-@@ -91,30 +89,6 @@ build() {
+@@ -98,30 +96,6 @@
    # build info pages manually for reproducibility
    make info
  
@@ -65,9 +68,9 @@
 -  make -O
 -
    # pregenerate C.UTF-8 locale until it is built into glibc
-   # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)
-   locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
-@@ -153,7 +127,7 @@ check() {
+   # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)-
+   elf/ld.so --library-path "$PWD" locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
+@@ -160,7 +134,7 @@
    make -O check
  }
  
@@ -76,16 +79,10 @@
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat'
-@@ -190,33 +164,4 @@ package_glibc() {
-   install -dm755 "$pkgdir/usr/lib/locale"
-   cp -r "$srcdir/C.UTF-8" -t "$pkgdir/usr/lib/locale"
-   sed -i '/#C\.UTF-8 /d' "$pkgdir/etc/locale.gen"
--
--  # Provide tracing probes to libstdc++ for exceptions, possibly for other
--  # libraries too. Useful for gdb's catch command.
--  install -Dm644 "$srcdir/sdt.h" "$pkgdir/usr/include/sys/sdt.h"
--  install -Dm644 "$srcdir/sdt-config.h" "$pkgdir/usr/include/sys/sdt-config.h"
--}
+@@ -203,27 +177,3 @@
+   install -Dm644 "$srcdir/sdt.h" "$pkgdir/usr/include/sys/sdt.h"
+   install -Dm644 "$srcdir/sdt-config.h" "$pkgdir/usr/include/sys/sdt-config.h"
+ }
 -
 -package_lib32-glibc() {
 -  pkgdesc='GNU C Library (32-bit)'
@@ -109,4 +106,4 @@
 -
 -  # Symlink /usr/lib32/locale to /usr/lib/locale
 -  ln -s ../lib/locale "$pkgdir/usr/lib32/locale"
- }
+-}
