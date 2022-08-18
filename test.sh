@@ -50,7 +50,13 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
   fi
 
   cp $ORIGDIR/$PKGBASE/* ./
+
   patch -p0 -i ./riscv64.patch || exit 1
+
+  # `makepkg` requires a non-root user to run, let's remove this restriction
+  sed -e 's|if (( EUID == 0 ))|if false|' -i /usr/bin/makepkg
+  makepkg --verifysource --skippgpcheck || exit 1
+
   popd
 done
 
