@@ -1,0 +1,32 @@
+diff --git PKGBUILD PKGBUILD
+index 8ad3017..ab8a9d8 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,11 +15,13 @@
+ checkdepends=(python-brotli python-cffi python-hypothesis python-pandas python-pytest python-pytest-lazy-fixture python-pytz)
+ source=(https://archive.apache.org/dist/${_pkg}/${_pkg}-${pkgver}/apache-${_pkg}-${pkgver}.tar.gz{,.asc}
+         git+https://github.com/apache/arrow-testing.git
+-        tensorflow-abi.patch)
+-sha256sums=(ad9a05705117c989c116bae9ac70492fe015050e1b80fb0e38fde4b5d863aaa3
+-            SKIP
+-            SKIP
+-            d20e9cef6b18d3801a1ac1db50808631bec8097be58c194d6b036a5773e14958)
++        tensorflow-abi.patch
++        add-riscv-support.patch::https://github.com/apache/arrow/commit/050876c5b502e73339de4d45e9bb2b54a3b3e095.patch)
++sha256sums=('ad9a05705117c989c116bae9ac70492fe015050e1b80fb0e38fde4b5d863aaa3'
++            'SKIP'
++            'SKIP'
++            'd20e9cef6b18d3801a1ac1db50808631bec8097be58c194d6b036a5773e14958'
++            '6c3b04143ef65ae3ade20e7684f3651092b139dc2ef5786d2ca796f4c8024a98')
+ validpgpkeys=(265F80AB84FE03127E14F01125BCCA5220D84079  # Krisztian Szucs (apache) <szucs.krisztian@gmail.com>
+               08D3564B7C6A9CAFBFF6A66791D18FCF079F8007) # Kouhei Sutou <kou@cozmixng.org>
+ 
+@@ -27,6 +29,8 @@
+ prepare(){
+   cd apache-${_pkg}-${pkgver}
+   patch -p1 < ../tensorflow-abi.patch
++  sed -i 's/cpp/python/g' ../add-riscv-support.patch
++  patch -p1 < ../add-riscv-support.patch
+ }
+ 
+ build(){
