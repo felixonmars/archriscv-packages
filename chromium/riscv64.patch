@@ -1,34 +1,55 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 447422)
+--- PKGBUILD	(revision 454051)
 +++ PKGBUILD	(working copy)
-@@ -25,6 +25,7 @@
- source=(https://commondatastorage.googleapis.com/chromium-browser-official/$pkgname-$pkgver.tar.xz
+@@ -25,6 +25,14 @@
+ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chromium-$pkgver.tar.xz
          https://github.com/foutrelis/chromium-launcher/archive/v$_launcher_ver/chromium-launcher-$_launcher_ver.tar.gz
          https://github.com/stha09/chromium-patches/releases/download/chromium-${pkgver%%.*}-patchset-$_gcc_patchset/chromium-${pkgver%%.*}-patchset-$_gcc_patchset.tar.xz
++        riscv-angle.patch
++        riscv-base.patch
++        riscv-breakpad.patch
++        riscv-crashpad.patch
++        riscv-dav1d.patch
++        riscv-sandbox.patch
++        riscv-v8.patch
 +        riscv.patch
-         iwyu-add-utility-for-std-exchange.patch
+         x11-ozone-fix-X11-screensaver-suspension.patch
          enable-GlobalMediaControlsCastStartStop.patch
          roll-src-third_party-ffmpeg.patch
-@@ -35,6 +36,7 @@
- sha256sums=('1a3797d36901fa3ba63744b9a870b65a8890c9a850442c160196bc64df886b1f'
+@@ -34,6 +42,14 @@
+ sha256sums=('60f015e1559de4044cdfa3bdc1f8fde535927c8ab15b0959ccc9b6feec832f5b'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '53de0f936fd571e578ba2fbf348c8741116cdcceac3ea6fae5008d8f054a7698'
-+            '6d195f8140f2c21eb04aafd5cfd2e44c75d601bff6443f83ed6642ca5e575c89'
-             '6f666ef0acb08704ca58cc0d5e97e7ce64d8fea51042e593adae1ce15a61231c'
+             'ce702099849465927cf47f7bc3a4a27045d0e35e16b17481ebf35e14506bafa7'
++            'f64e280d31e309970c3c5ea8110ff10ed17d5b0a2e42e78ceb0afcb19469c01e'
++            '9c66ceec9b2b47a65ed1edffe2ef51d2b6109c0ab387257cebea8720b969ef56'
++            'da816d3c537aa1af2f649db0f97d3ef1ff9e0c7db63e49ae3d3728fa4b357f86'
++            'fd64211e23ad2b474e51d4d30a7a2e7d0ebb7a665f7a20c5c49264e0fedeacf2'
++            'fd30767b8587338d1a38165aaaeef7e44a6ea91c4cfa644effaaa363e698796a'
++            '85bae214b5c4f19e82bccbb2bf9d32ec934a2a8afb14691c5978a61254ade6bc'
++            '3335fc98afca37e57d37a9e8525e52179ec1c1d49bc7da89eb98d56d7bce0941'
++            '5b2407e1bca299d65d2f2118de5b022afbc2a287ff8f45c8d105183f95837e0c'
+             '9956a843bc8a765c130080616ccd3ebc46ea95c3a2324c4b403bc293a8705eb2'
              '779fb13f2494209d3a7f1f23a823e59b9dded601866d3ab095937a1a04e19ac6'
              '30df59a9e2d95dcb720357ec4a83d9be51e59cc5551365da4c0073e68ccdec44'
-@@ -120,6 +122,9 @@
-   patch -Np1 -i ../patches/chromium-102-fenced_frame_utils-include.patch
-   patch -Np1 -i ../patches/chromium-102-regex_pattern-array.patch
+@@ -114,6 +130,16 @@
+   # Fixes for building with libstdc++ instead of libc++
+   patch -Np1 -i ../patches/chromium-103-VirtualCursor-std-layout.patch
  
 +  # RISCV64
++  patch -Np1 -i ../riscv-angle.patch
++  patch -Np1 -i ../riscv-base.patch
++  patch -Np1 -i ../riscv-breakpad.patch
++  patch -Np1 -i ../riscv-crashpad.patch
++  patch -Np1 -i ../riscv-dav1d.patch
++  patch -Np1 -i ../riscv-sandbox.patch
++  patch -Np1 -i ../riscv-v8.patch
 +  patch -Np1 -i ../riscv.patch
 +
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -173,6 +178,10 @@
+@@ -167,6 +193,10 @@
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
