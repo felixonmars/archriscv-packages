@@ -1,5 +1,5 @@
---- PKGBUILD	(revision 452537)
-+++ PKGBUILD	(working copy)
+--- PKGBUILD
++++ PKGBUILD
 @@ -12,9 +12,13 @@
  checkdepends=(mercurial git)
  options=(!lto debug)
@@ -8,7 +8,7 @@
 +source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
 +        tests-skip-some-tests-on-rv64.patch
 +        Disable-floating-pointcontraction.patch)
- sha256sums=('6c0b8ff1826885eeace19ec87ae9e5a6512284d4863930713c8a288a03832b5c'
+ sha256sums=('53be2bcde0b5ee3ec106bd8ba06b8ae95e7d489c484e881dfbe5360e4c920762'
 -            'SKIP')
 +            'SKIP'
 +            '1518e134fd5448d48f960bedbe7db061d5a8b368d43db2cac7f4b1adf094c748'
@@ -16,18 +16,19 @@
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
  
  # Make sure the duplication between bin and lib is found
-@@ -24,6 +28,10 @@
+@@ -28,6 +32,11 @@
    mkdir mozbuild
    cd firefox-$pkgver
  
-+  patch -Np1 -i  "../tests-skip-some-tests-on-rv64.patch"
-+
-+  #https://bugzilla.mozilla.org/show_bug.cgi?id=1755531
++  patch -Np1 -i "../tests-skip-some-tests-on-rv64.patch"
++ 
++ #https://bugzilla.mozilla.org/show_bug.cgi?id=1755531
 +  patch -Np1 -i  "../Disable-floating-pointcontraction.patch"
++
    cat >../mozconfig <<END
  ac_add_options --enable-application=js
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
-@@ -33,12 +41,13 @@
+@@ -37,12 +46,13 @@
  ac_add_options --enable-hardening
  ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
@@ -42,7 +43,7 @@
  
  # System libraries
  ac_add_options --with-system-zlib
-@@ -59,43 +68,42 @@
+@@ -63,43 +73,43 @@
    export MOZBUILD_STATE_PATH="$srcdir/mozbuild"
    export MACH_USE_SYSTEM_PYTHON=1
  
@@ -52,6 +53,7 @@
 +  #echo "Building instrumented JS..."
    cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-profile-generate=cross
++#ac_add_options --enable-profile-generate=cross
  END
    ./mach build
  
@@ -82,7 +84,7 @@
 +  #)
  
 -  llvm-profdata merge -o merged.profdata *.profraw
-+  #illvm-profdata merge -o merged.profdata *.profraw
++  #llvm-profdata merge -o merged.profdata *.profraw
  
 -  stat -c "Profile data found (%s bytes)" merged.profdata
 -  test -s merged.profdata
