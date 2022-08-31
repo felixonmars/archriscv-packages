@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,13 +10,18 @@ arch=('x86_64')
+ url="https://github.com/ossrs/state-threads/"
+ license=('GPL2' 'MPL')
+ makedepends=('git')
+-source=("git+https://github.com/ossrs/state-threads/#commit=${_pkgcommit}")
+-sha256sums=('SKIP')
++source=("git+https://github.com/ossrs/state-threads/#commit=${_pkgcommit}"
++        "riscv-cpu-support.patch")
++sha256sums=('SKIP'
++            '87fe9d0a5fd988d2f6458b35a0d644a58e8399f691e082d6f5d5a3844e0d98fb')
+ 
+ prepare() {
+   cd "${srcdir}"/state-threads
+   ldFlags="$(echo "$LDFLAGS" | sed 's|-Wl,||;s|,| |g') -z noexecstack"
+   sed -ie "s|LDFLAGS     =|LDFLAGS     = ${ldFlags}|" Makefile
++
++  # add riscv support
++  patch -Ni "$srcdir/riscv-cpu-support.patch"
+ }
+ 
+ build() {
