@@ -1,0 +1,222 @@
+diff --git a/trunk/3rdparty/patches/srtp/config.guess-02.patch b/trunk/3rdparty/patches/srtp/config.guess-02.patch
+new file mode 100644
+index 000000000..827e96ac2
+--- /dev/null
++++ b/trunk/3rdparty/patches/srtp/config.guess-02.patch
+@@ -0,0 +1,7 @@
++1034a1035,1040
++>     riscv:Linux:*:*)
++> 	echo riscv-unknown-linux-${LIBC}
++> 	exit ;;
++>     riscv64:Linux:*:*)
++> 	echo riscv64-unknown-linux-${LIBC}
++> 	exit ;;
+diff --git a/trunk/3rdparty/st-srs/md.S b/trunk/3rdparty/st-srs/md.S
+index 2ef9c41f7..d997b738b 100644
+--- a/trunk/3rdparty/st-srs/md.S
++++ b/trunk/3rdparty/st-srs/md.S
+@@ -639,6 +639,86 @@
+ 
+     /****************************************************************/
+ 
++
++
++
++
++#elif defined(__riscv)
++
++    /****************************************************************/
++    /*
++     * Internal __jmp_buf layout
++     * riscv-asm: https://github.com/riscv/riscv-asm-manual/blob/master/riscv-asm.md
++     */
++    #define JB_SP  0    /* A0, SP, Stack pointer */
++    #define JB_RA  1    /* RA, Return address */
++    #define JB_FP  2    /* FP/S0 Frame pointer */
++    #define JB_S1  3    /* S1 Saved register*/
++    #define JB_S2  4    /* S2-S11,  Saved register */
++    #define JB_S3  5    /* S2-S11,  Saved register */
++    #define JB_S4  6    /* S2-S11,  Saved register */
++    #define JB_S5  7    /* S2-S11,  Saved register */
++    #define JB_S6  8    /* S2-S11,  Saved register */
++    #define JB_S7  9    /* S2-S11,  Saved register */
++    #define JB_S8  10    /* S2-S11,  Saved register */
++    #define JB_S9  11   /* S2-S11,  Saved register */
++    #define JB_S10 12   /* S2-S11,  Saved register */
++    #define JB_S11 13   /* S2-S11,  Saved register */
++
++
++    	.file "md_linux.S"
++    	.text
++
++    	/* _st_md_cxt_save(__jmp_buf env) */ /* The env is $a0, https://en.wikipedia.org/wiki/RISC-V#Register_sets */
++    	.globl _st_md_cxt_save
++    	.type _st_md_cxt_save, %function
++    	.align 2
++    _st_md_cxt_save:
++	sd    sp,  JB_SP  * 8(a0)
++	sd    ra,  JB_RA  * 8(a0)
++	sd    s0,  JB_FP  * 8(a0)
++	sd    s1,  JB_S1  * 8(a0)
++	sd    s2,  JB_S2  * 8(a0)
++	sd    s3,  JB_S3  * 8(a0)
++	sd    s4,  JB_S4  * 8(a0)
++	sd    s5,  JB_S5  * 8(a0)
++	sd    s6,  JB_S6  * 8(a0)
++	sd    s7,  JB_S7  * 8(a0)
++	sd    s8,  JB_S8  * 8(a0)
++	sd    s9,  JB_S9  * 8(a0)
++	sd    s10, JB_S10 * 8(a0)
++	sd    s11, JB_S11 * 8(a0)
++	li    a0,  0
++	jr    ra
++    	.size _st_md_cxt_save, .-_st_md_cxt_save
++
++    /****************************************************************/
++
++    	/* _st_md_cxt_restore(__jmp_buf env, int val) */
++    	.globl _st_md_cxt_restore
++    	.type _st_md_cxt_restore, %function
++    	.align 2
++    _st_md_cxt_restore:
++	ld        sp,  JB_SP  * 8(a0)
++	ld        ra,  JB_RA  * 8(a0)
++	ld        s0,  JB_FP  * 8(a0)
++	ld        s1,  JB_S1  * 8(a0)
++	ld        s2,  JB_S2  * 8(a0)
++	ld        s3,  JB_S3  * 8(a0)
++	ld        s4,  JB_S4  * 8(a0)
++	ld        s5,  JB_S5  * 8(a0)
++	ld        s6,  JB_S6  * 8(a0)
++	ld        s7,  JB_S7  * 8(a0)
++	ld        s8,  JB_S8  * 8(a0)
++	ld        s9,  JB_S9  * 8(a0)
++	ld        s10, JB_S10 * 8(a0)
++	ld        s11, JB_S11 * 8(a0)
++	li        a0,  1
++	jr        ra
++    	.size _st_md_cxt_restore, .-_st_md_cxt_restore
++
++    /****************************************************************/
++
+ #endif
+ 
+ #endif
+diff --git a/trunk/3rdparty/st-srs/md.h b/trunk/3rdparty/st-srs/md.h
+index 8c0a222d6..2fb155bb6 100644
+--- a/trunk/3rdparty/st-srs/md.h
++++ b/trunk/3rdparty/st-srs/md.h
+@@ -461,6 +461,11 @@
+              */
+             #define MD_GET_SP(_t) (*(long *)(((char *)&(_t)->context[0].__jmpbuf[0]) + 76))
+ 
++        #elif defined(__riscv)
++            /* https://github.com/ossrs/state-threads/pull/28 */
++            #define MD_USE_BUILTIN_SETJMP
++            #define MD_GET_SP(_t) *((long *)&((_t)->context[0].__jmpbuf[0]))
++
+         #else
+             #error "Unknown CPU architecture"
+         #endif /* Cases with common MD_INIT_CONTEXT and different SP locations */
+diff --git a/trunk/3rdparty/st-srs/sched.c b/trunk/3rdparty/st-srs/sched.c
+index 80d0e3968..c4ad18463 100644
+--- a/trunk/3rdparty/st-srs/sched.c
++++ b/trunk/3rdparty/st-srs/sched.c
+@@ -620,10 +620,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
+     _st_stack_t *stack;
+     void **ptds;
+     char *sp;
+-#ifdef __ia64__
+-    char *bsp;
+-#endif
+-    
++
+     /* Adjust stack size */
+     if (stk_size == 0)
+         stk_size = ST_DEFAULT_STACK_SIZE;
+@@ -631,52 +628,22 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
+     stack = _st_stack_new(stk_size);
+     if (!stack)
+         return NULL;
+-    
++
+     /* Allocate thread object and per-thread data off the stack */
+-#if defined (MD_STACK_GROWS_DOWN)
+     sp = stack->stk_top;
+-#ifdef __ia64__
+-    /*
+-     * The stack segment is split in the middle. The upper half is used
+-     * as backing store for the register stack which grows upward.
+-     * The lower half is used for the traditional memory stack which
+-     * grows downward. Both stacks start in the middle and grow outward
+-     * from each other.
+-     */
+-    sp -= (stk_size >> 1);
+-    bsp = sp;
+-    /* Make register stack 64-byte aligned */
+-    if ((unsigned long)bsp & 0x3f)
+-        bsp = bsp + (0x40 - ((unsigned long)bsp & 0x3f));
+-    stack->bsp = bsp + _ST_STACK_PAD_SIZE;
+-#endif
+     sp = sp - (ST_KEYS_MAX * sizeof(void *));
+-    ptds = (void **) sp;
++    ptds = (void **)sp;
+     sp = sp - sizeof(_st_thread_t);
+-    thread = (_st_thread_t *) sp;
+-    
++    thread = (_st_thread_t *)sp;
++
+     /* Make stack 64-byte aligned */
+     if ((unsigned long)sp & 0x3f)
+         sp = sp - ((unsigned long)sp & 0x3f);
+     stack->sp = sp - _ST_STACK_PAD_SIZE;
+-#elif defined (MD_STACK_GROWS_UP)
+-    sp = stack->stk_bottom;
+-    thread = (_st_thread_t *) sp;
+-    sp = sp + sizeof(_st_thread_t);
+-    ptds = (void **) sp;
+-    sp = sp + (ST_KEYS_MAX * sizeof(void *));
+-    
+-    /* Make stack 64-byte aligned */
+-    if ((unsigned long)sp & 0x3f)
+-        sp = sp + (0x40 - ((unsigned long)sp & 0x3f));
+-    stack->sp = sp + _ST_STACK_PAD_SIZE;
+-#else
+-#error Unknown OS
+-#endif
+-    
++
+     memset(thread, 0, sizeof(_st_thread_t));
+     memset(ptds, 0, ST_KEYS_MAX * sizeof(void *));
+-    
++
+     /* Initialize thread */
+     thread->private_data = ptds;
+     thread->stack = stack;
+diff --git a/trunk/auto/depends.sh b/trunk/auto/depends.sh
+index cd29cd0b2..6aec78d52 100755
+--- a/trunk/auto/depends.sh
++++ b/trunk/auto/depends.sh
+@@ -628,6 +628,7 @@ else
+         rm -rf ${SRS_OBJS}/srtp2 && cd ${SRS_OBJS}/${SRS_PLATFORM} &&
+         rm -rf libsrtp-2-fit && cp -R ../../3rdparty/libsrtp-2-fit . && cd libsrtp-2-fit &&
+         patch -p0 crypto/math/datatypes.c ../../../3rdparty/patches/srtp/gcc10-01.patch &&
++        patch -p0 config.guess ../../../3rdparty/patches/srtp/config.guess-02.patch &&
+         $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=`pwd`/_release &&
+         make ${SRS_JOBS} && make install &&
+         cd .. && rm -rf srtp2 && ln -sf libsrtp-2-fit/_release srtp2
+diff --git a/trunk/src/core/srs_core.hpp b/trunk/src/core/srs_core.hpp
+index 05f044dc8..73446ad9e 100644
+--- a/trunk/src/core/srs_core.hpp
++++ b/trunk/src/core/srs_core.hpp
+@@ -84,8 +84,8 @@
+     (void)0
+ 
+ // Check CPU for ST(state-threads), please read https://github.com/ossrs/state-threads/issues/22
+-#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__)
+-    #error "Only support i386/amd64/x86_64/arm/aarch64/mips cpu"
++#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__) && !defined(__riscv)
++    #error "Only support i386/amd64/x86_64/arm/aarch64/mips/riscv cpu"
+ #endif
+ 
+ // Error predefined for all modules.
