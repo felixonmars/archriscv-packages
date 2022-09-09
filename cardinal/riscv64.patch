@@ -1,0 +1,42 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,9 +19,17 @@ source=(
+   $pkgbase-$pkgver.svg::https://raw.githubusercontent.com/DISTRHO/Cardinal/eb95b5990cf734c10f2caab1a246eac893f0266d/plugins/Cardinal/orig/distrho.svg
+ )
+ sha512sums=('fe50de9bc033698f052a8691fee46869b87f25bb013cdf17f0e4680cbfd550ac4c9b553ed49b67ebc13bf1ff07333dc6df0e17c793f4fc9173f3d1168f5c1869'
+-            '31a7d1e548285af0ead1bc844fbb1d35b50f6284159047cb401a829d4068992fa328770e42c377c08d013f6787e55ac12b94eba4d5af4b90373b157971fc8835')
++            '31a7d1e548285af0ead1bc844fbb1d35b50f6284159047cb401a829d4068992fa328770e42c377c08d013f6787e55ac12b94eba4d5af4b90373b157971fc8835'
++            'e02b5ea7153151c0d4749b3e93785dbe71134d0e9e4805f5fa4d6abd8178972aa297e1f968d5a8b802222ee1388311b5f96215afca4405932285aa62dd911318'
++            'ce36e0779e4f112b52b487fc844b162e7653daa654d2b27e55284fbfb06955b39cc510f0cee7c5274abad36891208b92afcfbb0a92404d6918685afc4543f8c7')
+ b2sums=('c9a3deab7e90c73e194cc3e9b391061eec3c7fd29dfaeb3e24226af37af16dc4893080eb20953c3139f54f4a75191b09c4438b4812b1f8533e5923394fcbc2b3'
+-        'd82fefe15234c1ed3a4d487c6082a2e3ac73b60f11041314e99c5a5de5b3ea141efbd5afd18851510bd4f801fd71f7cd89d54d86258d1ba750bbfd762aa37a8d')
++        'd82fefe15234c1ed3a4d487c6082a2e3ac73b60f11041314e99c5a5de5b3ea141efbd5afd18851510bd4f801fd71f7cd89d54d86258d1ba750bbfd762aa37a8d'
++        'da5278d1d56604e3a6db9e3eb2e6a674dd41d268f93f015a1a295d1ef2028ffa94968eec7b462a6562ec6a2cf833a321240fa42834de72aeaa1bc87d1d3b836b'
++        '51900c7c42a64c0d3a8dd8e6e11fa688350c58904e745fbbeb0ce3e0e6106235af5b78c0f9fd544d34f91bf6ed8a90c029445fcac3d7732dd98af65635cf5675')
++
++makedepends+=(simde)
++source+=(use-simde.patch::https://github.com/xctan/Cardinal/compare/fad92579b9f9789d9d3be0cc55704fd0e1f30e19...xctan:Cardinal:riscv.patch
++         carla-riscv.patch::https://github.com/falkTX/Carla/pull/1649.patch)
+ 
+ _pick() {
+   local p="$1" f d; shift
+@@ -41,11 +49,17 @@ prepare() {
+           --pkgdesc "$pkgdesc JACK standalone" \
+           --icon $pkgbase \
+           --genericname "Virtual modular synthesizer"
++  pushd $pkgname-$pkgver
++  patch -Np1 -i ../use-simde.patch
++  pushd carla
++  patch -Np1 -i ../../carla-riscv.patch
++  popd
++  popd
+ }
+ 
+ build() {
+-  export CFLAGS+=" -B/usr/lib/mold -Wno-format-security"
+-  export CXXFLAGS+=" -B/usr/lib/mold -Wno-format-security"
++  export CFLAGS+=" -B/usr/lib/mold -Wno-format-security -Wl,-L/lib -Wl,-L/usr/lib"
++  export CXXFLAGS+=" -B/usr/lib/mold -Wno-format-security -Wl,-L/lib -Wl,-L/usr/lib"
+   make PREFIX=/usr SYSDEPS=true WITH_LTO=true -C $pkgname-$pkgver
+ }
+ 
