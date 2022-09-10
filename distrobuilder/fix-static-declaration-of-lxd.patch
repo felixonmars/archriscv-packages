@@ -1,0 +1,106 @@
+From d83f061a21f509d42b7a334b97403d2a019a7b52 Mon Sep 17 00:00:00 2001
+From: Christian Brauner <brauner@kernel.org>
+Date: Tue, 9 Aug 2022 12:02:58 +0200
+Subject: [PATCH] cgo: ensure that lxd wrappers don't conflict with libc
+ provided wrapper
+
+Fixes: #10738
+Signed-off-by: Christian Brauner (Microsoft) <brauner@kernel.org>
+---
+ lxd/include/process_utils.h    |  8 ++++----
+ lxd/include/syscall_wrappers.h | 11 ++++++-----
+ lxd/main_checkfeature.go       |  8 ++++----
+ lxd/main_forkmount.go          |  2 +-
+ lxd/main_forksyscall.go        |  2 +-
+ lxd/main_nsexec.go             |  6 +++---
+ lxd/seccomp/seccomp.go         |  2 +-
+ shared/idmap/shift_linux.go    |  4 ++--
+ shared/util_linux_cgo.go       |  4 ++--
+ 9 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/lxd/include/process_utils.h b/lxd/include/process_utils.h
+index da6774a7ebac..2544aea80132 100644
+--- a/lxd/include/process_utils.h
++++ b/lxd/include/process_utils.h
+@@ -18,20 +18,20 @@
+ #include "memory_utils.h"
+ #include "syscall_numbers.h"
+ 
+-static inline int pidfd_open(pid_t pid, unsigned int flags)
++static inline int lxd_pidfd_open(pid_t pid, unsigned int flags)
+ {
+ 	return syscall(__NR_pidfd_open, pid, flags);
+ }
+ 
+-static inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
+-				    unsigned int flags)
++static inline int lxd_pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
++					unsigned int flags)
+ {
+ 	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
+ }
+ 
+ static inline bool process_still_alive(int pidfd)
+ {
+-	return pidfd_send_signal(pidfd, 0, NULL, 0) == 0;
++	return lxd_pidfd_send_signal(pidfd, 0, NULL, 0) == 0;
+ }
+ 
+ static inline int wait_for_pid(pid_t pid)
+diff --git a/lxd/include/syscall_wrappers.h b/lxd/include/syscall_wrappers.h
+index 0802352d97f7..d05604b4b25e 100644
+--- a/lxd/include/syscall_wrappers.h
++++ b/lxd/include/syscall_wrappers.h
+@@ -27,7 +27,7 @@ static inline int lxd_close_range(unsigned int fd, unsigned int max_fd, unsigned
+ 	return syscall(__NR_close_range, fd, max_fd, flags);
+ }
+ 
+-static inline int open_tree(int dfd, const char *filename, unsigned int flags)
++static inline int lxd_open_tree(int dfd, const char *filename, unsigned int flags)
+ {
+ 	return syscall(__NR_open_tree, dfd, filename, flags);
+ }
+@@ -42,14 +42,15 @@ struct lxc_mount_attr {
+ 	__u64 userns_fd;
+ };
+ 
+-static inline int mount_setattr(int dfd, const char *path, unsigned int flags,
+-				struct lxc_mount_attr *attr, size_t size)
++static inline int lxd_mount_setattr(int dfd, const char *path, unsigned int flags,
++				    struct lxc_mount_attr *attr, size_t size)
+ {
+ 	return syscall(__NR_mount_setattr, dfd, path, flags, attr, size);
+ }
+ 
+-static inline int move_mount(int from_dfd, const char *from_pathname, int to_dfd,
+-			     const char *to_pathname, unsigned int flags)
++static inline int lxd_move_mount(int from_dfd, const char *from_pathname,
++				 int to_dfd, const char *to_pathname,
++				 unsigned int flags)
+ {
+ 	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd,
+ 		       to_pathname, flags);
+ 	*bpf_prog_type = attr.prog_type;
+ 
+diff --git a/shared/util_linux_cgo.go b/shared/util_linux_cgo.go
+index 9e53a2413e62..9b3f691c8c0a 100644
+--- a/shared/util_linux_cgo.go
++++ b/shared/util_linux_cgo.go
+@@ -78,7 +78,7 @@ func unCloexec(fd int) error {
+ }
+ 
+ func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
+-	pidFd, errno := C.pidfd_open(C.int(Pid), C.uint32_t(Flags))
++	pidFd, errno := C.lxd_pidfd_open(C.int(Pid), C.uint32_t(Flags))
+ 	if errno != nil {
+ 		return nil, errno
+ 	}
+@@ -92,7 +92,7 @@ func PidFdOpen(Pid int, Flags uint32) (*os.File, error) {
+ }
+ 
+ func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
+-	ret, errno := C.pidfd_send_signal(C.int(Pidfd), C.int(Signal), nil, C.uint32_t(Flags))
++	ret, errno := C.lxd_pidfd_send_signal(C.int(Pidfd), C.int(Signal), nil, C.uint32_t(Flags))
+ 	if ret != 0 {
+ 		return errno
+ 	}
