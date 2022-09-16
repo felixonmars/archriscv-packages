@@ -1,0 +1,83 @@
+From ac545294d59a868e67fe8b334d93d99bbcd9a158 Mon Sep 17 00:00:00 2001
+From: FantasqueX <fantasquex@gmail.com>
+Date: Fri, 16 Sep 2022 00:43:24 +0800
+Subject: [PATCH] stdlib/strfrom: Remove the -NAN testcase (bug 29501)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+According to the specification of ISO/IEC TS 18661-1:2014,
+
+The strfromd, strfromf, and strfroml functions are equivalent to
+snprintf(s, n, format, fp) (7.21.6.5), except the format string contains only
+the character %, an optional precision that does not contain an asterisk *, and
+one of the conversion specifiers a, A, e, E, f, F, g, or G, which applies to
+the type (double, float, or long double) indicated by the function suffix
+(rather than  by a length modifier). Use of these functions with any other 20
+format string results in undefined behavior.
+
+strfromf will convert the arguement with type float to double first.
+
+According to the latest version of IEEE754 which is published in 2019,
+
+Conversion of a quiet NaN from a narrower format to a wider format in the same
+radix, and then back to the same narrower format, should not change the quiet
+NaN payload in any way except to make it canonical.
+
+When either an input or result is a NaN, this standard does not interpret the
+sign of a NaN. However, operations on bit strings—copy, negate, abs,
+copySign—specify the sign bit of a NaN result, sometimes based upon the sign
+bit of a NaN operand. The logical predicates totalOrder and isSignMinus are
+also affected by the sign bit of a NaN operand. For all other operations, this
+standard does not specify the sign bit of a NaN result, even when there is only
+one input NaN, or when the NaN is produced from an invalid operation.
+
+converting NAN or -NAN with type float to double doesn't need to keep
+the signbit. As a result, this test case isn't mandatory.
+
+The problem is that according to RISC-V ISA manual in chapter 11.3 of
+riscv-isa-20191213,
+
+Except when otherwise stated, if the result of a floating-point operation is
+NaN, it is the canonical NaN. The canonical NaN has a positive sign and all
+significand bits clear except the MSB, a.k.a. the quiet bit. For
+single-precision floating-point, this corresponds to the pattern 0x7fc00000.
+
+which means that conversion -NAN from float to double won't keep the signbit.
+
+As this test case isn't mandatory and may fail on some architecture, it
+is OK to remove it.
+
+Signed-off-by: Letu Ren <fantasquex@gmail.com>
+---
+ stdlib/tst-strfrom-locale.c | 1 -
+ stdlib/tst-strfrom.c        | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/stdlib/tst-strfrom-locale.c b/stdlib/tst-strfrom-locale.c
+index 85907c0ce1..5fc7c4b17d 100644
+--- a/stdlib/tst-strfrom-locale.c
++++ b/stdlib/tst-strfrom-locale.c
+@@ -37,7 +37,6 @@ static const struct test tests[] = {
+   TEST ("5,900000e-16", "%e", 50, 12, 5.9e-16),
+   TEST ("1,234500e+20", "%e", 50, 12, 12.345e19),
+   TEST ("1,000000e+05", "%e", 50, 12, 1e5),
+-  TEST ("-NAN", "%G", 50, 4, -NAN_),
+   TEST ("-inf", "%g", 50, 4, -INF),
+   TEST ("inf", "%g", 50, 3, INF)
+ };
+diff --git a/stdlib/tst-strfrom.c b/stdlib/tst-strfrom.c
+index 3a447eac12..1533fb9170 100644
+--- a/stdlib/tst-strfrom.c
++++ b/stdlib/tst-strfrom.c
+@@ -37,7 +37,6 @@ static const struct test tests[] = {
+   TEST ("5.900000e-16", "%e", 50, 12, 5.9e-16),
+   TEST ("1.234500e+20", "%e", 50, 12, 12.345e19),
+   TEST ("1.000000e+05", "%e", 50, 12, 1e5),
+-  TEST ("-NAN", "%G", 50, 4, -NAN_),
+   TEST ("-inf", "%g", 50, 4, -INF),
+   TEST ("inf", "%g", 50, 3, INF)
+ };
+-- 
+2.37.3
+
