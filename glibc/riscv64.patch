@@ -1,6 +1,6 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 456080)
+--- PKGBUILD	(revision 456256)
 +++ PKGBUILD	(working copy)
 @@ -7,7 +7,7 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
@@ -20,8 +20,21 @@ Index: PKGBUILD
  options=(debug staticlibs !lto)
  source=(git+https://sourceware.org/git/glibc.git#commit=${_commit}
          locale.gen.txt
-@@ -34,7 +34,7 @@
-         '5fdd133c367af2f5454ea1eea7907de12166fb95eb59dbe33eae16aa9e26209b6585972bc1c80e36a0af4bfb04296acaf940ee78cd624cdcbab9669dff46c051')
+@@ -22,6 +22,7 @@
+         lib32-glibc.conf
+         sdt.h sdt-config.h
+         reenable_DT_HASH.patch
++        0001-stdlib-strfrom-Remove-the-NAN-testcase-bug-29501.patch
+ )
+ validpgpkeys=(7273542B39962DF7B299931416792B4EA25340F8 # Carlos O'Donell
+               BC7C7372637EC10C57D7AA6579C43DFBF1CF2187) # Siddhesh Poyarekar
+@@ -31,10 +32,11 @@
+         '7c265e6d36a5c0dff127093580827d15519b6c7205c2e1300e82f0fb5b9dd00b6accb40c56581f18179c4fbbc95bd2bf1b900ace867a83accde0969f7b609f8a'
+         'a6a5e2f2a627cc0d13d11a82458cfd0aa75ec1c5a3c7647e5d5a3bb1d4c0770887a3909bfda1236803d5bc9801bfd6251e13483e9adf797e4725332cd0d91a0e'
+         '214e995e84b342fe7b2a7704ce011b7c7fc74c2971f98eeb3b4e677b99c860addc0a7d91b8dc0f0b8be7537782ee331999e02ba48f4ccc1c331b60f27d715678'
+-        '5fdd133c367af2f5454ea1eea7907de12166fb95eb59dbe33eae16aa9e26209b6585972bc1c80e36a0af4bfb04296acaf940ee78cd624cdcbab9669dff46c051')
++        '5fdd133c367af2f5454ea1eea7907de12166fb95eb59dbe33eae16aa9e26209b6585972bc1c80e36a0af4bfb04296acaf940ee78cd624cdcbab9669dff46c051'
++        'e3e17f784dd668a1bba6128a5a25616657d848ccd67668f0246e06aac36572e34935a8937639b527f28d755335bca153cadfd9e7daecfe8d5536f76b7ab0f9c0')
  
  prepare() {
 -  mkdir -p glibc-build lib32-glibc-build
@@ -29,17 +42,26 @@ Index: PKGBUILD
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc
    cd glibc
-@@ -53,9 +53,7 @@
+@@ -43,6 +45,10 @@
+   # which relies on DT_HASH to be present in these libs.
+   # reconsider 2023-01
+   patch -Np1 -i "${srcdir}"/reenable_DT_HASH.patch
++
++  # Skip the nan test case which leverages undefined behavior
++  # full analysis at https://github.com/felixonmars/archriscv-packages/issues/1704
++  patch -Np1 -i "${srcdir}"/0001-stdlib-strfrom-Remove-the-NAN-testcase-bug-29501.patch
+ }
+ 
+ build() {
+@@ -53,7 +59,6 @@
        --enable-bind-now
        --enable-cet
        --enable-kernel=4.4
 -      --enable-multi-arch
        --enable-stack-protector=strong
--      --enable-systemtap
+       --enable-systemtap
        --disable-profile
-       --disable-crypt
-       --disable-werror
-@@ -90,30 +88,6 @@
+@@ -90,30 +95,6 @@
    # build info pages manually for reproducibility
    make info
  
@@ -70,8 +92,12 @@ Index: PKGBUILD
    # pregenerate C.UTF-8 locale until it is built into glibc
    # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)-
    elf/ld.so --library-path "$PWD" locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
-@@ -152,7 +126,7 @@
-   make -O check
+@@ -149,10 +130,10 @@
+   skip_test tst-adjtime             time/Makefile
+   skip_test tst-clock2              time/Makefile
+ 
+-  make -O check
++  TIMEOUTFACTOR=20 make -O check
  }
  
 -package_glibc() {
@@ -79,7 +105,7 @@ Index: PKGBUILD
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat'
-@@ -198,27 +172,3 @@
+@@ -198,27 +179,3 @@
    install -Dm644 "${srcdir}"/sdt.h "${pkgdir}"/usr/include/sys/sdt.h
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
