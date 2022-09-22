@@ -1,4 +1,4 @@
---- PKGBUILD	(revision 456539)
+--- PKGBUILD	(revision 456582)
 +++ PKGBUILD	(working copy)
 @@ -12,7 +12,6 @@
  depends=(gtk3 libxt mime-types dbus-glib ffmpeg nss ttf-font libpulse)
@@ -8,23 +8,24 @@
               )
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
-@@ -22,9 +21,13 @@
-             'xdg-desktop-portal: Screensharing with Wayland')
+@@ -23,10 +22,14 @@
  options=(!emptydirs !makeflags !strip !lto !debug)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
+         0001-Bug-1786638-Return-early-if-we-can-t-fetch-an-intern.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch
 +        https://raw.githubusercontent.com/gentoo/riscv/master/www-client/firefox/files/firefox-riscv64-hack.patch
          $pkgname.desktop identity-icons-brand.svg)
  sha256sums=('2b5becbb89aa2b2007ba8c86ad517aeae1b54904d007d9d3acbf054be6a0ed62'
              'SKIP'
+             'befaba1bb16e441953cb36d8ac494991b62134cfbf40cd339904a55034472dd5'
 +            'cea7997c6613d374535b3450c725f32fd1497d71d66709e1406c4238a01b49d4'
 +            '94ab3debdae0eda1aa8fe1c600d7ada76a4b9211ff2578632cc1fac53e75060c'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -45,6 +48,9 @@
-   mkdir mozbuild
-   cd firefox-$pkgver
+@@ -50,6 +53,9 @@
+   # https://bugzilla.mozilla.org/show_bug.cgi?id=1786638
+   patch -Np1 -i ../0001-Bug-1786638-Return-early-if-we-can-t-fetch-an-intern.patch
  
 +  patch -Np1 -i ../firefox-riscv64-hack.patch
 +  patch -Np1 -i ../makotokato-riscv64-support-and-zenithal-backported.patch
@@ -32,7 +33,7 @@
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
  
-@@ -53,15 +59,22 @@
+@@ -58,15 +64,22 @@
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -60,7 +61,7 @@
  # Branding
  ac_add_options --enable-official-branding
  ac_add_options --enable-update-channel=release
-@@ -68,7 +81,8 @@
+@@ -73,7 +86,8 @@
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -70,7 +71,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -83,7 +97,7 @@
+@@ -88,7 +102,7 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -79,7 +80,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -101,39 +115,42 @@
+@@ -106,39 +120,42 @@
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -153,7 +154,7 @@
  }
  
  package() {
-@@ -201,12 +218,12 @@
+@@ -206,12 +223,12 @@
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
