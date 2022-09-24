@@ -1,22 +1,26 @@
-diff --git PKGBUILD PKGBUILD
-index c831960f4..2c64ba454 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,8 +8,15 @@ arch=('x86_64')
- url='https://github.com/google/highway/'
+@@ -9,8 +9,21 @@ url='https://github.com/google/highway/'
  license=('Apache')
+ depends=('gcc-libs')
  makedepends=('cmake' 'gtest')
 -source=("https://github.com/google/highway/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz")
--sha256sums=('4bbd4439eae08cf038f1c5cc5d9ebc6a1a50f2c610c13a1483adccacfa24c150')
+-sha256sums=('7ca6af7dc2e3e054de9e17b9dfd88609a7fd202812b1c216f43cc41647c97311')
 +source=("https://github.com/google/highway/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz"
-+        "fix_missing_header.patch")
-+sha256sums=('4bbd4439eae08cf038f1c5cc5d9ebc6a1a50f2c610c13a1483adccacfa24c150'
-+            '02a14bddb77bae364484d4570976965042a549ec35d53870f7d922fb05349b5d')
++        "${pkgname}-remove-v-flag-for-non-clang-builds.patch::https://github.com/google/highway/commit/96d1d5f788703eb3dd3a0f62d36a410f92d22666.patch"
++        "${pkgname}-fix-detection-HWY_BROKEN_EMU128-1.patch::https://github.com/google/highway/pull/953.patch"
++        "${pkgname}-fix-detection-HWY_BROKEN_EMU128-2.patch::https://github.com/google/highway/pull/956.patch")
++sha256sums=('7ca6af7dc2e3e054de9e17b9dfd88609a7fd202812b1c216f43cc41647c97311'
++            '445dc0d0e1471f7b9ea0499f96d705e927ae70650016bb22de4fdfdfdfe25c8a'
++            '174e59158a54b305e999b20a67f6189ca05479b15fe8fb175bd0566571d14b32'
++            '3afe915099b791169475353eb109848e809b49315def987232d07be05acf51fe')
 +
 +prepare() {
-+	cd "${pkgname}-${pkgver}"
-+	patch -Np1 -i "../fix_missing_header.patch"
++    cd "${pkgname}-${pkgver}"
++    patch -Np1 < "../${pkgname}-remove-v-flag-for-non-clang-builds.patch"
++    patch -Np1 < "../${pkgname}-fix-detection-HWY_BROKEN_EMU128-1.patch"
++    patch -Np1 < "../${pkgname}-fix-detection-HWY_BROKEN_EMU128-2.patch"
 +}
  
  build() {
-     export CXXFLAGS+=' -ffat-lto-objects -DHWY_COMPILE_ALL_ATTAINABLE'
+     cmake -B build -S "${pkgname}-${pkgver}" \
