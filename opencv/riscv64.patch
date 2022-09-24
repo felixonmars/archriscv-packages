@@ -1,5 +1,7 @@
---- PKGBUILD
-+++ PKGBUILD
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 456698)
++++ PKGBUILD	(working copy)
 @@ -3,7 +3,7 @@
  # Contributor: Tobias Powalowski <tpowa@archlinux.org>
  
@@ -7,9 +9,9 @@
 -pkgname=(opencv opencv-samples python-opencv opencv-cuda)
 +pkgname=(opencv opencv-samples python-opencv)
  pkgver=4.6.0
- pkgrel=3
+ pkgrel=4
  pkgdesc='Open Source Computer Vision Library'
-@@ -11,7 +11,7 @@ arch=(x86_64)
+@@ -11,7 +11,7 @@
  license=(BSD)
  url='https://opencv.org/'
  depends=(tbb openexr gst-plugins-base libdc1394 cblas lapack libgphoto2 openjpeg2 ffmpeg protobuf)
@@ -18,16 +20,19 @@
  optdepends=('opencv-samples: samples'
              'vtk: for the viz module'
              'glew: for the viz module'
-@@ -25,6 +25,8 @@ source=(https://github.com/opencv/opencv/archive/$pkgver/$pkgname-$pkgver.tar.gz
+@@ -25,8 +25,10 @@
+         vtk9.patch)
  sha256sums=('1ec1cba65f9f20fe5a41fda1586e01c70ea0c9a6d7b67c9e13edf0cfe2239277'
              '1777d5fd2b59029cf537e5fd6f8aa68d707075822f90bde683fcde086f85f7a7'
+-            'fc3e235c95874c1faa6c37e61a70623b92c4c307b2e258341a654ac3cfd44537'
++            '28edbd94c443b6aaa3054b4f9b35a4ad9a89dc45f40d408bcf3036950a072a32'
              'f35a2d4ea0d6212c7798659e59eda2cb0b5bc858360f7ce9c696c77d3029668e')
 +# fix error 'relocation truncated to fit: R_RISCV_PCREL_HI20 against `.LC19''
 +options=(!lto)
  
  prepare() {
    patch -d $pkgname-$pkgver -p1 < vtk9.patch # Don't require all vtk optdepends
-@@ -48,7 +50,6 @@ build() {
+@@ -51,7 +53,6 @@
           -DINSTALL_PYTHON_EXAMPLES=ON \
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DCPU_BASELINE_DISABLE=SSE3 \
@@ -35,7 +40,7 @@
           -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -62,12 +63,6 @@ build() {
+@@ -65,12 +66,6 @@
   
    cmake -B build -S $pkgname-$pkgver $_opts
    cmake --build build
@@ -48,11 +53,10 @@
  }
  
  package_opencv() {
-@@ -109,25 +104,3 @@ package_python-opencv() {
-   # install license file
+@@ -113,24 +108,3 @@
    install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
--
+ 
 -package_opencv-cuda() {
 -  pkgdesc+=' (with CUDA support)'
 -  depends+=(cudnn)
