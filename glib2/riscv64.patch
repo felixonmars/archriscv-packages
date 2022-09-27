@@ -1,30 +1,13 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 456698)
+--- PKGBUILD	(revision 456845)
 +++ PKGBUILD	(working copy)
-@@ -17,12 +17,14 @@
- _commit=30bd57ecf8aa051de9848ba5a2b140f4810401ff  # tags/2.74.0^0
- source=("git+https://gitlab.gnome.org/GNOME/glib.git#commit=$_commit"
-         0001-glib-compile-schemas-Remove-noisy-deprecation-warnin.patch
--        glib-compile-schemas.hook gio-querymodules.{hook,script})
-+        glib-compile-schemas.hook gio-querymodules.{hook,script}
-+        0001-increase-test-timeout-limit.patch)
- sha256sums=('SKIP'
-             '6d51eb5856268d79eee01b97a299fa9f99db18b2abb4df56f2ed9e641a09138a'
-             '64ae5597dda3cc160fc74be038dbe6267d41b525c0c35da9125fbf0de27f9b25'
-             '2a9f9b8235f48e3b7d0f6cfcbc76cd2116c45f28692cac4bd61074c495bd5eb7'
--            '92d08db5aa30bda276bc3d718e7ff9dd01dc40dcab45b359182dcc290054e24e')
-+            '92d08db5aa30bda276bc3d718e7ff9dd01dc40dcab45b359182dcc290054e24e'
-+            'SKIP')
- 
- pkgver() {
-   cd glib
-@@ -34,6 +36,8 @@
- 
-   # Suppress noise from glib-compile-schemas.hook
-   git apply -3 ../0001-glib-compile-schemas-Remove-noisy-deprecation-warnin.patch
-+
-+  patch -Np1 -i ../0001-increase-test-timeout-limit.patch
+@@ -58,7 +58,7 @@
  }
  
- build() {
+ check() {
+-  meson test -C build --no-suite flaky --no-suite slow --print-errorlogs
++  meson test -C build --no-suite flaky --no-suite slow --print-errorlogs  --timeout-multiplier 10
+ }
+ 
+ package_glib2() {
