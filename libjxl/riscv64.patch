@@ -1,13 +1,31 @@
-diff --git PKGBUILD PKGBUILD
-index f80ec8c..1782691 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -47,6 +47,8 @@ build() {
-     export CXX='clang++'
-     export CFLAGS+=' -DNDEBUG'
-     export CXXFLAGS+=' -DNDEBUG'
-+    export CFLAGS+=' -Wno-error=unused-command-line-argument'
-+    export CXXFLAGS+=' -Wno-error=unused-command-line-argument'
-     cmake -B build -S libjxl \
-         -DCMAKE_BUILD_TYPE:STRING='None' \
-         -DCMAKE_INSTALL_PREFIX:PATH='/usr' \
+@@ -21,7 +21,8 @@ source=("git+https://github.com/libjxl/libjxl.git#tag=v${pkgver}"
+         'git+https://github.com/google/highway.git'
+         'git+https://github.com/glennrp/libpng.git'
+         'git+https://github.com/madler/zlib.git'
+-        'libjxl-testdata'::'git+https://github.com/libjxl/testdata.git')
++        'libjxl-testdata'::'git+https://github.com/libjxl/testdata.git'
++        "${pkgname}-fix-test-RoundtripLargeFast.patch::https://github.com/libjxl/libjxl/pull/1708.patch")
+ sha256sums=('SKIP'
+             'SKIP'
+             'SKIP'
+@@ -31,7 +32,8 @@ sha256sums=('SKIP'
+             'SKIP'
+             'SKIP'
+             'SKIP'
+-            'SKIP')
++            'SKIP'
++            '0dff5fd3e91fea2e676e777c63d6ed9552633b26fb282ebed74c471fbfe338c0')
+ 
+ prepare() {
+     git -C libjxl submodule init
+@@ -43,6 +45,8 @@ prepare() {
+     git -C libjxl config --local submodule.third_party/lcms.url "${srcdir}/Little-CMS"
+     git -C libjxl config --local submodule.third_party/testdata.url "${srcdir}/libjxl-testdata"
+     git -C libjxl submodule update
++
++    patch -Np1 -d libjxl < ${pkgname}-fix-test-RoundtripLargeFast.patch
+ }
+ 
+ build() {
