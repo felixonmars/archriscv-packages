@@ -1,26 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,7 +9,7 @@ _myver=${pkgver/_rel*}
- pkgrel=1
+@@ -9,8 +9,11 @@ _myver=${pkgver/_rel*}
+ pkgrel=2
  arch=('x86_64')
  makedepends=('cmake' 'zlib' 'lz4' 'zstd' 'libaio' 'systemd-tools' 'pam' 'numactl' 'jemalloc' 'openssl'
--             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf') # 'boost'
-+             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'clang') # 'boost'
- options=('debug')
- license=('GPL')
- url="https://www.percona.com/software/mysql-database/percona-server"
-@@ -29,6 +29,10 @@ sha256sums=('91a7ad8fc0e3931f2d2bcb616bca8a55b6b7cac45f735aba4188c45edcf85da8'
-             '92d70b75a32517f598bbffbaf5db18b0d14be504c31f531e35c8572b330785f3'
-             '1537fdbb92dd1c135c1eb9f4d10c44fd02e652db66c933d731990a1196f1397c'
-             '2343a191c452b91caa458b03b0c1ef3f5afb0e7031816c68467af5c6a6ffe253')
+-             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'libfido2') # 'boost'
+-options=('debug')
++             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'libfido2' 'clang') # 'boost'
 +# Can't use -Wl,-plugin-opt=-target-abi=lp64d, because both CFLAGS and CXXFLAGS need it,
 +# but specifying both will cause LLVMgold to complain about multiple -target-abi.
 +# Also, -ffat-lto-objects can't resolve the compile error here. We have to set !lto
-+options+=(!lto)
- 
- prepare() {
- 	cd $pkgbase-$_pkgver
-@@ -56,9 +60,11 @@ build() {
++options=('debug' '!lto')
+ license=('GPL')
+ url="https://www.percona.com/software/mysql-database/percona-server"
+ source=("https://www.percona.com/downloads/Percona-Server-${pkgver%.*_*}/Percona-Server-$_pkgver/source/tarball/percona-server-$_pkgver.tar.gz"
+@@ -50,9 +53,11 @@ build() {
  	mkdir -p build
  	cd build
  
