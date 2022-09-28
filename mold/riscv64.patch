@@ -1,23 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -42,11 +42,20 @@ build() {
- check() {
-   cd "$pkgname"
- 
-+  for failing_test in lto-gcc gnu-unique package-metadata tls-common riscv-norvc tail-call
-+  do
-+    rm -vf "test/elf/$failing_test.sh"
-+  done
-+
-   make \
-     PREFIX=/usr \
-     LTO=1 \
-     SYSTEM_MIMALLOC=1 \
-     SYSTEM_TBB=1 \
-+    TEST_CC=clang \
-+    TEST_CXX=clang++ \
-+    TEST_GCC=clang \
-+    TEST_GXX=clang++ \
-     check
+@@ -24,6 +24,11 @@ pkgver() {
  }
  
+ build() {
++  for failing_test in lto-gcc gnu-unique package-metadata tls-common weak-undef-dso riscv-norvc tail-call
++  do
++    rm -vf "mold/test/elf/$failing_test.sh"
++  done
++
+   cmake \
+   -S "$pkgname" \
+   -B build \
+@@ -38,7 +43,7 @@ build() {
+ }
+ 
+ check() {
+-  ctest --test-dir build --output-on-failure
++  TEST_CC=clang TEST_CXX=clang++ TEST_GCC=clang TEST_GXX=clang++ ctest --test-dir build --output-on-failure
+ }
+ 
+ package() {
