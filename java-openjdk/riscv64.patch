@@ -1,6 +1,6 @@
 --- PKGBUILD	2022-09-28 16:19:15.520937763 +0800
-+++ PKGBUILD	2022-09-28 22:46:50.618989064 +0800
-@@ -26,15 +26,24 @@
++++ PKGBUILD	2022-09-29 00:06:12.541687664 +0800
+@@ -26,15 +26,22 @@
  source=(https://github.com/openjdk/jdk${_majorver}u/archive/${_git_tag}.tar.gz
          freedesktop-java.desktop
          freedesktop-jconsole.desktop
@@ -8,7 +8,6 @@
 +        freedesktop-jshell.desktop
 +
 +        # see https://build.opensuse.org/package/show/home:Andreas_Schwab:riscv:java/java-18-openjdk
-+        config.guess
 +        java18-riscv.patch
 +        riscv-zifencei.patch)
  sha256sums=('d3955839c1f566f949fbdf5d4f32a6fac2e57598fba2a1cbc8557c96df6ac8c4'
@@ -16,7 +15,6 @@
              '3a50ded3918024de4e441a46744c8e342faf46441b53c8bac7d589055a28a13c'
 -            '2cace78ec911f73578991370914753c5b6abe9f7304bcbcb7a3077b8dbc7c867')
 +            '2cace78ec911f73578991370914753c5b6abe9f7304bcbcb7a3077b8dbc7c867'
-+            'cf610daf8afdedbf2110abd79bdd4121d59080cab5ec46deaf67f97273bb6bda'
 +            '4305f9044e3cf11d87ba88c94699009e3cfbdad6a00c50992d31f24662ce24a3'
 +            '980c0f3f5ee9988051decd8dc08224b06887309a85779b35f472d210ed2354f1')
  
@@ -27,7 +25,7 @@
  esac
  
  _jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk
-@@ -46,6 +55,14 @@
+@@ -46,6 +53,14 @@
                lib/libjsound.{so,debuginfo}
                lib/libsplashscreen.{so,debuginfo})
  
@@ -35,14 +33,14 @@
 +  cd "$srcdir/$_jdkdir"
 +  patch -Np1 -i "$srcdir/java18-riscv.patch"
 +  patch -Np1 -i "$srcdir/riscv-zifencei.patch"
-+  cat $srcdir/config.guess > make/autoconf/build-aux/config.guess
++  cat /usr/share/autoconf/build-aux/config.guess  > make/autoconf/build-aux/config.guess
 +  sed -i '/zLargePages.inline.hpp/a #include "gc/z/zList.inline.hpp"' src/hotspot/share/gc/z/zPhysicalMemory.cpp
 +}
 +
  build() {
    cd ${_jdkdir}
  
-@@ -68,14 +85,6 @@
+@@ -68,14 +83,6 @@
      _CXXFLAGS=${CXXFLAGS/-fno-plt/}
    fi
  
@@ -57,7 +55,7 @@
    # CFLAGS, CXXFLAGS and LDFLAGS are ignored as shown by a warning
    # in the output of ./configure unless used like such:
    #  --with-extra-cflags="${CFLAGS}"
-@@ -106,6 +115,9 @@
+@@ -106,6 +113,9 @@
      ${NUM_PROC_OPT}
      #--disable-javac-server
  
