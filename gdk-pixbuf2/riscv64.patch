@@ -1,24 +1,13 @@
-diff --git PKGBUILD PKGBUILD
---- PKGBUILD
-+++ PKGBUILD
-@@ -25,9 +25,11 @@ _commit=bca00032ad68d0b0aa2c1f7558db931e52bd9cd2  # tags/2.42.8^0
- source=(
-   "git+https://gitlab.gnome.org/GNOME/gdk-pixbuf.git#commit=$_commit"
-   gdk-pixbuf-query-loaders.hook
-+  fix-timeout.patch
- )
- sha256sums=('SKIP'
--            '9fb71d95e6a212779eb0f88dde5a3cee0df7f4d9183f8f9ce286f8cdc14428f0')
-+            '9fb71d95e6a212779eb0f88dde5a3cee0df7f4d9183f8f9ce286f8cdc14428f0'
-+            '6b99f30b72778b8469def8277771b2ed2988e8da792f2dd97744859b0dc0fa01')
- 
- pkgver() {
-   cd gdk-pixbuf
-@@ -36,6 +38,7 @@ pkgver() {
- 
- prepare() {
-   cd gdk-pixbuf
-+  patch -p0 -Ni ../fix-timeout.patch
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 457059)
++++ PKGBUILD	(working copy)
+@@ -47,7 +47,7 @@
  }
  
- build() {
+ check() {
+-  meson test -C build --print-errorlogs
++  meson test -C build --print-errorlogs --timeout-multiplier 10
+ }
+ 
+ package_gdk-pixbuf2() {
