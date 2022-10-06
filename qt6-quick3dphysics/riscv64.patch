@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 659838f..673f6b9 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,8 +14,15 @@ makedepends=(cmake ninja qt6-shadertools)
+ groups=(qt6)
+ options=(debug)
+ _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
+-source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
+-sha256sums=('dc59443434d1255fb0cfc50c28ccf391e50745d67014b4aa787cd7571c28fd07')
++source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz
++    physx-rv64.patch)
++sha256sums=('dc59443434d1255fb0cfc50c28ccf391e50745d67014b4aa787cd7571c28fd07'
++            '76e430885958c5680818de9c4a0f9e4bf5ec43a3c537e3e7aa45fb7542853570')
++
++prepare() {
++  cd $_pkgfn
++  patch -Np1 < $srcdir/physx-rv64.patch
++}
+ 
+ build() {
+   cmake -B build -S $_pkgfn -G Ninja \
