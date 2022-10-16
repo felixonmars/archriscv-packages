@@ -9,16 +9,49 @@
  options=('debug' 'strip')
  validpgpkeys=('63CDA1E5D3FC22B998D20DD6327F26951A015CC4'  # Lennart Poettering <lennart@poettering.net>
                'A9EA9081724FFAE0484C35A1A81CEA22BC8C7E2E'  # Luca Boccassi <luca.boccassi@gmail.com>
-@@ -149,7 +149,7 @@ build() {
+@@ -68,6 +68,13 @@ _backports=(
+ _reverts=(
+ )
+ 
++
++source+=("allow-riscv-flush-icache.patch::https://github.com/systemd/systemd/commit/09925036cf2b5a5c4cf680422a38c427ca692cd6.diff")
++
++sha512sums+=('06310189883f3881585804619ee475ebac914f7563a8e1776b6f4abb56cabc8e1e3ce805514270810262e72e60538db2354e2e8be7de68d665fc002a7af77626')
++
++options+=(!lto)
++
+ prepare() {
+   cd "$pkgbase-stable"
+ 
+@@ -90,6 +97,8 @@ prepare() {
+ 
+   # Replace cdrom/dialout/tape groups with optical/uucp/storage
+   patch -Np1 -i ../0001-Use-Arch-Linux-device-access-groups.patch
++
++  patch -Np1 -i ../allow-riscv-flush-icache.patch
  }
-
+ 
+ build() {
+@@ -113,6 +122,9 @@ build() {
+     -Dversion-tag="${_tag_name/-/\~}-${pkgrel}-arch"
+     -Dshared-lib-tag="${pkgver}-${pkgrel}"
+     -Dmode=release
++    # disable b_lto which is enabled in arch-meson
++    # https://github.com/systemd/systemd/issues/24630, but patch file does not match
++    -D b_lto=false
+ 
+     -Dgnu-efi=true
+     -Dima=false
+@@ -151,7 +163,7 @@ build() {
+ }
+ 
  check() {
 -  meson test -C build
 +  meson test -C build -t 10
  }
-
+ 
  package_systemd() {
-@@ -169,8 +169,7 @@ package_systemd() {
+@@ -171,8 +183,7 @@ package_systemd() {
                'systemd-sysvcompat: symlink package to provide sysvinit binaries'
                'polkit: allow administration as unprivileged user'
                'curl: machinectl pull-tar and pull-raw'
