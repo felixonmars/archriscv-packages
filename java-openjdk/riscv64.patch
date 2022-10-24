@@ -1,23 +1,8 @@
---- PKGBUILD	2022-09-28 16:19:15.520937763 +0800
-+++ PKGBUILD	2022-09-29 00:06:12.541687664 +0800
-@@ -26,15 +26,22 @@
- source=(https://github.com/openjdk/jdk${_majorver}u/archive/${_git_tag}.tar.gz
-         freedesktop-java.desktop
-         freedesktop-jconsole.desktop
--        freedesktop-jshell.desktop)
-+        freedesktop-jshell.desktop
-+
-+        # see https://build.opensuse.org/package/show/home:Andreas_Schwab:riscv:java/java-18-openjdk
-+        java18-riscv.patch
-+        riscv-zifencei.patch)
- sha256sums=('d3955839c1f566f949fbdf5d4f32a6fac2e57598fba2a1cbc8557c96df6ac8c4'
-             '58bf779332d21151ba47719926ddcc8811ac7bbf414222141dcf40ac54cfaa2d'
-             '3a50ded3918024de4e441a46744c8e342faf46441b53c8bac7d589055a28a13c'
--            '2cace78ec911f73578991370914753c5b6abe9f7304bcbcb7a3077b8dbc7c867')
-+            '2cace78ec911f73578991370914753c5b6abe9f7304bcbcb7a3077b8dbc7c867'
-+            '99fe86d70a1f383bfdf893b1a8e013c187caa8972d2dbc3bee8212ceda04e6b3'
-+            '980c0f3f5ee9988051decd8dc08224b06887309a85779b35f472d210ed2354f1')
- 
+diff --git PKGBUILD PKGBUILD
+index 42d0cc9..76cdf8a 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,6 +35,7 @@
  case "${CARCH}" in
    x86_64) _JARCH='x86_64';;
    i686)   _JARCH='x86';;
@@ -25,43 +10,3 @@
  esac
  
  _jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk
-@@ -46,6 +53,14 @@
-               lib/libjsound.{so,debuginfo}
-               lib/libsplashscreen.{so,debuginfo})
- 
-+prepare() {
-+  cd "$srcdir/$_jdkdir"
-+  patch -Np1 -i "$srcdir/java18-riscv.patch"
-+  patch -Np1 -i "$srcdir/riscv-zifencei.patch"
-+  cat /usr/share/autoconf/build-aux/config.guess  > make/autoconf/build-aux/config.guess
-+  sed -i '/zLargePages.inline.hpp/a #include "gc/z/zList.inline.hpp"' src/hotspot/share/gc/z/zPhysicalMemory.cpp
-+}
-+
- build() {
-   cd ${_jdkdir}
- 
-@@ -68,14 +83,6 @@
-     _CXXFLAGS=${CXXFLAGS/-fno-plt/}
-   fi
- 
--  # TODO: Should be rechecked for the next releases
--  # compiling with -fexceptions leads to:
--  # /usr/bin/ld: /build/java-openjdk/src/jdk17u-jdk-17.0.3-2/build/linux-x86_64-server-release/hotspot/variant-server/libjvm/objs/zPhysicalMemory.o: in function `ZList<ZMemory>::~ZList()':
--  # /build/java-openjdk/src/jdk17u-jdk-17.0.3-2/src/hotspot/share/gc/z/zList.hpp:54: undefined reference to `ZListNode<ZMemory>::~ZListNode()'
--  # collect2: error: ld returned 1 exit status
--  _CFLAGS=${CFLAGS/-fexceptions/}
--  _CXXFLAGS=${CXXFLAGS/-fexceptions/}
--
-   # CFLAGS, CXXFLAGS and LDFLAGS are ignored as shown by a warning
-   # in the output of ./configure unless used like such:
-   #  --with-extra-cflags="${CFLAGS}"
-@@ -106,6 +113,9 @@
-     ${NUM_PROC_OPT}
-     #--disable-javac-server
- 
-+  # riscv64: requires P flag on qemu-user, or
-+  # export _JAVA_OPTIONS="-Djdk.lang.Process.launchMechanism=vfork"  # or fork
-+
-   make images legacy-jre-image docs
- 
-   # https://bugs.openjdk.java.net/browse/JDK-8173610
