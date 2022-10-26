@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index afaf8403..d359ccf5 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,7 +13,7 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
+@@ -13,7 +13,7 @@
               'libmicrohttpd' 'libxcrypt' 'libxslt' 'util-linux' 'linux-api-headers'
               'python-jinja' 'python-lxml' 'quota-tools' 'shadow' 'gnu-efi-libs' 'git'
               'meson' 'libseccomp' 'pcre2' 'audit' 'kexec-tools' 'libxkbcommon'
@@ -9,30 +11,16 @@
  options=('debug' 'strip')
  validpgpkeys=('63CDA1E5D3FC22B998D20DD6327F26951A015CC4'  # Lennart Poettering <lennart@poettering.net>
                'A9EA9081724FFAE0484C35A1A81CEA22BC8C7E2E'  # Luca Boccassi <luca.boccassi@gmail.com>
-@@ -68,6 +68,13 @@ _backports=(
+@@ -68,6 +68,8 @@
  _reverts=(
  )
  
-+
-+source+=("allow-riscv-flush-icache.patch::https://github.com/systemd/systemd/commit/09925036cf2b5a5c4cf680422a38c427ca692cd6.diff")
-+
-+sha512sums+=('06310189883f3881585804619ee475ebac914f7563a8e1776b6f4abb56cabc8e1e3ce805514270810262e72e60538db2354e2e8be7de68d665fc002a7af77626')
-+
 +options+=(!lto)
 +
  prepare() {
    cd "$pkgbase-stable"
  
-@@ -90,6 +97,8 @@ prepare() {
- 
-   # Replace cdrom/dialout/tape groups with optical/uucp/storage
-   patch -Np1 -i ../0001-Use-Arch-Linux-device-access-groups.patch
-+
-+  patch -Np1 -i ../allow-riscv-flush-icache.patch
- }
- 
- build() {
-@@ -113,6 +122,9 @@ build() {
+@@ -113,6 +115,9 @@
      -Dversion-tag="${_tag_name/-/\~}-${pkgrel}-arch"
      -Dshared-lib-tag="${pkgver}-${pkgrel}"
      -Dmode=release
@@ -42,7 +30,7 @@
  
      -Dgnu-efi=true
      -Dima=false
-@@ -151,7 +163,7 @@ build() {
+@@ -151,7 +156,7 @@
  }
  
  check() {
@@ -51,7 +39,7 @@
  }
  
  package_systemd() {
-@@ -171,8 +183,7 @@ package_systemd() {
+@@ -171,8 +176,7 @@
                'systemd-sysvcompat: symlink package to provide sysvinit binaries'
                'polkit: allow administration as unprivileged user'
                'curl: machinectl pull-tar and pull-raw'
