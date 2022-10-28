@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index afaf8403..d359ccf5 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,7 +13,7 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
+@@ -13,7 +13,7 @@
               'libmicrohttpd' 'libxcrypt' 'libxslt' 'util-linux' 'linux-api-headers'
               'python-jinja' 'python-lxml' 'quota-tools' 'shadow' 'gnu-efi-libs' 'git'
               'meson' 'libseccomp' 'pcre2' 'audit' 'kexec-tools' 'libxkbcommon'
@@ -9,16 +11,35 @@
  options=('debug' 'strip')
  validpgpkeys=('63CDA1E5D3FC22B998D20DD6327F26951A015CC4'  # Lennart Poettering <lennart@poettering.net>
                'A9EA9081724FFAE0484C35A1A81CEA22BC8C7E2E'  # Luca Boccassi <luca.boccassi@gmail.com>
-@@ -149,7 +149,7 @@ build() {
+@@ -68,6 +68,8 @@
+ _reverts=(
+ )
+ 
++options+=(!lto)
++
+ prepare() {
+   cd "$pkgbase-stable"
+ 
+@@ -113,6 +115,9 @@
+     -Dversion-tag="${_tag_name/-/\~}-${pkgrel}-arch"
+     -Dshared-lib-tag="${pkgver}-${pkgrel}"
+     -Dmode=release
++    # disable b_lto which is enabled in arch-meson
++    # https://github.com/systemd/systemd/issues/24630, but patch file does not match
++    -D b_lto=false
+ 
+     -Dgnu-efi=true
+     -Dima=false
+@@ -151,7 +156,7 @@
  }
-
+ 
  check() {
 -  meson test -C build
 +  meson test -C build -t 10
  }
-
+ 
  package_systemd() {
-@@ -169,8 +169,7 @@ package_systemd() {
+@@ -171,8 +176,7 @@
                'systemd-sysvcompat: symlink package to provide sysvinit binaries'
                'polkit: allow administration as unprivileged user'
                'curl: machinectl pull-tar and pull-raw'

@@ -1,26 +1,30 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 452982)
-+++ PKGBUILD	(working copy)
-@@ -18,6 +18,7 @@
+diff --git PKGBUILD PKGBUILD
+index d4f75f21..5047ddb2 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,6 +18,9 @@
  source=(
    "$_srcname::git+https://github.com/archlinux/linux?signed#tag=$_srctag"
    config         # the main kernel config file
 +  riscv64.config-patch
++  make-VM_WRITE-imply-VM_READ.patch::https://git.kernel.org/pub/scm/linux/kernel/git/riscv/linux.git/patch/?id=8aeb7b17f04ef40f620c763502e2b644c5c73efd
++  force-disable-sv57.patch::https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/kinetic/patch/?id=f38611903ae7808ab1b7427809f478fbe0d20917
  )
  validpgpkeys=(
    'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
-@@ -26,7 +27,8 @@
+@@ -26,7 +29,10 @@
    'C7E7849466FE2358343588377258734B41C31549'  # David Runge <dvzrv@archlinux.org>
  )
  sha256sums=('SKIP'
--            'ec58b63109b23d318af62b48a4f43e3042ddb45e71060c885d5d03f2cb3760b0')
-+            'ec58b63109b23d318af62b48a4f43e3042ddb45e71060c885d5d03f2cb3760b0'
-+            'e8d637fba389e29a853b21af1f39983aaa5a73666b9e902f5052d8369bb79382')
+-            '6ed43ed093ec7dcbbac286edc204873edfa77e380ac43c8cc2f40b2965ac1aa3')
++            '6ed43ed093ec7dcbbac286edc204873edfa77e380ac43c8cc2f40b2965ac1aa3'
++            '263381303ec63cf31da710621436cfa60a02601202a05758e99d827d97e69053'
++            '1cb52f7aa48c5ae9c7bd21d24c7298cadb11d0ce06a36d269a4661418da51c17'
++            '8968d16070c3fb13db839c649a8407680288322a1ba6869bcfee19c8bd87de87')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +56,12 @@
+@@ -54,6 +60,12 @@
    make olddefconfig
    diff -u ../config .config || :
  
@@ -33,7 +37,7 @@ Index: PKGBUILD
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -87,6 +95,9 @@
+@@ -87,6 +99,9 @@
    make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -43,7 +47,7 @@ Index: PKGBUILD
    # remove build and source links
    rm "$modulesdir"/{source,build}
  }
-@@ -102,19 +113,16 @@
+@@ -102,19 +117,16 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -66,7 +70,7 @@ Index: PKGBUILD
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -136,7 +144,7 @@
+@@ -136,7 +148,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do

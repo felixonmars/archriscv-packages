@@ -1,0 +1,72 @@
+diff --git a/src/3rdparty/PhysX/pxshared/include/foundation/PxPreprocessor.h b/src/3rdparty/PhysX/pxshared/include/foundation/PxPreprocessor.h
+index 14ed950..24f6d3b 100644
+--- a/src/3rdparty/PhysX/pxshared/include/foundation/PxPreprocessor.h
++++ b/src/3rdparty/PhysX/pxshared/include/foundation/PxPreprocessor.h
+@@ -127,6 +127,8 @@ Architecture defines, see http://sourceforge.net/p/predef/wiki/Architectures/
+ #define PX_PPC 1
+ #elif defined(__mips__)
+ #define PX_X64 1
++#elif defined(__riscv) && __riscv_xlen == 64
++#define PX_RV64 1
+ #else
+ #error "Unknown architecture"
+ #endif
+@@ -147,7 +149,7 @@ SIMD defines
+ #endif
+ 
+ /** Disable SIMD for webassembly, mips and arm64 */
+-#if defined(__EMSCRIPTEN__) || defined(__mips__) || defined(_M_ARM64) || defined(_M_ARM)
++#if defined(__EMSCRIPTEN__) || defined(__mips__) || defined(_M_ARM64) || defined(_M_ARM) || defined(__riscv)
+ #define PX_SIMD_DISABLED 1
+ #endif
+ 
+@@ -262,7 +264,7 @@ family shortcuts
+ // architecture
+ #define PX_INTEL_FAMILY (PX_X64 || PX_X86)
+ #define PX_ARM_FAMILY (PX_ARM || PX_A64)
+-#define PX_P64_FAMILY (PX_X64 || PX_A64) // shortcut for 64-bit architectures
++#define PX_P64_FAMILY (PX_X64 || PX_A64 || PX_RV64) // shortcut for 64-bit architectures
+ 
+ /**
+ C++ standard library defines
+diff --git a/src/3rdparty/PhysX/source/physxextensions/src/serialization/SnSerialUtils.cpp b/src/3rdparty/PhysX/source/physxextensions/src/serialization/SnSerialUtils.cpp
+index aa53797..673cb33 100644
+--- a/src/3rdparty/PhysX/source/physxextensions/src/serialization/SnSerialUtils.cpp
++++ b/src/3rdparty/PhysX/source/physxextensions/src/serialization/SnSerialUtils.cpp
+@@ -39,7 +39,7 @@ using namespace physx;
+ namespace
+ {
+ 
+-#define SN_NUM_BINARY_PLATFORMS 19
++#define SN_NUM_BINARY_PLATFORMS 20
+ const PxU32 sBinaryPlatformTags[SN_NUM_BINARY_PLATFORMS] =
+ {
+ 	PX_MAKE_FOURCC('W','_','3','2'),
+@@ -59,6 +59,7 @@ const PxU32 sBinaryPlatformTags[SN_NUM_BINARY_PLATFORMS] =
+ 	PX_MAKE_FOURCC('W','A','3','2'),
+ 	PX_MAKE_FOURCC('W','A','6','4'),
+ 	PX_MAKE_FOURCC('L','A','3','2'),
++	PX_MAKE_FOURCC('L','V','6','4'),
+ 	PX_MAKE_FOURCC('U','N','K','_'),
+ };
+ 
+@@ -82,6 +83,7 @@ const char* sBinaryPlatformNames[SN_NUM_BINARY_PLATFORMS] =
+ 	"uwparm64",
+ 	"macarm",
+ 	"linuxarm",
++	"linuxrv64",
+ 	"unknown",
+ };
+ 
+@@ -127,8 +129,10 @@ PxU32 getBinaryPlatformTag()
+     return sBinaryPlatformTags[16];
+ #elif PX_LINUX && PX_ARM
+ 	return sBinaryPlatformTags[17];
+-#else
++#elif PX_LINUX && PX_RV64
+ 	return sBinaryPlatformTags[18];
++#else
++	return sBinaryPlatformTags[19];
+ #endif
+ }
+ 

@@ -1,0 +1,46 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -2,7 +2,7 @@
+ # Contributor: Bug <bug2000@gmail.com>
+ 
+ pkgname=xpra
+-pkgver=4.3.3
++pkgver=4.3.4
+ pkgrel=1
+ pkgdesc="multi-platform screen and application forwarding system screen for X11"
+ arch=('x86_64')
+@@ -36,19 +36,27 @@ backup=('etc/xpra/xpra.conf' 'etc/xpra/xorg.conf'
+         'etc/xpra/conf.d/65_proxy.conf'
+         'etc/pam.d/xpra')
+ source=($pkgname-$pkgver.tar.xz::$url/src/$pkgname-$pkgver.tar.xz
+-        $pkgname-$pkgver.tar.xz.asc::$url/src/$pkgname-$pkgver.tar.xz.gpg)
++        $pkgname-$pkgver.tar.xz.asc::$url/src/$pkgname-$pkgver.tar.xz.gpg
++        xpra-4.3.4-ffmpeg5_1_deprecated_channels.patch # https://github.com/Xpra-org/xpra/commit/4cf2eb6d34a79f9704b593fd0781495badefa9ea
++        )
+ 
+-md5sums=('0513c9236735b1288b1ba7ced6ac5f2b'
+-         'SKIP')
+-sha1sums=('d453924415ee1f6dfbf3c7108aba63790e2d7336'
+-          'SKIP')
+-sha256sums=('27acf3921a340357da095cd2ff4c0395b80bb499b23eb9c1904711ee40e577b0'
+-            'SKIP')
++md5sums=('5fc61120ad5378287a8b4e2057581da1'
++         'SKIP'
++         'b99b7bb634c0745d53de3a9ac82c396d')
++sha1sums=('46d59c61a756b41126f7e685c7c0f68dc7dda86f'
++          'SKIP'
++          '7981a860d4a107948aa9d9720ca0f4c68731072f')
++sha256sums=('947512a281dac8d8aac351a9714bddf3353f392889e7de3a93fd08a748e704e6'
++            'SKIP'
++            'f79e4c125c692ccb621ace597acb4f756e86a96d38b5847b5d4572917b098bd1')
+ validpgpkeys=('C11C0A4DF702EDF6C04F458C18ADB31CF18AD6BB') # Antoine Martin <antoine@nagafix.co.uk>
+ 
++prepare() {
++  patch -Np1 -d $pkgname-$pkgver -i ../xpra-4.3.4-ffmpeg5_1_deprecated_channels.patch
++}
++
+ build() {
+   cd "${srcdir}/$pkgname-$pkgver"
+-  export PKG_CONFIG_PATH='/usr/lib/ffmpeg4.4/pkgconfig'
+   python setup.py build
+ }
