@@ -1,26 +1,8 @@
---- PKGBUILD
-+++ PKGBUILD
-@@ -13,10 +13,17 @@ depends=('glibc')
- makedepends=('meson' 'libpng')
- options=('debug')
- provides=('libpixman-1.so')
--source=(https://xorg.freedesktop.org/releases/individual/lib/${pkgname}-${pkgver}.tar.xz)
--sha512sums=('43d43d1aef9b8a6167098ab68ce2cfd8c0429c4825d40a4fb468b5b51dc1a2035f8bd1b70413e4ecd77deb469b5d558f42171b423e348d5ddd8604c466ffc7d9')
-+source=(https://xorg.freedesktop.org/releases/individual/lib/${pkgname}-${pkgver}.tar.xz
-+        ${pkgname}-revert-changeds-in-reduce_32.patch::https://gitlab.freedesktop.org/pixman/pixman/-/merge_requests/69.patch)
-+sha512sums=('43d43d1aef9b8a6167098ab68ce2cfd8c0429c4825d40a4fb468b5b51dc1a2035f8bd1b70413e4ecd77deb469b5d558f42171b423e348d5ddd8604c466ffc7d9'
-+            '485be322426d43bf06bad0e5885f72ca4b2d1d056003f7c82e7592b9ee8b946f93c038b4c8ca46880748542dcda744b21994332f1fa6bd48ad8163231ab0bf38')
- #validpgpkeys=('') # Maarten Lankhorst <maarten.lankhorst@linux.intel.com>
- 
-+prepare() {
-+  cd $pkgname-$pkgver
-+  patch -Np1 < ../${pkgname}-revert-changeds-in-reduce_32.patch
-+}
-+
- build() {
-   arch-meson $pkgbase-$pkgver build \
-     -D loongson-mmi=disabled \
-@@ -26,7 +33,10 @@ build() {
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 460539)
++++ PKGBUILD	(working copy)
+@@ -26,7 +26,10 @@
      -D a64-neon=disabled \
      -D iwmmxt=disabled \
      -D mips-dspr2=disabled \
