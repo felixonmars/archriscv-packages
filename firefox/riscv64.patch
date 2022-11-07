@@ -1,4 +1,4 @@
---- PKGBUILD	(revision 456837)
+--- PKGBUILD	(revision 460688)
 +++ PKGBUILD	(working copy)
 @@ -12,7 +12,6 @@
  depends=(gtk3 libxt mime-types dbus-glib ffmpeg nss ttf-font libpulse)
@@ -8,31 +8,32 @@
               )
  optdepends=('networkmanager: Location detection via available WiFi networks'
              'libnotify: Notification integration'
-@@ -22,9 +21,13 @@
-             'xdg-desktop-portal: Screensharing with Wayland')
+@@ -23,10 +22,14 @@
  options=(!emptydirs !makeflags !strip !lto !debug)
  source=(https://archive.mozilla.org/pub/firefox/releases/$pkgver/source/firefox-$pkgver.source.tar.xz{,.asc}
+         0001-libwebrtc-screen-cast-sync.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch
-+        https://raw.githubusercontent.com/gentoo/riscv/master/www-client/firefox/files/firefox-riscv64-hack.patch
++        vendor-rust-riscv64-hack.patch
          $pkgname.desktop identity-icons-brand.svg)
- sha256sums=('f2fa1e03aecdd4dca0bcda94fd228d3a9ef3635862a2c140f8982d32ae7761e7'
+ sha256sums=('9471a7610d0adc350f14c363f1fcd2e15a85f22744f5850604af01aa844bc8a8'
              'SKIP'
-+            'cea7997c6613d374535b3450c725f32fd1497d71d66709e1406c4238a01b49d4'
-+            '94ab3debdae0eda1aa8fe1c600d7ada76a4b9211ff2578632cc1fac53e75060c'
+             '5c164f6dfdf2d97f3f317e417aaa2e6ae46a9b3a160c3162d5073fe39d203286'
++            'c267aa1a578a88f5467072f924d3177e7c83e2042941f3368f18eaeb41494c60'
++            '8c4c88072ed05c6a61f1fe74bf14c7a877f2b26c980784718e81f3885c36f102'
              '298eae9de76ec53182f38d5c549d0379569916eebf62149f9d7f4a7edef36abf'
              'a9b8b4a0a1f4a7b4af77d5fc70c2686d624038909263c795ecc81e0aec7711e9')
  validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
-@@ -45,6 +48,9 @@
-   mkdir mozbuild
-   cd firefox-$pkgver
+@@ -52,6 +55,9 @@
+   # https://src.fedoraproject.org/rpms/firefox/blob/rawhide/f/libwebrtc-screen-cast-sync.patch
+   patch -Np1 -i ../0001-libwebrtc-screen-cast-sync.patch
  
-+  patch -Np1 -i ../firefox-riscv64-hack.patch
++  patch -Np1 -i ../vendor-rust-riscv64-hack.patch
 +  patch -Np1 -i ../makotokato-riscv64-support-and-zenithal-backported.patch
 +
    echo -n "$_google_api_key" >google-api-key
    echo -n "$_mozilla_api_key" >mozilla-api-key
  
-@@ -53,15 +59,22 @@
+@@ -60,15 +66,22 @@
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -60,7 +61,7 @@
  # Branding
  ac_add_options --enable-official-branding
  ac_add_options --enable-update-channel=release
-@@ -68,7 +81,8 @@
+@@ -75,7 +88,8 @@
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -70,7 +71,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -83,7 +97,7 @@
+@@ -90,7 +104,7 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -79,7 +80,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -101,39 +115,42 @@
+@@ -108,39 +122,42 @@
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -153,7 +154,7 @@
  }
  
  package() {
-@@ -201,12 +218,12 @@
+@@ -208,12 +225,12 @@
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
