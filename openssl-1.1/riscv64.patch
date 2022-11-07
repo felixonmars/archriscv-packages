@@ -3,9 +3,9 @@
 @@ -34,7 +34,7 @@ build() {
  
  	# mark stack as non-executable: http://bugs.archlinux.org/task/12434
- 	./Configure --prefix=/usr --openssldir=/etc/ssl --libdir=lib \
--		shared enable-ktls enable-ec_nistp_64_gcc_128 linux-x86_64 \
-+		shared enable-ktls enable-ec_nistp_64_gcc_128 linux-generic64 \
+ 	./Configure --prefix=/usr --openssldir=/etc/ssl --libdir=lib/openssl-1.1 \
+-		shared no-ssl3-method enable-ec_nistp_64_gcc_128 linux-x86_64 \
++		shared no-ssl3-method enable-ec_nistp_64_gcc_128 linux-generic64 \
  		"-Wa,--noexecstack ${CPPFLAGS} ${CFLAGS} ${LDFLAGS}"
  
  	make depend
@@ -13,9 +13,9 @@
  	# revert this patch for make test
  	patch -p0 -R -i "$srcdir/ca-dir.patch"
  
--	make HARNESS_JOBS=$(nproc) test
+-	make test
 +	# https://github.com/openssl/openssl/issues/12242
-+	make HARNESS_JOBS=$(nproc) TESTS=-test_afalg test
++	make TESTS=-test_afalg test
  
  	patch -p0 -i "$srcdir/ca-dir.patch"
  	# re-run make to re-generate CA.pl from th patched .in file.
