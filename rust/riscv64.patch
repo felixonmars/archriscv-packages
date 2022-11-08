@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index df4805d..730bc90 100644
+index 498e2b4..ebb4cf6 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -5,7 +5,7 @@
@@ -9,9 +9,9 @@ index df4805d..730bc90 100644
 -pkgname=(rust lib32-rust-libs rust-musl rust-wasm rust-src)
 +pkgname=(rust rust-musl rust-wasm rust-src)
  epoch=1
- pkgver=1.64.0
+ pkgver=1.65.0
  pkgrel=1
-@@ -15,24 +15,28 @@ arch=(x86_64)
+@@ -15,7 +15,7 @@ arch=(x86_64)
  license=(MIT Apache)
  options=(!emptydirs !strip !lto)
  depends=(gcc-libs llvm-libs curl libssh2 gcc)
@@ -20,40 +20,45 @@ index df4805d..730bc90 100644
               wasi-libc lld)
  checkdepends=(procps-ng gdb)
  source=(
-   "https://static.rust-lang.org/dist/rustc-$pkgver-src.tar.gz"{,.asc}
-+  "rust-1.64.0-regression.patch::https://github.com/rust-lang/rust/commit/263edd43c5255084292329423c61a9d69715ebfa.patch"
-   0001-cargo-Change-libexec-dir.patch
+@@ -24,13 +24,17 @@ source=(
    0001-bootstrap-Change-libexec-dir.patch
    0002-compiler-Change-LLVM-targets.patch
    0003-compiler-Use-wasm-ld-for-wasm-targets.patch
-   remove-include-linux-fs.h.patch
-+  replace_patched_libc_cc.patch
++  "cc-rs-pick.patch"::"https://github.com/rust-lang/cc-rs/pull/676.patch"
++  "jemalloc-sys-pick.patch"
  )
- sha256sums=('b3cd9f481e1a2901bf6f3808d30c69cc4ea80d93c4cc4e2ed52258b180381205'
+ sha256sums=('5828bb67f677eabf8c384020582b0ce7af884e1c84389484f7f8d00dd82c0038'
              'SKIP'
-+            '710a0f0f35da1951a3ae5eb63ed4a86e85eaf9a248ff56ef734d993a698bedd3'
              'c901a9bb036c29ca092f7dbc8b447efdd9aa1044a902a88f9d024cb22681dc19'
-             '84ae2843d5ed83e9400e96d5f2d8cf3d1b89809bea76897c2762743460e06a87'
-             '1986e62bd2826eacaadd681e294943d890d75f24fd1f54fbd4015c3c622ac097'
-             '8fa64a2bdfb798184bde1c80d4775889a91d8b2ed076a6ea29ea99df9a2098cc'
--            '34ed866e313e4580130a50118a4410d36fa0159123982521b6ef049439fc32ad')
-+            '34ed866e313e4580130a50118a4410d36fa0159123982521b6ef049439fc32ad'
-+            '908de2d6d84358289ff2667aca3360a3bc91cbe8d2687ee5b02474088282ff37')
+             'c88389c7ac2ce832c39450171af8fbd9bfe26f8e683f28b776b492c972fda359'
+             '5fd1d52cb58c31fb6b0179eec41f5234523dfce799c8f895b1d2d663ca0573db'
+-            '27cc0fa1ef37c1ced77f62c6b0de7590b8aa88256dced3f9b87adb7c488ffa5e')
++            '27cc0fa1ef37c1ced77f62c6b0de7590b8aa88256dced3f9b87adb7c488ffa5e'
++            '03368e7bf566fb5e658239489786e794fa2945a30ce69b7def41552e1f1bfa6a'
++            'dda34cb5300511aa0aff6bc39bdbb17215ea60bee81bc52f64e3474d6cbda516')
  validpgpkeys=(108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
                474E22316ABF4785A88C6E8EA2C794A986419D8A) # Tom Stellard <tstellar@redhat.com>
  
-@@ -53,6 +57,10 @@ prepare() {
-   # https://github.com/llvm/llvm-project/issues/56421
-   patch -Np1 -d src/llvm-project < ../remove-include-linux-fs.h.patch
+@@ -48,6 +52,18 @@ prepare() {
+   # Use our wasm-ld
+   patch -Np1 -i ../0003-compiler-Use-wasm-ld-for-wasm-targets.patch
  
-+  patch -Np1 -i "../replace_patched_libc_cc.patch"
++  cd vendor/cc
++  OLDSUM=`sha256sum src/lib.rs | head -c 64`
++  patch -Np1 -i ../../../cc-rs-pick.patch
++  sed -i "s/$OLDSUM/`sha256sum src/lib.rs | head -c 64`/g" .cargo-checksum.json
++  cd ../..
 +
-+  patch -Rp1 -i "../rust-1.64.0-regression.patch"
++  cd vendor/jemalloc-sys
++  OLDSUM=`sha256sum build.rs | head -c 64`
++  patch -Np1 -i ../../../jemalloc-sys-pick.patch
++  sed -i "s/$OLDSUM/`sha256sum build.rs | head -c 64`/g" .cargo-checksum.json
++  cd ../..
 +
    cat >config.toml <<END
  changelog-seen = 2
  profile = "user"
-@@ -62,9 +70,8 @@ link-shared = true
+@@ -57,9 +73,8 @@ link-shared = true
  
  [build]
  target = [
@@ -65,16 +70,7 @@ index df4805d..730bc90 100644
    "wasm32-unknown-unknown",
    "wasm32-wasi",
  ]
-@@ -90,7 +97,7 @@ description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
- rpath = false
- backtrace-on-ice = true
- remap-debuginfo = true
--jemalloc = true
-+# jemalloc = true
- 
- # LLVM crashes when passing an object through ThinLTO twice.  This is triggered
- # when using rust code in cross-language LTO if libstd was built using ThinLTO.
-@@ -104,22 +111,18 @@ deny-warnings = false
+@@ -99,22 +114,18 @@ deny-warnings = false
  [dist]
  compression-formats = ["gz"]
  
@@ -101,17 +97,7 @@ index df4805d..730bc90 100644
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -130,6 +133,9 @@ sanitizers = false
- profiler = false
- wasi-root = "/usr/share/wasi-sysroot"
- END
-+
-+  cd src/bootstrap
-+  cargo update -p cc
- }
- 
- _pick() {
-@@ -157,9 +163,7 @@ build() {
+@@ -152,9 +163,7 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -122,7 +108,7 @@ index df4805d..730bc90 100644
  
    mkdir -p usr/share/bash-completion
    mv etc/bash_completion.d usr/share/bash-completion/completions
-@@ -167,8 +171,7 @@ build() {
+@@ -162,8 +171,7 @@ build() {
    mkdir -p usr/share/licenses/rust
    mv -t usr/share/licenses/rust usr/share/doc/rust/{COPYRIGHT,LICENSE*}
  
@@ -132,7 +118,7 @@ index df4805d..730bc90 100644
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -183,19 +186,6 @@ package_rust() {
+@@ -178,19 +186,6 @@ package_rust() {
    cp -a dest-rust/* "$pkgdir"
  }
  
