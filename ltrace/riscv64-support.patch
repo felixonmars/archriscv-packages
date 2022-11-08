@@ -1,0 +1,1383 @@
+diff --git a/configure.ac b/configure.ac
+index 9a30109..2d4cf06 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -43,6 +43,7 @@ case "${host_cpu}" in
+     cris*)		HOST_CPU="cris" ;;
+     mips*)		HOST_CPU="mips" ;;
+     powerpc|powerpc64)	HOST_CPU="ppc" ;;
++    riscv64)		HOST_CPU="riscv64" ;;
+     sun4u|sparc64)	HOST_CPU="sparc" ;;
+     s390x)		HOST_CPU="s390" ;;
+     i?86|x86_64)	HOST_CPU="x86" ;;
+@@ -160,6 +161,7 @@ if test x"$enable_libunwind" = xyes; then
+       powerpc)            UNWIND_ARCH="ppc32" ;;
+       powerpc64)          UNWIND_ARCH="ppc64" ;;
+       mips*)              UNWIND_ARCH="mips" ;;
++      riscv*)             UNWIND_ARCH="riscv" ;;
+       *)                  UNWIND_ARCH="${host_cpu}" ;;
+   esac
+ 
+@@ -316,6 +318,7 @@ AC_CONFIG_FILES([
+ 	sysdeps/linux-gnu/m68k/Makefile
+ 	sysdeps/linux-gnu/mips/Makefile
+ 	sysdeps/linux-gnu/ppc/Makefile
++	sysdeps/linux-gnu/riscv64/Makefile
+ 	sysdeps/linux-gnu/s390/Makefile
+ 	sysdeps/linux-gnu/sparc/Makefile
+ 	sysdeps/linux-gnu/x86/Makefile
+diff --git a/sysdeps/linux-gnu/Makefile.am b/sysdeps/linux-gnu/Makefile.am
+index c33c952..df488b3 100644
+--- a/sysdeps/linux-gnu/Makefile.am
++++ b/sysdeps/linux-gnu/Makefile.am
+@@ -16,7 +16,8 @@
+ # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ # 02110-1301 USA
+ 
+-DIST_SUBDIRS = alpha arm cris ia64 m68k mips ppc s390 sparc x86
++DIST_SUBDIRS = alpha arm cris ia64 m68k mips ppc riscv64 \
++              s390 sparc x86
+ 
+ SUBDIRS = \
+ 	$(HOST_CPU)
+diff --git a/sysdeps/linux-gnu/riscv64/Makefile.am b/sysdeps/linux-gnu/riscv64/Makefile.am
+new file mode 100644
+index 0000000..f018dfc
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/Makefile.am
+@@ -0,0 +1,35 @@
++# This file is part of ltrace.
++# Copyright (C) 2010 Marc Kleine-Budde, Pengutronix
++#
++# This program is free software; you can redistribute it and/or
++# modify it under the terms of the GNU General Public License as
++# published by the Free Software Foundation; either version 2 of the
++# License, or (at your option) any later version.
++#
++# This program is distributed in the hope that it will be useful, but
++# WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this program; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++# 02110-1301 USA
++
++noinst_LTLIBRARIES = \
++	../libcpu.la
++
++___libcpu_la_SOURCES = \
++	fetch.c \
++	plt.c \
++	regs.c \
++	trace.c
++
++noinst_HEADERS = \
++	arch.h \
++	ptrace.h \
++	signalent.h \
++	syscallent.h
++
++MAINTAINERCLEANFILES = \
++	Makefile.in
+diff --git a/sysdeps/linux-gnu/riscv64/arch.h b/sysdeps/linux-gnu/riscv64/arch.h
+new file mode 100644
+index 0000000..7fff0a3
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/arch.h
+@@ -0,0 +1,47 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#ifndef LTRACE_RISCV64_ARCH_H
++#define LTRACE_RISCV64_ARCH_H
++
++#include <elf.h>
++
++#define ARCH_ENDIAN_LITTLE
++
++/* ebreak */
++#define BREAKPOINT_VALUE { 0x73, 0x00, 0x10, 0x00 }
++#define BREAKPOINT_LENGTH 4
++#define DECR_PC_AFTER_BREAK 0
++
++#define LT_ELFCLASS    ELFCLASS64
++#define LT_ELF_MACHINE    EM_RISCV
++
++#define ARCH_HAVE_ADD_PLT_ENTRY
++
++#define ARCH_HAVE_ATOMIC_SINGLESTEP
++
++#define ARCH_HAVE_FETCH_ARG
++#define ARCH_HAVE_FETCH_PACK
++
++#define ARCH_HAVE_LTELF_DATA
++struct arch_ltelf_data {
++};
++
++#endif
+diff --git a/sysdeps/linux-gnu/riscv64/fetch.c b/sysdeps/linux-gnu/riscv64/fetch.c
+new file mode 100644
+index 0000000..fd16744
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/fetch.c
+@@ -0,0 +1,450 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/uio.h>
++#include <assert.h>
++#include <errno.h>
++#include "backend.h"
++#include "fetch.h"
++#include "type.h"
++#include "proc.h"
++#include "value.h"
++#include "ptrace.h"
++#include "param.h"
++
++#define ARG_REG_FIRST   10
++#define ARG_REG_LAST    17
++
++/*
++ * Where to fetch argument/return value.
++ * According to Integer Calling Convention(ICC) and Hardware
++ * Floating-point Calling Convention(FCC), at most 2×XLEN bits
++ * -- 2 words be fetched for one value.
++ */
++enum fetch_class {
++    CLASS_G,        /* only from one place, general register, */
++    CLASS_F,        /*              float register, or stack, */
++    CLASS_STACK,    /*              maybe 1 or 2 word(s)      */
++    CLASS_G_F,      /* both from two places */
++    CLASS_F_G,
++    CLASS_G_STACK,
++    CLASS_F_STACK,
++    CLASS_STACK_F,
++    CLASS_F_F,      /* specific for struct {float;float} */
++};
++
++struct fetch_context {
++    struct user_regs_struct gregs;
++    struct __riscv_d_ext_state fregs;
++
++    int gidx;           /* next argument register index */
++    int fidx;           /*              into above regs */
++    arch_addr_t sp;     /* next argument stack address */
++    int is_variadic;    /* if variadic argument */
++    struct value retval;/* used when return value > 128bit */
++};
++
++static int
++fetch_register_banks(struct Process *proc, struct fetch_context *ctx)
++{
++    struct iovec data = {&ctx->gregs, sizeof(struct user_regs_struct)};
++    if (ptrace(PTRACE_GETREGSET, proc->pid, NT_PRSTATUS, &data) == -1) {
++        perror("PTRACE_GETREGSET NT_PRSTATUS");
++        return -1;
++    }
++
++    data.iov_base = &ctx->fregs.f;
++    data.iov_len = sizeof(struct __riscv_d_ext_state);
++    if (ptrace(PTRACE_GETREGSET, proc->pid, NT_PRFPREG, &data) == -1) {
++        perror("PTRACE_GETREGSET NT_PRFPREG");
++        return -1;
++    }
++
++    return 0;
++}
++
++/*
++ * Same as type_get_fp_equivalent but for INTEGER.
++ * Note, pointer is not INTERGER.
++ */
++static struct arg_type_info *
++type_get_int_equivalent(struct arg_type_info *info)
++{
++    while (info->type == ARGTYPE_STRUCT) {
++        if (type_struct_size(info) != 1)
++            return NULL;
++        info = type_element(info, 0);
++    }
++
++    switch (info->type) {
++    case ARGTYPE_CHAR:
++    case ARGTYPE_SHORT:
++    case ARGTYPE_INT:
++    case ARGTYPE_LONG:
++    case ARGTYPE_UINT:
++    case ARGTYPE_ULONG:
++    case ARGTYPE_USHORT:
++        return info;
++    default:
++        break;
++    }
++
++    return NULL;
++}
++
++static inline enum fetch_class
++icc_class(struct fetch_context *ctx, size_t sz)
++{
++    if (ctx->gidx > ARG_REG_LAST)
++        return CLASS_STACK;
++    if ((ctx->gidx == ARG_REG_LAST) && (sz > 8))
++        return CLASS_G_STACK;
++    return CLASS_G;
++}
++
++/*
++ * Determine fetch_class which typesize > 0 and <= 128bits.
++ * Treat syscall exactly the same as function call, hope
++ * not break the system??
++ */
++static enum fetch_class
++get_fetch_class(struct fetch_context *ctx, struct Process *proc,
++                struct arg_type_info *info)
++{
++    size_t sz = type_sizeof(proc, info);
++
++    /* variadic arguments are passed according to ICC */
++    if (ctx->is_variadic) {
++        if (sz <= 8)
++            return (ctx->gidx > ARG_REG_LAST) ? CLASS_STACK : CLASS_G;
++
++        /* 2×XLEN bits variadic must in an aligned register pair */
++        if (ctx->gidx == ARG_REG_LAST) {
++            ctx->gidx++;
++            return CLASS_STACK;
++        }
++        if (ctx->gidx % 2)
++            ctx->gidx++;
++        return CLASS_G;
++    }
++
++    switch (info->type) {
++	case ARGTYPE_INT:
++	case ARGTYPE_UINT:
++	case ARGTYPE_LONG:
++	case ARGTYPE_ULONG:
++	case ARGTYPE_CHAR:
++	case ARGTYPE_SHORT:
++	case ARGTYPE_USHORT:
++	case ARGTYPE_POINTER:
++        if (ctx->gidx > ARG_REG_LAST)
++            return CLASS_STACK;
++        return CLASS_G;
++
++	case ARGTYPE_FLOAT:
++	case ARGTYPE_DOUBLE:
++        if ((ctx->gidx > ARG_REG_LAST) && (ctx->fidx > ARG_REG_LAST))
++            return CLASS_STACK;
++        else if (ctx->fidx > ARG_REG_LAST)
++            return CLASS_G;
++        return CLASS_F;
++
++    /* not support 'packed' 'aligned' attribute as ltrace doesn't */
++	case ARGTYPE_STRUCT:
++        /* try FCC first */
++        if (type_struct_size(info) == 2) {
++            struct arg_type_info *arg0 = type_struct_get(info, 0);
++            struct arg_type_info *arg1 = type_struct_get(info, 1);
++
++            /* {float;float} */
++            if ((type_get_fp_equivalent(arg0) != NULL) &&
++                (type_get_fp_equivalent(arg1) != NULL)) {
++                if (ctx->fidx >= ARG_REG_LAST)
++                    return icc_class(ctx, sz);
++                /*
++                 * A struct containing two floating-point reals is passed
++                 * in two floating-point registers, though its total size
++                 *  might be 8.
++                 */
++                return CLASS_F_F;
++            }
++
++            /* {float;int} */
++            if ((type_get_fp_equivalent(arg0) != NULL) &&
++                (type_get_int_equivalent(arg1) != NULL)) {
++                if (ctx->fidx > ARG_REG_LAST)
++                    return icc_class(ctx, sz);
++                if (ctx->gidx > ARG_REG_LAST)
++                    return CLASS_F_STACK;
++                return CLASS_F_G;
++            }
++
++            /* {int;float} */
++            if ((type_get_int_equivalent(arg0) != NULL) &&
++                (type_get_fp_equivalent(arg1) != NULL)) {
++                if (ctx->fidx > ARG_REG_LAST)
++                    return icc_class(ctx, sz);
++                if (ctx->gidx > ARG_REG_LAST)
++                    return CLASS_STACK_F;
++                return CLASS_G_F;
++            }
++        } else if (type_get_fp_equivalent(info) != NULL) { /* {float} */
++            if (ctx->fidx > ARG_REG_LAST) {
++                if (ctx->gidx > ARG_REG_LAST)
++                    return CLASS_STACK;
++                return CLASS_G;
++            }
++            return CLASS_F;
++        }
++
++        return icc_class(ctx, sz);
++
++	default:
++	    abort();
++    }
++}
++
++static inline unsigned long
++fetch_stack_word(struct fetch_context *ctx, struct Process *proc)
++{
++    long v = ptrace(PTRACE_PEEKDATA, proc->pid, ctx->sp, 0);
++    if ((v == -1) && errno) {
++        perror("PTRACE_PEEKDATA");
++        abort();
++    }
++    ctx->sp += 8;
++    return (unsigned long)v;
++}
++
++/* Fetch value whose size no more than 128 bits */
++static int
++fetch_value(struct fetch_context *ctx, struct Process *proc,
++            struct value *valp, enum fetch_class c, size_t sz)
++{
++    unsigned long *p = (unsigned long *)value_reserve(valp, align(sz, 8));
++    if (p == NULL) {
++        fprintf(stderr, "value_reserve failed\n");
++        return -1;
++    }
++
++    unsigned long *gr = &ctx->gregs.pc;
++
++    switch (c) {
++    case CLASS_G:
++        p[0] = gr[ctx->gidx++];
++        if (sz > 8)
++            p[1] = gr[ctx->gidx++];
++        break;
++
++    case CLASS_F:
++        p[0] = ctx->fregs.f[ctx->fidx++];
++        if (sz > 8)
++            p[1] = ctx->fregs.f[ctx->fidx++];
++        break;
++
++    case CLASS_STACK:
++        p[0] = fetch_stack_word(ctx, proc);
++        if (sz > 8)
++            p[1] = fetch_stack_word(ctx, proc);
++        break;
++
++    case CLASS_G_F:
++        p[0] = gr[ctx->gidx++];
++        p[1] = ctx->fregs.f[ctx->fidx++];
++        break;
++
++    case CLASS_F_G:
++        p[0] = ctx->fregs.f[ctx->fidx++];
++        p[1] = gr[ctx->gidx++];
++        break;
++
++    case CLASS_F_F:
++        p[0] = ctx->fregs.f[ctx->fidx++];
++        unsigned long u = ctx->fregs.f[ctx->fidx++];
++        if (sz > 8)
++            p[1] = u;
++        else /* struct{float;float;} use 2 fregs, occupy 1 word memory */
++            p[0] = ((u & 0xFFFFFFFF) << 32) | (p[0] & 0xFFFFFFFF);
++        break;
++
++    case CLASS_G_STACK:
++        p[0] = gr[ctx->gidx++];
++        p[1] = fetch_stack_word(ctx, proc);
++        break;
++
++    case CLASS_F_STACK:
++        p[0] = ctx->fregs.f[ctx->fidx++];
++        p[1] = fetch_stack_word(ctx, proc);
++        break;
++
++    case CLASS_STACK_F:
++        p[0] = fetch_stack_word(ctx, proc);
++        p[1] = ctx->fregs.f[ctx->fidx++];
++        break;
++    }
++
++    return 0;
++}
++
++/* value larger than 128bit is transferred to reference */
++static int
++fetch_larger(struct fetch_context *ctx, struct Process *proc,
++        struct arg_type_info *info, struct value *valp)
++{
++    value_init(valp, proc, NULL, info, 0);
++    if (value_pass_by_reference(valp) != 0) {
++        fprintf(stderr, "value_pass_by_reference failed\n");
++        return -1;
++    }
++
++    enum fetch_class c = get_fetch_class(ctx, proc, valp->type);
++    return fetch_value(ctx, proc, valp, c, 8);
++}
++
++struct fetch_context *
++arch_fetch_arg_init(enum tof type, struct Process *proc,
++                    struct arg_type_info *ret_info)
++{
++    struct fetch_context *ctx = malloc(sizeof(*ctx));
++    if (ctx == NULL) {
++        perror("arch_fetch_arg_init");
++        return NULL;
++    }
++
++    if (fetch_register_banks(proc, ctx) == -1)
++        goto ERR_OUT;
++
++    ctx->gidx = ARG_REG_FIRST;
++    ctx->fidx = ARG_REG_FIRST;
++    /*
++     * When hit this function, the stack pointer is pointing to the
++     * 1st argument, not the return address.
++     */
++    ctx->sp = (arch_addr_t)ctx->gregs.sp;
++    ctx->is_variadic = 0;
++
++    size_t sz = type_sizeof(proc, ret_info);
++    assert(sz != (size_t)-1);
++    if (sz > 16) {
++        /*
++         * Return value larger than 128bit will be passed by reference,
++         * and address stored as an implicit first parameter.
++         * We must fetch and save it first.
++         */
++        if (fetch_larger(ctx, proc, ret_info, &ctx->retval) == -1)
++            goto ERR_OUT;
++    } else {
++        value_init_detached(&ctx->retval, NULL, NULL, 0);
++    }
++
++    return ctx;
++
++ERR_OUT:
++    free(ctx);
++    return NULL;
++}
++
++struct fetch_context *
++arch_fetch_arg_clone(struct Process *proc, struct fetch_context *ctx)
++{
++    struct fetch_context *clone = malloc(sizeof(*ctx));
++    if (clone == NULL) {
++        perror("arch_fetch_arg_clone");
++        return NULL;
++    }
++
++    *clone = *ctx;
++    return clone;
++}
++
++int
++arch_fetch_retval(struct fetch_context *ctx, enum tof type,
++          struct Process *proc, struct arg_type_info *info,
++          struct value *valp)
++{
++    if (fetch_register_banks(proc, ctx) == -1)
++        return -1;
++
++    /* if we already prefetched its reference address */
++    if (ctx->retval.type != NULL) {
++        *valp = ctx->retval;
++        return 0;
++    }
++
++    size_t sz = type_sizeof(proc, info);
++    assert(sz != (size_t)-1);
++
++    if (sz == 0)
++        return 0;
++
++    ctx->gidx = ARG_REG_FIRST;
++    ctx->fidx = ARG_REG_FIRST;
++    enum fetch_class c = get_fetch_class(ctx, proc, info);
++    return fetch_value(ctx, proc, valp, c, sz);
++}
++
++int
++arch_fetch_arg_next(struct fetch_context *ctx, enum tof type,
++            struct Process *proc, struct arg_type_info *info,
++            struct value *valp)
++{
++    /* why we got ARGTYPE_ARRAY?? */
++    assert(info->type != ARGTYPE_ARRAY);
++
++    size_t sz = type_sizeof(proc, info);
++    assert(sz != (size_t)-1);
++
++    if (sz == 0)
++        return 0;
++
++    if (sz > 16)
++        return fetch_larger(ctx, proc, info, valp);
++
++    enum fetch_class c = get_fetch_class(ctx, proc, info);
++    return fetch_value(ctx, proc, valp, c, sz);
++}
++
++void
++arch_fetch_arg_done(struct fetch_context *ctx)
++{
++    free(ctx);
++}
++
++int
++arch_fetch_param_pack_start(struct fetch_context *ctx,
++                        enum param_pack_flavor ppflavor)
++{
++    /*
++     * Leave out PARAM_PACK_ARGS and return garbage if any.
++     *
++     * For PARAM_PACK_VARARGS - variable arguments, once met
++     * than all the left arguments are also variadic.
++     */
++    if (!ctx->is_variadic && (ppflavor == PARAM_PACK_VARARGS))
++        ctx->is_variadic = 1;
++    return 0;
++}
++
++void
++arch_fetch_param_pack_end(struct fetch_context *ctx)
++{
++}
+diff --git a/sysdeps/linux-gnu/riscv64/plt.c b/sysdeps/linux-gnu/riscv64/plt.c
+new file mode 100644
+index 0000000..525206f
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/plt.c
+@@ -0,0 +1,70 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#include <sys/uio.h>
++#include <stdio.h>
++#include <gelf.h>
++#include "ltrace-elf.h"
++#include "proc.h"
++#include "backend.h"
++#include "breakpoint.h"
++#include "ptrace.h"
++#include "library.h"
++#include "trace.h"
++
++GElf_Addr
++arch_plt_sym_val(struct ltelf *lte, size_t ndx, GElf_Rela *rela)
++{
++    if (GELF_R_TYPE(rela->r_info) == R_RISCV_IRELATIVE)
++        return rela->r_addend;// what shall we return ??
++
++    return lte->plt_addr + 16 * 2 + (ndx * 16);
++}
++
++void *
++sym2addr(struct Process *proc, struct library_symbol *sym)
++{
++        return sym->enter_addr;
++}
++
++enum plt_status
++arch_elf_add_plt_entry(struct Process *proc, struct ltelf *lte,
++                       const char *name, GElf_Rela *rela,
++                       size_t i, struct library_symbol **ret)
++{
++    return plt_default;
++}
++
++int
++arch_elf_init(struct ltelf *lte, struct library *lib)
++{
++    if ((lte->ehdr.e_flags & EF_RISCV_FLOAT_ABI) !=
++            EF_RISCV_FLOAT_ABI_DOUBLE) {
++        fprintf(stderr, "failed: only LP64D ABI supported\n");
++        return -1;
++    }
++
++    return 0;
++}
++
++void
++arch_elf_destroy(struct ltelf *lte)
++{
++}
+diff --git a/sysdeps/linux-gnu/riscv64/ptrace.h b/sysdeps/linux-gnu/riscv64/ptrace.h
+new file mode 100644
+index 0000000..37b375c
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/ptrace.h
+@@ -0,0 +1,22 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#include <sys/ptrace.h>
++#include <asm/ptrace.h>
+diff --git a/sysdeps/linux-gnu/riscv64/regs.c b/sysdeps/linux-gnu/riscv64/regs.c
+new file mode 100644
+index 0000000..5d2b6be
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/regs.c
+@@ -0,0 +1,75 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#include <sys/uio.h>
++#include <stddef.h>
++#include "proc.h"
++#include "ptrace.h"
++
++/* read tracee general registers */
++long
++riscv64_read_gregs(struct Process *proc, struct user_regs_struct *regs)
++{
++    struct iovec data = {regs, sizeof(*regs)};
++    if (ptrace(PTRACE_GETREGSET, proc->pid, NT_PRSTATUS, &data) == -1) {
++        perror("riscv64_read_gregs");
++        return -1;
++    }
++    return 0;
++}
++
++void *
++get_instruction_pointer(struct Process *proc)
++{
++    struct user_regs_struct regs;
++    /* RISC-V does not support PTRACE_PEEKUSER, PTRACE_GETREGS */
++    if (riscv64_read_gregs(proc, &regs) == -1)
++        return NULL;
++    return (void *)regs.pc;
++}
++
++void
++set_instruction_pointer(struct Process *proc, void *addr)
++{
++    struct user_regs_struct regs;
++    if (riscv64_read_gregs(proc, &regs) == -1)
++        return;
++    regs.pc = (unsigned long)addr;
++    struct iovec data = {&regs, sizeof(regs)};
++    ptrace(PTRACE_SETREGSET, proc->pid, NT_PRSTATUS, &data);
++}
++
++void *
++get_stack_pointer(struct Process *proc)
++{
++    struct user_regs_struct regs;
++    if (riscv64_read_gregs(proc, &regs) == -1)
++        return NULL;
++    return (void *)regs.sp;
++}
++
++void *
++get_return_addr(struct Process *proc, void *stack_pointer)
++{
++    struct user_regs_struct regs;
++    if (riscv64_read_gregs(proc, &regs) == -1)
++        return NULL;
++    return (void *)regs.ra;
++}
+diff --git a/sysdeps/linux-gnu/riscv64/signalent.h b/sysdeps/linux-gnu/riscv64/signalent.h
+new file mode 100644
+index 0000000..32a755a
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/signalent.h
+@@ -0,0 +1,52 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++/* from linux kernel 5.10 */
++    "SIG_0",           /* 0 */
++    "SIGHUP",          /* 1 */
++    "SIGINT",          /* 2 */
++    "SIGQUIT",         /* 3 */
++    "SIGILL",          /* 4 */
++    "SIGTRAP",         /* 5 */
++    "SIGABRT",         /* 6 */
++    "SIGBUS",          /* 7 */
++    "SIGFPE",          /* 8 */
++    "SIGKILL",         /* 9 */
++    "SIGUSR1",         /* 10 */
++    "SIGSEGV",         /* 11 */
++    "SIGUSR2",         /* 12 */
++    "SIGPIPE",         /* 13 */
++    "SIGALRM",         /* 14 */
++    "SIGTERM",         /* 15 */
++    "SIGSTKFLT",       /* 16 */
++    "SIGCHLD",         /* 17 */
++    "SIGCONT",         /* 18 */
++    "SIGSTOP",         /* 19 */
++    "SIGTSTP",         /* 20 */
++    "SIGTTIN",         /* 21 */
++    "SIGTTOU",         /* 22 */
++    "SIGURG",          /* 23 */
++    "SIGXCPU",         /* 24 */
++    "SIGXFSZ",         /* 25 */
++    "SIGVTALRM",       /* 26 */
++    "SIGPROF",         /* 27 */
++    "SIGWINCH",        /* 28 */
++    "SIGIO",           /* 29 */
++    "SIGPWR",          /* 30 */
++    "SIGSYS",          /* 31 */
+diff --git a/sysdeps/linux-gnu/riscv64/syscallent.h b/sysdeps/linux-gnu/riscv64/syscallent.h
+new file mode 100644
+index 0000000..e4fba7f
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/syscallent.h
+@@ -0,0 +1,461 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++/* from linux kernel 5.10 */
++    "io_setup",                        /* 0 */
++    "io_destroy",                      /* 1 */
++    "io_submit",                       /* 2 */
++    "io_cancel",                       /* 3 */
++    "io_getevents",                    /* 4 */
++    "setxattr",                        /* 5 */
++    "lsetxattr",                       /* 6 */
++    "fsetxattr",                       /* 7 */
++    "getxattr",                        /* 8 */
++    "lgetxattr",                       /* 9 */
++    "fgetxattr",                       /* 10 */
++    "listxattr",                       /* 11 */
++    "llistxattr",                      /* 12 */
++    "flistxattr",                      /* 13 */
++    "removexattr",                     /* 14 */
++    "lremovexattr",                    /* 15 */
++    "fremovexattr",                    /* 16 */
++    "getcwd",                          /* 17 */
++    "lookup_dcookie",                  /* 18 */
++    "eventfd2",                        /* 19 */
++    "epoll_create1",                   /* 20 */
++    "epoll_ctl",                       /* 21 */
++    "epoll_pwait",                     /* 22 */
++    "dup",                             /* 23 */
++    "dup3",                            /* 24 */
++    "fcntl",                           /* 25 */
++    "inotify_init1",                   /* 26 */
++    "inotify_add_watch",               /* 27 */
++    "inotify_rm_watch",                /* 28 */
++    "ioctl",                           /* 29 */
++    "ioprio_set",                      /* 30 */
++    "ioprio_get",                      /* 31 */
++    "flock",                           /* 32 */
++    "mknodat",                         /* 33 */
++    "mkdirat",                         /* 34 */
++    "unlinkat",                        /* 35 */
++    "symlinkat",                       /* 36 */
++    "linkat",                          /* 37 */
++    "renameat",                        /* 38 */
++    "umount2",                         /* 39 */
++    "mount",                           /* 40 */
++    "pivot_root",                      /* 41 */
++    "nfsservctl",                      /* 42 */
++    "statfs",                          /* 43 */
++    "fstatfs",                         /* 44 */
++    "truncate",                        /* 45 */
++    "ftruncate",                       /* 46 */
++    "fallocate",                       /* 47 */
++    "faccessat",                       /* 48 */
++    "chdir",                           /* 49 */
++    "fchdir",                          /* 50 */
++    "chroot",                          /* 51 */
++    "fchmod",                          /* 52 */
++    "fchmodat",                        /* 53 */
++    "fchownat",                        /* 54 */
++    "fchown",                          /* 55 */
++    "openat",                          /* 56 */
++    "close",                           /* 57 */
++    "vhangup",                         /* 58 */
++    "pipe2",                           /* 59 */
++    "quotactl",                        /* 60 */
++    "getdents64",                      /* 61 */
++    "lseek",                           /* 62 */
++    "read",                            /* 63 */
++    "write",                           /* 64 */
++    "readv",                           /* 65 */
++    "writev",                          /* 66 */
++    "pread64",                         /* 67 */
++    "pwrite64",                        /* 68 */
++    "preadv",                          /* 69 */
++    "pwritev",                         /* 70 */
++    "sendfile",                        /* 71 */
++    "pselect6",                        /* 72 */
++    "ppoll",                           /* 73 */
++    "signalfd4",                       /* 74 */
++    "vmsplice",                        /* 75 */
++    "splice",                          /* 76 */
++    "tee",                             /* 77 */
++    "readlinkat",                      /* 78 */
++    "fstatat",                         /* 79 */
++    "fstat",                           /* 80 */
++    "sync",                            /* 81 */
++    "fsync",                           /* 82 */
++    "fdatasync",                       /* 83 */
++    "sync_file_range",                 /* 84 */
++    "timerfd_create",                  /* 85 */
++    "timerfd_settime",                 /* 86 */
++    "timerfd_gettime",                 /* 87 */
++    "utimensat",                       /* 88 */
++    "acct",                            /* 89 */
++    "capget",                          /* 90 */
++    "capset",                          /* 91 */
++    "personality",                     /* 92 */
++    "exit",                            /* 93 */
++    "exit_group",                      /* 94 */
++    "waitid",                          /* 95 */
++    "set_tid_address",                 /* 96 */
++    "unshare",                         /* 97 */
++    "futex",                           /* 98 */
++    "set_robust_list",                 /* 99 */
++    "get_robust_list",                 /* 100 */
++    "nanosleep",                       /* 101 */
++    "getitimer",                       /* 102 */
++    "setitimer",                       /* 103 */
++    "kexec_load",                      /* 104 */
++    "init_module",                     /* 105 */
++    "delete_module",                   /* 106 */
++    "timer_create",                    /* 107 */
++    "timer_gettime",                   /* 108 */
++    "timer_getoverrun",                /* 109 */
++    "timer_settime",                   /* 110 */
++    "timer_delete",                    /* 111 */
++    "clock_settime",                   /* 112 */
++    "clock_gettime",                   /* 113 */
++    "clock_getres",                    /* 114 */
++    "clock_nanosleep",                 /* 115 */
++    "syslog",                          /* 116 */
++    "ptrace",                          /* 117 */
++    "sched_setparam",                  /* 118 */
++    "sched_setscheduler",              /* 119 */
++    "sched_getscheduler",              /* 120 */
++    "sched_getparam",                  /* 121 */
++    "sched_setaffinity",               /* 122 */
++    "sched_getaffinity",               /* 123 */
++    "sched_yield",                     /* 124 */
++    "sched_get_priority_max",          /* 125 */
++    "sched_get_priority_min",          /* 126 */
++    "sched_rr_get_interval",           /* 127 */
++    "restart_syscall",                 /* 128 */
++    "kill",                            /* 129 */
++    "tkill",                           /* 130 */
++    "tgkill",                          /* 131 */
++    "sigaltstack",                     /* 132 */
++    "rt_sigsuspend",                   /* 133 */
++    "rt_sigaction",                    /* 134 */
++    "rt_sigprocmask",                  /* 135 */
++    "rt_sigpending",                   /* 136 */
++    "rt_sigtimedwait",                 /* 137 */
++    "rt_sigqueueinfo",                 /* 138 */
++    "rt_sigreturn",                    /* 139 */
++    "setpriority",                     /* 140 */
++    "getpriority",                     /* 141 */
++    "reboot",                          /* 142 */
++    "setregid",                        /* 143 */
++    "setgid",                          /* 144 */
++    "setreuid",                        /* 145 */
++    "setuid",                          /* 146 */
++    "setresuid",                       /* 147 */
++    "getresuid",                       /* 148 */
++    "setresgid",                       /* 149 */
++    "getresgid",                       /* 150 */
++    "setfsuid",                        /* 151 */
++    "setfsgid",                        /* 152 */
++    "times",                           /* 153 */
++    "setpgid",                         /* 154 */
++    "getpgid",                         /* 155 */
++    "getsid",                          /* 156 */
++    "setsid",                          /* 157 */
++    "getgroups",                       /* 158 */
++    "setgroups",                       /* 159 */
++    "uname",                           /* 160 */
++    "sethostname",                     /* 161 */
++    "setdomainname",                   /* 162 */
++    "getrlimit",                       /* 163 */
++    "setrlimit",                       /* 164 */
++    "getrusage",                       /* 165 */
++    "umask",                           /* 166 */
++    "prctl",                           /* 167 */
++    "getcpu",                          /* 168 */
++    "gettimeofday",                    /* 169 */
++    "settimeofday",                    /* 170 */
++    "adjtimex",                        /* 171 */
++    "getpid",                          /* 172 */
++    "getppid",                         /* 173 */
++    "getuid",                          /* 174 */
++    "geteuid",                         /* 175 */
++    "getgid",                          /* 176 */
++    "getegid",                         /* 177 */
++    "gettid",                          /* 178 */
++    "sysinfo",                         /* 179 */
++    "mq_open",                         /* 180 */
++    "mq_unlink",                       /* 181 */
++    "mq_timedsend",                    /* 182 */
++    "mq_timedreceive",                 /* 183 */
++    "mq_notify",                       /* 184 */
++    "mq_getsetattr",                   /* 185 */
++    "msgget",                          /* 186 */
++    "msgctl",                          /* 187 */
++    "msgrcv",                          /* 188 */
++    "msgsnd",                          /* 189 */
++    "semget",                          /* 190 */
++    "semctl",                          /* 191 */
++    "semtimedop",                      /* 192 */
++    "semop",                           /* 193 */
++    "shmget",                          /* 194 */
++    "shmctl",                          /* 195 */
++    "shmat",                           /* 196 */
++    "shmdt",                           /* 197 */
++    "socket",                          /* 198 */
++    "socketpair",                      /* 199 */
++    "bind",                            /* 200 */
++    "listen",                          /* 201 */
++    "accept",                          /* 202 */
++    "connect",                         /* 203 */
++    "getsockname",                     /* 204 */
++    "getpeername",                     /* 205 */
++    "sendto",                          /* 206 */
++    "recvfrom",                        /* 207 */
++    "setsockopt",                      /* 208 */
++    "getsockopt",                      /* 209 */
++    "shutdown",                        /* 210 */
++    "sendmsg",                         /* 211 */
++    "recvmsg",                         /* 212 */
++    "readahead",                       /* 213 */
++    "brk",                             /* 214 */
++    "munmap",                          /* 215 */
++    "mremap",                          /* 216 */
++    "add_key",                         /* 217 */
++    "request_key",                     /* 218 */
++    "keyctl",                          /* 219 */
++    "clone",                           /* 220 */
++    "execve",                          /* 221 */
++    "mmap",                            /* 222 */
++    "fadvise64",                       /* 223 */
++    "swapon",                          /* 224 */
++    "swapoff",                         /* 225 */
++    "mprotect",                        /* 226 */
++    "msync",                           /* 227 */
++    "mlock",                           /* 228 */
++    "munlock",                         /* 229 */
++    "mlockall",                        /* 230 */
++    "munlockall",                      /* 231 */
++    "mincore",                         /* 232 */
++    "madvise",                         /* 233 */
++    "remap_file_pages",                /* 234 */
++    "mbind",                           /* 235 */
++    "get_mempolicy",                   /* 236 */
++    "set_mempolicy",                   /* 237 */
++    "migrate_pages",                   /* 238 */
++    "move_pages",                      /* 239 */
++    "rt_tgsigqueueinfo",               /* 240 */
++    "perf_event_open",                 /* 241 */
++    "accept4",                         /* 242 */
++    "recvmmsg",                        /* 243 */
++    "244",
++    "245",
++    "246",
++    "247",
++    "248",
++    "249",
++    "250",
++    "251",
++    "252",
++    "253",
++    "254",
++    "255",
++    "256",
++    "257",
++    "258",
++    "riscv_flush_icache",              /* 259 */
++    "wait4",                           /* 260 */
++    "prlimit64",                       /* 261 */
++    "fanotify_init",                   /* 262 */
++    "fanotify_mark",                   /* 263 */
++    "name_to_handle_at",               /* 264 */
++    "open_by_handle_at",               /* 265 */
++    "clock_adjtime",                   /* 266 */
++    "syncfs",                          /* 267 */
++    "setns",                           /* 268 */
++    "sendmmsg",                        /* 269 */
++    "process_vm_readv",                /* 270 */
++    "process_vm_writev",               /* 271 */
++    "kcmp",                            /* 272 */
++    "finit_module",                    /* 273 */
++    "sched_setattr",                   /* 274 */
++    "sched_getattr",                   /* 275 */
++    "renameat2",                       /* 276 */
++    "seccomp",                         /* 277 */
++    "getrandom",                       /* 278 */
++    "memfd_create",                    /* 279 */
++    "bpf",                             /* 280 */
++    "execveat",                        /* 281 */
++    "userfaultfd",                     /* 282 */
++    "membarrier",                      /* 283 */
++    "mlock2",                          /* 284 */
++    "copy_file_range",                 /* 285 */
++    "preadv2",                         /* 286 */
++    "pwritev2",                        /* 287 */
++    "pkey_mprotect",                   /* 288 */
++    "pkey_alloc",                      /* 289 */
++    "pkey_free",                       /* 290 */
++    "statx",                           /* 291 */
++    "io_pgetevents",                   /* 292 */
++    "rseq",                            /* 293 */
++    "kexec_file_load",                 /* 294 */
++    "295",
++    "296",
++    "297",
++    "298",
++    "299",
++    "300",
++    "301",
++    "302",
++    "303",
++    "304",
++    "305",
++    "306",
++    "307",
++    "308",
++    "309",
++    "310",
++    "311",
++    "312",
++    "313",
++    "314",
++    "315",
++    "316",
++    "317",
++    "318",
++    "319",
++    "320",
++    "321",
++    "322",
++    "323",
++    "324",
++    "325",
++    "326",
++    "327",
++    "328",
++    "329",
++    "330",
++    "331",
++    "332",
++    "333",
++    "334",
++    "335",
++    "336",
++    "337",
++    "338",
++    "339",
++    "340",
++    "341",
++    "342",
++    "343",
++    "344",
++    "345",
++    "346",
++    "347",
++    "348",
++    "349",
++    "350",
++    "351",
++    "352",
++    "353",
++    "354",
++    "355",
++    "356",
++    "357",
++    "358",
++    "359",
++    "360",
++    "361",
++    "362",
++    "363",
++    "364",
++    "365",
++    "366",
++    "367",
++    "368",
++    "369",
++    "370",
++    "371",
++    "372",
++    "373",
++    "374",
++    "375",
++    "376",
++    "377",
++    "378",
++    "379",
++    "380",
++    "381",
++    "382",
++    "383",
++    "384",
++    "385",
++    "386",
++    "387",
++    "388",
++    "389",
++    "390",
++    "391",
++    "392",
++    "393",
++    "394",
++    "395",
++    "396",
++    "397",
++    "398",
++    "399",
++    "400",
++    "401",
++    "402",
++    "clock_gettime64",                 /* 403 */
++    "clock_settime64",                 /* 404 */
++    "clock_adjtime64",                 /* 405 */
++    "clock_getres_time64",             /* 406 */
++    "clock_nanosleep_time64",          /* 407 */
++    "timer_gettime64",                 /* 408 */
++    "timer_settime64",                 /* 409 */
++    "timerfd_gettime64",               /* 410 */
++    "timerfd_settime64",               /* 411 */
++    "utimensat_time64",                /* 412 */
++    "pselect6_time64",                 /* 413 */
++    "ppoll_time64",                    /* 414 */
++    "415",
++    "io_pgetevents_time64",            /* 416 */
++    "recvmmsg_time64",                 /* 417 */
++    "mq_timedsend_time64",             /* 418 */
++    "mq_timedreceive_time64",          /* 419 */
++    "semtimedop_time64",               /* 420 */
++    "rt_sigtimedwait_time64",          /* 421 */
++    "futex_time64",                    /* 422 */
++    "sched_rr_get_interval_time64",    /* 423 */
++    "pidfd_send_signal",               /* 424 */
++    "io_uring_setup",                  /* 425 */
++    "io_uring_enter",                  /* 426 */
++    "io_uring_register",               /* 427 */
++    "open_tree",                       /* 428 */
++    "move_mount",                      /* 429 */
++    "fsopen",                          /* 430 */
++    "fsconfig",                        /* 431 */
++    "fsmount",                         /* 432 */
++    "fspick",                          /* 433 */
++    "pidfd_open",                      /* 434 */
++    "clone3",                          /* 435 */
++    "close_range",                     /* 436 */
++    "openat2",                         /* 437 */
++    "pidfd_getfd",                     /* 438 */
++    "faccessat2",                      /* 439 */
++    "process_madvise",                 /* 440 */
+diff --git a/sysdeps/linux-gnu/riscv64/trace.c b/sysdeps/linux-gnu/riscv64/trace.c
+new file mode 100644
+index 0000000..481933c
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/trace.c
+@@ -0,0 +1,75 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2022 Kai Zhang (laokz)
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#include <stdio.h>
++#include <sys/wait.h>
++#include "backend.h"
++#include "proc.h"
++#include "ptrace.h"
++
++extern long
++riscv64_read_gregs(struct Process *proc, struct user_regs_struct *regs);
++
++void
++get_arch_dep(struct Process *proc)
++{
++}
++
++int
++syscall_p(struct Process *proc, int status, int *sysnum)
++{
++    if (WIFSTOPPED(status)
++            && WSTOPSIG(status) == (SIGTRAP | proc->tracesysgood)) {
++
++        struct user_regs_struct regs;
++        if (riscv64_read_gregs(proc, &regs) == -1)
++            return -1;
++
++        /* ecall has no compressed format */
++        switch (ptrace(PTRACE_PEEKTEXT, proc->pid, regs.pc - 4, 0) &
++                    0xFFFFFFFF) {
++            case 0x73:
++                break;
++            case -1:
++                perror("PTRACE_PEEKTEXT");
++                return -1;
++            default:
++                return 0;
++        }
++
++        *sysnum = regs.a7;
++        size_t i = proc->callstack_depth - 1;
++        if (proc->callstack_depth > 0
++                && proc->callstack[i].is_syscall
++                && proc->callstack[i].c_un.syscall == (int)regs.a7) {
++            return 2;
++        }
++        return 1;
++    }
++    return 0;
++}
++
++int
++arch_atomic_singlestep(struct Process *proc, struct breakpoint *sbp,
++		       int (*add_cb)(void *addr, void *data),
++		       void *add_cb_data) {
++    if (!ptrace(PTRACE_SYSCALL, proc->pid, 0, 0)) return 0;
++    return 1;
++}

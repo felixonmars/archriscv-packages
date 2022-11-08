@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,16 @@ license=('GPL')
+ depends=('elfutils' 'libunwind')
+ makedepends=('dejagnu')
+ backup=('etc/ltrace.conf')
+-source=(https://sources.archlinux.org/other/$pkgname/$pkgname-$pkgver.tar.bz2)
+-sha256sums=('0e6f8c077471b544c06def7192d983861ad2f8688dd5504beae62f0c5f5b9503')
++source=(https://sources.archlinux.org/other/$pkgname/$pkgname-$pkgver.tar.bz2
++        "riscv64-support.patch")
++sha256sums=('0e6f8c077471b544c06def7192d983861ad2f8688dd5504beae62f0c5f5b9503'
++            '3261e93f9ae91982afd382046de2f2a7399402c74981724c53cb8b4e25745beb')
++
++prepare() {
++  cd "$srcdir/$pkgname-$pkgver"
++  patch -p1 -Ni ${srcdir}/riscv64-support.patch
++  autoreconf -fiv
++}
+ 
+ build() {
+   cd "$srcdir/$pkgname-$pkgver"
