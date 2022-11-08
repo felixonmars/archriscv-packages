@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,6 +11,17 @@ depends=('go')
+ source=("$pkgname-$pkgver.tar.gz::https://github.com/yuin/goldmark/archive/v$pkgver.tar.gz")
+ sha512sums=('82f6c3b8852a41d4072e1b88a70299e74234f5bf1e0fef2236d501edcde2586391fa05957fb30bd5c1c92361a6bd19e9105423ca3ce4f29a807a860674ece2e3')
+ 
++prepare() {
++  cd "$srcdir"/goldmark-$pkgver
++
++  # Increase test timeouts with sed
++  # We will able use GOLDMARK_TEST_TIMEOUT_MULTIPLIER=10 instead of sed
++  # if https://github.com/yuin/goldmark/pull/337 is accepted.
++  echo "Following test timeouts will be increased:"
++  grep -E -nH '\(finished - started\) > ([0-9]+)' extra_test.go
++  sed -Ei 's/\(finished - started\) > ([0-9]+)/\0*10/g' extra_test.go
++}
++
+ check() {
+   export GOPATH="$srcdir/build:/usr/share/gocode"
+   mkdir -p "$srcdir"/build/src/github.com/yuin
