@@ -1,0 +1,26 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 1347474)
++++ PKGBUILD	(working copy)
+@@ -12,10 +12,18 @@
+ makedepends=('python-build' 'python-installer' 'python-setuptools-scm'
+              'python-wheel')
+ checkdepends=('python-asttokens' 'python-littleutils' 'python-pytest')
+-source=("https://files.pythonhosted.org/packages/source/${_name::1}/$_name/$_name-$pkgver.tar.gz")
+-sha256sums=('19da64c18d2d851112f09c287f8d3dbbdf725ab0e569077efb6cdcbd3497c107')
+-b2sums=('662048e98a1eb3128dd57bbd61a8b7d7fb90dcf5adabc532c69f9ecce2a8ca73cf496ce7ba9b19c94d40083be1382b59dd673b36840e004a7cd0add888292ada')
++source=("https://files.pythonhosted.org/packages/source/${_name::1}/$_name/$_name-$pkgver.tar.gz"
++        "fix-test-many-source-for-filename-calls-timeout.patch")
++sha256sums=('19da64c18d2d851112f09c287f8d3dbbdf725ab0e569077efb6cdcbd3497c107'
++            '5161cd421781dcbdf533513440ca03d3a78e5cfbb0877f72815d679d3f10e76f')
++b2sums=('662048e98a1eb3128dd57bbd61a8b7d7fb90dcf5adabc532c69f9ecce2a8ca73cf496ce7ba9b19c94d40083be1382b59dd673b36840e004a7cd0add888292ada'
++        '152545e095b4ed4401a199a22196f97ee7f7cca220063c4734ea33d70e0640f234e95f0a52cbf3aa8c15a8cc940e03f97ed636193b33db4892d4b73e55071c52')
+ 
++prepare() {
++  cd "$_name-$pkgver"
++  patch -Np1 -i ../fix-test-many-source-for-filename-calls-timeout.patch
++}
++
+ build() {
+   cd "$_name-$pkgver"
+   python -m build --wheel --skip-dependency-check --no-isolation
