@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,9 +15,13 @@ backup=('etc/arch-audit/settings.toml')
+ source=("https://gitlab.com/ilpianista/arch-audit/-/archive/${pkgver}/arch-audit-${pkgver}.tar.gz")
+ sha512sums=('e0bdd5adb3c44677d39c8e618c8c8f666f1e2caaead82fc666468c46b296cb4d15584939715995bc6d3d8f996bd3127478bc6008dbdef677fee80063f2bc059e')
+ b2sums=('02ba56f1b4780da7e006ac25736afb6e0474502cc7d645b2eb48650c6d71878b1de349b9a072f2cd1d013254f68d79786d9195c98c520407e256e6fa9b63f2e4')
++options=(!lto)
+ 
+ build() {
+   cd "${pkgname}-${pkgver}"
++  echo -e "[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++  cargo update -p ring
++  cargo fetch --locked
+   cargo build --release --locked
+ }
+ 
