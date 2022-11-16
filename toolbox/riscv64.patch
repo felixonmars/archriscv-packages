@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,14 +11,24 @@ license=(APACHE)
+ depends=(podman bash flatpak)
+ makedepends=(go shellcheck go-md2man bash-completion ninja git meson)
+ _commit=52c85b60d95ecb2c01cbd3901a16e7c43cd85440	#refs/tags/0.0.99.3^{}
+-source=("git+$url#commit=$_commit")
+-sha256sums=('SKIP')
++source=("git+$url#commit=$_commit"
++        "add_dynamic_linker.patch::https://patch-diff.githubusercontent.com/raw/containers/toolbox/pull/1159.patch")
++sha256sums=('SKIP'
++            '172cb39e992052ceadffa479d33c164824f4963c014dcfb6277d9df11df3f0b8')
+ 
+ pkgver() {
+   cd toolbox
+   git describe --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+ }
+ 
++prepare() {
++  cd toolbox
++  patch -p1 -Ni "${srcdir}/add_dynamic_linker.patch"
++  cd src
++  go mod edit -replace golang.org/x/sys=golang.org/x/sys@v0.2.0
++  go mod download golang.org/x/sys
++}
++
+ build() {
+   export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+   export CGO_LDFLAGS="${LDFLAGS}"
