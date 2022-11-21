@@ -7,7 +7,7 @@
 -pkgname=(opencv opencv-samples python-opencv opencv-cuda)
 +pkgname=(opencv opencv-samples python-opencv)
  pkgver=4.6.0
- pkgrel=5
+ pkgrel=6
  pkgdesc='Open Source Computer Vision Library'
 @@ -11,7 +11,7 @@ arch=(x86_64)
  license=(BSD)
@@ -35,7 +35,7 @@
           -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -65,12 +66,6 @@ build() {
+@@ -65,14 +66,6 @@ build() {
   
    cmake -B build -S $pkgname-$pkgver $_opts
    cmake --build build
@@ -43,12 +43,14 @@
 -  CFLAGS="${CFLAGS} -fno-lto" CXXFLAGS="${CXXFLAGS} -fno-lto" LDFLAGS="${LDFLAGS} -fno-lto" \
 -  cmake -B build-cuda -S $pkgname-$pkgver $_opts \
 -    -DWITH_CUDA=ON \
--    -DWITH_CUDNN=ON
+-    -DWITH_CUDNN=ON \
+-    -DCUDA_ARCH_BIN='52-real;53-real;60-real;61-real;62-real;70-real;72-real;75-real;80-real;86-real;87-real;89-real;90-real;90-virtual' \
+-    -DCUDA_ARCH_PTX='90-virtual'
 -  cmake --build build-cuda
  }
  
  package_opencv() {
-@@ -112,25 +107,3 @@ package_python-opencv() {
+@@ -114,25 +107,3 @@ package_python-opencv() {
    # install license file
    install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
