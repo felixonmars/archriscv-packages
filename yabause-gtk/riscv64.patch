@@ -1,23 +1,22 @@
-diff --git PKGBUILD PKGBUILD
-index 0bfa05d..7042d49 100755
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,8 +12,9 @@ pkgdesc='A Sega Saturn emulator'
- arch=('x86_64')
- url="https://yabause.org/"
- license=('GPL')
-+options=(!lto)
- depends=('freeglut' 'glew' 'gtkglext' 'openal' 'sdl2')
--makedepends=('cmake')
-+makedepends=('cmake' 'clang')
+@@ -16,14 +16,17 @@ depends=('freeglut' 'glew' 'gtkglext' 'openal' 'sdl2')
+ makedepends=('cmake')
  conflicts=('yabause-qt')
  source=("https://download.tuxfamily.org/yabause/releases/${pkgver}/yabause-${pkgver}.tar.gz"
-         'rwx.patch')
-@@ -35,6 +36,7 @@ build() {
-   mkdir build && cd build
-
-   cmake .. \
-+    -DCMAKE_C_COMPILER=clang \
-     -DCMAKE_BUILD_TYPE='Release' \
-     -DCMAKE_INSTALL_PREFIX='/usr' \
-     -DYAB_PORTS='gtk' \
+-        'rwx.patch')
++        'rwx.patch'
++        "$pkgname-c68k-compiler-optimization.patch::https://github.com/Yabause/yabause/pull/444.patch")
+ sha256sums=('4334c43fe0f3ff297bac8e91f4e059fe5fd276291faff2489e37b5b3a4ccc2b2'
+-            'd29997d3249683081a2687f31e777f917093101d56815d22103aaaf22ac786b1')
++            'd29997d3249683081a2687f31e777f917093101d56815d22103aaaf22ac786b1'
++            'c683b1e3ecd359327ce1671b6efa8c88d17944f40cddf0e1207b59abc70109ce')
+ 
+ prepare() {
+   cd yabause-${pkgver}
+ 
+   patch -Np1 -i ../rwx.patch
++  patch -Np2 -i ../$pkgname-c68k-compiler-optimization.patch
+ }
+ 
+ build() {
