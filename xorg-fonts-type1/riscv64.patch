@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,7 +8,7 @@ pkgdesc="X.org Type1 fonts"
+ arch=(any)
+ license=('custom')
+ url="https://xorg.freedesktop.org/"
+-makedepends=('xorg-util-macros' 'xorg-mkfontscale')
++makedepends=('xorg-util-macros' 'xorg-mkfontscale' 'xorg-font-util')
+ source=(${url}/releases/individual/font/font-adobe-utopia-type1-1.0.4.tar.bz2
+         ${url}/releases/individual/font/font-bh-type1-1.0.3.tar.bz2
+         ${url}/releases/individual/font/font-bitstream-type1-1.0.3.tar.bz2
+@@ -25,6 +25,17 @@ sha256sums=('979435105f897a70f8993fa02c8362160b0513366c2ab896965416f96dbb8077'
+             'fddb28d3db5a07f4b4ca15388488a9680a10e1367a18f358f903b2a608a5d2df'
+             'caebf42aec7be7f3bd40e0f232d6f34881b853dc84acfcdf7458358701fbe34a')
+ 
++prepare() {
++  cd "${srcdir}"
++  for dir in *; do
++    if [ -d "${dir}" ]; then
++      pushd "${dir}"
++      autoreconf -fiv
++      popd
++    fi
++  done
++}
++
+ build() {
+   cd "${srcdir}"
+   for dir in *; do
