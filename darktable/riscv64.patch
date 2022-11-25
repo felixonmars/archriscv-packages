@@ -1,24 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,12 +24,23 @@ optdepends=('dcraw: base curve script'
+@@ -24,12 +24,26 @@ optdepends=('dcraw: base curve script'
              'gnuplot: noise profile script')
  makedepends=(cmake intltool desktop-file-utils llvm clang portmidi python-jsonschema libwebp)
  options=(debug)
 -source=("https://github.com/darktable-org/darktable/releases/download/release-${pkgver}/darktable-${pkgver}.tar.xz"{,.asc})
 +source=("https://github.com/darktable-org/darktable/releases/download/release-${pkgver}/darktable-${pkgver}.tar.xz"{,.asc}
-+        "$pkgname-support-riscv64.patch::https://github.com/darktable-org/darktable/pull/11797.patch"
-+        "$pkgname-rawspeed-specify-char-signedness.patch::https://github.com/darktable-org/rawspeed/pull/363.patch")
++        "$pkgname-support-riscv64-1.patch::https://github.com/darktable-org/darktable/pull/12389.patch"
++        "$pkgname-support-riscv64-2.patch::https://github.com/darktable-org/darktable/pull/11797.patch"
++	"$pkgname-rawspeed-specify-char-signedness.patch::https://github.com/darktable-org/rawspeed/pull/363.patch")
  sha256sums=('5fef81e0c0079977a3cdc3627eed777280c2346d023c5d176c1f4a62cbe51d68'
 -            'SKIP')
 +            'SKIP'
-+            'c316ee4026b14a2a48a029790d8ffd67385f7360496da631039a82fead5337fd'
++            '2d1b8af0d8e5f4a3eba383bc1db42258af937eb3cac8690709c60786a4825d93'
++            'e4b0da94b3df7703e1b629996931ec1f81ffc9c60a9d4f09e59dc35f655a3a8e'
 +            '909b1fc258be14a4db8be5f8fb4b8cd80abac5c7764b3f4e77243bde7a40877d')
  validpgpkeys=(C4CBC150699956E2A3268EF5BB5CC8295B1779C9  # darktable releases <release@darktable.org>
                F10F9686652B0E949FCD94C318DCA123F949BD3B) # Pascal Obry <pascal@obry.net>
  
 +prepare() {
 +    cd ${pkgname}-${pkgver}
-+    patch -Np1 -i $srcdir/$pkgname-support-riscv64.patch
++    patch -Np1 -i $srcdir/$pkgname-support-riscv64-1.patch
++    patch -Np1 -i $srcdir/$pkgname-support-riscv64-2.patch
 +    cd src/external/rawspeed
 +    patch -Np1 -i $srcdir/$pkgname-rawspeed-specify-char-signedness.patch
 +}
