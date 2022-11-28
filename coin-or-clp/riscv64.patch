@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,6 +14,15 @@ depends=(coin-or-osi coin-or-asl suitesparse)
+ source=($pkgname-$pkgver.tar.gz::https://github.com/coin-or/Clp/archive/refs/tags/releases/$pkgver.tar.gz)
+ sha256sums=('c4c2c0e014220ce8b6294f3be0f3a595a37bef58a14bf9bac406016e9e73b0f5')
+ 
++prepare() {
++  cd Clp-releases-$pkgver
++  # config.guess in this package is too old that autoreconf will fail
++  autoconf_file="/usr/share/autoconf/build-aux/config"
++
++  # There are two config.guess files need to be overwrittern
++  echo ". Clp" | xargs -r -n1 cp ${autoconf_file}.{guess,sub}
++}
++
+ build() {
+   cd Clp-releases-$pkgver
+   ./configure --prefix=/usr \
