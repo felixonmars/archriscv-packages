@@ -1,36 +1,33 @@
---- PKGBUILD
-+++ PKGBUILD
-@@ -33,7 +33,8 @@ source=(https://downloads.sourceforge.net/${pkgname}/$pkgname-$pkgver.tar.gz{,.a
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 462650)
++++ PKGBUILD	(working copy)
+@@ -33,7 +33,8 @@
          # use the one from Fedora
          hplip-configure-python.patch
          python3.diff
 -        reproducible-gzip.patch)
 +        reproducible-gzip.patch
-+        0028-Remove-ImageProcessor-binary-installs.patch)
++        Prevent-linking-ImageProcessor.patch)
  sha512sums=('0be9cd48cddebffb2472f36669ba92edbcf9019cb3b561a9630457949a6e6f13eab552582027b02468b4732e376f17321929502ad4d1f6bb4d5ea1262b171ef7'
              'SKIP'
              'ee0bd240568a7dbb4dc6ef64dba28ea84c4bedf7d688d054960c686666f8f0bc4562961c40845107ef0c936e60d3e676bffb2a1ba708039690bb0520cda3a525'
-@@ -43,11 +44,13 @@ sha512sums=('0be9cd48cddebffb2472f36669ba92edbcf9019cb3b561a9630457949a6e6f13eab
+@@ -43,7 +44,8 @@
              'b7e67bccb2516f4d98e4c5ea55f7d2299d95bfdc341dbc0149af1423169bedcd8bcfdb125c92f373e9e7be57ea284fef80a8343035fb42572b9cb927929cd257'
              '089c102357ea5fd55d81ae76aaff62713f780fd84500c3b92ecd6b2bb11ccdc3a162978548e9a5f9e98a8354a5be3997e416c52daa18eda4621ed79a29d6fea8'
              'b8a4c860e90a52ec566ca5a9c7f3a5ecb7386ae76e17b2c6c878073e60eeaf0cb63883b740b4725794be9914e1ab8fc91313efb288395f3095f599c07f54cf14'
 -            '379fcbe9dc2986da828a174a0ac4e71a1da43a98408894d5e713e09d7d9cba1e9fac30f9602b81d48d992abe6b65b6402b8a07664efe97400c5d839be33cf15f')
 +            '379fcbe9dc2986da828a174a0ac4e71a1da43a98408894d5e713e09d7d9cba1e9fac30f9602b81d48d992abe6b65b6402b8a07664efe97400c5d839be33cf15f'
-+            'ff2bd84cb620141304d09c60ffb5ee160a8a1955ce855db7f3711877ee0a6e75380a9041adb7f104a3cbdd5b8b0a595fb16bea4eb7b05265376738be3feb852e')
++            'f361fbf6ca84a99e17411716c0bfc9d283ea5ecc13517c70b89c2931cb2b0f54a423983383d0f3f25d8bb83813078c9d3aeb78178be77e80c7329046918c5c32')
  validpgpkeys=('4ABA2F66DBD5A95894910E0673D770CDA59047B9') # HPLIP (HP Linux Imaging and Printing) <hplip@hp.com>
  
  prepare() {
-  cd "$pkgname"-$pkgver
-+ rm -v prnt/hpcups/libImageProcessor*
- 
-  # disable insecure update - https://bugs.archlinux.org/task/38083
-  patch -Np0 -i "${srcdir}"/disable_upgrade.patch
-@@ -69,6 +72,9 @@ prepare() {
+@@ -69,6 +71,9 @@
   # make gzip creation reproducible by removing the timestamp
   patch -Np1 -i ../reproducible-gzip.patch
  
-+ # don't link unnecessary prebuilt ImageProcessor library
-+ patch -Np1 -i ../0028-Remove-ImageProcessor-binary-installs.patch
++ # don't link unused ImageProcessor library because --disable-imageProcessor-build
++ patch -Np1 -i ../Prevent-linking-ImageProcessor.patch
 +
   export AUTOMAKE='automake --foreign'
   autoreconf --force --install
