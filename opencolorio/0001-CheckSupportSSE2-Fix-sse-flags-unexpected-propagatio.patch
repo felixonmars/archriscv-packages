@@ -1,0 +1,40 @@
+From d994e432989318d384e7234581e8134aa811cc0f Mon Sep 17 00:00:00 2001
+From: Letu Ren <fantasquex@gmail.com>
+Date: Tue, 8 Nov 2022 17:04:16 +0100
+Subject: [PATCH] CheckSupportSSE2: Fix sse flags unexpected propagation
+
+Set function will affects all variables in current directory. If sse
+flags are added in CheckSupportSSE2.cmake, they will remain in
+Findminizip-ng.cmake which will cause liblzma cannot be detected. This
+patch keep CMAKE_REQUIRED_FLAGS being changed only in current file
+scope. This patch has been tested on riscv64.
+
+Signed-off-by: Letu Ren <fantasquex@gmail.com>
+---
+ share/cmake/utils/CheckSupportSSE2.cmake | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/share/cmake/utils/CheckSupportSSE2.cmake b/share/cmake/utils/CheckSupportSSE2.cmake
+index 3d97bf8a..f30bbb76 100644
+--- a/share/cmake/utils/CheckSupportSSE2.cmake
++++ b/share/cmake/utils/CheckSupportSSE2.cmake
+@@ -3,6 +3,8 @@
+ 
+ include(CheckCXXSourceCompiles)
+ 
++set(_cmake_required_flags_old "${CMAKE_REQUIRED_FLAGS}")
++
+ if(NOT CMAKE_SIZE_OF_VOID_P EQUAL 8)
+     # As CheckCXXCompilerFlag implicitly uses CMAKE_CXX_FLAGS some custom flags could trigger
+     # unrelated warnings causing a detection failure. So, the code disables all warnings to focus
+@@ -27,4 +29,7 @@ check_cxx_source_compiles ("
+     }"
+     HAVE_SSE2)
+ 
++set(CMAKE_REQUIRED_FLAGS "${_cmake_required_flags_old}")
++unset(_cmake_required_flags_old)
++
+ mark_as_advanced(HAVE_SSE2)
+-- 
+2.38.1
+
