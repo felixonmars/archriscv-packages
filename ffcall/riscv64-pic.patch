@@ -1,0 +1,434 @@
+diff --git a/vacall/Makefile.devel b/vacall/Makefile.devel
+index 1c78798..a6b5eba 100644
+--- a/vacall/Makefile.devel
++++ b/vacall/Makefile.devel
+@@ -274,9 +274,11 @@ vacall-riscv32-ilp32d-macro.S : vacall-riscv32-ilp32d-linux.s ../common/asm-risc
+ vacall-riscv64-lp64d-linux.s : vacall-riscv64.c vacall-internal.h vacall.h $(THISFILE)
+ 	$(CROSS_TOOL) riscv64-linux gcc-7.3.0 $(GCCFLAGS) -D__riscv64__ -S vacall-riscv64.c -o vacall-riscv64-lp64d-linux.s
+ 
+-vacall-riscv64-lp64d-macro.S : vacall-riscv64-lp64d-linux.s ../common/asm-riscv.sh ../common/noexecstack.h $(THISFILE)
+-	(../common/asm-riscv.sh < vacall-riscv64-lp64d-linux.s ; cat ../common/noexecstack.h) > vacall-riscv64-lp64d-macro.S
++vacall-riscv64-lp64d-linux-pic.s : vacall-riscv64.c vacall-internal.h vacall.h $(THISFILE)
++	$(CROSS_TOOL) riscv64-linux gcc-7.3.0 $(GCCFLAGS) -fPIC -D__riscv64__ -S vacall-riscv64.c -o vacall-riscv64-lp64d-linux-pic.s
+ 
++vacall-riscv64-lp64d-macro.S : vacall-riscv64-lp64d-linux.s vacall-riscv64-lp64d-linux-pic.s ../common/asm-riscv.sh ../common/noexecstack.h $(THISFILE)
++	(echo '#ifdef __PIC__' ; ../common/asm-riscv.sh < vacall-riscv64-lp64d-linux-pic.s ; echo '#else' ; ../common/asm-riscv.sh < vacall-riscv64-lp64d-linux.s ; echo '#endif' ; cat ../common/noexecstack.h) > vacall-riscv64-lp64d-macro.S
+ 
+ # --------------- Rules for debugging test failures ---------------
+ 
+diff --git a/vacall/Makefile.in b/vacall/Makefile.in
+index ec31846..007cd0e 100644
+--- a/vacall/Makefile.in
++++ b/vacall/Makefile.in
+@@ -355,7 +355,7 @@ SOURCE_FILES = \
+   vacall-powerpc-linux.s vacall-powerpc-linux-macro.S vacall-powerpc-macos.s vacall-powerpc-sysv4-macro.S \
+   vacall-powerpc64.c vacall-powerpc64-aix.s vacall-powerpc64-linux.S vacall-powerpc64-elfv2-linux.S \
+   vacall-riscv32.c vacall-riscv32-ilp32d-linux.s vacall-riscv32-ilp32d-macro.S \
+-  vacall-riscv64.c vacall-riscv64-lp64d-linux.s vacall-riscv64-lp64d-macro.S \
++  vacall-riscv64.c vacall-riscv64-lp64d-linux.s vacall-riscv64-lp64d-linux-pic.s vacall-riscv64-lp64d-macro.S \
+   vacall-s390.c vacall-s390-linux.s vacall-s390-macro.S \
+   vacall-s390x.c vacall-s390x-linux.s vacall-s390x-macro.S \
+   vacall-sparc.c vacall-sparc-linux.s vacall-sparc-linux-pic.s vacall-sparc-macro.S \
+diff --git a/vacall/vacall-riscv64-lp64d-linux-pic.s b/vacall/vacall-riscv64-lp64d-linux-pic.s
+new file mode 100644
+index 0000000..356187c
+--- /dev/null
++++ b/vacall/vacall-riscv64-lp64d-linux-pic.s
+@@ -0,0 +1,190 @@
++	.file	"vacall-riscv64.c"
++	.option pic
++	.text
++	.align	1
++	.globl	vacall_receiver
++	.type	vacall_receiver, @function
++vacall_receiver:
++	add	sp,sp,-288
++	sd	ra,264(sp)
++	sd	s0,256(sp)
++	sd	s1,248(sp)
++	add	s0,sp,272
++	la	t1,vacall_function
++	ld	t1,0(t1)
++	sd	a0,-200(s0)
++	add	a0,s0,16
++	sd	a7,8(s0)
++	sd	a1,-192(s0)
++	sd	a2,-184(s0)
++	sd	a3,-176(s0)
++	sd	a4,-168(s0)
++	sd	a5,-160(s0)
++	sd	a6,-152(s0)
++	sd	a7,-144(s0)
++	fsw	fa0,-132(s0)
++	fsw	fa1,-128(s0)
++	fsw	fa2,-124(s0)
++	fsw	fa3,-120(s0)
++	fsw	fa4,-116(s0)
++	fsw	fa5,-112(s0)
++	fsw	fa6,-108(s0)
++	fsw	fa7,-104(s0)
++	fsd	fa0,-96(s0)
++	fsd	fa1,-88(s0)
++	fsd	fa2,-80(s0)
++	fsd	fa3,-72(s0)
++	fsd	fa4,-64(s0)
++	fsd	fa5,-56(s0)
++	fsd	fa6,-48(s0)
++	fsd	fa7,-40(s0)
++	sd	a0,-240(s0)
++	sw	zero,-264(s0)
++	sd	zero,-232(s0)
++	add	a0,s0,-264
++	sw	zero,-224(s0)
++	sw	zero,-208(s0)
++	sw	zero,-136(s0)
++	jalr	t1
++	lw	t1,-224(s0)
++	beqz	t1,.L1
++	li	t3,1
++	beq	t1,t3,.L25
++	li	t3,2
++	beq	t1,t3,.L29
++	li	t3,3
++	beq	t1,t3,.L25
++	li	t3,4
++	beq	t1,t3,.L30
++	li	t3,5
++	beq	t1,t3,.L31
++	li	t3,6
++	beq	t1,t3,.L32
++	li	t3,7
++	beq	t1,t3,.L33
++	and	t3,t1,-3
++	li	t4,8
++	beq	t3,t4,.L27
++	li	t4,9
++	beq	t3,t4,.L27
++	li	t3,12
++	beq	t1,t3,.L34
++	li	t3,13
++	beq	t1,t3,.L35
++	li	t3,14
++	beq	t1,t3,.L27
++	li	t3,15
++	bne	t1,t3,.L1
++	lw	t3,-264(s0)
++	and	t3,t3,1024
++	beqz	t3,.L1
++	ld	t0,-216(s0)
++	add	t3,t0,-1
++	bgtu	t3,t1,.L1
++	ld	t5,-232(s0)
++	li	s1,8
++	and	t6,t5,7
++	add	t2,t0,t6
++	and	t5,t5,-8
++	sext.w	t6,t6
++	sllw	t1,t2,3
++	ld	t4,0(t5)
++	sll	t3,t6,3
++	bgtu	t0,s1,.L15
++	bgtu	t2,s1,.L16
++	addw	t1,t1,-1
++	li	a0,2
++	sll	a0,a0,t1
++	add	a0,a0,-1
++	and	a0,a0,t4
++	sra	a0,a0,t3
++.L1:
++	ld	ra,264(sp)
++	ld	s0,256(sp)
++	ld	s1,248(sp)
++	add	sp,sp,288
++	jr	ra
++.L25:
++	lbu	a0,-256(s0)
++	ld	ra,264(sp)
++	ld	s0,256(sp)
++	ld	s1,248(sp)
++	add	sp,sp,288
++	jr	ra
++.L29:
++	lb	a0,-256(s0)
++	ld	ra,264(sp)
++	ld	s0,256(sp)
++	ld	s1,248(sp)
++	add	sp,sp,288
++	jr	ra
++.L30:
++	lh	a0,-256(s0)
++	j	.L1
++.L33:
++	lwu	a0,-256(s0)
++	j	.L1
++.L31:
++	lhu	a0,-256(s0)
++	j	.L1
++.L27:
++	ld	a0,-256(s0)
++	j	.L1
++.L32:
++	lw	a0,-256(s0)
++	j	.L1
++.L34:
++	flw	fa0,-256(s0)
++	j	.L1
++.L35:
++	fld	fa0,-256(s0)
++	j	.L1
++.L15:
++	li	s1,16
++	sra	t4,t4,t3
++	ld	t0,8(t5)
++	bleu	t2,s1,.L36
++	li	a1,-8
++	mulw	t6,a1,t6
++	addw	t1,t1,-129
++	ld	a0,16(t5)
++	li	a1,2
++	sll	a1,a1,t1
++	add	a1,a1,-1
++	and	a1,a1,a0
++	sra	t3,t0,t3
++	addw	t1,t6,64
++	sll	a0,t0,t1
++	sll	a1,a1,t1
++	or	a0,a0,t4
++	or	a1,a1,t3
++	j	.L1
++.L16:
++	li	a0,-8
++	mulw	t6,a0,t6
++	addw	t1,t1,-65
++	ld	t5,8(t5)
++	li	a0,2
++	sll	a0,a0,t1
++	add	a0,a0,-1
++	and	a0,a0,t5
++	sra	t4,t4,t3
++	sll	a0,a0,t6
++	or	a0,a0,t4
++	j	.L1
++.L36:
++	li	a1,-4
++	mulw	t6,a1,t6
++	addw	t1,t1,-65
++	li	a0,2
++	sll	a0,a0,t1
++	add	a0,a0,-1
++	and	a0,a0,t0
++	sra	a1,a0,t3
++	addw	t1,t6,32
++	sll	a0,a0,t1
++	sll	a0,a0,t1
++	or	a0,a0,t4
++	j	.L1
++	.size	vacall_receiver, .-vacall_receiver
++	.ident	"GCC: (GNU) 7.3.0"
+diff --git a/vacall/vacall-riscv64-lp64d-macro.S b/vacall/vacall-riscv64-lp64d-macro.S
+index 25bb90b..8f0ed7f 100644
+--- a/vacall/vacall-riscv64-lp64d-macro.S
++++ b/vacall/vacall-riscv64-lp64d-macro.S
+@@ -1,3 +1,194 @@
++#ifdef __PIC__
++	.file	"vacall-riscv64.c"
++	.option pic
++	.text
++	.align	1
++	.globl	vacall_receiver
++	.type	vacall_receiver, @function
++vacall_receiver:
++	add	sp,sp,-288
++	sd	ra,264(sp)
++	sd	s0,256(sp)
++	sd	s1,248(sp)
++	add	s0,sp,272
++	la	t1,vacall_function
++	ld	t1,0(t1)
++	sd	a0,-200(s0)
++	add	a0,s0,16
++	sd	a7,8(s0)
++	sd	a1,-192(s0)
++	sd	a2,-184(s0)
++	sd	a3,-176(s0)
++	sd	a4,-168(s0)
++	sd	a5,-160(s0)
++	sd	a6,-152(s0)
++	sd	a7,-144(s0)
++	fsw	fa0,-132(s0)
++	fsw	fa1,-128(s0)
++	fsw	fa2,-124(s0)
++	fsw	fa3,-120(s0)
++	fsw	fa4,-116(s0)
++	fsw	fa5,-112(s0)
++	fsw	fa6,-108(s0)
++	fsw	fa7,-104(s0)
++	fsd	fa0,-96(s0)
++	fsd	fa1,-88(s0)
++	fsd	fa2,-80(s0)
++	fsd	fa3,-72(s0)
++	fsd	fa4,-64(s0)
++	fsd	fa5,-56(s0)
++	fsd	fa6,-48(s0)
++	fsd	fa7,-40(s0)
++	sd	a0,-240(s0)
++	sw	zero,-264(s0)
++	sd	zero,-232(s0)
++	add	a0,s0,-264
++	sw	zero,-224(s0)
++	sw	zero,-208(s0)
++	sw	zero,-136(s0)
++	jalr	t1
++	lw	t1,-224(s0)
++	beqz	t1,.L1
++	li	t3,1
++	beq	t1,t3,.L25
++	li	t3,2
++	beq	t1,t3,.L29
++	li	t3,3
++	beq	t1,t3,.L25
++	li	t3,4
++	beq	t1,t3,.L30
++	li	t3,5
++	beq	t1,t3,.L31
++	li	t3,6
++	beq	t1,t3,.L32
++	li	t3,7
++	beq	t1,t3,.L33
++	and	t3,t1,-3
++	li	t4,8
++	beq	t3,t4,.L27
++	li	t4,9
++	beq	t3,t4,.L27
++	li	t3,12
++	beq	t1,t3,.L34
++	li	t3,13
++	beq	t1,t3,.L35
++	li	t3,14
++	beq	t1,t3,.L27
++	li	t3,15
++	bne	t1,t3,.L1
++	lw	t3,-264(s0)
++	and	t3,t3,1024
++	beqz	t3,.L1
++	ld	t0,-216(s0)
++	add	t3,t0,-1
++	bgtu	t3,t1,.L1
++	ld	t5,-232(s0)
++	li	s1,8
++	and	t6,t5,7
++	add	t2,t0,t6
++	and	t5,t5,-8
++	sext.w	t6,t6
++	sllw	t1,t2,3
++	ld	t4,0(t5)
++	sll	t3,t6,3
++	bgtu	t0,s1,.L15
++	bgtu	t2,s1,.L16
++	addw	t1,t1,-1
++	li	a0,2
++	sll	a0,a0,t1
++	add	a0,a0,-1
++	and	a0,a0,t4
++	sra	a0,a0,t3
++.L1:
++	ld	ra,264(sp)
++	ld	s0,256(sp)
++	ld	s1,248(sp)
++	add	sp,sp,288
++	jr	ra
++.L25:
++	lbu	a0,-256(s0)
++	ld	ra,264(sp)
++	ld	s0,256(sp)
++	ld	s1,248(sp)
++	add	sp,sp,288
++	jr	ra
++.L29:
++	lb	a0,-256(s0)
++	ld	ra,264(sp)
++	ld	s0,256(sp)
++	ld	s1,248(sp)
++	add	sp,sp,288
++	jr	ra
++.L30:
++	lh	a0,-256(s0)
++	j	.L1
++.L33:
++	lwu	a0,-256(s0)
++	j	.L1
++.L31:
++	lhu	a0,-256(s0)
++	j	.L1
++.L27:
++	ld	a0,-256(s0)
++	j	.L1
++.L32:
++	lw	a0,-256(s0)
++	j	.L1
++.L34:
++	flw	fa0,-256(s0)
++	j	.L1
++.L35:
++	fld	fa0,-256(s0)
++	j	.L1
++.L15:
++	li	s1,16
++	sra	t4,t4,t3
++	ld	t0,8(t5)
++	bleu	t2,s1,.L36
++	li	a1,-8
++	mulw	t6,a1,t6
++	addw	t1,t1,-129
++	ld	a0,16(t5)
++	li	a1,2
++	sll	a1,a1,t1
++	add	a1,a1,-1
++	and	a1,a1,a0
++	sra	t3,t0,t3
++	addw	t1,t6,64
++	sll	a0,t0,t1
++	sll	a1,a1,t1
++	or	a0,a0,t4
++	or	a1,a1,t3
++	j	.L1
++.L16:
++	li	a0,-8
++	mulw	t6,a0,t6
++	addw	t1,t1,-65
++	ld	t5,8(t5)
++	li	a0,2
++	sll	a0,a0,t1
++	add	a0,a0,-1
++	and	a0,a0,t5
++	sra	t4,t4,t3
++	sll	a0,a0,t6
++	or	a0,a0,t4
++	j	.L1
++.L36:
++	li	a1,-4
++	mulw	t6,a1,t6
++	addw	t1,t1,-65
++	li	a0,2
++	sll	a0,a0,t1
++	add	a0,a0,-1
++	and	a0,a0,t0
++	sra	a1,a0,t3
++	addw	t1,t6,32
++	sll	a0,a0,t1
++	sll	a0,a0,t1
++	or	a0,a0,t4
++	j	.L1
++	.size	vacall_receiver, .-vacall_receiver
++#else
+ 	.file	"vacall-riscv64.c"
+ 	.option nopic
+ 	.text
+@@ -187,6 +378,7 @@ vacall_receiver:
+ 	or	a0,a0,t4
+ 	j	.L1
+ 	.size	vacall_receiver, .-vacall_receiver
++#endif
+ #if defined __linux__ || defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __DragonFly__
+ 	.section .note.GNU-stack,"",@progbits
+ #endif

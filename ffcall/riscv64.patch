@@ -1,0 +1,29 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 464643)
++++ PKGBUILD	(working copy)
+@@ -10,14 +10,20 @@
+ license=('GPL2')
+ depends=('glibc')
+ options=('!makeflags' 'staticlibs')
+-source=(https://ftp.gnu.org/gnu/libffcall/libffcall-${pkgver}.tar.gz)
+-sha256sums=('8ef69921dbdc06bc5bb90513622637a7b83a71f31f5ba377be9d8fd8f57912c2')
++source=(https://ftp.gnu.org/gnu/libffcall/libffcall-${pkgver}.tar.gz
++        riscv64-pic.patch)
++sha256sums=('8ef69921dbdc06bc5bb90513622637a7b83a71f31f5ba377be9d8fd8f57912c2'
++            '9cf1f281b93eaf1f8f5886651a0d3fef97dd876825b695d3de79140d81cf33c8')
+ 
++prepare() {
++  cd "${srcdir}/lib${pkgname}-${pkgver}"
++  patch -Np1 -i ../riscv64-pic.patch
++}
++
+ build() {
+   cd "${srcdir}/lib${pkgname}-${pkgver}"
+-  [ "$CARCH" = "x86_64" ] && CONFIGFLAG="--with-pic"
+   CFLAGS+=" -ffat-lto-objects" \
+-  ./configure --prefix=/usr --mandir=/usr/share/man $CONFIGFLAG
++  ./configure --prefix=/usr --mandir=/usr/share/man --with-pic
+   make
+ }
+ 
