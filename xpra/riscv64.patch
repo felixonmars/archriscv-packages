@@ -14,16 +14,15 @@
          'etc/pam.d/xpra')
  source=($pkgname-$pkgver.tar.xz::$url/src/$pkgname-$pkgver.tar.xz
 -        $pkgname-$pkgver.tar.xz.asc::$url/src/$pkgname-$pkgver.tar.xz.gpg)
-+        $pkgname-$pkgver.tar.xz.asc::$url/src/$pkgname-$pkgver.tar.xz.gpg
-+        xpra-4.3.4-ffmpeg5_1_deprecated_channels.patch # https://github.com/Xpra-org/xpra/commit/4cf2eb6d34a79f9704b593fd0781495badefa9ea
-+        )
- 
+-
 -md5sums=('0513c9236735b1288b1ba7ced6ac5f2b'
 -         'SKIP')
 -sha1sums=('d453924415ee1f6dfbf3c7108aba63790e2d7336'
 -          'SKIP')
 -sha256sums=('27acf3921a340357da095cd2ff4c0395b80bb499b23eb9c1904711ee40e577b0'
 -            'SKIP')
++        $pkgname-$pkgver.tar.xz.asc::$url/src/$pkgname-$pkgver.tar.xz.gpg
++        xpra-4.3.4-ffmpeg5_1_deprecated_channels.patch) # https://github.com/Xpra-org/xpra/commit/4cf2eb6d34a79f9704b593fd0781495badefa9ea
 +md5sums=('5fc61120ad5378287a8b4e2057581da1'
 +         'SKIP'
 +         'b99b7bb634c0745d53de3a9ac82c396d')
@@ -36,7 +35,9 @@
  validpgpkeys=('C11C0A4DF702EDF6C04F458C18ADB31CF18AD6BB') # Antoine Martin <antoine@nagafix.co.uk>
  
 +prepare() {
-+  patch -Np1 -d $pkgname-$pkgver -i ../xpra-4.3.4-ffmpeg5_1_deprecated_channels.patch
++  cd "${srcdir}/$pkgname-$pkgver"
++  sed -i 's/r = subprocess.Popen(cmd).wait(30)/r = subprocess.Popen(cmd).wait(300)/' setup.py
++  patch -Np1 -i ../xpra-4.3.4-ffmpeg5_1_deprecated_channels.patch
 +}
 +
  build() {
@@ -44,3 +45,4 @@
 -  export PKG_CONFIG_PATH='/usr/lib/ffmpeg4.4/pkgconfig'
    python setup.py build
  }
+ 
