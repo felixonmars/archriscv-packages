@@ -1,0 +1,18 @@
+diff -uprN geogram_1.8.2.orig/src/lib/third_party/numerics/LIBF2C/uninit.c geogram_1.8.2/src/lib/third_party/numerics/LIBF2C/uninit.c
+--- geogram_1.8.2.orig/src/lib/third_party/numerics/LIBF2C/uninit.c	2022-11-29 12:12:40.308839880 +0100
++++ geogram_1.8.2/src/lib/third_party/numerics/LIBF2C/uninit.c	2022-12-29 22:41:39.877520608 +0100
+@@ -282,7 +282,13 @@ which we want*/
+ 
+ #endif /*Can_use__setfpucw*/
+ 
+-#else /* !(mc68000||powerpc) */
++#elif (defined(__riscv)) /* !(mc68000||powerpc) */
++	__fpu_control = _FPU_DEFAULT;
++	__fpu_control |= (1 << 0);    // NV
++	__fpu_control |= (1 << 2);    // OF
++	__fpu_control |= (1 << 3);    // UF
++	_FPU_SETCW(__fpu_control);
++#else /* !(mc68000||powerpc||riscv) */
+ 
+ #ifdef _FPU_IEEE
+ #ifndef _FPU_EXTENDED /* e.g., ARM processor under Linux */

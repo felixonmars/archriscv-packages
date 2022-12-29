@@ -1,0 +1,185 @@
+diff --git a/src/lib/geogram/basic/atomics.h b/src/lib/geogram/basic/atomics.h
+index f923c92..d445a15 100644
+--- a/src/lib/geogram/basic/atomics.h
++++ b/src/lib/geogram/basic/atomics.h
+@@ -55,6 +55,8 @@
+ #    define GEO_USE_ARM32_ATOMICS
+ #  elif defined(GEO_OS_ANDROID)
+ #    define GEO_USE_ANDROID_ATOMICS
++#  elif defined(__riscv)
++#    define GEO_USE_RISCV_ATOMICS
+ #  else
+ #    define GEO_USE_X86_ATOMICS
+ #  endif
+@@ -107,6 +109,35 @@ inline void send_event_android() {
+     /* TODO */    
+ }
+ 
++#elif defined(GEO_USE_RISCV_ATOMICS)
++
++/** A mutex for RISC-V */
++typedef GEO::Numeric::uint32 riscv_mutex_t;
++
++inline void geo_pause() {
++    __asm__ __volatile__ ( ".4byte 0x100000F" ); // pause encoding for harts w/o Zihintpause
++}
++
++inline void lock_mutex_riscv(volatile riscv_mutex_t* lock) {
++    while(__sync_lock_test_and_set(lock, 1) != 0);
++}
++
++inline void unlock_mutex_riscv(volatile riscv_mutex_t* lock) {
++    __sync_lock_release(lock);
++}
++
++inline unsigned int atomic_bitset_riscv(volatile unsigned int* ptr, unsigned int bit) {
++    return __sync_fetch_and_or(ptr, 1u << bit) & (1u << bit);
++}
++
++inline unsigned int atomic_bitreset_riscv(volatile unsigned int* ptr, unsigned int bit) {
++    return __sync_fetch_and_and(ptr, ~(1u << bit)) & (1u << bit);
++}
++
++inline void memory_barrier_riscv() {
++    __asm__ __volatile__ ( "fence" ::: "memory");
++}
++
+ #elif defined(GEO_USE_ARM32_ATOMICS)
+ 
+ /** A mutex for ARM processors */
+diff --git a/src/lib/geogram/basic/thread_sync.h b/src/lib/geogram/basic/thread_sync.h
+index 56956f5..5f9a87d 100644
+--- a/src/lib/geogram/basic/thread_sync.h
++++ b/src/lib/geogram/basic/thread_sync.h
+@@ -97,7 +97,30 @@ namespace GEO {
+         inline void release_spinlock(spinlock& x) {
+             unlock_mutex_arm32(&x);
+         }
++
++#elif defined(__riscv)
+ 	
++        /** A lightweight synchronization structure. */
++        typedef riscv_mutex_t spinlock;
++
++        /** The initialization value of a spin lock. */
++#       define GEOGRAM_SPINLOCK_INIT 0
++        /**
++         * \brief Loops until \p x is available then reserves it.
++         * \param[in] x a spinlock that should be available.
++         */
++        inline void acquire_spinlock(spinlock& x) {
++            lock_mutex_riscv(&x);
++        }
++
++        /**
++         * \brief Makes \p x available to other threads.
++         * \param[in] x a spinlock that should be reserved.
++         */
++        inline void release_spinlock(spinlock& x) {
++            unlock_mutex_riscv(&x);
++        }
++
+ #elif defined(GEO_OS_ANDROID)
+ 
+         /** A lightweight synchronization structure. */
+@@ -397,6 +420,100 @@ namespace GEO {
+             index_t size_;
+         };
+ 	
++#elif defined(GEO_USE_RISCV_ATOMICS) 
++
++        /**
++         * \brief An array of light-weight synchronisation
++         *  primitives (spinlocks).
++         *
++         * \details In this implementation, storage is optimized so that
++         * a single bit per spinlock is used.
++         *
++         */
++        class SpinLockArray {
++        public:
++            /**
++             * \brief Internal representation of SpinLockArray elements.
++             * \details Each word_t represents 32 spinlocks.
++             */
++            typedef Numeric::uint32 word_t;
++
++            /**
++             * \brief Constructs a new SpinLockArray of size 0.
++             */
++            SpinLockArray() : size_(0) {
++            }
++
++            /**
++             * \brief Constructs a new SpinLockArray of size \p size_in.
++             * \param[in] size_in number of spinlocks in the array.
++             */
++            SpinLockArray(index_t size_in) : size_(0) {
++                resize(size_in);
++            }
++
++            /**
++             * \brief Resizes a SpinLockArray.
++             * \details All the spinlocks are reset to 0.
++             * \param[in] size_in The desired new size.
++             */
++            void resize(index_t size_in) {
++                if(size_ != size_in) {
++                    size_ = size_in;
++                    index_t nb_words = (size_ >> 5) + 1;
++                    spinlocks_.assign(nb_words, 0);
++                }
++            }
++
++            /**
++             * \brief Gets the number of spinlocks in this array.
++             */
++            index_t size() const {
++                return size_;
++            }
++
++            /**
++             * \brief Resets size to 0 and clears all the memory.
++             */
++            void clear() {
++                spinlocks_.clear();
++            }
++
++            /**
++             * \brief Acquires a spinlock at a given index
++             * \details Loops until spinlock at index \p i is available then
++             * reserve it.
++             * \param[in] i index of the spinlock
++             */
++            void acquire_spinlock(index_t i) {
++                geo_thread_sync_assert(i < size());
++                index_t w = i >> 5;
++                word_t b = word_t(i & 31);
++                // Loop while previously stored value has its bit set.
++                while((atomic_bitset_riscv(&spinlocks_[w], b)) != 0) {
++                    geo_pause();
++                }
++                memory_barrier_riscv();
++            }
++
++            /**
++             * \brief Releases a spinlock at a given index
++             * \details Makes spinlock at index \p i available to other threads.
++             * \param[in] i index of the spinlock
++             */
++            void release_spinlock(index_t i) {
++                geo_thread_sync_assert(i < size());
++                memory_barrier_riscv();
++                index_t w = i >> 5;
++                word_t b = word_t(i & 31);
++                atomic_bitreset_riscv(&spinlocks_[w], b);
++            }
++
++        private:
++            std::vector<word_t> spinlocks_;
++            index_t size_;
++        };
++
+ #elif defined(GEO_OS_ANDROID) 
+ 
+         /**

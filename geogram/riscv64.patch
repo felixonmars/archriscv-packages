@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 51310f62..ef978d01 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,20 @@ url="https://github.com/BrunoLevy/geogram"
+ license=('BSD')
+ depends=('glu' 'glfw-x11')
+ makedepends=('cmake' 'ninja')
+-source=("https://github.com/BrunoLevy/geogram/releases/download/v${pkgver}/geogram_${pkgver}.tar.gz")
+-sha256sums=('29703321b9271186a08ef3c651d90ce92c052bad55dd9395d084c02474258d7e')
++source=("https://github.com/BrunoLevy/geogram/releases/download/v${pkgver}/geogram_${pkgver}.tar.gz"
++        "support-linux-nonx86.patch"
++        "libf2c-riscv-fpu-control.patch"
++        "impl-riscv-spinlocks.patch")
++sha256sums=('29703321b9271186a08ef3c651d90ce92c052bad55dd9395d084c02474258d7e'
++            'ff86a133d3f1ae4472f371284e3396b56f607cf66b52236d51d25c29c4ab0594'
++            'd7648bda557464249f88ec4888e1b656ea657ce3f7aab3754a350d25f3922795'
++            'a4193f52ec3cd97e3a9e79dba1cbe41af18143477596ad50c52c97e6bcce15f3')
++
++prepare() {
++  patch -Np1 -d ${pkgname}_${pkgver} < ${srcdir}/support-linux-nonx86.patch
++  patch -Np1 -d ${pkgname}_${pkgver} < ${srcdir}/libf2c-riscv-fpu-control.patch
++  patch -Np1 -d ${pkgname}_${pkgver} < ${srcdir}/impl-riscv-spinlocks.patch
++}
+ 
+ build() {
+   cd ${pkgname}_${pkgver}
