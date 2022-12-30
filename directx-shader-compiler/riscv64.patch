@@ -1,26 +1,26 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 456835)
+--- PKGBUILD	(revision 465075)
 +++ PKGBUILD	(working copy)
-@@ -10,8 +10,10 @@
+@@ -9,8 +9,10 @@
+ license=('custom')
  depends=('ncurses')
  makedepends=('git' 'cmake' 'ninja' 'python')
- _commit=de70ea29bc8734624c71e0078fbd8d532d20bdea
--source=("directx-shader-compiler::git+https://github.com/microsoft/DirectXShaderCompiler.git#commit=${_commit}")
+-source=("directx-shader-compiler-${pkgver}::git+https://github.com/microsoft/DirectXShaderCompiler.git#tag=v${pkgver}")
 -sha256sums=('SKIP')
-+source=("directx-shader-compiler::git+https://github.com/microsoft/DirectXShaderCompiler.git#commit=${_commit}"
-+        "0001-Port-to-RISC-V.patch")
++source=("directx-shader-compiler-${pkgver}::git+https://github.com/microsoft/DirectXShaderCompiler.git#tag=v${pkgver}"
++        "riscv.patch::https://github.com/microsoft/DirectXShaderCompiler/commit/a0b6fc1028b673228e61dba413606de5d4b4c458.patch")
 +sha256sums=('SKIP'
-+            '28f210b7895b16764471032908ea77e54d411480bfc37b88656d570b9295d334')
++            'c2d8258d79956d995258e437ad8845fca2aab4ef903225e3d9e5ced9808ae753')
  
- pkgver() {
-   cd "${pkgname}"
-@@ -25,6 +27,8 @@
+ prepare() {
+   cd "${pkgname}-${pkgver}"
+@@ -18,6 +20,8 @@
    git submodule update --init
  
    rm -rf build && mkdir build
 +
-+  patch -Np1 -i ../0001-Port-to-RISC-V.patch
++  patch -Np1 -i ../riscv.patch
  }
  
  build() {
