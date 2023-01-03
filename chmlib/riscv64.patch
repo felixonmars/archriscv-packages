@@ -1,23 +1,23 @@
-diff --git PKGBUILD PKGBUILD
-index 0b418e4..4cba9ef 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -10,12 +10,16 @@ arch=('x86_64')
+@@ -10,8 +10,18 @@ arch=('x86_64')
  url="http://www.jedrea.com/chmlib/"
  license=('LGPL')
  depends=('glibc')
 -source=("http://www.jedrea.com/chmlib/chmlib-0.40.tar.bz2")
--md5sums=('7ea49ed8c335215c1edc6fae83e6b912')
+-sha256sums=('3449d64b0cf71578b2c7e3ddc048d4af3661f44a83941ea074a7813f3a59ffa3')
 +source=("http://www.jedrea.com/chmlib/chmlib-0.40.tar.bz2"
 +        "define-riscv64-sized-types.patch")
-+md5sums=('7ea49ed8c335215c1edc6fae83e6b912'
-+         'd3ff2aa4ad18180b9955020b05396e6f')
++sha256sums=('3449d64b0cf71578b2c7e3ddc048d4af3661f44a83941ea074a7813f3a59ffa3'
++            '881531b64fc288ef4d2f119067954273d1ce1092b1e616219477ee2a22f901a5')
++
++prepare() {
++  cd "${srcdir}"/${pkgname}-${pkgver}
++
++  patch -Np1 -i ../define-riscv64-sized-types.patch
++
++  autoreconf -fiv
++}
  
  build() {
    cd "${srcdir}"/${pkgname}-${pkgver}
- 
-+  patch -Np1 -i ../define-riscv64-sized-types.patch
-+
-   ./configure --prefix=/usr \
-               --enable-examples=yes
-   make
