@@ -1,44 +1,62 @@
---- PKGBUILD	(revision 452437)
+--- PKGBUILD	(revision 466298)
 +++ PKGBUILD	(working copy)
-@@ -34,7 +34,8 @@
+@@ -34,6 +34,7 @@
          distribution.ini
          mozconfig.cfg
          metainfo.patch
--        cbindgen-0.24.patch)
-+        cbindgen-0.24.patch
-+        makotokato-riscv64-support-and-zenithal-backported.patch)
++        makotokato-riscv64-support-and-zenithal-backported.patch
+         rustc_version-0.4.0.patch)
  validpgpkeys=(
    14F26682D0916CDD81E37B6D61B7B526D98F0353 # Mozilla Software Releases <release@mozilla.com>
-   4360FE2109C49763186F8E21EBE41E90F6F12F6D # Mozilla Software Releases <release@mozilla.com>
-@@ -219,9 +220,10 @@
+@@ -57,14 +58,9 @@
+ 
+   echo "${noextract[@]}"
+ 
+-  local src
+-  for src in "${source[@]}"; do
+-    src="${src%%::*}"
+-    src="${src##*/}"
+-    [[ $src = *.patch ]] || continue
+-    msg2 "Applying patch $src..."
+-    patch -Np1 < "../$src"
+-  done
++  patch -Np1 < "../metainfo.patch"
++  patch -Np1 < "../rustc_version-0.4.0.patch"
++  patch -Np1 < "../makotokato-riscv64-support-and-zenithal-backported.patch"
+ 
+   printf "%s" "$_google_api_key" >google-api-key
+   printf "%s" "$_mozilla_api_key" >mozilla-api-key
+@@ -220,8 +216,9 @@
              'a0061fcb2a7f66061e336a8d95948592f56f4752e56467f14ba63846720ebf845cce7511d1a2637e3b80d5a1ffdaa2fb783fa37195103425ef65222d45372012'
              '6918c0de63deeddc6f53b9ba331390556c12e0d649cf54587dfaabb98b32d6a597b63cf02809c7c58b15501720455a724d527375a8fb9d757ccca57460320734'
              '5cd3ac4c94ef6dcce72fba02bc18b771a2f67906ff795e0e3d71ce7db6d8a41165bd5443908470915bdbdb98dddd9cf3f837c4ba3a36413f55ec570e6efdbb9f'
--            '328422adac0cfe6af4ecdcd864004b7ada8f8171aa954fecc23a7e883e90a9bb0848372faa1100440dc754922f965e1e7b98c185aa88df190bff1051d2146c85'
-+            'a863919da17cd5ce7e1d74d5b90d2b6720751b58139aa12d37f177c456328bae0e28e9d0c118470bcbd4fcba629f4d9eeee5ecddc473ee7abdd35d4ab0c389b9'
+-            'a34dd97954f415a5ffe956ca1f10718bd164950566ceba328805c2ccbb54ed9081df07f2e063479bf932c4a443bb5b7443cca2f82eea3914465ed6e4863e0c0e'
++            'c8267de2c71c6b93da5ebbed159bf89417cadcca4f9377779439a25b0462779ce759015d4e886457721dbe2e8a370ed6295f5e77662a8376ccce3332d89492ba'
              '7e43b1f25827ddae615ad43fc1e11c6ba439d6c2049477dfe60e00188a70c0a76160c59a97cc01d1fd99c476f261c7cecb57628b5be48874be7cf991c22db290'
-             '3526402ccae1f0428f2e45bae8d0b2cb909ac2698bc3508b692b827839ccb21203ce414206039776f6ce946fc53e636290b7870e9886284d5e9d1e8ad050aac9'
-+            '4d69c70f036132a092f47a3beb62ba6a4068c0b00c2a9bf32318467e8541c426a14606e9077baaadcc9ff2e24ea1b5c8a450ce73695a9126f91582db9d52c9db'
-             'dc1b72fe8c088ac48611678c1332aab525624940c8d9f5fdf1ffcf512837bc003e7893882f4bce724c2c4cf54487038c600e326ed227849250ff5e8cd76879fb'
-             '97b228149582f5a4608cc2727c22e41253b7b3081837d9d020ac5af32144722c31f5d8d6b812641a43efb3be221a3e3ef66b034ff3e02fca902793d4156d2218'
-             'c77245fbbe002ab17f7f33d2abaee1f6ce24617845c70fce606380f1013128992e9d818f6f924f5877c7b78dc539f1aa785396eb622caa2037230c68e4e76af9'
---- mozconfig.cfg	(revision 452437)
++            'c76715d6badc09ca6273c2393b832da80891741189df6301b325a06417819fc9cfe811d4c626e1b94b0b4feb53296b309b3b79deb26b84f45ed14d5b1d7e4c2e'
+             '36d9662fc94cbf7dcf371adc13a9cda679bc75df961d86de019d3c8ebb0be3062d5ef762d175fab58696db74758100a65de45d7832e0e2bd4e15c901f72d8349'
+             '730306d74c3ef95f5e3a2b90e868d6c963687b436ef7310b01f48d23b3a0c9f0370e21506d946d8b3e2930d563c2a9bfc3ab115be5d28f0d2f61237b276824e5'
+             '6c045f1cb0f4a1d67598f3149500b32d9a36a6549eb116e4901c640091b604b8cc106a1e5ca38e4786ef894b7c7ee3230e94ff44b29e013bc07ca7c1e8cf8f38'
+Index: mozconfig.cfg
+===================================================================
+--- mozconfig.cfg	(revision 466298)
 +++ mozconfig.cfg	(working copy)
-@@ -1,13 +1,16 @@
+@@ -1,13 +1,17 @@
  ac_add_options --enable-application=comm/mail
  
  ac_add_options --prefix=/usr
 -ac_add_options --enable-release
--ac_add_options --enable-linker=gold
+-ac_add_options --enable-linker=lld
 +# enable-release incurs rustc to segfault when compiling neqo-transport
 +ac_add_options --disable-release
 +# can not use gold as linker
 +ac_add_options --enable-linker=bfd
  ac_add_options --enable-hardening
- ac_add_options --enable-optimize
+-ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
--# https://bugzilla.mozilla.org/show_bug.cgi?id=1423822
--ac_add_options --disable-elf-hack
+ # https://bugzilla.mozilla.org/show_bug.cgi?id=1423822
+-ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
++ac_add_options --without-wasm-sandboxed-libraries
 +ac_add_options --disable-bootstrap
 +ac_add_options --disable-jit
 +ac_add_options --disable-debug
