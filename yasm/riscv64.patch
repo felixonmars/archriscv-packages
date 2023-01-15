@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,11 +10,16 @@ license=('BSD' 'GPL2' 'LGPL2.1' 'PerlArtistic')
+ depends=('glibc')
+ checkdepends=('systemd')
+ options=('staticlibs')
+-source=(https://www.tortall.net/projects/yasm/releases/${pkgname}-${pkgver}.tar.gz)
+-sha256sums=('3dce6601b495f5b3d45b59f7d2492a340ee7e84b5beca17e48f862502bd5603f')
++source=(https://www.tortall.net/projects/yasm/releases/${pkgname}-${pkgver}.tar.gz
++        rm_ac_cv_header_stdc.patch)
++sha256sums=('3dce6601b495f5b3d45b59f7d2492a340ee7e84b5beca17e48f862502bd5603f'
++            '9044004cbae6f65ccf8d48c6ea4b6e10ae9ad5b38ba95bc0e31026a7227f31b2')
+ 
+ build() {
+   cd ${pkgname}-${pkgver}
++  patch < ../configure.patch
++  autoreconf -fi
++  autoupdate -f
+   CFLAGS+=' -ffat-lto-objects' \
+   ./configure --prefix=/usr
+   make
