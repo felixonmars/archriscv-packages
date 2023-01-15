@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,11 +10,16 @@ license=('BSD' 'GPL2' 'LGPL2.1' 'PerlArtistic')
+ depends=('glibc')
+ checkdepends=('systemd')
+ options=('staticlibs')
+-source=(https://www.tortall.net/projects/yasm/releases/${pkgname}-${pkgver}.tar.gz)
+-sha256sums=('3dce6601b495f5b3d45b59f7d2492a340ee7e84b5beca17e48f862502bd5603f')
++source=(https://www.tortall.net/projects/yasm/releases/${pkgname}-${pkgver}.tar.gz
++        fix-autotools-2.70-compat.patch::https://github.com/yasm/yasm/commit/3e74376b5653102a3957f59005969fcdbbe5a89d.patch)
++sha256sums=('3dce6601b495f5b3d45b59f7d2492a340ee7e84b5beca17e48f862502bd5603f'
++            '2729bf5e7517da488c6b7fb1d5ccb4a8c5edc72341cd2fc570248b50b27f404f')
+ 
+ build() {
+   cd ${pkgname}-${pkgver}
++  patch < ../fix-autotools-2.70-compat.patch
++  autoreconf -fi
++  autoupdate -f
+   CFLAGS+=' -ffat-lto-objects' \
+   ./configure --prefix=/usr
+   make
