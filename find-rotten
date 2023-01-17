@@ -7,6 +7,8 @@ import re
 import shutil
 import tempfile
 
+import pyalpm
+from pyalpm import Handle, DB
 import sh
 from git import Repo
 from github import Github
@@ -21,6 +23,8 @@ RE_HUNK_FAILED = re.compile(r"^\d+ out of \d+ hunks? FAILED", re.MULTILINE)
 RE_REVERSED = re.compile(r"^Reversed \(or previously applied\) patch detected")
 RE_PR_RM_PACKAGE = re.compile(r"^(rm|rmv)(pkg|patch): ([^ ]+)")
 
+ARCHLINUX_REPO = 'https://mirror.rackspace.com/archlinux/{repo}/os/x86_64'
+
 repo = Repo()
 g = Github(ENV["GITHUB_TOKEN"])
 gh_repo = g.get_repo(ENV["GITHUB_REPO"])
@@ -32,8 +36,9 @@ def is_rotten(package):
 
         try:
             for repo_dir in os.scandir(os.path.join(tempdir, package, "repos")):
-                if not repo_dir.name.split('-')[0] in ['core', 'extra',
-                                                       'community'] or 'testing' in repo_dir.name or 'staging' in repo_dir.name:
+                if not repo_dir.name.split('-')[0] in ['core', 'extra', 'community'] \
+                        or 'testing' in repo_dir.name \
+                        or 'staging' in repo_dir.name:
                     continue
                 shutil.copytree(package, repo_dir.path, dirs_exist_ok=True)
                 try:
@@ -71,6 +76,19 @@ def commit_rm_package_push_pr(package):
     logger.info(f"created rmvpatch PR for {package}")
 
 
+# get packages list from repo
+def get_all_packages() -> set[str]:
+    result = set()
+    with tempfile.TemporaryDirectory() as tempdir:
+        handle = Handle('/', tempdir)
+        for db_name in ['core', 'extra', 'community']:
+            db: DB = handle.register_syncdb(db_name, pyalpm.SIG_DATABASE_OPTIONAL)
+            db.servers = [ARCHLINUX_REPO.format(repo=db.name)]
+            db.update(False)
+            result |= {pkg.base for pkg in db.pkgcache}
+    return result
+
+
 def main():
     packages = set()
     for dirent in os.scandir():
@@ -80,7 +98,8 @@ def main():
             continue
         packages.add(dirent.name)
 
-    all_packages = set(sh.asp("list-all").stdout.decode("ascii").strip().split())
+    # all_packages = set(sh.asp("list-all").stdout.decode("ascii").strip().split())
+    all_packages = get_all_packages()
 
     pulls = gh_repo.get_pulls(state='open', sort='created', base='master')
     rm_package_in_pr = set()
