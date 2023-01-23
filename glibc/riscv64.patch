@@ -1,6 +1,6 @@
 Index: PKGBUILD
 ===================================================================
---- PKGBUILD	(revision 457406)
+--- PKGBUILD	(revision 467173)
 +++ PKGBUILD	(working copy)
 @@ -7,7 +7,7 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
@@ -9,22 +9,22 @@ Index: PKGBUILD
 -pkgname=(glibc lib32-glibc)
 +pkgname=(glibc)
  pkgver=2.36
- _commit=2bd815d8347851212b9a91dbdca8053f4dbdac87
- pkgrel=6
+ _commit=93967a2a7bbdcedb73e0b246713580c7c84d001e
+ pkgrel=7
 @@ -14,7 +14,7 @@
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
 -makedepends=(git gd lib32-gcc-libs python)
 +makedepends=(git gd python)
- options=(debug staticlibs !lto)
+ options=(staticlibs !lto)
  source=(git+https://sourceware.org/git/glibc.git#commit=${_commit}
          locale.gen.txt
 @@ -22,6 +22,7 @@
          lib32-glibc.conf
          sdt.h sdt-config.h
          reenable_DT_HASH.patch
-+        0001-stdlib-strfrom-Remove-the-NAN-testcase-bug-29501.patch
++        fix-strfrom.patch::"https://sourceware.org/git/?p=glibc.git;a=patch;h=0cc0033ef19bd3378445c2b851e53d7255cb1b1e"
  )
  validpgpkeys=(7273542B39962DF7B299931416792B4EA25340F8 # Carlos O'Donell
                BC7C7372637EC10C57D7AA6579C43DFBF1CF2187) # Siddhesh Poyarekar
@@ -34,7 +34,7 @@ Index: PKGBUILD
          '214e995e84b342fe7b2a7704ce011b7c7fc74c2971f98eeb3b4e677b99c860addc0a7d91b8dc0f0b8be7537782ee331999e02ba48f4ccc1c331b60f27d715678'
 -        '5fdd133c367af2f5454ea1eea7907de12166fb95eb59dbe33eae16aa9e26209b6585972bc1c80e36a0af4bfb04296acaf940ee78cd624cdcbab9669dff46c051')
 +        '5fdd133c367af2f5454ea1eea7907de12166fb95eb59dbe33eae16aa9e26209b6585972bc1c80e36a0af4bfb04296acaf940ee78cd624cdcbab9669dff46c051'
-+        'e3e17f784dd668a1bba6128a5a25616657d848ccd67668f0246e06aac36572e34935a8937639b527f28d755335bca153cadfd9e7daecfe8d5536f76b7ab0f9c0')
++        '9967f7efc4e3cc7a3f564604eb1b580ab0e92169da46fe88e6a501a4c0e23de331909b9ffe1b43a5c09be77010487a130859f8cba4af674a8163024184444230')
  
  prepare() {
    mkdir -p glibc-build lib32-glibc-build
@@ -43,9 +43,9 @@ Index: PKGBUILD
    # reconsider 2023-01
    patch -Np1 -i "${srcdir}"/reenable_DT_HASH.patch
 +
-+  # Skip the nan test case which leverages undefined behavior
-+  # full analysis at https://github.com/felixonmars/archriscv-packages/issues/1704
-+  patch -Np1 -i "${srcdir}"/0001-stdlib-strfrom-Remove-the-NAN-testcase-bug-29501.patch
++  # backport glibc strfrom patch
++  # https://sourceware.org/git/?p=glibc.git;a=commit;h=0cc0033ef19bd3378445c2b851e53d7255cb1b1e
++  patch -Np1 -i "${srcdir}"/fix-strfrom.patch
  }
  
  build() {
@@ -101,11 +101,10 @@ Index: PKGBUILD
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat'
-@@ -199,27 +180,3 @@
-   install -Dm644 "${srcdir}"/sdt.h "${pkgdir}"/usr/include/sys/sdt.h
+@@ -200,26 +181,3 @@
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
--
+ 
 -package_lib32-glibc() {
 -  pkgdesc='GNU C Library (32-bit)'
 -  depends=("glibc=$pkgver")
