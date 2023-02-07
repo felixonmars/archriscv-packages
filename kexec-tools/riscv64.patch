@@ -1,16 +1,16 @@
 diff --git PKGBUILD PKGBUILD
-index dfdace6..5baa9f4 100644
+index c6ee34d5..9dabd7fc 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,13 +7,20 @@ pkgrel=1
+@@ -7,13 +7,19 @@ pkgrel=1
  pkgdesc="Load another kernel from the currently executing Linux kernel"
  arch=('x86_64')
  url="https://kernel.org/pub/linux/utils/kernel/kexec/"
--source=("git://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}")
-+source=("git://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}"
-+        "add-riscv64-support.patch")
-+sha1sums=('SKIP'
-+          'fb0555111b7192ece80b096aea33dff8c395a04a')
+-source=("git+https://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}")
++source=("git+https://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}"
++        "add-riscv64-support.patch::https://marc.info/?l=kexec&m=166636009110699&q=mbox")
++sha256sums=('SKIP'
++            '08ceecae20e0096cccb4912cf0db81ce2b537a2a12f1c637b8161806084a1e99')
  makedepends=('git')
  depends=('zlib' 'xz')
  license=('GPL2')
@@ -18,15 +18,13 @@ index dfdace6..5baa9f4 100644
  prepare() {
    cd $pkgname
 +
-+  # Patch from https://build.opensuse.org/package/view_file/openSUSE:Factory:RISCV/kexec-tools/riscv.patch
 +  patch -Np1 -i $srcdir/add-riscv64-support.patch
 +
    ./bootstrap
  }
  
-@@ -29,5 +36,3 @@ package() {
-   make DESTDIR="$pkgdir" install
+@@ -30,4 +36,3 @@ package() {
    install -D -m644 kexec/kexec.8 "$pkgdir"/usr/share/man/man8/kexec.8
  }
--
+ 
 -md5sums=('SKIP')
