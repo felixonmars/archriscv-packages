@@ -1,13 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,7 +16,9 @@ options=('!lto')
+@@ -16,7 +16,14 @@ options=('!lto')
  
  prepare() {
    cd "$pkgname-$pkgver"
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++  cat <<EOF >> Cargo.toml
++[patch.crates-io]
++ring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }
++perf-event-open-sys = { git = 'https://github.com/Avimitin/perf-event-riscv64', branch = 'riscv64' }
++EOF
 +  cargo update -p ring
++  cargo update -p perf-event-open-sys
 +  cargo fetch --locked
    mkdir -p completions
  }
-
+ 
