@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index ff0256c3..534fc8a3 100644
+index 1eb42a30..432ff200 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -5,7 +5,7 @@
@@ -9,46 +9,37 @@ index ff0256c3..534fc8a3 100644
 -pkgname=(rust lib32-rust-libs rust-musl rust-wasm rust-src)
 +pkgname=(rust rust-musl rust-wasm rust-src)
  epoch=1
- pkgver=1.66.1
- pkgrel=2
-@@ -15,7 +15,7 @@ arch=(x86_64)
- license=(MIT Apache)
- options=(!emptydirs !strip !lto)
- depends=(gcc-libs llvm-libs curl libssh2 gcc)
--makedepends=(rust llvm libffi lib32-gcc-libs perl python cmake musl ninja
-+makedepends=(rust llvm libffi perl python cmake musl ninja
-              wasi-libc lld)
- checkdepends=(procps-ng gdb)
- source=(
-@@ -24,13 +24,17 @@ source=(
+ pkgver=1.67.1
+ pkgrel=1
+@@ -28,7 +28,6 @@ depends=(
+ )
+ makedepends=(
+   cmake
+-  lib32-gcc-libs
+   libffi
+   lld
+   llvm
+@@ -49,13 +48,15 @@ source=(
    0001-bootstrap-Change-libexec-dir.patch
    0002-compiler-Change-LLVM-targets.patch
    0003-compiler-Use-wasm-ld-for-wasm-targets.patch
-+  "cc-rs-pick.patch"::"https://github.com/rust-lang/cc-rs/pull/676.patch"
 +  "jemalloc-sys-pick.patch"
  )
- sha256sums=('5b3c933a94c72187705d4ee293198babfdd09442f5937fbd685db3a81f4959ba'
+ sha256sums=('46483d3e5de85a3bd46f8e7a3ae1837496391067dbe713a25d3cf051b3d9ff6e'
              'SKIP'
-             'c901a9bb036c29ca092f7dbc8b447efdd9aa1044a902a88f9d024cb22681dc19'
-             '874c96cb43a5cc1170674771705deb1c72e95ec5f6ede860cd658111db3cda48'
-             '4a4ff5c294acc0b1ca800856218770f6330a878acee72193aa456d82846a8a28'
--            'c9abbbc8e3a97b0e43fa5f948ae4df51320d9cc5243b5d0c575470271932f783')
-+            'c9abbbc8e3a97b0e43fa5f948ae4df51320d9cc5243b5d0c575470271932f783'
-+            '03368e7bf566fb5e658239489786e794fa2945a30ce69b7def41552e1f1bfa6a'
+             'b2ef8c3bca5d72ed58ff8930e69947602f875a639c2b01de5943b1ecb1b5c3c3'
+             '6a4e09671cd96a854cf0fc9a1f43651ac5a0fdc8dca571730131ae272b630cfe'
+             'e32fd355330e6c1ca4f0c630a3e254d261c48516128243a5d5d49f612cd217ed'
+-            'f83bf98daee94d3e592fd2d96eecc25dc92b6b20575a3e3df7841a90a5b9f965')
++            'f83bf98daee94d3e592fd2d96eecc25dc92b6b20575a3e3df7841a90a5b9f965'
 +            'dda34cb5300511aa0aff6bc39bdbb17215ea60bee81bc52f64e3474d6cbda516')
  validpgpkeys=(108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
                474E22316ABF4785A88C6E8EA2C794A986419D8A) # Tom Stellard <tstellar@redhat.com>
  
-@@ -48,6 +52,18 @@ prepare() {
+@@ -73,6 +74,12 @@ prepare() {
    # Use our wasm-ld
    patch -Np1 -i ../0003-compiler-Use-wasm-ld-for-wasm-targets.patch
  
-+  cd vendor/cc
-+  OLDSUM=`sha256sum src/lib.rs | head -c 64`
-+  patch -Np1 -i ../../../cc-rs-pick.patch
-+  sed -i "s/$OLDSUM/`sha256sum src/lib.rs | head -c 64`/g" .cargo-checksum.json
-+  cd ../..
-+
 +  cd vendor/jemalloc-sys
 +  OLDSUM=`sha256sum build.rs | head -c 64`
 +  patch -Np1 -i ../../../jemalloc-sys-pick.patch
@@ -58,7 +49,7 @@ index ff0256c3..534fc8a3 100644
    cat >config.toml <<END
  changelog-seen = 2
  profile = "user"
-@@ -57,9 +73,8 @@ link-shared = true
+@@ -82,9 +89,8 @@ link-shared = true
  
  [build]
  target = [
@@ -70,7 +61,7 @@ index ff0256c3..534fc8a3 100644
    "wasm32-unknown-unknown",
    "wasm32-wasi",
  ]
-@@ -99,22 +114,18 @@ deny-warnings = false
+@@ -132,22 +138,18 @@ deny-warnings = false
  [dist]
  compression-formats = ["gz"]
  
@@ -97,7 +88,7 @@ index ff0256c3..534fc8a3 100644
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -152,9 +163,7 @@ build() {
+@@ -185,9 +187,7 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -108,7 +99,7 @@ index ff0256c3..534fc8a3 100644
  
    mkdir -p usr/share/bash-completion
    mv etc/bash_completion.d usr/share/bash-completion/completions
-@@ -162,8 +171,7 @@ build() {
+@@ -195,8 +195,7 @@ build() {
    mkdir -p usr/share/licenses/rust
    mv -t usr/share/licenses/rust usr/share/doc/rust/{COPYRIGHT,LICENSE*}
  
@@ -118,13 +109,16 @@ index ff0256c3..534fc8a3 100644
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -178,19 +186,6 @@ package_rust() {
+@@ -225,22 +224,6 @@ package_rust() {
    cp -a dest-rust/* "$pkgdir"
  }
  
 -package_lib32-rust-libs() {
 -  pkgdesc="32-bit target and libraries for Rust"
--  depends=(rust lib32-gcc-libs)
+-  depends=(
+-    lib32-gcc-libs
+-    rust
+-  )
 -  provides=(lib32-rust)
 -  conflicts=(lib32-rust)
 -  replaces=(lib32-rust)
