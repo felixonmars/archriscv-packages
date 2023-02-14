@@ -1,9 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,9 +20,17 @@
- makedepends=('ghc-static' 'perl' 'libxslt' 'docbook-xsl' 'python-sphinx' 'haskell-hscolour'
+@@ -20,10 +20,18 @@
               'texlive-bin' 'texlive-latexextra' 'ttf-dejavu' 'alex' 'happy' 'time' 'numactl' 'llvm')
  source=("https://downloads.haskell.org/~ghc/$pkgver/$pkgbase-${pkgver}-src.tar.xz"
+         ghc-sphinx-6.patch::https://gitlab.haskell.org/ghc/ghc/-/commit/00dc51060881df81258ba3b3bdf447294618a4de.patch
 +        0001-Limit-upper-version-of-Happy-for-ghc-9.2-18620.patch
 +        0002-Check-for-libatomic-dependency-for-atomic-operations.patch
 +        0003-Implement-riscv64-LLVM-backend.patch
@@ -11,6 +11,7 @@
          ghc-rebuild-doc-index.hook ghc-register.hook ghc-unregister.hook)
  noextract=("$pkgbase-${pkgver}-src.tar.xz")
  sha512sums=('32994c7d2b8f47bae604cd825bfcf9c788d79ce26d1d5f58bd73a7093e11ae6c3c17b31dc0c9e454dbf67ca169b942f92213c388d615768cae86055bf6094dee'
+             '7a79a5e9591b1ddd78fa349526a85cf9fee64db80639dcf1f3d6edef422fd4454222aedf5581e21489a20d748656265a40e7645004e4d5220280f6214c568e64'
 +            '0ef37c0353382999d28743a5a802f7d16c30e2ed50e4b5fba51613c983ebd6df212ccfecaadbaaebb18800e96dbb1a024944023e963a623cd380108874b73bc7'
 +            '3e81832d214ad586b8b1e46adc886be1ceef156cf5cba8d7786f187b06c79710da545d06007b5c74c15de240f56f092eb5a1a390433261d6a30d8bb970425ec1'
 +            'a24dcf628560985f469757cd5bf770d5c4103e856c81d57ad3c59593c49b2940c6694f354099b2b2e0045befd3d6d2bfe86657ca68e31c0e9c78f8d1e138e0d7'
@@ -19,8 +20,8 @@
              '5f659651d8e562a4dcaae0f821d272d6e9c648b645b1d6ab1af61e4dd690dc5a4b9c6846753b7f935963f001bb1ae1f40cd77731b71ef5a8dbc079a360aa3f8f'
              '3bdbd05c4a2c4fce4adf6802ff99b1088bdfad63da9ebfc470af9e271c3dd796f86fba1cf319d8f4078054d85c6d9e6a01f79994559f24cc77ee1a25724af2e6')
 @@ -37,6 +45,11 @@
-   # Suppress warnings for LLVM 13
-   sed -i 's/LlvmMaxVersion=13/LlvmMaxVersion=14/' configure.ac
+   # Temporary hack to use LLVM 14 for bootstrapping during LLVM 15 rebuild.
+   export PATH="/usr/lib/llvm14/bin/:$PATH
  
 +  patch -Np1 -i ../0001-Limit-upper-version-of-Happy-for-ghc-9.2-18620.patch
 +  patch -Np1 -i ../0002-Check-for-libatomic-dependency-for-atomic-operations.patch
