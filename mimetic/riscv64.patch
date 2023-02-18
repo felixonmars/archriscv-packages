@@ -1,33 +1,27 @@
 diff --git PKGBUILD PKGBUILD
-index d7edbe9..3f1b534 100644
+index 80ab9e24..b37a60a5 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,14 +9,25 @@ url="http://www.codesink.org/mimetic_mime_library.html"
- arch=(x86_64)
+@@ -10,12 +10,20 @@
  license=(MIT)
  depends=(gcc-libs)
--source=(http://www.codesink.org/download/$pkgname-$pkgver.tar.gz)
--sha256sums=('3a07d68d125f5e132949b078c7275d5eb0078dd649079bd510dd12b969096700')
-+source=(http://www.codesink.org/download/$pkgname-$pkgver.tar.gz
-+        fix-ordered-comparison-of-pointer-with-integer-zero.patch)
-+sha256sums=('3a07d68d125f5e132949b078c7275d5eb0078dd649079bd510dd12b969096700'
-+            'SKIP')
+ source=(http://www.codesink.org/download/$pkgname-$pkgver.tar.gz
+-        https://github.com/tat/mimetic/commit/bf84940f.patch)
++        https://github.com/tat/mimetic/commit/bf84940f.patch
++        0001-fix-signed-char.patch::https://github.com/tat/mimetic/commit/2f1bb2b93ecec3167a0aa3410ea4423d5b26320a.patch
++        0002-fix-signed-char.patch::https://github.com/tat/mimetic/commit/d83e0363e316836d1b8d587f4b89e8e09229abe4.patch)
+ sha256sums=('3a07d68d125f5e132949b078c7275d5eb0078dd649079bd510dd12b969096700'
+-            '877406aff5b11042df9e036ed9e58dcc3e2ce54b47f263fd31886a9c16d7a0ea')
++            '877406aff5b11042df9e036ed9e58dcc3e2ce54b47f263fd31886a9c16d7a0ea'
++            'cbb1af4be4d72a2bf5ecf7d52ff93b99f470fa60b89f478f2faf4b90490e7c79'
++            'a0a983728dc4a8ed26fe64a9b75f2b3397eec5117a52b01d2ec1d6e6ee2bbdbb')
  
- build() {
-   cd $pkgname-$pkgver
- 
-+  CXXFLAGS+=" -Wno-error=narrowing "
-+  CXXFLAGS+="-DHAVE_UNISTD_H "
-+  CXXFLAGS+="-DHAVE_SYS_STAT_H "
-+  CXXFLAGS+="-DHAVE_SYS_TYPES_H "
-+  CXXFLAGS+="-DHAVE_MMAP "
-+  CXXFLAGS+="-DHAVE_DIRENT_H "
-+  patch -Np1 -i ../fix-ordered-comparison-of-pointer-with-integer-zero.patch
-+  sed -i 's|VERSION|"$pkgver"|g' mimetic/version.cxx
-+
-   ./configure --prefix=/usr
--  make
-+  make CXXFLAGS="$CXXFLAGS"
+ prepare() {
+   patch -d $pkgname-$pkgver -p1 < bf84940f.patch # Fix build
++  patch -d $pkgname-$pkgver -p1 < 0001-fix-signed-char.patch
++  patch -d $pkgname-$pkgver -p1 < 0002-fix-signed-char.patch
++  cd $pkgname-$pkgver
++  autoreconf -fiv # https://github.com/tat/mimetic/pull/29
  }
  
- package() {
+ build() {
