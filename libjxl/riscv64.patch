@@ -1,31 +1,31 @@
---- PKGBUILD
-+++ PKGBUILD
-@@ -21,7 +21,8 @@ source=("git+https://github.com/libjxl/libjxl.git#tag=v${pkgver}"
+--- PKGBUILD	(revision 1403198)
++++ PKGBUILD	(working copy)
+@@ -21,7 +21,8 @@
          'git+https://github.com/google/highway.git'
          'git+https://github.com/glennrp/libpng.git'
          'git+https://github.com/madler/zlib.git'
 -        'libjxl-testdata'::'git+https://github.com/libjxl/testdata.git')
 +        'libjxl-testdata'::'git+https://github.com/libjxl/testdata.git'
-+        "${pkgname}-fix-test-RoundtripLargeFast.patch::https://github.com/libjxl/libjxl/pull/1708.patch")
++        'fix-atomic.patch'::'https://github.com/libjxl/libjxl/commit/8bb259896ffac372fc704a8e135a209012c460ba.patch')
  sha256sums=('SKIP'
              'SKIP'
              'SKIP'
-@@ -31,7 +32,8 @@ sha256sums=('SKIP'
+@@ -31,7 +32,8 @@
              'SKIP'
              'SKIP'
              'SKIP'
 -            'SKIP')
 +            'SKIP'
-+            '0dff5fd3e91fea2e676e777c63d6ed9552633b26fb282ebed74c471fbfe338c0')
++            '8867766f4582d8bc59b44078e51baa4c4f1dbdcd280bffd64a919f0b8aea2cef')
  
  prepare() {
      git -C libjxl submodule init
-@@ -43,6 +45,8 @@ prepare() {
+@@ -43,6 +45,8 @@
      git -C libjxl config --local submodule.third_party/lcms.url "${srcdir}/Little-CMS"
      git -C libjxl config --local submodule.third_party/testdata.url "${srcdir}/libjxl-testdata"
-     git -C libjxl submodule update
+     git -C libjxl -c protocol.file.allow='always' submodule update
 +
-+    patch -Np1 -d libjxl < ${pkgname}-fix-test-RoundtripLargeFast.patch
++    patch -Np1 -d libjxl < fix-atomic.patch
  }
  
  build() {
