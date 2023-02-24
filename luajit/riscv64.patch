@@ -1,0 +1,46 @@
+diff --git PKGBUILD PKGBUILD
+index 70afb4b7..3c20f4e8 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,7 +8,7 @@
+ pkgname=luajit
+ # LuaJIT has abandoned versioned releases and now advises using git HEAD
+ # https://github.com/LuaJIT/LuaJIT/issues/665#issuecomment-784452583
+-_commit=505e2c03de35e2718eef0d2d3660712e06dadf1f
++_commit=d612e7b84ed4cdd7efc51170b6f9b507d3c3b851
+ pkgver="2.1.0.beta3.r471.g${_commit::8}"
+ pkgrel=1
+ pkgdesc='Just-in-time compiler and drop-in replacement for Lua 5.1'
+@@ -16,19 +16,26 @@
+ url='https://luajit.org/'
+ license=('MIT')
+ depends=('gcc-libs')
+-source=("LuaJIT-${_commit}.tar.gz::https://repo.or.cz/luajit-2.0.git/snapshot/${_commit}.tar.gz")
+-md5sums=('0847dc535736846a9a1436e18d8c509d')
+-sha256sums=('b89d081aac4189a06b736c667f47cc60e0cc4591933b7ed50db38cf58496386e')
+-b2sums=('89bed923ff34d2de813dee17f130496ffeaa6bc5caf9252be1df7d35e87fa7398930f1fe35f95650694d344bc99d5b2c0c4abc4568f1dac318822a832d44c3a4')
++makedepends=('git')
++source=("git+https://github.com/infiWang/LuaJIT.git#commit=$_commit")
++md5sums=('SKIP')
++sha256sums=('SKIP')
++b2sums=('SKIP')
++
++prepare() {
++  cd "LuaJIT"
++  # riscv-dynasm
++  git cherry-pick -n a10d27e^..be9cc00
++}
+ 
+ build() {
+-  cd "luajit-2.0-${_commit::7}"
++  cd "LuaJIT"
+   # Avoid early stripping
+   make amalg PREFIX=/usr BUILDMODE=dynamic TARGET_STRIP=" @:"
+ }
+ 
+ package() {
+-  cd "luajit-2.0-${_commit::7}"
++  cd "LuaJIT"
+ 
+   make install DESTDIR="$pkgdir" PREFIX=/usr
+   install -Dm644 COPYRIGHT "$pkgdir/usr/share/licenses/$pkgname/COPYRIGHT"
