@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,12 +22,14 @@ checkdepends=('python-asynctest' 'python-parver' 'python-pytest-runner' 'python-
+ provides=('pathod')
+ conflicts=('pathod')
+ replaces=('pathod')
+-source=("https://github.com/mitmproxy/mitmproxy/archive/$pkgver/$pkgname-$pkgver.tar.gz")
+-sha512sums=('601d9171f48d93fbc6f002a1dc243c2f358186059e491490ffe5ab7be797e8e622fdb5a9e2fdab10fac7350057f9e9491952527d600477c841c9b5102a045bc1')
++source=("https://github.com/mitmproxy/mitmproxy/archive/$pkgver/$pkgname-$pkgver.tar.gz"
++        "skip-wg-test-client.patch")
++sha512sums=('601d9171f48d93fbc6f002a1dc243c2f358186059e491490ffe5ab7be797e8e622fdb5a9e2fdab10fac7350057f9e9491952527d600477c841c9b5102a045bc1'
++            'a798b60311ffffca75f47c7db7bf9b44969c5aa638cc2c299c2f158e729098d01f4862b6491a4452447b1f7960aae8d6b86e2ac3742cf5250b34a1890c10660d')
+
+ prepare() {
+   cd $pkgname-$pkgver
+-
++  patch -Np1 -i ../skip-wg-test-client.patch
+   # Let's remove all the upper bounds
+   sed -e 's/, *<[0-9=.]*//' \
+       -i setup.py
