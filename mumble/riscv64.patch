@@ -1,11 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,7 +18,7 @@ depends=('gcc-libs' 'glibc' 'openssl' 'qt5-base')
- makedepends=('avahi' 'boost' 'cmake' 'poco' 'protobuf' 'python' 'qt5-tools' 'speech-dispatcher')
- # mumble makedepends
- makedepends+=('alsa-lib' 'hicolor-icon-theme' 'jack' 'libpulse' 'libsndfile'
--'libspeechd' 'libx11' 'libxi' 'mesa' 'opus' 'qt5-svg' 'speex' 'xdg-utils' 'lib32-gcc-libs')
-+'libspeechd' 'libx11' 'libxi' 'mesa' 'opus' 'qt5-svg' 'speex' 'xdg-utils')
- # murmur makedepends
- makedepends+=('grpc' 'libcap' 'zeroc-ice')
- source=(
+@@ -34,7 +34,6 @@ makedepends+=(
+   alsa-lib
+   hicolor-icon-theme
+   jack
+-  lib32-gcc-libs
+   libpulse
+   libsndfile
+   libspeechd
+@@ -89,6 +88,9 @@ prepare() {
+ }
+ 
+ build() {
++  # fix signedness of char, see https://github.com/mumble-voip/mumble/issues/3845
++  CFLAGS+=" -fsigned-char "
++  CXXFLAGS+=" -fsigned-char "
+   local default_options=(
+     -D CMAKE_INSTALL_PREFIX=/usr
+     -D CMAKE_BUILD_TYPE=None
