@@ -1,0 +1,41 @@
+diff --git PKGBUILD PKGBUILD
+index 65cfd16b..e48be588 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,16 +18,32 @@ makedepends=(cargo
+              gtk3
+              make
+              python
+-             sdl2)
++             sdl2
++             git
++             gn
++             ninja
++             clang)
+ optdepends=('vulkan-intel: vulkan support for intel')
+ _archive=("$pkgname-$pkgver")
+-source=("$url/archive/$pkgver/$_archive.tar.gz")
+-sha256sums=('db3e34cfeda562e292c236570b43f6815e668cae81bdaeaa422739ae92e842c3')
++source=("$url/archive/$pkgver/$_archive.tar.gz"
++        "skia_native_build.patch")
++sha256sums=('db3e34cfeda562e292c236570b43f6815e668cae81bdaeaa422739ae92e842c3'
++            '556990d259c5017082d5346b1184c256436abc05e052f2995e60f29c60e4d1ad')
++options=(!lto)
+ 
+ prepare() {
+ 	cd "$_archive"
+ 	sed -i -e '/^incremental/a opt-level = 3' Cargo.toml
+-	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++	echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++	cargo update -p ring
++	mkdir .cargo
++	cargo vendor >> .cargo/config.toml
++	pushd vendor/skia-bindings
++	curl 'https://codeload.github.com/rust-skia/skia/tar.gz/m103-0.51.1' | tar -xz && mv 'skia-m103-0.51.1' 'skia'
++	mkdir depot_tools
++	cp /usr/bin/ninja depot_tools/
++	popd
++	patch -Np1 -i "../skia_native_build.patch"
+ }
+ 
+ build() {
