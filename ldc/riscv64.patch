@@ -1,14 +1,9 @@
-diff --git PKGBUILD PKGBUILD
-index b0d1d8b92..df2bf8564 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -23,22 +23,35 @@ source=(
+@@ -23,12 +23,14 @@ source=(
      "ldc-druntime::git+https://github.com/ldc-developers/druntime.git"
      "ldc-phobos::git+https://github.com/ldc-developers/phobos.git"
      "ldc-testsuite::git+https://github.com/ldc-developers/dmd-testsuite.git"
-+    "ldc.patch"::"https://github.com/ldc-developers/ldc/pull/4007.patch"
-+    "rt.patch"::"https://github.com/ldc-developers/druntime/pull/204.patch"
-+    "ph.patch"::"https://github.com/ldc-developers/phobos/pull/71.patch"
 +    "disable-static-NaN-tests.patch"
  )
  
@@ -17,38 +12,20 @@ index b0d1d8b92..df2bf8564 100644
              'SKIP'
 -            'SKIP')
 +            'SKIP'
-+            '95085d2f7a3b1cc8d97ce567a013967f88305ff21d0928c256ec5db19ec059af'
-+            'd7105748df3f2888f79ead8740a19a01a416566d95e0ada5d61bcf0d36f6ad7b'
-+            'fa5caceed1cb9530f8fe6a7312e1b226c48aa2086e93e403cccf1d31545eac58'
 +            '22b9132b58dde320d6da3c22d2eeabbc0c4d6a079348e9e0fbe5172ef4b86aba')
  
  prepare() {
      cd "$srcdir/ldc"
- 
-+    patch -Np1 -i "$srcdir/ldc.patch"
-+
-     git submodule init
-     git config submodule.druntime.url "$srcdir/ldc-druntime"
-     git config submodule.phobos.url "$srcdir/ldc-phobos"
-     git config submodule.tests/d2/dmd-testsuite.url "$srcdir/ldc-testsuite"
-     git submodule update
- 
-+    patch -Np1 -d runtime/druntime -i "$srcdir/rt.patch"
-+    patch -Np1 -d runtime/phobos -i "$srcdir/ph.patch"
-+
-     # Set version used for path construction in getFullClangCompilerRTLibPath()
-     sed -i "s/ldc::llvm_version_base/\"$_clangversion\"/" driver/linker-gcc.cpp
- }
-@@ -56,7 +69,7 @@ build() {
+@@ -56,7 +58,7 @@ build() {
      -DBUILD_SHARED_LIBS=BOTH \
      -DBUILD_LTO_LIBS=ON \
      -DLDC_WITH_LLD=OFF \
 -    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=gold --flto=thin" \
 +    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false" \
      -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"" \
+     -DCMAKE_PREFIX_PATH=/usr/lib/llvm \
      ..
-     ninja
-@@ -64,6 +77,7 @@ build() {
+@@ -65,6 +67,7 @@ build() {
  
  check() {
      cd "$srcdir/ldc/build"
