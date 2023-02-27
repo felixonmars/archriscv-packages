@@ -1,11 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,15 +7,17 @@ arch=('any')
+@@ -7,15 +7,19 @@ arch=('any')
  url="https://github.com/alexanderzobnin/grafana-zabbix"
  license=('APACHE')
  depends=('grafana')
 -makedepends=(yarn libfaketime go git nodejs-lts-gallium)
-+makedepends=(yarn libfaketime go git nodejs-lts-gallium python3)
++makedepends=(yarn libfaketime go git nodejs-lts-gallium python)
  source=("$pkgname-$pkgver-retagged-1.tar.gz::https://github.com/alexanderzobnin/grafana-zabbix/archive/v$pkgver.tar.gz")
  sha256sums=('7b97156b53c4d5d5d55158a8fa57da7fc3a4105cddd55d4744c8aa6f1fd2f71c')
  
@@ -14,6 +14,8 @@
  	make install
 -	make build
 -	make dist
++	# Work-around for webpack4
++	export NODE_OPTIONS=--openssl-legacy-provider
 +	make build-frontend
 +	go build -o ./dist/zabbix-plugin_linux_$CARCH ./pkg
 +
