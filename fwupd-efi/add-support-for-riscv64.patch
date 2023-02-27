@@ -1,0 +1,30 @@
+diff --git a/efi/meson.build b/efi/meson.build
+index 979936d..31a42c0 100644
+--- a/efi/meson.build
++++ b/efi/meson.build
+@@ -91,9 +91,9 @@ else
+         coff_header_in_crt0 = false
+ endif
+ 
+-# older objcopy for Aarch64 and ARM32 are not EFI capable.
++# older objcopy for Aarch64, ARM32 and riscv64 are not EFI capable.
+ # Use 'binary' instead, and add required symbols manually.
+-if host_cpu == 'arm' or (host_cpu == 'aarch64' and (objcopy_version.version_compare ('< 2.38') or coff_header_in_crt0))
++if host_cpu == 'riscv64' or host_cpu == 'arm' or (host_cpu == 'aarch64' and (objcopy_version.version_compare ('< 2.38') or coff_header_in_crt0))
+   objcopy_manualsymbols = true
+   generate_binary_extra = ['--objcopy-manualsymbols']
+ else
+diff --git a/meson.build b/meson.build
+index bb7dae9..108d6ca 100644
+--- a/meson.build
++++ b/meson.build
+@@ -33,6 +33,9 @@ elif host_cpu == 'arm'
+ elif host_cpu == 'aarch64'
+         EFI_MACHINE_TYPE_NAME = 'aa64'
+         gnu_efi_arch = 'aarch64'
++elif host_cpu == 'riscv64'
++        EFI_MACHINE_TYPE_NAME = 'riscv64'
++        gnu_efi_arch = 'riscv64'
+ else
+         error('Unknown host_cpu ' + host_cpu)
+ endif
