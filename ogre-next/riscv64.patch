@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index 247497e9..82653ad4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,8 +11,14 @@ depends=('freeimage' 'freetype2' 'libxaw' 'libxrandr' 'rapidjson'
+ makedepends=('cmake' 'doxygen' 'graphviz' 'ttf-dejavu' 'mesa' 'ninja' 'cppunit')
+ conflicts=('ogre')
+ install=ogre-next.install
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/OGRECave/ogre-next/archive/v${pkgver}.tar.gz")
+-sha512sums=('62c721680ed77e74b6e1649ab7324bd49fc3c7c2e60ad76a62ec5f899f327d65a140462d75300eac4f41567a8903a748d07a760dc376eddcadf0aeea5a3ca5a7')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/OGRECave/ogre-next/archive/v${pkgver}.tar.gz"
++        "add-riscv64.patch")
++sha512sums=('62c721680ed77e74b6e1649ab7324bd49fc3c7c2e60ad76a62ec5f899f327d65a140462d75300eac4f41567a8903a748d07a760dc376eddcadf0aeea5a3ca5a7'
++            'e2c3e7abbbfc390accbb8cd783a2e45554cddee39f84c9894e6674bb31d6dc790971192958d65ef5c1ea54cd250328a05c18b569d3659936d7ea382f1d4277c8')
++
++prepare() {
++  patch -Np1 -d ogre-next-${pkgver} < "${srcdir}/add-riscv64.patch"
++}
+ 
+ build() {
+   cd ogre-next-${pkgver}
+@@ -24,6 +30,8 @@ build() {
+     -DOGRE_CONFIG_ENABLE_JSON=ON \
+     -DOGRE_CONFIG_THREADS=1 \
+     -DOGRE_CONFIG_THREAD_PROVIDER="std" \
++    -DOGRE_SIMD_SSE2=OFF \
++    -DOGRE_SIMD_NEON=OFF \
+     -DOGRE_BUILD_COMPONENT_PLANAR_REFLECTIONS=ON \
+     -DOGRE_BUILD_COMPONENT_PROPERTY=ON \
+     -DOGRE_BUILD_COMPONENT_SCENE_FORMAT=ON \
