@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 7c52a9f5..d23eb62f 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,13 +12,16 @@
+ license=('MIT')
+ depends=('glibc' 'gcc-libs')
+ makedepends=('rust' 'cargo' 'python-sphinx')
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/$pkgver.tar.gz")
+-sha512sums=('41a7a6350bfcae4a90b07989e4eca371188ef3f61d253f7c3ad61777282b49efa9b52e433e40a38952a1662f1c8bbf3ec1c14cdb29e53b0a2e91c019828e714c')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/$pkgver.tar.gz"
++        "fix-mismatched-types.patch::https://github.com/uutils/coreutils/commit/9796e70a286cea0df080d440c10cedc649b76ec4.patch")
++sha512sums=('41a7a6350bfcae4a90b07989e4eca371188ef3f61d253f7c3ad61777282b49efa9b52e433e40a38952a1662f1c8bbf3ec1c14cdb29e53b0a2e91c019828e714c'
++            'c9fe55c289a4f65f710ee8a5dccd42e67864d6412fee383fc8305af14bdd6dd6aa595739f706fda699c20ab97ab29eb6a90a2f43b25267c336634d18c53cbf35')
+ options=('!lto')
+ 
+ prepare() {
+   cd $_pkgname-$pkgver
+   sed 's|"bin"|"builduser"|g' -i tests/by-util/test_{chgrp,chown}.rs
++  patch -Np1 -i ../fix-mismatched-types.patch
+ }
+ 
+ build() {
