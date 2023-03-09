@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index 030d439e..e16f3445 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,10 +10,17 @@
+ url="https://github.com/launchbadge/sqlx"
+ depends=('gcc-libs' 'openssl')
+ makedepends=('rust')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/launchbadge/sqlx/archive/refs/tags/v${pkgver}.tar.gz")
+-sha512sums=('d5bab0f4ab6843bd8ab3884d0bb4d4166aa0c82b97edcc6134c94fad076d50bf43d24182aa37c23e0e82ea5e78a7db4ef7b6f878e3112b7224865e0ff98d2716')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/launchbadge/sqlx/archive/refs/tags/v${pkgver}.tar.gz"
++        "allow_let_underscore_lock.patch")
++sha512sums=('d5bab0f4ab6843bd8ab3884d0bb4d4166aa0c82b97edcc6134c94fad076d50bf43d24182aa37c23e0e82ea5e78a7db4ef7b6f878e3112b7224865e0ff98d2716'
++            '9bd65a3f95c387c98d8d0248bdbf52942fd13715555de513c5c52e5cc62d86ce4306bb2796dba564c20ae8e6f084bc8ff785421c74d36f1b297dc75a99061e95')
+ options=('!lto')
+ 
++prepare() {
++    cd "sqlx-$pkgver"
++    patch -p1 -i ../allow_let_underscore_lock.patch # picked from https://github.com/launchbadge/sqlx/commit/b5312c3b6f8e34e757d1441216b6b34a18afd14b
++}
++
+ build() {
+     cd "sqlx-$pkgver/sqlx-cli"
+     cargo build --locked --release
