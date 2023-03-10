@@ -5,17 +5,26 @@ if [[ ! -x ./scripts/config ]]; then
   exit 1
 fi
 
-configs=(
-    '-e' 'SOC_STARFIVE' # StarFive board support
-    '-e' 'SOC_SIFIVE' '-e' 'GPIO_SIFIVE' '-e' 'SIFIVE_CCACHE' '-e' 'EDAC_SIFIVE' '-e' 'PCIE_FU740' '-m' 'PWM_SIFIVE' '-m' 'REGULATOR_DA9063' # SiFive board support
-    '-e' 'ERRATA_THEAD' '-e' 'ERRATA_THEAD_PBMT' # # THead board support
-    '-e' 'SOC_MICROCHIP_POLARFIRE' '-e' 'PCIE_MICROCHIP_HOST' '-e' 'PCIE_XILINX' '-e' 'SERIAL_OF_PLATFORM' '-m' 'USB_MUSB_POLARFIRE_SOC' '-m' 'RTC_DRV_POLARFIRE_SOC' '-m' 'POLARFIRE_SOC_MAILBOX' '-m' 'I2C_MICROCHIP_CORE' '-m' 'POLARFIRE_SOC_SYS_CTRL' '-m' 'HW_RANDOM_POLARFIRE_SOC' # PolarFire board support
-    '-e' 'SOC_VIRT' '-e' 'PCI_HOST_GENERIC' # QEMU support
-    '-m' 'MMC_DW_PLTFM' '-m' 'MMC_DW' '-e' 'POWER_RESET_GPIO' '-e' 'POWER_RESET_GPIO_RESTART'
-)
+if [[ ! -r "$1" ]]; then
+  echo "No defconfig file given!"
+  exit 1
+fi
 
-if [[ -z "$1" ]]; then
+configs=$(grep -v '^#' "$1" | sed 's/^CONFIG_//' |
+    awk -F'=' '
+      {
+        if ($2="y") {
+          print "-e "$1
+        } else if ($2="n") {
+          print "-d "$1
+        } else if ($2="m") {
+          print "-m "$1
+        }
+      }
+      ')
+
+if [[ -z "$2" ]]; then
   ./scripts/config "${configs[@]}"
 else
-  ./scripts/config --file "$1" "${configs[@]}"
+  ./scripts/config --file "$2" "${configs[@]}"
 fi
