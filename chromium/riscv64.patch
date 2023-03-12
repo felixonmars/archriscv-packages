@@ -1,41 +1,46 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -27,6 +27,10 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         https://github.com/foutrelis/chromium-launcher/archive/v$_launcher_ver/chromium-launcher-$_launcher_ver.tar.gz
-         https://github.com/stha09/chromium-patches/releases/download/chromium-${pkgver%%.*}-patchset-$_gcc_patchset/chromium-${pkgver%%.*}-patchset-$_gcc_patchset.tar.xz
-         fix-the-way-to-handle-codecs-in-the-system-icu.patch
+@@ -31,7 +31,12 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
+         REVERT-roll-src-third_party-ffmpeg-m102.patch
+         REVERT-roll-src-third_party-ffmpeg-m106.patch
+         disable-GlobalMediaControlsCastStartStop.patch
+-        use-oauth2-client-switches-as-default.patch)
++        use-oauth2-client-switches-as-default.patch
 +        riscv-angle.patch
 +        riscv-crashpad.patch
 +        riscv-dav1d.patch
-+        riscv-sandbox.patch
-         v8-move-the-Stack-object-from-ThreadLocalTop.patch
-         REVERT-roll-src-third_party-ffmpeg-m102.patch
-         REVERT-roll-src-third_party-ffmpeg-m106.patch
-@@ -36,6 +40,10 @@ sha256sums=('e348ab2dc4311083e729d714a81e95dd9db108ff71437dde451c97ac939881ce'
++        riscv-sandbox.patch)
++
+ sha256sums=('7d5ca0e2bdb22a97713e6bfce74c651006d71aa883056c8e2c2a148039fe4074'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '8c7f93037cc236024cc8be815b2c2bd84f6dc9e32685299e31d4c6c42efde8b7'
-             'a5d5c532b0b059895bc13aaaa600d21770eab2afa726421b78cb597a78a3c7e3'
-+            'f64e280d31e309970c3c5ea8110ff10ed17d5b0a2e42e78ceb0afcb19469c01e'
-+            'fd64211e23ad2b474e51d4d30a7a2e7d0ebb7a665f7a20c5c49264e0fedeacf2'
-+            'fd30767b8587338d1a38165aaaeef7e44a6ea91c4cfa644effaaa363e698796a'
-+            '5881bcfc354c72a6e82fd340578192d1321cb5396e995b14c2e48855b3215d6b'
-             '49c3e599366909ddac6a50fa6f9420e01a7c0ffd029a20567a41d741a15ec9f7'
+             'a016588340f1559198e4ce61c6e91c48cf863600f415cb5c46322de7e1f77909'
+@@ -39,7 +44,11 @@ sha256sums=('7d5ca0e2bdb22a97713e6bfce74c651006d71aa883056c8e2c2a148039fe4074'
              '30df59a9e2d95dcb720357ec4a83d9be51e59cc5551365da4c0073e68ccdec44'
              '4c12d31d020799d31355faa7d1fe2a5a807f7458e7f0c374adf55edb37032152'
-@@ -125,6 +133,12 @@ prepare() {
-   patch -Np1 -i ../patches/chromium-110-CredentialUIEntry-const.patch
-   patch -Np1 -i ../patches/chromium-110-DarkModeLABColorSpace-pow.patch
+             '7f3b1b22d6a271431c1f9fc92b6eb49c6d80b8b3f868bdee07a6a1a16630a302'
+-            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
++            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
++            'fb0738fc32f228cef59e5516dbb4acd8818f1e2ba9db2cfbc21cf72a4ace8c3f'
++            '70f8bcd3dd68c13d1e074415952c0b7e3e3b6058c97d39ba7a78dc17daa30547'
++            'fd30767b8587338d1a38165aaaeef7e44a6ea91c4cfa644effaaa363e698796a'
++            'b56dc00f6de8d0dfaad8d3cca37c061ca26d6fc9feb7ec1726166d5cfeff9a1a')
  
-+  # RISCV64
+ if (( _manual_clone )); then
+   source[0]=fetch-chromium-release
+@@ -121,6 +130,12 @@ prepare() {
+   # https://crbug.com/1314342
+   patch -Np1 -i ../disable-GlobalMediaControlsCastStartStop.patch
+ 
++  # riscv64
 +  patch -Np1 -i ../riscv-angle.patch
 +  patch -Np1 -i ../riscv-crashpad.patch
 +  patch -Np1 -i ../riscv-dav1d.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
 +
+   # Fixes for building with libstdc++ instead of libc++
+ 
    # Link to system tools required by the build
-   mkdir -p third_party/node/linux/node-linux-x64/bin
-   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -180,6 +194,10 @@ build() {
+@@ -178,6 +193,10 @@ build() {
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
