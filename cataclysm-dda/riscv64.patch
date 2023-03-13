@@ -1,21 +1,30 @@
-diff --git PKGBUILD PKGBUILD
-index d506ce88..b95df70c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,11 +15,14 @@ arch=('x86_64')
- license=("CCPL:by-sa")
- depends=('ncurses' 'hicolor-icon-theme' 'gettext')
- makedepends=('sdl2_image' 'sdl2_ttf' 'sdl2_mixer' 'freetype2' 'astyle')
--source=("$pkgname-$_pkgver.tar.gz::https://github.com/CleverRaven/Cataclysm-DDA/archive/$_pkgver.tar.gz")
--md5sums=('4c6d8c5b55973f6a78f59db04b435a32')
-+source=("$pkgname-$_pkgver.tar.gz::https://github.com/CleverRaven/Cataclysm-DDA/archive/$_pkgver.tar.gz"
-+        "disable_gold_on_riscv.patch")
-+md5sums=('4c6d8c5b55973f6a78f59db04b435a32'
-+         'c2eabb11274ef6ecb1ad9534ba52790f')
+@@ -30,15 +30,15 @@ build() {
+   export CXXFLAGS="${CXXFLAGS/-fcf-protection}"
+   export CXXFLAGS="${CXXFLAGS/-fstack-clash-protection}"
  
- prepare() {
+-  make PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 RUNTESTS=0 LOCALIZE=1 LANGUAGES=all
+-  make PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 RUNTESTS=0 LOCALIZE=1 LANGUAGES=all TILES=1 SOUND=1
++  make PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 GOLD=0 RUNTESTS=0 LOCALIZE=1 LANGUAGES=all
++  make PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 GOLD=0 RUNTESTS=0 LOCALIZE=1 LANGUAGES=all TILES=1 SOUND=1
+   ./lang/compile_mo.sh
+ }
+ 
+ package_cataclysm-dda() {
    cd "Cataclysm-DDA-$_pkgver"
-+  patch -Np1 -i "../disable_gold_on_riscv.patch"
-   sed -i 's/-Werror//' Makefile
-   sed -i 's/ncursesw5-config/ncursesw6-config/' Makefile
-   sed -i 's/shell git/shell false/' Makefile
+ 
+-  make DESTDIR="$pkgdir" PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 RUNTESTS=0 LOCALIZE=1 LANGUAGES=all install
++  make DESTDIR="$pkgdir" PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 GOLD=0 RUNTESTS=0 LOCALIZE=1 LANGUAGES=all install
+ 
+   # Docs
+   install -d "$pkgdir/usr/share/doc/cataclysm-dda"
+@@ -71,7 +71,7 @@ package_cataclysm-dda-tiles() {
+   depends=('cataclysm-dda' 'sdl2_image' 'sdl2_ttf' 'freetype2' 'sdl2_mixer')
+   cd "Cataclysm-DDA-$_pkgver"
+ 
+-  make DESTDIR="$pkgdir" PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 LOCALIZE=1 LANGUAGES=all TILES=1 SOUND=1 install
++  make DESTDIR="$pkgdir" PREFIX=/usr PCH=0 RELEASE=1 USE_XDG_DIR=1 LTO=1 GOLD=0 LOCALIZE=1 LANGUAGES=all TILES=1 SOUND=1 install
+ 
+   # Icons
+   cd build-data/osx/AppIcon.iconset
