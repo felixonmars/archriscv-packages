@@ -1,0 +1,66 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,6 +39,7 @@ _mirror="https://download.documentfoundation.org/libreoffice/src/${pkgver}"
+ #_mirror="https://dev-builds.libreoffice.org/pre-releases/src"
+ _additional_source_url="https://dev-www.libreoffice.org/src"
+ _additional_source_url2="https://dev-www.libreoffice.org/extern"
++_additional_source_url3="https://cgit.freedesktop.org/libreoffice/core/plain/bridges/source/cpp_uno/gcc3_linux_riscv64"
+ source=(${_mirror}/libreoffice{,-help,-translations}-${_LOver}.tar.xz{,.asc}
+ 	${_additional_source_url}/35c94d2df8893241173de1d16b6034c0-swingExSrc.zip
+ 	${_additional_source_url}/798b2ffdc8bcfe7bca2cf92b62caf685-rhino1_5R5.zip # keep old bundled version, new system version ftbs
+@@ -64,7 +65,16 @@ source=(${_mirror}/libreoffice{,-help,-translations}-${_LOver}.tar.xz{,.asc}
+         0001_Remove_dependency_on_BitArray.h_from_zxing-1.2.0.patch
+         623ea5c.diff
+ 	soffice-template.desktop.in 
+-	libreoffice-still.sh libreoffice-still.csh)
++	libreoffice-still.sh libreoffice-still.csh
++	${_additional_source_url3}/abi.cxx
++	${_additional_source_url3}/abi.hxx
++	${_additional_source_url3}/call.hxx
++	${_additional_source_url3}/call.s
++	${_additional_source_url3}/cpp2uno.cxx
++	${_additional_source_url3}/except.cxx
++	${_additional_source_url3}/share.hxx
++	${_additional_source_url3}/uno2cpp.cxx
++	add-rv64-support.patch)
+ noextract=(35c94d2df8893241173de1d16b6034c0-swingExSrc.zip
+            798b2ffdc8bcfe7bca2cf92b62caf685-rhino1_5R5.zip
+            a7983f859eafb2677d7ff386a023bc40-xsltml_2.1.2.zip
+@@ -117,7 +127,16 @@ sha256sums=('380ecf12cb37b94a2f5f210d277fc2d1e14b9f14d1d39e09d49135194e6ce18d'
+             '440c9af5f3d1213d8ed7177282380f25cbc981cabc8b590dcb777aaae84178e5'
+             'd0be8099cbee3c9dfda694a828149b881c345b204ab68826f317580aafb50879'
+             'b43ed267643fc5ced803dca010427b12b1f10db485173ccb19efb3395e60c82e'
+-            '66f2cb5d2ff9909ee9633aea73d5306fc8c4ff358fa526f45d9994210d3e23ff')
++            '66f2cb5d2ff9909ee9633aea73d5306fc8c4ff358fa526f45d9994210d3e23ff'
++            'a4605132dd891856ff78e7223dbb78ddfeb328d9d151605e9624c4444c8fee99'
++            'b1845200c0df1109fa825bcb3e874bfae79d9a7a04cde3e61e6c2b92c3aa1c65'
++            '077007f53d27f496a90b8593022f21a62a36c37bfbfcdc47d015dbb43496eb88'
++            'f8abe5fee4ad8fd6a9379492258420bbe1aa4284cf1ab506e2116a70747fcb13'
++            '8da25b703728cb4e53b08fe5cf671a0b2762a592e080a96adef78114ee149b0e'
++            'e0ff0079de44c6b7f96a4f548279d6d958ffc0b7fbdc161ffd4e13e7578746e3'
++            '651d2a23c50332616ec5aad55383dbbb305641e74273aaa1fe4d57bb2c78da9d'
++            'b9fcae5897082553f9da47a96cc147efcc08235e7049a49307a1667c5910d541'
++            '1bfd011625f96937c526368268482695c8c3ad07ced9a1a6e32f60e4ad987f2d')
+ 
+ prepare() {
+ 
+@@ -154,6 +173,10 @@ prepare() {
+ 		esac
+ 		ARCH_FLAGS="$ARCH_FLAGS $i"
+ 	done
++
++	patch -Np0 -i "${srcdir}"/add-rv64-support.patch
++	mkdir bridges/source/cpp_uno/gcc3_linux_riscv64
++	cp ${srcdir}/{abi.cxx,abi.hxx,call.hxx,call.s,cpp2uno.cxx,except.cxx,share.hxx,uno2cpp.cxx} bridges/source/cpp_uno/gcc3_linux_riscv64
+ }
+ 
+ build() {
+@@ -194,7 +217,7 @@ build() {
+ 		--enable-gtk3 \
+ 		--enable-gtk4 \
+ 		--enable-introspection \
+-		--enable-lto \
++		--disable-lto \
+ 		--enable-openssl \
+ 		--enable-odk\
+ 		--enable-python=system \
