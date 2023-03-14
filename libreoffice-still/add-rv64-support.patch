@@ -1,0 +1,253 @@
+--- /dev/null	2023-03-05 19:58:25.675653907 +0100
++++ solenv/gbuild/platform/LINUX_RISCV64_GCC.mk	2023-03-08 08:07:07.860770758 +0100
+@@ -0,0 +1,14 @@
++# -*- Mode: makefile-gmake; tab-width: 4; indent-tabs-mode: t -*-
++#
++# This file is part of the LibreOffice project.
++#
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++#
++
++#please make generic modifications to unxgcc.mk or linux.mk
++
++include $(GBUILDDIR)/platform/linux.mk
++
++# vim: set noet sw=4:
+--- configure.ac.orig	2023-03-07 09:21:52.612247951 +0100
++++ configure.ac	2023-03-07 09:22:00.552309148 +0100
+@@ -5180,6 +5180,11 @@
+         RTL_ARCH=X86_64
+         PLATFORMID=linux_x86_64
+         ;;
++    riscv64)
++        CPUNAME=RISCV64
++        RTL_ARCH=RISCV64
++        PLATFORMID=linux_riscv64
++        ;;
+     *)
+         AC_MSG_ERROR([Unsupported host_cpu $host_cpu for host_os $host_os])
+         ;;
+--- configure.ac.orig	2023-03-07 10:03:07.857481874 +0100
++++ configure.ac	2023-03-07 10:03:15.677539009 +0100
+@@ -8523,7 +8523,7 @@
+         JAVAINTERPRETER=`win_short_path_for_make "$JAVAINTERPRETER"`
+     elif test "$cross_compiling" != "yes"; then
+         case $CPUNAME in
+-            AARCH64|AXP|X86_64|HPPA|IA64|POWERPC64|S390X|SPARC64|GODSON64)
++            AARCH64|AXP|X86_64|HPPA|IA64|POWERPC64|S390X|SPARC64|GODSON64|RISCV64)
+                 if test -f "$JAVAINTERPRETER" -a "`$JAVAINTERPRETER -version 2>&1 | $GREP -i 64-bit`" = "" >/dev/null; then
+                     AC_MSG_WARN([You are building 64-bit binaries but the JDK $JAVAINTERPRETER is 32-bit])
+                     AC_MSG_ERROR([You should pass the --with-jdk-home option pointing to a 64-bit JDK])
+--- bridges/Library_cpp_uno.mk.orig	2023-03-08 08:29:15.669862243 +0100
++++ bridges/Library_cpp_uno.mk	2023-03-08 08:29:05.239759441 +0100
+@@ -186,6 +186,13 @@
+ bridge_asm_objects := call
+ endif
+ 
++else ifeq ($(OS)-$(CPUNAME),LINUX-RISCV64)
++
++bridges_SELECTED_BRIDGE := gcc3_linux_riscv64
++bridge_asm_objects := call
++bridge_noopt_objects := abi cpp2uno uno2cpp
++bridge_exception_objects := except
++
+ endif
+ 
+ $(eval $(call gb_Library_use_internal_comprehensive_api,$(CPPU_ENV)_uno,\
+--- external/firebird/UnpackedTarball_firebird.mk  2023-03-13 10:29:40.796074707 +0100
++++ external/firebird/UnpackedTarball_firebird.mk       2023-03-13 10:31:51.860432742 +0100
+@@ -51,6 +51,7 @@
+     external/firebird/0001-extern-cloop-Missing-dependencies-of-compilations-on.patch.1 \
+     external/firebird/configure-c99.patch \
+     external/firebird/configure-c99.patch \
++    external/firebird/firebird-riscv64-support.patch.1 \
+ ))
+
+ ifeq ($(OS),WNT)
+diff --git external/firebird/firebird-riscv64-support.patch.1 external/firebird/firebird-riscv64-support.patch.1
+new file mode 100644
+index 000000001..c42ebbc15
+--- /dev/null
++++ external/firebird/firebird-riscv64-support.patch.1
+@@ -0,0 +1,168 @@
++diff --git a/builds/posix/prefix.linux_riscv64 b/builds/posix/prefix.linux_riscv64
++new file mode 100644
++index 0000000..17e67e8
++--- /dev/null
+++++ b/builds/posix/prefix.linux_riscv64
++@@ -0,0 +1,28 @@
+++# The contents of this file are subject to the Interbase Public
+++# License Version 1.0 (the "License"); you may not use this file
+++# except in compliance with the License. You may obtain a copy
+++# of the License at http://www.Inprise.com/IPL.html
+++#
+++# Software distributed under the License is distributed on an
+++# "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express
+++# or implied. See the License for the specific language governing
+++# rights and limitations under the License.
+++#
+++# The Original Code was created by Inprise Corporation
+++# and its predecessors. Portions created by Inprise Corporation are
+++# Copyright (C) Inprise Corporation.
+++#
+++# All Rights Reserved.
+++# Contributor(s): ______________________________________.
+++# Start of file prefix.linux:  $(VERSION)  $(PLATFORM)
+++#      14 Apr 2008     Alan Barclay    alan AT escribe.co.uk
+++#      2018, "Manuel A. Fernandez Montecelo" <manuel.montezelo@gmail.com>
+++
+++
+++#LD=@CXX@
+++
+++#PROD_FLAGS=-ggdb -O3 -fno-omit-frame-pointer -DLINUX -pipe -MMD -fPIC
+++#DEV_FLAGS=-ggdb -DLINUX -DDEBUG_GDS_ALLOC -pipe -MMD -p -fPIC -Wall -Wno-switch
+++
+++PROD_FLAGS=-O3 -DLINUX -DRISCV64 -pipe -p -MMD -fPIC -fsigned-char -fmessage-length=0 -std=gnu++03 -fno-delete-null-pointer-checks
+++DEV_FLAGS=-ggdb -DLINUX -DRISCV64 -pipe -p -MMD -fPIC -Wall -fsigned-char -fmessage-length=0 -Wno-non-virtual-dtor
++diff --git a/configure b/configure
++index 34e0676..a287e4b 100755
++--- a/configure
+++++ b/configure
++@@ -3071,6 +3071,20 @@ $as_echo "#define LINUX 1" >>confdefs.h
++     INSTALL_PREFIX=linux
++     PLATFORM=LINUX
++ 
+++$as_echo "#define LINUX 1" >>confdefs.h
+++
+++    EDITLINE_FLG=Y
+++    SHRLIB_EXT=so
+++    STD_EDITLINE=true
+++    STD_ICU=true
+++    libdir=/usr/lib64
+++    ;;
+++
+++  riscv64*-*-linux*)
+++    MAKEFILE_PREFIX=linux_riscv64
+++    INSTALL_PREFIX=linux
+++    PLATFORM=LINUX
+++
++ $as_echo "#define LINUX 1" >>confdefs.h
++ 
++     EDITLINE_FLG=Y
++diff --git a/configure.ac b/configure.ac
++index 9412b10..ed50d32 100644
++--- a/configure.ac
+++++ b/configure.ac
++@@ -251,6 +251,18 @@ dnl CPU_TYPE=ppc64
++     libdir=/usr/lib64
++     ;;
++ 
+++  riscv64*-*-linux*)
+++    MAKEFILE_PREFIX=linux_riscv64
+++    INSTALL_PREFIX=linux
+++    PLATFORM=LINUX
+++    AC_DEFINE(LINUX, 1, [Define this if OS is Linux])
+++    EDITLINE_FLG=Y
+++    SHRLIB_EXT=so
+++    STD_EDITLINE=true
+++    STD_ICU=true
+++    libdir=/usr/lib64
+++    ;;
+++
++   powerpc64le-*-linux*)                           
++     MAKEFILE_PREFIX=linux_powerpc64el
++     INSTALL_PREFIX=linux
++diff --git a/src/common/classes/DbImplementation.cpp b/src/common/classes/DbImplementation.cpp
++index 0c2db79..112da37 100644
++--- a/src/common/classes/DbImplementation.cpp
+++++ b/src/common/classes/DbImplementation.cpp
++@@ -49,6 +49,7 @@ static const UCHAR CpuAlpha = 14;
++ static const UCHAR CpuArm64 = 15;
++ static const UCHAR CpuPowerPc64el = 16;
++ static const UCHAR CpuM68k = 17;
+++static const UCHAR CpuRiscV64 = 18;
++ 
++ static const UCHAR OsWindows = 0;
++ static const UCHAR OsLinux = 1;
++@@ -89,7 +90,8 @@ const char* hardware[] = {
++ 	"Alpha",
++ 	"ARM64",
++ 	"PowerPC64el",
++-	"M68k"
+++	"M68k",
+++	"RiscV64"
++ };
++ 
++ const char* operatingSystem[] = {
++@@ -116,22 +118,23 @@ const char* compiler[] = {
++ // This table lists pre-fb3 implementation codes
++ const UCHAR backwardTable[FB_NELEM(hardware) * FB_NELEM(operatingSystem)] =
++ {
++-//				Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PowerPC64el
++-/* Windows */	50,		68,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* Linux */		60,		66,		65,		69,		86,		71,		72,		75, 	76,		79, 	78,		80,		81,		82,		83,		84,		85,
++-/* Darwin */	70,		73,		0,		63,		77,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* Solaris */	0,		0,		30,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* HPUX */		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		31,		0,		0,		0,
++-/* AIX */			0,		0,		0,		35,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* MVS */			0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* FreeBSD */	61,		67,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* NetBSD */	62,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0
+++//				Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PPC64el	M68k	RiscV64
+++/* Windows */	50,		68,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* Linux */ 	60,		66,		65,		69,		86,		71,		72,		75, 	76,		79, 	78,		80,		81,		82,		83,		84,		85,		87,		88,
+++/* Darwin */	70,		73,		0,		63,		77,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* Solaris */	0,		0,		30,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* HPUX */		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		31,		0,		0,		0,		0,		0,
+++/* AIX */			0,		0,		0,		35,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* MVS */			0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* FreeBSD */	61,		67,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* NetBSD */	62,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0
++ };
++ 
+++
++ const UCHAR backEndianess[FB_NELEM(hardware)] =
++ {
++-//	Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PowerPC64el	M68k
++-	0,		0,		1,		1,		1,		0,		1,		0,		0,		1,		1,		0,		1,		1,		0,		0,		0,		1
+++//	Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PPC64el	M68k	RiscV64
+++	0,		0,		1,		1,		1,		0,		1,		0,		0,		1,		1,		0,		1,		1,		0,		0,		0,		1,		0,
++ };
++ 
++ } // anonymous namespace
++diff --git a/src/common/common.h b/src/common/common.h
++index 58abaaf..365b97e 100644
++--- a/src/common/common.h
+++++ b/src/common/common.h
++@@ -135,6 +135,10 @@
++ #define FB_CPU CpuArm64
++ #endif /* ARM64 */
++ 
+++#ifdef RISCV64
+++#define FB_CPU CpuRiscV64
+++#endif /* RISCV64 */
+++
++ #ifdef sparc
++ #define FB_CPU CpuUltraSparc
++ #define RISC_ALIGNMENT
++diff --git a/src/jrd/inf_pub.h b/src/jrd/inf_pub.h
++index 3cc0128..76469c1 100644
++--- a/src/jrd/inf_pub.h
+++++ b/src/jrd/inf_pub.h
++@@ -245,7 +245,7 @@ enum  info_db_implementations
++ 	isc_info_db_impl_linux_ppc64el = 85,
++ 	isc_info_db_impl_linux_ppc64 = 86,
++ 	isc_info_db_impl_linux_m68k = 87,
++-
+++	isc_info_db_impl_linux_riscv64 = 88,
++ 
++ 	isc_info_db_impl_last_value   // Leave this LAST!
++ };
+--- jvmfwk/inc/vendorbase.hxx.orig	2023-03-14 06:16:32.523210267 +0100
++++ jvmfwk/inc/vendorbase.hxx	2023-03-14 06:17:19.103637327 +0100
+@@ -59,6 +59,8 @@
+ #else
+ #define JFW_PLUGIN_ARCH "mips64el"
+ #endif
++#elif defined RISCV64
++#define JFW_PLUGIN_ARCH "riscv64"
+ #elif defined S390X
+ #define JFW_PLUGIN_ARCH "s390x"
+ #elif defined S390
