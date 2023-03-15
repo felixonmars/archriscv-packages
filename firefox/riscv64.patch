@@ -1,6 +1,6 @@
---- PKGBUILD	(revision 469825)
+--- PKGBUILD	(revision 470796)
 +++ PKGBUILD	(working copy)
-@@ -27,11 +27,9 @@
+@@ -27,7 +27,6 @@
    cbindgen
    clang
    diffutils
@@ -8,22 +8,7 @@
    imake
    inetutils
    jack
--  lld
-   llvm
-   mesa
-   nasm
-@@ -39,10 +37,6 @@
-   python
-   rust
-   unzip
--  wasi-compiler-rt
--  wasi-libc
--  wasi-libc++
--  wasi-libc++abi
-   xorg-server-xvfb
-   yasm
-   zip
-@@ -111,15 +105,22 @@
+@@ -131,15 +130,20 @@
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -34,14 +19,10 @@
  ac_add_options --enable-hardening
 -ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
--ac_add_options --enable-linker=lld
+ ac_add_options --enable-linker=lld
 -ac_add_options --disable-elf-hack
-+# lld is broken
-+ac_add_options --enable-linker=bfd
  ac_add_options --disable-bootstrap
--ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
-+ac_add_options --disable-jit
-+ac_add_options --without-wasm-sandboxed-libraries
+ ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
  
 +ac_add_options --enable-optimize
 +ac_add_options --disable-debug
@@ -51,7 +32,7 @@
  # Branding
  ac_add_options --enable-official-branding
  ac_add_options --enable-update-channel=release
-@@ -126,7 +127,8 @@
+@@ -146,7 +150,8 @@
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -61,7 +42,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -141,7 +143,7 @@
+@@ -161,7 +166,7 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -70,7 +51,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -159,39 +161,41 @@
+@@ -179,39 +184,41 @@
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -143,7 +124,7 @@
  }
  
  package() {
-@@ -259,12 +263,12 @@
+@@ -279,12 +286,12 @@
      ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
    fi
  
