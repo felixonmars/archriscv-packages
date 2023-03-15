@@ -1,17 +1,15 @@
-diff --git PKGBUILD PKGBUILD
-index 1d7846c..4ecf847 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -19,8 +19,11 @@ prepare() {
+@@ -14,8 +14,12 @@ source=(${pkgname}-${pkgver}_src.tar.xz::https://github.com/Warzone2100/warzone2
+ sha256sums=('3c3cb9988600a10f5500909344c881a94951b4a22a54788cb818a8cd3b47e59e')
  
  build() {
-   cd build
--
 +  # ignore cast-align error https://github.com/Warzone2100/warzone2100/pull/1754
 +  CXXFLAGS+=" -Wno-error=cast-align "
-   cmake -G Ninja ../${pkgname} \
+   cmake -B build -S ${pkgname} \
+     -G Ninja \
 +    -DCMAKE_THREAD_PREFER_PTHREAD=TRUE \
 +    -DTHREADS_PREFER_PTHREAD_FLAG=TRUE \
+     -DCMAKE_BUILD_TYPE=None \
      -DCMAKE_INSTALL_PREFIX=/usr \
      -DCMAKE_INSTALL_LIBDIR=lib \
-     -DWZ_DISTRIBUTOR="ArchLinux"
