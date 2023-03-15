@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,17 +9,28 @@ license=(MIT APACHE)
+ makedepends=('cargo' 'git' 'cmake' 'pkg-config' 'rust-bindgen')
+ depends=('libsodium' 'gawk' 'wireguard-tools' 'findutils')
+ provides=('rp' 'rosenpass')
+-source=("${pkgname}-${pkgver}::https://github.com/rosenpass/rosenpass/archive/refs/tags/v${pkgver}.tar.gz")
+-sha512sums=('73e6c69fbf11707502c50d3c1415a6458976216e3323a154cba2b908e379e2a34f454a3511799d191938c9394795c56197dbe1b8fb64b6a13994bf34e21f9fdc')
+-b2sums=('7428950b42583f77ca661071e82dd3d590028afe55182aef4e07b0fce54aa6acea57010c5567d83a48e741b04cb592881ef29e04bb6efbdf9291c80ef60d7d45')
++source=("${pkgname}-${pkgver}::https://github.com/rosenpass/rosenpass/archive/refs/tags/v${pkgver}.tar.gz"
++        liboqs-rust::git+https://github.com/open-quantum-safe/liboqs-rust#tag=v0.7.2
++        oqs-sys-add-cmake-flag.patch)
++sha512sums=('73e6c69fbf11707502c50d3c1415a6458976216e3323a154cba2b908e379e2a34f454a3511799d191938c9394795c56197dbe1b8fb64b6a13994bf34e21f9fdc'
++            'SKIP'
++            '6519e3d12097eefc998d6ad420554545c081462925b9e85468963be483684653ef9008dc6fa93822d44f0912be7157dd1b39d14a73c719434603fb36f1f50e35')
++b2sums=('7428950b42583f77ca661071e82dd3d590028afe55182aef4e07b0fce54aa6acea57010c5567d83a48e741b04cb592881ef29e04bb6efbdf9291c80ef60d7d45'
++        'SKIP'
++        'bc423dd324b0120877a5e6b36255b08c721f87c3ac26129c0986975d1e32397fa509fe50e28dbc6f18e70a3e2353c2da8b7986bcabe2bb8d52d9ff263568c488')
+ options=(!lto)
+ 
+ _bin=rosenpass
+ _script=rp
+ 
+ prepare() {
+-    cd "${pkgname}-${pkgver}"
+-    cargo fetch --locked --target $CARCH-unknown-linux-gnu
++    cd liboqs-rust
++    git submodule update --init --recursive
++    patch -Np1 < ../oqs-sys-add-cmake-flag.patch
++    cd "../${pkgname}-${pkgver}"
++    echo -e "\n[patch.crates-io]\noqs-sys = { path = '../liboqs-rust/oqs-sys' }" >> Cargo.toml
++    cargo update -p oqs-sys
++    cargo fetch --locked
+ }
+ 
+ build() {
