@@ -1,20 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,14 +12,19 @@ depends=('glibc' 'v2ray-domain-list-community' 'v2ray-geoip')
+@@ -12,12 +12,17 @@ license=('MIT')
+ depends=('glibc' 'v2ray-domain-list-community' 'v2ray-geoip')
  makedepends=('go' 'git')
  backup=(etc/v2ray/config.json)
- source=("https://github.com/v2fly/v2ray-core/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
--        $pkgname-prefix-checking-fix.patch::https://github.com/v2fly/v2ray-core/commit/1b0e046c9934bf872f2e886a215c5d23da054d86.patch)
-+        $pkgname-prefix-checking-fix.patch::https://github.com/v2fly/v2ray-core/commit/1b0e046c9934bf872f2e886a215c5d23da054d86.patch
+-source=("git+https://github.com/v2fly/v2ray-core.git#commit=$_commit")
+-sha512sums=('SKIP')
++source=("git+https://github.com/v2fly/v2ray-core.git#commit=$_commit"
 +        "$pkgname-InitializeServerConfig-sleep.patch::https://github.com/v2fly/v2ray-core/pull/1786.patch")
- sha512sums=('a25d990e7f938319720e067a1de795ffc4a8a5c688cbba13be89f9c9f606181673101eb11b80ceb3fab15de67656f5d59f0d6ddc6f7c0084f496d4ad55517d6a'
--            'f5c14f2c704d2a32380d6300c4c8808ba59f5c94ebcb42305cef85fbd3fac416893dce0658bdbdefb7f6ce44bcd37a22d5d5e9a59393f795ad7a61377f573872')
-+            'f5c14f2c704d2a32380d6300c4c8808ba59f5c94ebcb42305cef85fbd3fac416893dce0658bdbdefb7f6ce44bcd37a22d5d5e9a59393f795ad7a61377f573872'
++sha512sums=('SKIP'
 +            '36553288b92bbf7d1ae65cc9efec95f1ca695f73e17804a72270e96382c685dea1dcae69ecfd9603bf7af0cf730080ac59c61c4b91cb724191e985032d5a5a03')
  
  prepare() {
-   cd v2ray-core-$pkgver
-   patch -p1 < ../$pkgname-prefix-checking-fix.patch
+   cd v2ray-core
    sed -i 's|/usr/local/bin|/usr/bin|;s|/usr/local/etc|/etc|' release/config/systemd/system/*.service
 +
 +  # wait enough time for v2ray to start
