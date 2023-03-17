@@ -1,0 +1,40 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,6 +35,7 @@ build() {
+   export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
+   # NOTE: this ensures the binaries have full RELRO
+   export GO_LDFLAGS="-linkmode=external"
++  export _GOARCH=$(go env GOARCH)
+ 
+   make -C $pkgbase
+ 
+@@ -42,16 +43,16 @@ build() {
+   mkdir -vp completions
+   local _binary
+   for _binary in crictl; do
+-    $pkgbase/build/bin/linux/amd64/$_binary completion bash > completions/$_binary
+-    $pkgbase/build/bin/linux/amd64/$_binary completion zsh > completions/_$_binary
+-    $pkgbase/build/bin/linux/amd64/$_binary completion fish > completions/$_binary.fish
++    $pkgbase/build/bin/linux/$_GOARCH/$_binary completion bash > completions/$_binary
++    $pkgbase/build/bin/linux/$_GOARCH/$_binary completion zsh > completions/_$_binary
++    $pkgbase/build/bin/linux/$_GOARCH/$_binary completion fish > completions/$_binary.fish
+   done
+ }
+ 
+ package_crictl() {
+   pkgdesc="A CLI for CRI-compatible container runtimes"
+ 
+-  install -vDm 755 $pkgbase/build/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin/"
++  install -vDm 755 $pkgbase/build/bin/linux/$_GOARCH/$pkgname -t "$pkgdir/usr/bin/"
+   # shell completion
+   install -vDm 644 completions/$pkgname -t "$pkgdir/usr/share/bash-completion/completions/"
+   install -vDm 644 completions/_$pkgname -t "$pkgdir/usr/share/zsh/site-functions/"
+@@ -65,7 +66,7 @@ package_crictl() {
+ package_critest() {
+   pkgdesc="A benchmarking CLI for CRI-compatible container runtimes"
+ 
+-  install -vDm 755 $pkgbase/build/bin/linux/amd64/$pkgname -t "$pkgdir/usr/bin/"
++  install -vDm 755 $pkgbase/build/bin/linux/$_GOARCH/$pkgname -t "$pkgdir/usr/bin/"
+   # docs
+   install -vDm 644 $pkgbase/docs/{benchmark,validation}.md -t "$pkgdir/usr/share/doc/$pkgname/"
+   install -vDm 644 $pkgbase/{{CHANGELOG,CONTRIBUTING,README,code-of-conduct}.md,SECURITY_CONTACTS} -t "$pkgdir/usr/share/doc/$pkgname/"
