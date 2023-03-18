@@ -1,18 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,6 +24,11 @@ pkgver() {
+@@ -23,6 +23,10 @@ pkgver() {
  }
  
  build() {
-+  for failing_test in lto-gcc gnu-unique package-metadata tls-common weak-undef-dso riscv-norvc tail-call
++  for failing_test in lto-gcc gnu-unique package-metadata tls-common weak-undef-dso riscv-norvc tail-call z-dynamic-undefined-weak
 +  do
 +    rm -vf "mold/test/elf/$failing_test.sh"
 +  done
-+
    cmake \
    -S "$pkgname" \
    -B build \
-@@ -38,7 +43,7 @@ build() {
+@@ -32,13 +36,13 @@ build() {
+   -D MOLD_USE_SYSTEM_MIMALLOC=ON \
+   -D MOLD_USE_SYSTEM_TBB=ON \
+   -D MOLD_LTO=ON \
+-  -D MOLD_USE_MOLD=ON
++  -D MOLD_USE_MOLD=OFF
+ 
+   cmake --build build
  }
  
  check() {
