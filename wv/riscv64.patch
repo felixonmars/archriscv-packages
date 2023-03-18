@@ -1,12 +1,15 @@
 diff --git PKGBUILD PKGBUILD
-index 82c5ed8..8940b6d 100644
+index efbf2cba..ebbc08a6 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,6 +15,7 @@ sha1sums=('db4717a151742dbdb492318f104504a92075543a')
+@@ -28,7 +28,9 @@ b2sums=('6a6aa6b5f87a934c703c8a74d85af3d7aa84dcd2bc613a3af7fb8d69a9339e71ba2618a
+         '18641a15c75a32250012771bd8ca8b0739f503ef8d1d2eebe23f2d378996aa3f6e2f0cfa72f8077add3db33f8ece86c57e80cc5b868719472b45ba1bed10a7d0')
+ 
+ prepare() {
+-  patch -Np1 -d $pkgname-$pkgver -i ../$pkgname-1.2.9-format_security.patch
++  cd "$pkgname-$pkgver"
++  patch -Np1 -i "$srcdir/$pkgname-1.2.9-format_security.patch"
++  cp -v "/usr/share/autoconf/build-aux/config.guess" "/usr/share/autoconf/build-aux/config.sub" .
+ }
+ 
  build() {
-   cd $pkgname-$pkgver
-
-+  CFLAGS+=" -Wno-error=format-security"
-   ./configure --prefix=/usr \
-     --mandir=/usr/share/man --disable-static
-   sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
