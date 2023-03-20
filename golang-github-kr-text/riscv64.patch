@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,8 +8,16 @@ arch=('any')
+ url="https://github.com/kr/text"
+ license=('MIT')
+ depends=('go' 'golang-github-kr-pty')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/kr/text/archive/v$pkgver.tar.gz")
+-sha512sums=('69c73f437834b6c07a5c47c51bfd726ec1709939622d5bfa419deac449858e519f01fce0e5abe734ab502249914e526ae6437b8d3462f05cd5b414da9bb145c1')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/kr/text/archive/v$pkgver.tar.gz"
++		"fix-missing-entry.patch")
++sha512sums=('69c73f437834b6c07a5c47c51bfd726ec1709939622d5bfa419deac449858e519f01fce0e5abe734ab502249914e526ae6437b8d3462f05cd5b414da9bb145c1'
++			'52a4a6b15ff39a9025d2f579b13643c23095dbd52079812fc06e3f808584bf60337cbf4ec3bbd7f97bbe0abc4a429e68a7820bb3c7373b8a4b97c04a400a8d13')
++
++prepare() {
++	export GOPROXY=https://goproxy.io,direct
++	cd text-$pkgver
++	patch -Np1 -i ../fix-missing-entry.patch
++}
+ 
+ check() {
+   export GOPATH="$srcdir/build:/usr/share/gocode"
