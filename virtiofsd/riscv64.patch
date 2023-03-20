@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,16 +11,21 @@ depends=(gcc-libs glibc libcap-ng libseccomp)
+ makedepends=(cargo)
+ provides=(virtiofsd-provider)
+ conflicts=(virtiofsd-provider)
+-source=($url/-/archive/v$pkgver/$pkgname-v$pkgver.tar.gz)
+-sha512sums=('a50b3fac6d5eafc691ef4fc8808acb4dc03261f01623f6675a234d457231f96181e9cf6c8ac68b4fe1b1c97257faf56bc6d0c2776142c9dbfe82b4e9bde0e34a')
+-b2sums=('52c86ab9d4842ecd496aed3f09a98be96d7ee0eda43a2519eb066be1f648963b155386f9eac1a1c878c12fd05d928f88700c6a7a840c0f34dfa6f86caab15fec')
++source=($url/-/archive/v$pkgver/$pkgname-v$pkgver.tar.gz
++	remove-unsupport-syscall.patch)
++sha512sums=('a50b3fac6d5eafc691ef4fc8808acb4dc03261f01623f6675a234d457231f96181e9cf6c8ac68b4fe1b1c97257faf56bc6d0c2776142c9dbfe82b4e9bde0e34a'
++            '525a8fbdf78138d68e300b554d269821c19cc655ed5bce84fd8a6505a49fe1da593376bda0b4ba8075df1470a08a6e9a722b056dd7dddf68413430c3cc4bb58a')
++b2sums=('52c86ab9d4842ecd496aed3f09a98be96d7ee0eda43a2519eb066be1f648963b155386f9eac1a1c878c12fd05d928f88700c6a7a840c0f34dfa6f86caab15fec'
++        '721ab5d4dffbebaa39a3b65cc5e7ff474e6e0c1825867807804d8630ead90c70328a88096b63c18316990ba84edb37b9ce8e8494cc350e13d2402e9a00779ab4')
+ 
+ prepare() {
+   cd $pkgname-v$pkgver
+   # use /usr/lib instead of /usr/libexec: https://gitlab.com/virtio-fs/virtiofsd/-/issues/86
+   sed 's/libexec/lib/' -i 50-qemu-$pkgname.json
+ 
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  # remove riscv64 unsupport syscall
++  patch -p0 -Ni ${srcdir}/remove-unsupport-syscall.patch
++  cargo fetch --locked
+ }
+ 
+ build() {
