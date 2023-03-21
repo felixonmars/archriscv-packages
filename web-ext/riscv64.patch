@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,13 +18,20 @@ conflicts=('nodejs-web-ext')
+ options=('!strip')
+ # tarball on npmjs lacks scripts for building from sources
+ source=("https://github.com/mozilla/web-ext/archive/$pkgver/web-ext-$pkgver.tar.gz"
+-        "nodejs19.diff")
++        "nodejs19.diff"
++	"web-ext-no-jit.patch")
+ sha256sums=('5a1f57be9be07c231a62a88e328eecde4bd6cabcb240e1147ae38431d9935493'
+-            '9475a50851a8442dd8edad55f5b678923808396eedfae45dd29a960cc0646529')
++            '9475a50851a8442dd8edad55f5b678923808396eedfae45dd29a960cc0646529'
++            '4e6742f7a0001fb0c032daaa7a63fe98d092ee521da65749c78af478b088d931')
+ 
+ prepare() {
+   cd "$srcdir"
+ 
++  # Disable V8's buggy JIT
++  pushd $pkgname-$pkgver
++  patch -Np1 -i ../web-ext-no-jit.patch
++  popd
++
+   # Make tests pass with Node.js 19 https://github.com/mozilla/web-ext/issues/2564
+   pushd $pkgname-$pkgver
+   patch -Np1 -i ../nodejs19.diff
+@@ -50,7 +57,7 @@ check() {
+ 
+   # web-ext uses flow-bin, which does not support some architectures (e.g., RISC-V)
+   # Some tests match error messages and fail if messages are translated
+-  LANG=C.UTF-8 CI_SKIP_FLOWCHECK=y npm test
++  LANG=C.UTF-8 CI_SKIP_FLOWCHECK=y MOCHA_TIMEOUT=100000 npm test
+ }
+ 
+ package() {
