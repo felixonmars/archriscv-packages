@@ -1,22 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,12 +13,18 @@ depends=(bzip2
+@@ -13,12 +13,16 @@ depends=(bzip2
           fuse2)
  makedepends=(cargo)
  _archive="$_pkgname-$pkgver"
 -source=("$url/archive/v$pkgver/$_archive.tar.gz")
--sha256sums=('f5756004061f974e79607224864ceb3fdd50367272cc58aa5a755929cf1c70a3')
+-sha256sums=('c3dbd44dbdcfa69808dbe4d291453b8187a2302593fde5e7a88e6affeaeb25bf')
 +source=("$url/archive/v$pkgver/$_archive.tar.gz"
 +        "fix_rage_deps.patch")
-+sha256sums=('f5756004061f974e79607224864ceb3fdd50367272cc58aa5a755929cf1c70a3'
++sha256sums=('c3dbd44dbdcfa69808dbe4d291453b8187a2302593fde5e7a88e6affeaeb25bf'
 +            '3c38c189646bdb712527a3ae4118dc72c5746576b1e90510e914342a0225de03')
  
  prepare() {
  	cd "$_archive"
 -	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+
 +	patch -Np1 -i ../fix_rage_deps.patch # pprof-rs add riscv64 support, but not published to crates.io
-+
 +	cargo update -p pprof
 +	cargo fetch --locked
  }
