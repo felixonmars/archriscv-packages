@@ -1,0 +1,112 @@
+diff --git a/Namcap/rules/sodepends.py b/Namcap/rules/sodepends.py
+index 5eea95b..c79265c 100644
+--- a/Namcap/rules/sodepends.py
++++ b/Namcap/rules/sodepends.py
+@@ -20,7 +20,7 @@
+ # 
+ 
+ """Checks dependencies resulting from linking of shared libraries."""
+-
++import platform
+ from collections import defaultdict
+ import re
+ import os
+@@ -34,7 +34,49 @@ from Namcap.rules.runpath import get_runpaths
+ from elftools.elf.elffile import ELFFile
+ from elftools.elf.dynamic import DynamicSection
+ 
+-libcache = {'i686': {}, 'x86-64': {}}
++
++libcache = defaultdict(dict)
++
++# see glibc: elf/cache.c: print_entry
++LDCONFIG_FLAGS_ARCH_IDENT_MAP = {
++	'x86_64': {
++		'x86-64': ('EM_X86_64', 64),
++		'': ('EM_386', 32),
++	},
++	'i686': {
++		'': ('EM_386', 32),
++	},
++	'aarch64': {
++		'AArch64': ('EM_AARCH64', 64)
++	},
++	'riscv64': {
++		'double-float': ('EM_RISCV', 64),
++	}
++}
++
++
++def ldconfig_flags_to_arch_ident(flagstr: str):
++	machine = platform.machine()
++	flagstr = flagstr.split(", ", maxsplit=1)[0]  # throw away hwcap and/or OS ABI
++	flags = flagstr.split(",", maxsplit=1)
++
++	f_type = flags[0]
++	if f_type == "unknown":
++		return None
++
++	f_required = ""
++	if len(flags) > 1:
++		f_required = flags[1]
++
++	try:
++		return LDCONFIG_FLAGS_ARCH_IDENT_MAP[machine][f_required]
++	except KeyError:
++		return None
++
++
++def elf_arch_ident(elf: ELFFile):
++	return elf.header.e_machine, elf.elfclass
++
+ 
+ def scanlibs(fileobj, filename, custom_libs, liblist, libdepends, libprovides):
+ 	"""
+@@ -47,12 +89,12 @@ def scanlibs(fileobj, filename, custom_libs, liblist, libdepends, libprovides):
+ 		return {}
+ 
+ 	elffile = ELFFile(fileobj)
++	arch_ident = elf_arch_ident(elffile)
+ 	for section in elffile.iter_sections():
+ 		if not isinstance(section, DynamicSection):
+ 			continue
+ 		for tag in section.iter_tags():
+ 			bitsize = elffile.elfclass
+-			architecture = {32:'i686', 64:'x86-64'}[bitsize]
+ 			# DT_SONAME means it provides a library
+ 			if tag.entry.d_tag == 'DT_SONAME' and os.path.dirname(filename) in ['usr/lib', 'usr/lib32']:
+ 				soname = re.sub(r'\.so.*', '.so', tag.soname)
+@@ -68,7 +110,7 @@ def scanlibs(fileobj, filename, custom_libs, liblist, libdepends, libprovides):
+ 				libpath = custom_libs[libname][1:]
+ 				continue
+ 			try:
+-				libpath = os.path.abspath(libcache[architecture][libname])[1:]
++				libpath = os.path.abspath(libcache[arch_ident][libname])[1:]
+ 			except KeyError:
+ 				# We didn't know about the library, so add it for fail later
+ 				libpath = libname
+@@ -125,6 +167,7 @@ def finddepends(libdepends):
+ 	orphans = list(knownlibs - foundlibs)
+ 	return dependlist, libdependlist, orphans, missing_provides
+ 
++
+ def filllibcache():
+ 	var = subprocess.Popen('ldconfig -p', 
+ 			env = {"LANG": "C"},
+@@ -134,12 +177,10 @@ def filllibcache():
+ 	libline = re.compile(r'\s*(.*) \((.*)\) => (.*)')
+ 	for j in var[0].decode('ascii').splitlines():
+ 		g = libline.match(j)
+-		if g != None:
+-			if g.group(2).startswith('libc6,x86-64'):
+-				libcache['x86-64'][g.group(1)] = g.group(3)
+-			else:
+-				# TODO: This is bogus; what do non x86-architectures print?
+-				libcache['i686'][g.group(1)] = g.group(3)
++		if g:
++			arch_ident = ldconfig_flags_to_arch_ident(g.group(2))
++			if arch_ident:
++				libcache[arch_ident][g.group(1)] = g.group(3)
+ 
+ 
+ class SharedLibsRule(TarballRule):
