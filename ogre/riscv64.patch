@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,12 +9,15 @@ license=('custom:MIT')
+ depends=('freeimage' 'freetype2' 'libxaw' 'libxrandr' 'sdl2' 'glu' 'pugixml' 'zlib')
+ makedepends=('cmake' 'doxygen' 'graphviz' 'ttf-dejavu' 'mesa' 'python' 'ninja' 'cppunit' 'swig')
+ install=ogre.install
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/OGRECave/ogre/archive/v${pkgver}.tar.gz")
++source=("$pkgname-$pkgver.tar.gz::https://github.com/OGRECave/ogre/archive/v${pkgver}.tar.gz"
++        "fix-ctest-timeout.patch")
+ optdepends=('python: python bindings')
+-sha512sums=('cfb3127d9f2059877141de46a42769a718560bf0343c46c9374ea6e2f442de50d697847f3c5775b92b74193e20cf4c92da6ec176a9a82729f7f2feb9393df819')
++sha512sums=('cfb3127d9f2059877141de46a42769a718560bf0343c46c9374ea6e2f442de50d697847f3c5775b92b74193e20cf4c92da6ec176a9a82729f7f2feb9393df819'
++            '5fe43007e8a5894de228d92d12bcef94a09773e40c7219566bfeae3b3639c580d28273b7f6854ae76b498552636c1423cc9ba92b30d53c63ed6a9d3276bca4a3')
+ 
+ prepare() {
+   cd ogre-${pkgver}
++  patch -Np1 -i ../fix-ctest-timeout.patch
+   sed -i 's|set(PYTHON_SITE_PACKAGES lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/dist-packages/Ogre/)|set(PYTHON_SITE_PACKAGES lib/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/dist-packages/Ogre/ CACHE FILEPATH "")|' Components/Python/CMakeLists.txt
+ }
+ 
