@@ -1,20 +1,44 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,8 +9,11 @@ _myver=${pkgver/_rel*}
- pkgrel=2
+@@ -9,19 +9,25 @@ _myver=${pkgver/_rel*}
+ pkgrel=1
  arch=('x86_64')
  makedepends=('cmake' 'zlib' 'lz4' 'zstd' 'libaio' 'systemd-tools' 'pam' 'numactl' 'jemalloc' 'openssl'
 -             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'libfido2') # 'boost'
--options=('debug')
 +             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'libfido2' 'clang') # 'boost'
+ license=('GPL')
 +# Can't use -Wl,-plugin-opt=-target-abi=lp64d, because both CFLAGS and CXXFLAGS need it,
 +# but specifying both will cause LLVMgold to complain about multiple -target-abi.
 +# Also, -ffat-lto-objects can't resolve the compile error here. We have to set !lto
-+options=('debug' '!lto')
- license=('GPL')
++options=('!lto')
  url="https://www.percona.com/software/mysql-database/percona-server"
  source=("https://www.percona.com/downloads/Percona-Server-${pkgver%.*_*}/Percona-Server-$_pkgver/source/tarball/percona-server-$_pkgver.tar.gz"
-@@ -50,9 +53,11 @@ build() {
+         "https://boostorg.jfrog.io/artifactory/main/release/$_boost_ver/source/boost_${_boost_ver//./_}.tar.gz"
+         'my.cnf'
+         'mysql-user.conf'
+-        'mysqlrouter-user.conf')
++        'mysqlrouter-user.conf'
++        'add-riscv-support.patch::https://patch-diff.githubusercontent.com/raw/percona/percona-server/pull/5030.patch')
+ sha256sums=('04ea622f8914a1d15fb7f649ff4c556a81f351f21c7fb74a36e43ecf600a1827'
+             '5347464af5b14ac54bb945dc68f1dd7c56f0dad7262816b956138fc53bcc0131'
+             'b467b04d6d06152b2abc33f2a6de63fef0fc922dd5119d2ee1d07d3c1a489731'
+             '5d7710fe88ec6d298175a309c0b776142397b119c468830b2865980292ed5da6'
+-            '4ca7ffdcb2d1716d4f31e4c7dd314e5d76e64f13fdc67c5d81c53650b793f5e0')
++            '4ca7ffdcb2d1716d4f31e4c7dd314e5d76e64f13fdc67c5d81c53650b793f5e0'
++            'c135a6e53ec354e806bf984561b8adfa540fc2a2f0e039e3446ab596314412b8')
+ 
+ prepare() {
+ 	cd $pkgbase-$_pkgver
+@@ -38,6 +44,8 @@ prepare() {
+ 
+ 	sed '/^PrivateTmp=/ a StateDirectory=mysqlrouter\nRuntimeDirectory=mysqlrouter' \
+ 		-i scripts/systemd/mysqlrouter.service.in
++
++	patch -Np1 -i ../add-riscv-support.patch
+ }
+ 
+ build() {
+@@ -45,9 +53,11 @@ build() {
  	mkdir -p build
  	cd build
  
