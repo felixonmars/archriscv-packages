@@ -14,9 +14,8 @@ configs=(
     '-m' 'MMC_DW_PLTFM' '-m' 'MMC_DW'
 )
 
-if [[ -n "$1" ]]; then
+if [[ -z "$1" ]]; then
   ./scripts/config "${configs[@]}"
-elif
+else
   ./scripts/config --file "$1" "${configs[@]}"
 fi
-
