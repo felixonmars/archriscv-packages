@@ -1,15 +1,16 @@
+diff --git PKGBUILD PKGBUILD
+index f52a8e0..b2822aa 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -5,7 +5,7 @@
- # Contributor: userwithuid <userwithuid@gmail.com>
- 
+@@ -7,7 +7,6 @@
  pkgbase=rust
--pkgname=(rust lib32-rust-libs rust-musl rust-wasm rust-src)
-+pkgname=(rust rust-musl rust-wasm rust-src)
- epoch=1
- pkgver=1.68.0
- pkgrel=1
-@@ -28,7 +28,6 @@ depends=(
+ pkgname=(
+   rust
+-  lib32-rust-libs
+   rust-musl
+   rust-wasm
+   rust-src
+@@ -34,7 +33,6 @@ depends=(
  )
  makedepends=(
    cmake
@@ -17,13 +18,13 @@
    libffi
    lld
    llvm
-@@ -49,13 +48,15 @@ source=(
+@@ -55,13 +53,15 @@ source=(
    0001-bootstrap-Change-libexec-dir.patch
    0002-compiler-Change-LLVM-targets.patch
    0003-compiler-Use-wasm-ld-for-wasm-targets.patch
 +  jemalloc-sys-pick.patch
  )
- b2sums=('cff56d29a5325cfcc5a50d492f73c15d92434bfdfd5cabfa84be61f815e546d4ac8786c00c1db668e6c8216e1c00d898ef448f6cfd7ea2ffdeaf1a51de68b124'
+ b2sums=('acc31c33a4b9ed7af2866007b995a8be074fc87d31ee20540b4caa926277e5f7982c8cecd16f25d6e4fa4986f1181a30f5c0260ec6b9cf6260c742b2a94c1581'
          'SKIP'
          'dce1c2340b172753b9d56dcc9d401e4cd9c66d64721c97e256974c18f17b0489e65e3732ef4e15538ea6e07c34f1269775a51c0c7c72e63a62f41ff258ce9ec2'
          '01dee52ef899c0545cde37b5e1ba3ecfd5def3785145ed9f440df12945885311b63ff974294c1efed65b25b01bdb5cea37d7830e8d9775daefec8c1bcd3e159b'
@@ -34,7 +35,7 @@
  validpgpkeys=(108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
                474E22316ABF4785A88C6E8EA2C794A986419D8A) # Tom Stellard <tstellar@redhat.com>
  
-@@ -73,6 +74,12 @@ prepare() {
+@@ -79,6 +79,12 @@ prepare() {
    # Use our wasm-ld
    patch -Np1 -i ../0003-compiler-Use-wasm-ld-for-wasm-targets.patch
  
@@ -47,7 +48,7 @@
    cat >config.toml <<END
  changelog-seen = 2
  profile = "user"
-@@ -82,9 +89,8 @@ link-shared = true
+@@ -88,9 +94,8 @@ link-shared = true
  
  [build]
  target = [
@@ -59,7 +60,7 @@
    "wasm32-unknown-unknown",
    "wasm32-wasi",
  ]
-@@ -132,22 +138,18 @@ deny-warnings = false
+@@ -138,22 +143,18 @@ deny-warnings = false
  [dist]
  compression-formats = ["gz"]
  
@@ -86,7 +87,7 @@
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -185,9 +187,7 @@ build() {
+@@ -191,9 +192,7 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -97,7 +98,7 @@
  
    mkdir -p usr/share/bash-completion
    mv etc/bash_completion.d usr/share/bash-completion/completions
-@@ -195,8 +195,7 @@ build() {
+@@ -201,8 +200,7 @@ build() {
    mkdir -p usr/share/licenses/rust
    mv -t usr/share/licenses/rust usr/share/doc/rust/{COPYRIGHT,LICENSE*}
  
@@ -107,7 +108,7 @@
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -225,22 +224,6 @@ package_rust() {
+@@ -231,22 +229,6 @@ package_rust() {
    cp -a dest-rust/* "$pkgdir"
  }
  
