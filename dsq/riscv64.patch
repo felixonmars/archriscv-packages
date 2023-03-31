@@ -1,0 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index 83ac605a..cefb4201 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,10 @@ makedepends=('git' 'go')
+ checkdepends=('python' 'jq' 'p7zip')
+ options=('!lto')
+ _commit='0ff1a1218f57fbd81d9dae48e82cbe3f24572b88'
+-source=("$pkgname::git+$url.git#commit=$_commit")
+-md5sums=('SKIP')
++source=("$pkgname::git+$url.git#commit=$_commit"
++        "fix-test-timeout.patch")
++md5sums=('SKIP'
++         'b6198fcd92c00b9ee5be7b65e6a0be78')
+ 
+ pkgver() {
+   cd "$pkgname"
+@@ -26,6 +28,8 @@ prepare() {
+ 
+   # download dependencies
+   go mod download
++
++  patch -Np1 -i ../fix-test-timeout.patch
+ }
+ 
+ build() {
