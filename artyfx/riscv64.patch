@@ -1,12 +1,10 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 1030836)
-+++ PKGBUILD	(working copy)
-@@ -10,9 +10,12 @@
- groups=('lv2-plugins' 'pro-audio')
- depends=('cairo' 'gcc-libs' 'glibc' 'libx11' 'lv2-host')
- makedepends=('cmake' 'lv2' 'libsndfile')
--source=("$pkgname-$pkgver.tar.gz::https://github.com/openAVproductions/openAV-${pkgname}/archive/release-${pkgver}.tar.gz")
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,17 +23,26 @@ makedepends=(
+   libsndfile
+   lv2
+ )
+-source=(https://github.com/openAVproductions/openAV-$pkgname/archive/release-$pkgver/$pkgname-release-$pkgver.tar.gz)
 -sha512sums=('7fe84783f460e5ac62d715990a7140259b8e2f1e0a531cf6cde63dadfb51e934abd17c81a8c280699279c0af2aa74ee05e073d32539d99fa37d83a0b1cfc0c49')
 -b2sums=('cd858f64743529084130b5b4d8851ddddd8d69d8aada3a63e0634a41057390e858e5c5d7591fc45cea2c46644a6a3bd086d3ce5cac73bc61e94cd28f7046cc06')
 +source=("$pkgname-$pkgver.tar.gz::https://github.com/openAVproductions/openAV-${pkgname}/archive/release-${pkgver}.tar.gz"
@@ -15,22 +13,21 @@ Index: PKGBUILD
 +            '8adc6118d473c968958007da1a4a5b9e9c730a35f4f7ffe1ec09f1214be6f0894e1c0e32f5d263c410126b5ee3003fc2db40ca0e8b6bb42712d8642bf9b930c6')
 +b2sums=('cd858f64743529084130b5b4d8851ddddd8d69d8aada3a63e0634a41057390e858e5c5d7591fc45cea2c46644a6a3bd086d3ce5cac73bc61e94cd28f7046cc06'
 +        'c556e4a76ccf5becb4c5c0c600ad0ff7c40b6b6da2b0832f81b8756440d083df0027b96439eaac3aca84562311fe4c00e0dd51f88abf34eca2bbb0ee19b68909')
- 
- prepare() {
-   mv -v "openAV-ArtyFX-release-${pkgver}" "${pkgname}-${pkgver}"
-@@ -20,10 +23,14 @@
- 
+
  build() {
-   cd "$pkgname-$pkgver"
++  cd openAV-ArtyFX-release-$pkgver
 +  # replace -lpthread with pthread
 +  sed -i 's/-lpthread/-pthread/g' CMakeLists.txt
 +  # disable sse https://github.com/openAVproductions/openAV-ArtyFX/issues/47
 +  patch -Np1 -i ../disable-sse.patch
-   cmake -DCMAKE_INSTALL_PREFIX=/usr \
-         -DCMAKE_BUILD_TYPE=None \
-         -DBUILD_GUI=ON \
--        -DBUILD_SSE=ON \
-+        -DBUILD_SSE=OFF \
-         -Wno-dev \
-         -Bbuild \
-         -S .
++  cd ..
+   local cmake_options=(
+     -B build
+     -D CMAKE_BUILD_TYPE=None
+     -D CMAKE_INSTALL_PREFIX=/usr
+     -D BUILD_GUI=ON
+-    -D BUILD_SSE=ON
++    -D BUILD_SSE=OFF
+     -S openAV-ArtyFX-release-$pkgver
+     -W no-dev
+   )
