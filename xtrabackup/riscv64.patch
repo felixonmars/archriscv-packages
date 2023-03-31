@@ -1,24 +1,32 @@
-diff --git PKGBUILD PKGBUILD
-index 534fed20..de2dcc7f 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -10,9 +10,9 @@ arch=('x86_64')
+@@ -10,20 +10,26 @@ arch=('x86_64')
  url='https://www.percona.com/software/mysql-database/percona-xtrabackup'
  license=('GPL')
  depends=('libaio' 'libev' 'libgcrypt' 'curl' 'perl-dbd-mysql' 'numactl')
 -makedepends=('cmake' 'python-sphinx' 'zlib' 'vim' 'libedit' 'libevent' 'protobuf' 're2')
 +makedepends=('cmake' 'python-sphinx' 'zlib' 'vim' 'libedit' 'libevent' 'protobuf' 're2' 'clang')
  optdepends=('qpress: for compressed backups')
--options=('debug')
-+options=('debug' '!lto')
++options=('!lto')
  source=("https://www.percona.com/downloads/Percona-XtraBackup-LATEST/Percona-XtraBackup-${pkgver//_/-}/source/tarball/percona-xtrabackup-${pkgver//_/-}.tar.gz"
-         "https://boostorg.jfrog.io/artifactory/main/release/$_boost_ver/source/boost_${_boost_ver//./_}.tar.gz")
+-        "https://boostorg.jfrog.io/artifactory/main/release/$_boost_ver/source/boost_${_boost_ver//./_}.tar.gz")
++        "https://boostorg.jfrog.io/artifactory/main/release/$_boost_ver/source/boost_${_boost_ver//./_}.tar.gz"
++        "add-riscv-support.patch::https://patch-diff.githubusercontent.com/raw/percona/percona-xtrabackup/pull/1443.diff")
  
-@@ -21,6 +21,7 @@ sha256sums=('0bcfc60b2b19723ea348e43b04bd904c49142f58d326ab32db11e69dda00b733'
- build() {
+ sha256sums=('35bbcfedd5ddbd3dfb9f159853c4ed783781441ca77d29af31001b5aab348d4f'
+-            '5347464af5b14ac54bb945dc68f1dd7c56f0dad7262816b956138fc53bcc0131')
++            '5347464af5b14ac54bb945dc68f1dd7c56f0dad7262816b956138fc53bcc0131'
++            'b734e42a611c1bb4c94b56cb5778bc73121e61b3464aad9bb8c0600b8f60e8c8')
+ 
+ prepare() {
    mkdir build
++  cd percona-xtrabackup-${pkgver//_/-}
++  patch -Np1 -i ../add-riscv-support.patch
+ }
+ 
+ build() {
    cd build
-+  export CC=clang CXX=clang++ CFLAGS="${CFLAGS//-fstack-clash-protection/}" CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
++  export CC=/usr/bin/clang CXX=/usr/bin/clang++ CFLAGS="${CFLAGS//-fstack-clash-protection/}" CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
    cmake -DBUILD_CONFIG=xtrabackup_release \
          -DCMAKE_BUILD_TYPE=Release \
          -DMYSQL_DATADIR=/var/lib/mysql \
