@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,11 +12,14 @@ makedepends=('jq' 'yarn')
+ conflicts=("nodejs-$pkgname")
+ replaces=("nodejs-$pkgname")
+ options=('!emptydirs')
+-source=("https://github.com/sveltejs/language-tools/archive/language-server-$pkgver/$pkgname-$pkgver.tar.gz")
+-b2sums=('bf6fc5b9b85066d56d78581badc6d7f3c8b3ec2e081aa4ac00fb916fb7e18740e511fcc112024738846874f85e6e4ca8199c99f343d79185d884ea34827271de')
++source=("https://github.com/sveltejs/language-tools/archive/language-server-$pkgver/$pkgname-$pkgver.tar.gz"
++        "increase-test-timeout.patch")
++b2sums=('bf6fc5b9b85066d56d78581badc6d7f3c8b3ec2e081aa4ac00fb916fb7e18740e511fcc112024738846874f85e6e4ca8199c99f343d79185d884ea34827271de'
++        'c842cb404a84e6c74baf349ef36c035d517ce4fa9a74484bed1367477810c0afa0adf347a6a25035c33856e872c240c6cfb10ed0c75a4553dcfd89154b09ac44')
+ 
+ build() {
+   cd language-tools-language-server-$pkgver
++  patch -Np1 -i ../increase-test-timeout.patch
+   yarn --frozen-lockfile
+   yarn workspace svelte2tsx build
+   cd packages/language-server
