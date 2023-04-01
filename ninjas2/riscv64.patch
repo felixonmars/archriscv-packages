@@ -1,28 +1,28 @@
-diff --git PKGBUILD PKGBUILD
-index 6197be09..804b4778 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,9 +14,12 @@ checkdepends=('lv2lint')
- optdepends=('jack: for standalone application'
-             'lv2-host: for LV2 plugin'
-             'vst-host: for VST plugin')
--source=("https://github.com/rghvdberg/${pkgname}/releases/download/v${pkgver}/${pkgname}-v${pkgver}-source.zip")
--sha512sums=('b05c4d2eaba91a1104cb2700b857e0b428a9bb574973616c1477a6c993c6290bb31343f071d0607c0d6c21830fd29523d814aff2bb12442a8ca45e06efd75506')
--b2sums=('aac12947bbb217b22a81a6c53801cfd39e11ed37fbc63b5882825b918d5033517f62cd1c8479cd87e6af5410f78e1481eb28e0b73f6afa21c49a837829fdb218')
-+source=("https://github.com/rghvdberg/${pkgname}/releases/download/v${pkgver}/${pkgname}-v${pkgver}-source.zip"
-+        "remove-unsupported-mtune-flag.patch")
-+sha512sums=('b05c4d2eaba91a1104cb2700b857e0b428a9bb574973616c1477a6c993c6290bb31343f071d0607c0d6c21830fd29523d814aff2bb12442a8ca45e06efd75506'
+@@ -19,11 +19,14 @@ checkdepends=(lv2lint)
+ source=(
+   $url/releases/download/v$pkgver/$pkgname-v$pkgver-source.zip
+   $pkgbase-0.2.0-devendor_aubio.patch
++  remove-unsupported-mtune-flag.patch
+ )
+ sha512sums=('b05c4d2eaba91a1104cb2700b857e0b428a9bb574973616c1477a6c993c6290bb31343f071d0607c0d6c21830fd29523d814aff2bb12442a8ca45e06efd75506'
+-            '36e73831866ef1167f0f12eb9b808e90bceb0501f3a0c7d3d66007a903ce287e820630e21c0fffac620e0bd49cd67131b8a66a467c576151c6751b82fb600ea0')
++            '36e73831866ef1167f0f12eb9b808e90bceb0501f3a0c7d3d66007a903ce287e820630e21c0fffac620e0bd49cd67131b8a66a467c576151c6751b82fb600ea0'
 +            'ff6537e17b19c5b1540cd0696ce5490fd38f4e84e8f67a6a4bdbc373c11e900dba3628dc78fc76c6e4b7453607580d713348b64a394ae09c90a045f435db38b3')
-+b2sums=('aac12947bbb217b22a81a6c53801cfd39e11ed37fbc63b5882825b918d5033517f62cd1c8479cd87e6af5410f78e1481eb28e0b73f6afa21c49a837829fdb218'
+ b2sums=('aac12947bbb217b22a81a6c53801cfd39e11ed37fbc63b5882825b918d5033517f62cd1c8479cd87e6af5410f78e1481eb28e0b73f6afa21c49a837829fdb218'
+-        '70f52daef1c3621ba9707c3465287e50383135a0d4c52db11df23e624e2278e3c31e8f73bb66573bc797b95999dd57dd3223750589361bdd8828568d2119bd74')
++        '70f52daef1c3621ba9707c3465287e50383135a0d4c52db11df23e624e2278e3c31e8f73bb66573bc797b95999dd57dd3223750589361bdd8828568d2119bd74'
 +        '6b847c7c8517f8fd73214940bf755a0aa8b4a4d048955d3fee2a75f328545b5712ade49e77d8aa74c256169b3bf12bad5d40c5c7835b6720feab50c7508241f8')
  
  prepare() {
-   mv -v "${pkgname}-v${pkgver}" "${pkgname}-${pkgver}"
-@@ -34,6 +37,7 @@ prepare() {
-           --name "Ninjas2" \
-           --genericname "Sample Slicer" \
-           --categories "AudioVideo;Audio"
-+  patch -Np1 < $srcdir/remove-unsupported-mtune-flag.patch
+   gendesk -n \
+@@ -34,6 +37,8 @@ prepare() {
+ 
+   # devendor aubio
+   patch -Np1 -d $pkgbase-v$pkgver -i ../$pkgbase-0.2.0-devendor_aubio.patch
++
++  patch -Np1 -d $pkgbase-v$pkgver -i ../remove-unsupported-mtune-flag.patch
  }
  
  build() {
