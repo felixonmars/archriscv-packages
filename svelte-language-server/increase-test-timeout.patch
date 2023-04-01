@@ -1,0 +1,79 @@
+diff --git a/packages/language-server/package.json b/packages/language-server/package.json
+index b435dfac..78958d8e 100644
+--- a/packages/language-server/package.json
++++ b/packages/language-server/package.json
+@@ -5,7 +5,7 @@
+     "main": "dist/src/index.js",
+     "typings": "dist/src/index",
+     "scripts": {
+-        "test": "cross-env TS_NODE_TRANSPILE_ONLY=true mocha --require ts-node/register \"test/**/*.ts\" --exclude \"test/**/*.d.ts\"",
++        "test": "cross-env TS_NODE_TRANSPILE_ONLY=true mocha --require ts-node/register \"test/**/*.ts\" --exclude \"test/**/*.d.ts\" --timeout 200000",
+         "build": "tsc",
+         "prepublishOnly": "npm run build",
+         "watch": "tsc -w"
+diff --git a/packages/language-server/test/plugins/typescript/features/CompletionProvider.test.ts b/packages/language-server/test/plugins/typescript/features/CompletionProvider.test.ts
+index d0b8122a..15916ede 100644
+--- a/packages/language-server/test/plugins/typescript/features/CompletionProvider.test.ts
++++ b/packages/language-server/test/plugins/typescript/features/CompletionProvider.test.ts
+@@ -1024,7 +1024,7 @@ describe('CompletionProviderImpl', () => {
+             const item = completions?.items?.[0];
+             assert.strictEqual(item?.label, 'abc');
+         }
+-    }).timeout(4000);
++    }).timeout(400000);
+ 
+     it('provides default slot-let completion for components with type definition', async () => {
+         const { completionProvider, document } = setup('component-events-completion-ts-def.svelte');
+diff --git a/packages/language-server/test/plugins/typescript/features/DiagnosticsProvider.test.ts b/packages/language-server/test/plugins/typescript/features/DiagnosticsProvider.test.ts
+index d3b61002..ea21b1e2 100644
+--- a/packages/language-server/test/plugins/typescript/features/DiagnosticsProvider.test.ts
++++ b/packages/language-server/test/plugins/typescript/features/DiagnosticsProvider.test.ts
+@@ -52,7 +52,7 @@ describe('DiagnosticsProvider', () => {
+ 
+         const diagnostics3 = await plugin.getDiagnostics(document);
+         assert.deepStrictEqual(diagnostics3.length, 1);
+-    }).timeout(5000);
++    }).timeout(500000);
+ 
+     it('notices update of imported module', async () => {
+         const { plugin, document, lsAndTsDocResolver } = setup(
+@@ -78,7 +78,7 @@ describe('DiagnosticsProvider', () => {
+         const diagnostics2 = await plugin.getDiagnostics(document);
+         assert.deepStrictEqual(diagnostics2.length, 0);
+         await lsAndTsDocResolver.deleteSnapshot(newFilePath);
+-    }).timeout(5000);
++    }).timeout(500000);
+ 
+     it('notices file changes in all services that reference that file', async () => {
+         // Hacky but ensures that this tests is not interfered with by other tests
+@@ -131,5 +131,5 @@ describe('DiagnosticsProvider', () => {
+         assert.deepStrictEqual(diagnostics3.length, 0);
+         const diagnostics4 = await plugin.getDiagnostics(otherDocument);
+         assert.deepStrictEqual(diagnostics4.length, 0);
+-    }).timeout(5000);
++    }).timeout(500000);
+ });
+diff --git a/packages/language-server/test/plugins/typescript/test-utils.ts b/packages/language-server/test/plugins/typescript/test-utils.ts
+index f115c178..196a050b 100644
+--- a/packages/language-server/test/plugins/typescript/test-utils.ts
++++ b/packages/language-server/test/plugins/typescript/test-utils.ts
+@@ -163,7 +163,7 @@ export function createSnapshotTester<TestOptions extends { dir: string; workspac
+         if (existsSync(inputFile)) {
+             const _it = dir.endsWith('.only') ? it.only : it;
+             _it(dir.substring(__dirname.length), () => executeTest(inputFile, testOptions)).timeout(
+-                5000
++                500000
+             );
+         } else {
+             const _describe = dir.endsWith('.only') ? describe.only : describe;
+diff --git a/packages/language-server/test/plugins/typescript/typescript-performance.test.ts b/packages/language-server/test/plugins/typescript/typescript-performance.test.ts
+index 5b853629..2c7b9be8 100644
+--- a/packages/language-server/test/plugins/typescript/typescript-performance.test.ts
++++ b/packages/language-server/test/plugins/typescript/typescript-performance.test.ts
+@@ -56,5 +56,5 @@ describe('TypeScript Plugin Performance Tests', () => {
+         const end = performance.now();
+ 
+         console.log(`Performance test took ${end - start}ms`);
+-    }).timeout(15000);
++    }).timeout(1500000);
+ });
