@@ -1,0 +1,35 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -33,8 +33,10 @@ checkdepends=(
+   php-apache
+ )
+ _commit=598b981821563ae45af3b3b8eaf7e755ba78ea77  # tags/3.4.0^0
+-source=("git+https://gitlab.gnome.org/GNOME/libsoup.git#commit=$_commit")
+-b2sums=('SKIP')
++source=("git+https://gitlab.gnome.org/GNOME/libsoup.git#commit=$_commit"
++        "fix-http2-regression.patch::https://gitlab.gnome.org/GNOME/libsoup/-/commit/d1509188ebd2219db1a147e9d77ffd5b4d161a2e.patch")
++b2sums=('SKIP'
++        '688821a70fe7d8f6733686eda05a5722353dc76d81bd808b8a5ace9e5ee73777f0e7ea47339c9651aafa32adacb2dcf3128a5acacc028411983eed5515671247')
+ 
+ pkgver() {
+   cd libsoup
+@@ -43,6 +45,7 @@ pkgver() {
+ 
+ prepare() {
+   cd libsoup
++  patch -Np1 -i ../fix-http2-regression.patch
+ }
+ 
+ build() {
+@@ -56,7 +59,10 @@ build() {
+ check() {
+   # Python's output buffering messes with the tests reading stdout lines from
+   # http2-server.py through a pipe
+-  PYTHONUNBUFFERED=1 meson test -C build --print-errorlogs
++
++  # riscv64 note: http2-body-stream-test finishes really quickly on qemu-user,
++  # but on real hardware it can take up to 350s. Extends timeout by 10x (600s).
++  PYTHONUNBUFFERED=1 meson test -C build --print-errorlogs --timeout 10
+ }
+ 
+ package_libsoup3() {
