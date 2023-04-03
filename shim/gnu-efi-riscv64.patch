@@ -1,5 +1,5 @@
 diff --git a/Make.defaults b/Make.defaults
-index 5ce8f7c..63fd6cf 100755
+index 3b56150..0343c99 100755
 --- a/Make.defaults
 +++ b/Make.defaults
 @@ -36,7 +36,7 @@
@@ -11,13 +11,12 @@ index 5ce8f7c..63fd6cf 100755
  
  #
  # Variables below overridable from command-line:
-@@ -156,10 +156,12 @@ endif
- ifneq ($(ARCH),aarch64)
+@@ -155,9 +155,11 @@ endif
+ #
  ifneq ($(ARCH),arm)
  ifneq ($(ARCH),mips64el)
 +ifneq ($(ARCH),riscv64)
  export HAVE_EFI_OBJCOPY=y
- endif
  endif
  endif
 +endif
@@ -37,7 +36,7 @@ index a0eb8c7..955d929 100644
  	}
  	Print(L"Never found the active video mode?\n");
 diff --git a/apps/lfbgrid.c b/apps/lfbgrid.c
-index ac50f4e..ba903c7 100644
+index ac50f4e..a025e3d 100644
 --- a/apps/lfbgrid.c
 +++ b/apps/lfbgrid.c
 @@ -51,7 +51,8 @@ draw_boxes(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop)
@@ -46,7 +45,7 @@ index ac50f4e..ba903c7 100644
  	UINT32 CopySize, BufferSize;
 -#if defined(__x86_64__) || defined(__aarch64__)
 +#if defined(__x86_64__) || defined(__aarch64__) || \
-+    (defined (__riscv) && __riscv_xlen == 64)
++	(defined (__riscv) && __riscv_xlen == 64)
  	UINT64 FrameBufferAddr;
  #elif defined(__i386__) || defined(__arm__)
  	UINT32 FrameBufferAddr;
@@ -56,23 +55,10 @@ index ac50f4e..ba903c7 100644
  		}
 -#if defined(__x86_64__) || defined(__aarch64__)
 +#if defined(__x86_64__) || defined(__aarch64__) || \
-+    (defined (__riscv) && __riscv_xlen == 64)
++	(defined (__riscv) && __riscv_xlen == 64)
  		FrameBufferAddr = (UINT64)gop->Mode->FrameBufferBase;
  #elif defined(__i386__) || defined(__arm__)
  		FrameBufferAddr = (UINT32)(UINT64)gop->Mode->FrameBufferBase;
-diff --git a/gnuefi/crt0-efi-aarch64.S b/gnuefi/crt0-efi-aarch64.S
-index a96b5eb..a5d98ce 100644
---- a/gnuefi/crt0-efi-aarch64.S
-+++ b/gnuefi/crt0-efi-aarch64.S
-@@ -34,7 +34,7 @@ coff_header:
- 	.short	4				// nr_sections
- 	.long	0 				// TimeDateStamp
- 	.long	0				// PointerToSymbolTable
--	.long	1				// NumberOfSymbols
-+	.long	0				// NumberOfSymbols
- 	.short	section_table - optional_header	// SizeOfOptionalHeader
- 	.short	0x206				// Characteristics.
- 						// IMAGE_FILE_DEBUG_STRIPPED |
 diff --git a/gnuefi/crt0-efi-arm.S b/gnuefi/crt0-efi-arm.S
 index 1efc21c..d220691 100644
 --- a/gnuefi/crt0-efi-arm.S
@@ -87,29 +73,17 @@ index 1efc21c..d220691 100644
  	.short	0x306				// Characteristics.
  						// IMAGE_FILE_32BIT_MACHINE |
 diff --git a/gnuefi/crt0-efi-ia32.S b/gnuefi/crt0-efi-ia32.S
-index 2c56746..f583a4b 100644
+index c9b3ea6..7671187 100644
 --- a/gnuefi/crt0-efi-ia32.S
 +++ b/gnuefi/crt0-efi-ia32.S
 @@ -73,5 +73,6 @@ _start:
  #define IMAGE_REL_ABSOLUTE	0
  	.section .reloc, "a"
- 	.long	.dummy1-.dummy0				// Page RVA
--	.long	10					// Block Size (2*4+2)
-+	.long	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
-+	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
- 	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
-diff --git a/gnuefi/crt0-efi-ia64.S b/gnuefi/crt0-efi-ia64.S
-index 40c3c83..cd00b8d 100644
---- a/gnuefi/crt0-efi-ia64.S
-+++ b/gnuefi/crt0-efi-ia64.S
-@@ -82,6 +82,6 @@ _start_plabel:
- 
- 	.section .reloc, "a"
- 	data4	_start_plabel				// Page RVA
--	data4	12					// Block Size (2*4+2*2)
-+	data4	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
- 	data2	(IMAGE_REL_BASED_DIR64<<12) +  0	// reloc for plabel's entry point
- 	data2	(IMAGE_REL_BASED_DIR64<<12) +  8	// reloc for plabel's global pointer
+ 	.4byte	.dummy1-.dummy0				// Page RVA
+-	.4byte	10					// Block Size (2*4+2)
++	.4byte	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
++	.2byte	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+ 	.2byte	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
 diff --git a/gnuefi/crt0-efi-mips64el.S b/gnuefi/crt0-efi-mips64el.S
 index 6a62aca..6d26f66 100644
 --- a/gnuefi/crt0-efi-mips64el.S
@@ -291,18 +265,17 @@ index 0000000..ec0e25e
 +0:	addi		sp, sp, 24
 +	ret
 diff --git a/gnuefi/crt0-efi-x86_64.S b/gnuefi/crt0-efi-x86_64.S
-index 1a87dbd..7235673 100644
+index 0d99c15..aa45fc3 100644
 --- a/gnuefi/crt0-efi-x86_64.S
 +++ b/gnuefi/crt0-efi-x86_64.S
-@@ -71,6 +71,7 @@ _start:
+@@ -70,5 +70,6 @@ _start:
  #define IMAGE_REL_ABSOLUTE	0
  	.section .reloc, "a"
- 	.long	.dummy1-.dummy0				// Page RVA
--	.long	10					// Block Size (2*4+2)
-+	.long	12					// Block Size (2*4+2*2), must be aligned by 32 Bits
-+	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
- 	.word	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
- 
+ 	.4byte	.dummy1-.dummy0				// Page RVA
+-	.4byte	10					// Block Size (2*4+2)
++	.4byte	12					// Block Size (2*4+2), must be aligned by 32 Bits
++	.2byte	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
+ 	.2byte	(IMAGE_REL_ABSOLUTE<<12) +  0		// reloc for dummy
 diff --git a/gnuefi/elf_riscv64_efi.lds b/gnuefi/elf_riscv64_efi.lds
 new file mode 100644
 index 0000000..bb64d81
@@ -510,10 +483,10 @@ index bd99451..f87477b 100644
  #error Usupported architecture
  #endif
 diff --git a/inc/efiapi.h b/inc/efiapi.h
-index 96e9e4a..17aa5f8 100644
+index 96e9e4a..315d627 100644
 --- a/inc/efiapi.h
 +++ b/inc/efiapi.h
-@@ -343,6 +343,18 @@ EFI_STATUS
+@@ -343,6 +343,18 @@
  #define EFI_IMAGE_MACHINE_AARCH64   0xAA64
  #endif
  
@@ -559,7 +532,7 @@ index af47019..57f3051 100644
  
  INTN
 diff --git a/inc/efirtlib.h b/inc/efirtlib.h
-index 5071493..8643061 100644
+index 5071493..82c5390 100644
 --- a/inc/efirtlib.h
 +++ b/inc/efirtlib.h
 @@ -32,6 +32,8 @@ Revision History
@@ -571,6 +544,15 @@ index 5071493..8643061 100644
  #endif
  
  
+@@ -47,7 +49,7 @@ RUNTIMEFUNCTION
+ RtSetMem (
+     IN VOID     *Buffer,
+     IN UINTN    Size,
+-    IN UINT8    Value    
++    IN UINT8    Value
+     );
+ 
+ VOID
 diff --git a/inc/riscv64/efibind.h b/inc/riscv64/efibind.h
 new file mode 100644
 index 0000000..a74a147
@@ -764,7 +746,7 @@ index 0000000..2bb4efd
 +
 +#endif /* GNU_EFI_RISCV64_SETJMP_H */
 diff --git a/lib/hand.c b/lib/hand.c
-index e28b195..0447ddc 100644
+index e28b195..656ae53 100644
 --- a/lib/hand.c
 +++ b/lib/hand.c
 @@ -488,6 +488,7 @@ LibInstallProtocolInterfaces (
@@ -775,7 +757,7 @@ index e28b195..0447ddc 100644
  
      //
      // If there was an error, remove all the interfaces that were
-@@ -506,6 +507,7 @@ LibInstallProtocolInterfaces (
+@@ -506,6 +506,7 @@
          }        
  
          *Handle = OldHandle;
@@ -783,7 +765,7 @@ index e28b195..0447ddc 100644
      }
  
      //
-@@ -552,6 +554,7 @@ LibUninstallProtocolInterfaces (
+@@ -552,6 +553,7 @@
              DEBUG((D_ERROR, "LibUninstallProtocolInterfaces: failed %g, %r\n", Protocol, Handle));
          }
      }
@@ -799,20 +781,27 @@ index e28b195..0447ddc 100644
  
      //
      // If there was an error, undo all the interfaces that were
-@@ -624,7 +628,8 @@ LibReinstallProtocolInterfaces (
-             uefi_call_wrapper(BS->ReinstallProtocolInterface, 4, Handle, Protocol, NewInterface, OldInterface);
+@@ -625,6 +627,7 @@
  
              Index -= 1;
--        }        
-+        }
+         }        
 +        ms_va_end (args);
      }
  
      //
 diff --git a/lib/misc.c b/lib/misc.c
-index c9a4b0b..54eb446 100644
+index c9a4b0b..3153bfb 100644
 --- a/lib/misc.c
 +++ b/lib/misc.c
+@@ -102,7 +102,7 @@ VOID EFIAPI
+ SetMem (
+     IN VOID     *Buffer,
+     IN UINTN    Size,
+-    IN UINT8    Value    
++    IN UINT8    Value
+     )
+ {
+     RtSetMem (Buffer, Size, Value);
 @@ -110,9 +110,9 @@ SetMem (
  
  VOID EFIAPI
@@ -835,18 +824,19 @@ index c9a4b0b..54eb446 100644
      VOID                    *Buffer;
      UINTN                   BufferSize;
  
-@@ -386,7 +386,9 @@ LibInsertToTailOfBootOrder (
+@@ -386,7 +386,10 @@ LibInsertToTailOfBootOrder (
  
      VarSize += sizeof(UINT16);
      NewBootOptionArray = AllocatePool (VarSize);
 -    
++
 +    if (!NewBootOptionArray)
 +        return EFI_OUT_OF_RESOURCES;
 +
      for (Index = 0; Index < ((VarSize/sizeof(UINT16)) - 1); Index++) {
          NewBootOptionArray[Index] = BootOptionArray[Index];
      }
-@@ -403,9 +405,7 @@ LibInsertToTailOfBootOrder (
+@@ -403,9 +406,7 @@ LibInsertToTailOfBootOrder (
                  VarSize, (VOID*) NewBootOptionArray
                  );
  
@@ -1031,10 +1021,10 @@ index 0000000..fa187d1
 +	add a0, a0, a1
 +	ret
 diff --git a/lib/smbios.c b/lib/smbios.c
-index d349fb6..23bb477 100644
+index d349fb6..53e7e99 100644
 --- a/lib/smbios.c
 +++ b/lib/smbios.c
-@@ -44,7 +44,7 @@ LibGetSmbiosSystemGuidAndSerialNumber (
+@@ -44,7 +44,7 @@
      }
  
      Smbios.Hdr = (SMBIOS_HEADER *)SmbiosTable->TableAddress;
