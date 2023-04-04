@@ -1,14 +1,18 @@
 diff --git PKGBUILD PKGBUILD
-index 5a426e03..b15718d7 100644
+index 14aaf73..e904995 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,6 +22,9 @@
-   # python-milksnake is *not* a runtime dependency
-   # https://github.com/pyocd/cmsis-pack-manager/issues/188
-   sed '/milksnake/d' -i setup.cfg
-+
-+  cd rust
+@@ -17,6 +17,13 @@ source=(https://files.pythonhosted.org/packages/source/${_name::1}/$_name/$_name
+ sha512sums=('08c95b17c8fe21faf0940ea15b69de4fd5d15adfb6ef2c60cf6b086276bd89251eddbda8ad665fcba2e50b35c86fc3fe7224ef0b9efa6cace76eb3432f359f7b')
+ b2sums=('e0c0aed4c64e394c56c88f3accbf7e568d39dc3587c598923e2258ad9b18c3bd540547c89bcb283429244863556837f344fc77bbf1383ef3437a134f1f941769')
+
++prepare() {
++  cd $_name-$pkgver
 +  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
- }
- 
++  cargo update -p ring
++  cargo fetch --locked
++}
++
  build() {
+   cd $_name-$pkgver
+   maturin build --release --strip
