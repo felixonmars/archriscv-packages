@@ -1,0 +1,58 @@
+diff --git PKGBUILD PKGBUILD
+index 5b870a3f..aa223c33 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,7 +10,7 @@ arch=('any')
+ url="https://www.keycloak.org/"
+ license=('Apache')
+ depends=("java-runtime-headless=${_java}" 'grep' 'bash' 'coreutils' 'util-linux')
+-makedepends=('maven' "java-environment=${_java}")
++makedepends=('maven' "java-environment=${_java}" 'nodejs-lts-gallium')
+ backup=(
+   'etc/keycloak/keycloak.conf'
+ )
+@@ -21,21 +21,42 @@ source=(https://github.com/keycloak/keycloak/archive/$pkgver/$pkgname-$pkgver.ta
+         keycloak.sysusers
+         keycloak.tmpfiles
+         common.sh
+-        pin-java-version.patch)
++        pin-java-version.patch
++        "https://github.com/eirslett/frontend-maven-plugin/archive/refs/tags/frontend-plugins-1.12.0.tar.gz"
++        "https://archriscv.felixc.at/repo/community/nodejs-lts-gallium-16.19.0-1-riscv64.pkg.tar.zst"
++        frontend-plugins-riscv64.patch
++        replace-nodejs.patch)
+ sha512sums=('7565a6c1766661f33e888a208197feb2f60986e6c24869a9c115a7076e860bcdbe27436b60d525bba58cd9f36ef35f41a26f134a0507dab510b8ae3ba6b724a9'
+             '925ca021a9989a6d5181a90f42ec9e67a4957e98bb716acba75e13e1b01a03e4bd3a5939f5f0abe4cf57157be54dda5e373286041b22d84f5079eba94df4e6c9'
+             '2e2ba147007ad74e38579a8838d79de47beac509b4bd1a14d7f80905953d79a7396d781f141b461ec688f5ceef9a1081a825a4ca8afc1ea12c178d8ae7f5a7dd'
+             '155db40105c08d0aaa810ca5533dc16fc9f82060280541ede6fafd754d30b4844f6d10ace1417a5ad68d89fc54e1b9e6d906ce7ccf973f4ac964422211ed9a72'
+             '27c2b0d8ef2f64a515410e5316524eed879d67c42a695642c23653f59bbdc37ff7aaff3414fa6779e97ae477c51014aadb2f0256effdf7abf65f1778fe8885bd'
+-            '38f014de00db7ec1b5693529401f316f70474c97484cfdea0a7048da6bb9d1ace8fdc915bf8857edcd6aae0d0dd9c1e0b2c0be0aaa99d105be09bed975f049fd')
++            '38f014de00db7ec1b5693529401f316f70474c97484cfdea0a7048da6bb9d1ace8fdc915bf8857edcd6aae0d0dd9c1e0b2c0be0aaa99d105be09bed975f049fd'
++            '6b35f94d25780a719bcf7a4c699120511661035d6b2b857270859b52db9f6b481899a4c302447357a172e9f67241f3b6177c8cca0ad2c07ede06f859e9f8aac4'
++            'e628524eb497dc432108ca90b5d2653aa4a001d4c5fbdaccf28363ba2a44c20c2cfe3c7516f1a4dd2cffab097b1c79e31a86402157bb50b7d70949442eebb8ac'
++            'a181d97077a9ba88abc436e4ff944c7b59b5b40e7c889226d535107f1efa8fb6ce115f69628bc32d54b7e53892d041ae74e0b0811d2e15dec4e49114f9236108'
++            'f21a4a262544cf241b007c702295282f08a57ba3c7ba59dcdef45dd6a49f21f7728ed5d4a746a270329c995c1e74f870c93de0d76bc847adcf3ee0ca7c8b9af8')
++noextract=("nodejs-lts-gallium-16.19.0-1-riscv64.pkg.tar.zst")
+ 
+ prepare() {
++  patch -Np1 -d frontend-maven-plugin-frontend-plugins-1.12.0 < frontend-plugins-riscv64.patch
++  mkdir -p v16.19.0 && pushd v16.19.0
++  tar -xf $srcdir/nodejs-lts-gallium-16.19.0-1-riscv64.pkg.tar.zst
++  mv usr node-v16.19.0-linux-riscv64
++  tar -czf node-v16.19.0-linux-riscv64.tar.gz node-v16.19.0-linux-riscv64
++  popd
++
+   cd $pkgname-$pkgver
+ 
+   patch -Np1 -i "$srcdir"/pin-java-version.patch
++  patch -Np1 -i "$srcdir"/replace-nodejs.patch
+ }
+ 
+ build() {
++  pushd frontend-maven-plugin-frontend-plugins-1.12.0
++  JAVA_HOME="/usr/lib/jvm/java-${_java}-openjdk/" mvn clean install -Dmaven.test.skip
++  popd
++
+   cd $pkgname-$pkgver
+ 
+   export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:$PATH"
