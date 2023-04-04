@@ -1,0 +1,95 @@
+From 55aa24940b2c05374539f61eff98db48cc209e23 Mon Sep 17 00:00:00 2001
+From: Lu Yahan <yahan@iscas.ac.cn>
+Date: Mon, 3 Apr 2023 19:48:27 +0800
+Subject: [PATCH] fix node
+
+---
+ deps/v8/src/codegen/riscv/macro-assembler-riscv.cc       | 8 ++++++--
+ deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.cc | 8 ++++----
+ deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.h  | 4 ++--
+ 3 files changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+index 4f4b443c51..02ad494565 100644
+--- a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
++++ b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+@@ -3950,8 +3950,12 @@ bool TurboAssembler::BranchShortHelper(int32_t offset, Label* L, Condition cond,
+   BlockTrampolinePoolScope block_trampoline_pool(this);
+   Register scratch = no_reg;
+   if (!rt.is_reg()) {
+-    scratch = temps.Acquire();
+-    li(scratch, rt);
++    if (rt.immediate() == 0) {
++      scratch = zero_reg;
++    } else {
++      scratch = temps.Acquire();
++      li(scratch, rt);
++    }
+   } else {
+     scratch = rt.rm();
+   }
+diff --git a/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.cc b/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.cc
+index 93da768d86..5fb284fee7 100644
+--- a/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.cc
++++ b/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.cc
+@@ -24,7 +24,7 @@ namespace internal {
+  * - s5 : Currently loaded character. Must be loaded using
+  *        LoadCurrentCharacter before using any of the dispatch methods.
+  * - s6 : Points to tip of backtrack stack
+- * - s7 : End of input (points to byte after last character in input).
++ * - s8 : End of input (points to byte after last character in input).
+  * - fp : Frame pointer. Used to access arguments, local variables and
+  *        RegExp registers.
+  * - sp : Points to tip of C stack.
+@@ -38,7 +38,7 @@ namespace internal {
+  *  --- sp when called ---
+  *  - fp[72]  ra                 Return from RegExp code (ra).                  kReturnAddress
+  *  - fp[64]  s9, old-fp         Old fp, callee saved(s9).
+- *  - fp[0..63]  fp..s7          Callee-saved registers fp..s7.
++ *  - fp[0..63]  fp..s11          Callee-saved registers fp..s11.
+  *  --- frame pointer ----
+  *  - fp[-8]  Isolate* isolate   (address of the current isolate)               kIsolate
+  *  - fp[-16] direct_call        (1 = direct call from JS, 0 = from runtime)    kDirectCall
+@@ -673,7 +673,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
+     // TODO(plind): we save fp..s11, but ONLY use s3 here - use the regs
+     // or dont save.
+     RegList registers_to_retain = {fp, s1, s2, s3, s4,
+-                                   s5, s6, s7, s8 /*, s9, s10, s11*/};
++                                   s5, s6, s7, s8, s9, s10, s11};
+     DCHECK(registers_to_retain.Count() == kNumCalleeRegsToRetain);
+ 
+     // The remaining arguments are passed in registers, e.g.by calling the code
+@@ -713,7 +713,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
+ 
+     // Initialize backtrack stack pointer. It must not be clobbered from here
+     // on. Note the backtrack_stackpointer is callee-saved.
+-    static_assert(backtrack_stackpointer() == s7);
++    static_assert(backtrack_stackpointer() == s8);
+     LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
+     // Store the regexp base pointer - we'll later restore it / write it to
+     // memory when returning from this irregexp code object.
+diff --git a/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.h b/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.h
+index 2352af8a17..826657f6b1 100644
+--- a/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.h
++++ b/deps/v8/src/regexp/riscv/regexp-macro-assembler-riscv.h
+@@ -105,7 +105,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
+   // Return address (stored from link register, read into pc on return).
+ 
+   // This 9 is 8 s-regs (s1..s8) plus fp.
+-  static const int kNumCalleeRegsToRetain = 9;
++  static const int kNumCalleeRegsToRetain = 12;
+   static const int kReturnAddress =
+       kStoredRegisters + kNumCalleeRegsToRetain * kSystemPointerSize;
+ 
+@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerRISCV
+ 
+   // The register containing the backtrack stack top. Provides a meaningful
+   // name to the register.
+-  static constexpr Register backtrack_stackpointer() { return s7; }
++  static constexpr Register backtrack_stackpointer() { return s8; }
+ 
+   // Register holding pointer to the current code object.
+   static constexpr Register code_pointer() { return s1; }
+-- 
+2.25.1
+

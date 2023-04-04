@@ -1,6 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -40,12 +40,13 @@ build() {
+@@ -19,8 +19,15 @@ options=(!lto)
+ depends=('brotli' 'openssl' 'zlib' 'icu' 'libuv' 'libnghttp2' 'c-ares') # 'http-parser' 'v8')
+ makedepends=('git' 'python' 'procps-ng')
+ optdepends=('npm: nodejs package manager')
+-source=("git+https://github.com/nodejs/node.git#commit=$_commit")
+-sha512sums=('SKIP')
++source=("git+https://github.com/nodejs/node.git#commit=$_commit"
++        "nodejs-v8-jit-fix.patch")
++sha512sums=('SKIP'
++            'fb4fa53b99e69ab7ae9c7d1483bb73169e2adba36edfc4e76e2edbcce7f054d17580405977d02e34f712696be7770d3dfde01501b507f92383c6e44ec899c74f')
++
++prepare() {
++  cd node
++  patch -Np1 -i ../nodejs-v8-jit-fix.patch
++}
+ 
+ build() {
+   cd node
+@@ -40,12 +47,13 @@ build() {
      # --shared-v8
      # --shared-http-parser
  
