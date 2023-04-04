@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index f63a960b..ff9154bd 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,11 +11,16 @@ arch=(x86_64)
+ license=(custom)
+ depends=('sdl>=1.2.13' libpng libjpeg-turbo libtiff zlib)
+ provides=('libSDL_image-1.2.so')
+-source=(https://www.libsdl.org/projects/SDL_image/release/SDL_image-$pkgver.tar.gz)
+-sha256sums=('0b90722984561004de84847744d566809dbb9daf732a9e503b91a1b5a84e5699')
++source=(https://www.libsdl.org/projects/SDL_image/release/SDL_image-$pkgver.tar.gz
++        'config.guess::https://raw.githubusercontent.com/llvm/llvm-project/de1c2877a9ff12899ef50e179ade748fba8ab0c0/llvm/cmake/config.guess')
++sha256sums=('0b90722984561004de84847744d566809dbb9daf732a9e503b91a1b5a84e5699'
++            '41ad5c3afd53f21e4bdbe9fdaec99523f1d9783f38c7dad964264b350977ec64')
+
+ build() {
+   cd SDL_image-$pkgver
++  # https://github.com/llvm/llvm-project/blob/de1c2877a9ff12899ef50e179ade748fba8ab0c0/llvm/cmake/config.guess
++  # llvm/cmake/config.guess: add support for riscv32 and riscv64
++  mv -f ${srcdir}/config.guess ./config.guess
+   ./configure --prefix=/usr --disable-static
+   make
+ }
