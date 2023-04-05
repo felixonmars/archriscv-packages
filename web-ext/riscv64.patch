@@ -1,28 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,12 +17,19 @@ conflicts=('nodejs-web-ext')
- # to speed up the build
- options=('!strip')
- # tarball on npmjs lacks scripts for building from sources
--source=("https://github.com/mozilla/web-ext/archive/$pkgver/web-ext-$pkgver.tar.gz")
--sha256sums=('0c2afcb5658dd65a8146a4850ac04a17155feba3902fc0fecbc726d05005dd34')
-+source=("https://github.com/mozilla/web-ext/archive/$pkgver/web-ext-$pkgver.tar.gz"
-+        web-ext-no-jit.patch)
-+sha256sums=('0c2afcb5658dd65a8146a4850ac04a17155feba3902fc0fecbc726d05005dd34'
-+            '4e6742f7a0001fb0c032daaa7a63fe98d092ee521da65749c78af478b088d931')
- 
- prepare() {
-   cd "$srcdir"
- 
-+  # Disable V8's buggy JIT
-+  pushd $pkgname-$pkgver
-+  patch -Np1 -i ../web-ext-no-jit.patch
-+  popd
-+
-   # -build for running webpack and tests, and the original for actual packaging
-   cp -r $pkgname-$pkgver{,-build}
- }
-@@ -43,7 +50,7 @@ check() {
+@@ -43,7 +43,7 @@ check() {
  
    # web-ext uses flow-bin, which does not support some architectures (e.g., RISC-V)
    # Some tests match error messages and fail if messages are translated
