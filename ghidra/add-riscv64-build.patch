@@ -1,0 +1,126 @@
+diff --git a/GPL/nativeBuildProperties.gradle b/GPL/nativeBuildProperties.gradle
+index 5e9c33f4e..cfad0b1d2 100644
+--- a/GPL/nativeBuildProperties.gradle
++++ b/GPL/nativeBuildProperties.gradle
+@@ -43,6 +43,9 @@ model {
+ 				if (isCurrentArm_64()) {
+ 					target("linux_arm_64")
+ 				}
++				if (isCurrentRiscv_64()) {
++					target("linux_riscv_64")
++				}
+ 			}
+ 		}
+ 		if (isCurrentMac()) {
+diff --git a/GPL/nativePlatforms.gradle b/GPL/nativePlatforms.gradle
+index a75cf48a5..09b817dde 100644
+--- a/GPL/nativePlatforms.gradle
++++ b/GPL/nativePlatforms.gradle
+@@ -23,6 +23,7 @@ project.ext.PLATFORMS = [
+ 	[name: "win_x86_64", os: "windows", arch: "x86_64"],
+ 	[name: "linux_x86_64", os: "linux", arch: "x86_64"],
+ 	[name: "linux_arm_64", os: "linux", arch: "arm64"],
++	[name: "linux_riscv_64", os: "linux", arch: "riscv64"],
+ 	[name: "mac_x86_64", os: "osx", arch: "x86_64"],
+ 	[name: "mac_arm_64", os: "osx", arch: "arm64"]
+ ]
+@@ -71,6 +72,9 @@ ext.getCurrentPlatformName = {
+ 		case "arm64":
+ 			arch = "arm_64"
+ 			break
++		case "riscv64":
++			arch = "riscv_64"
++			break
+ 		default:
+ 			throw new GradleException("Unrecognized platform architecture: $arch" )
+ 	}
+@@ -152,6 +156,14 @@ ext.isCurrentArm_64 = {
+ 	return isArm_64(getCurrentPlatformName())
+ }
+ 
++ext.isRiscv_64 = { platform_name ->
++	return platform_name.contains("riscv")
++}
++
++ext.isCurrentRiscv_64 = {
++	return isRiscv_64(getCurrentPlatformName())
++}
++
+ /****************************************************************************
+  * Establish Visual Studio configuration environment for Windows native builds
+  * NOTE: vsconfig.gradle path is relative to each GPL project module
+diff --git a/Ghidra/Debug/Debugger-gadp/build.gradle b/Ghidra/Debug/Debugger-gadp/build.gradle
+index 1b4922f66..47eae6929 100644
+--- a/Ghidra/Debug/Debugger-gadp/build.gradle
++++ b/Ghidra/Debug/Debugger-gadp/build.gradle
+@@ -33,29 +33,31 @@ configurations {
+ def platform = getCurrentPlatformName()
+ 
+ dependencies {
+-	allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:windows-x86_64@exe'
+-	allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:linux-x86_64@exe'
+-	allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:linux-aarch_64@exe'
+-	allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:osx-x86_64@exe'
+-	allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:osx-aarch_64@exe'
++	if (!isCurrentRiscv_64()) {
++		allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:windows-x86_64@exe'
++		allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:linux-x86_64@exe'
++		allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:linux-aarch_64@exe'
++		allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:osx-x86_64@exe'
++		allProtocArtifacts 'com.google.protobuf:protoc:3.17.3:osx-aarch_64@exe'
+ 
+-	if (isCurrentWindows()) {
+-		protocArtifact 'com.google.protobuf:protoc:3.17.3:windows-x86_64@exe'
+-	}
+-	if (isCurrentLinux()) {
+-		if (platform.endsWith("x86_64")) {
+-			protocArtifact 'com.google.protobuf:protoc:3.17.3:linux-x86_64@exe'
++		if (isCurrentWindows()) {
++			protocArtifact 'com.google.protobuf:protoc:3.17.3:windows-x86_64@exe'
+ 		}
+-		else {
+-			protocArtifact 'com.google.protobuf:protoc:3.17.3:linux-aarch_64@exe'
++		if (isCurrentLinux()) {
++			if (platform.endsWith("x86_64")) {
++				protocArtifact 'com.google.protobuf:protoc:3.17.3:linux-x86_64@exe'
++			}
++			else {
++				protocArtifact 'com.google.protobuf:protoc:3.17.3:linux-aarch_64@exe'
++			}
+ 		}
+-	}
+-	if (isCurrentMac()) {
+-		if (platform.endsWith("x86_64")) {
+-			protocArtifact 'com.google.protobuf:protoc:3.17.3:osx-x86_64@exe'
+-		}
+-		else {
+-			protocArtifact 'com.google.protobuf:protoc:3.17.3:osx-aarch_64@exe'
++		if (isCurrentMac()) {
++			if (platform.endsWith("x86_64")) {
++				protocArtifact 'com.google.protobuf:protoc:3.17.3:osx-x86_64@exe'
++			}
++			else {
++				protocArtifact 'com.google.protobuf:protoc:3.17.3:osx-aarch_64@exe'
++			}
+ 		}
+ 	}
+ 
+@@ -84,9 +86,15 @@ task generateProto {
+ 	inputs.files(src)
+ 	dependsOn(configurations.protocArtifact)
+ 	doLast {
+-		def exe = configurations.protocArtifact.first()
+-		if (!isCurrentWindows()) {
+-			exe.setExecutable(true)
++		def exe
++		if (isCurrentRiscv_64()) {
++			exe = System.env.PROTOBUF_DESTDIR + "/usr/local/bin/protoc"
++		}
++		else {
++			exe = configurations.protocArtifact.first()
++			if (!isCurrentWindows()) {
++				exe.setExecutable(true)
++			}
+ 		}
+ 		exec {
+ 			commandLine exe, "--java_out=$outdir", "-I$srcdir"
