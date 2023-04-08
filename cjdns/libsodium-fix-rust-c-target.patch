@@ -1,0 +1,37 @@
+diff --git a/libsodium-sys/build.rs b/libsodium-sys/build.rs
+index 46f0cc2..7443abd 100644
+--- a/libsodium-sys/build.rs
++++ b/libsodium-sys/build.rs
+@@ -150,7 +150,7 @@ fn make_libsodium(target: &str, source_dir: &Path, install_dir: &Path) -> PathBu
+     let mut compiler = build_compiler.path().to_str().unwrap().to_string();
+     let mut cflags = build_compiler.cflags_env().into_string().unwrap();
+     let mut host_arg = format!("--host={}", target);
+-    let mut cross_compiling = target != env::var("HOST").unwrap();
++    let mut cross_compiling = target != rust_triple_to_c(env::var("HOST").unwrap());
+     if target.contains("-ios") {
+         // Determine Xcode directory path
+         let xcode_select_output = Command::new("xcode-select").arg("-p").output().unwrap();
+@@ -331,12 +331,22 @@ fn get_lib_dir() -> PathBuf {
+     get_crate_dir().join("mingw/win64/")
+ }
+ 
++// Rust and C compiler don't agree on some triples, for example riscv64 (riscv64gc
++// in Rust vs riscv64 in C).
++fn rust_triple_to_c(triple: String) -> String {
++    if triple.starts_with("riscv64gc-") {
++        triple.replacen("riscv64gc", "riscv64", 1)
++    } else {
++        triple
++    }
++}
++
+ fn build_libsodium() {
+     use std::{ffi::OsStr, fs};
+ 
+     // Determine build target triple
+     let mut out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+-    let target = env::var("TARGET").unwrap();
++    let target = rust_triple_to_c(env::var("TARGET").unwrap());
+     let profile = env::var("PROFILE").unwrap();
+ 
+     // Avoid issues with paths containing spaces by falling back to using a tempfile.

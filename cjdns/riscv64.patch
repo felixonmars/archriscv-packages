@@ -1,0 +1,42 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,11 +14,35 @@ arch=('x86_64')
+ license=('GPL3')
+ depends=('glibc' 'sh')
+ optdepends=('nodejs: optional utilities support')
+-makedepends=('nodejs' 'python' 'libseccomp' 'util-linux' 'which' 'audit' 'rust' 'linux-headers')
++makedepends=('nodejs' 'python' 'libseccomp' 'util-linux' 'which' 'audit' 'rust' 'linux-headers' 'git')
+ install=cjdns.install
+-source=(${pkgname}-${pkgver}.tar.gz::https://github.com/cjdelisle/${pkgname}/archive/cjdns-v${pkgver}.tar.gz)
+-sha512sums=('fd22ae084edf174052b2683fc5591aeb036791b1a710f49d57cab475b1fdc7e7a2d4fcc3482d5fd401e15b8fef49a8985bea93a4b5a192c62b31647c4667b610')
+-b2sums=('06bd852cd22e93eea9f215409253270f0ba1e781a50d2c333f14c1ddac3eec4f93c02c93cb55adca26b76aab1586d85a3e559aa250ce0ddbf8ee2d6ca134b4c8')
++source=(${pkgname}-${pkgver}.tar.gz::https://github.com/cjdelisle/${pkgname}/archive/cjdns-v${pkgver}.tar.gz
++        sodiumoxide::git+https://github.com/cjdelisle/sodiumoxide.git#commit=9f6a18d40a4db253edfebac9f2ce5c22d09b1f47
++        libsodium-fix-rust-c-target.patch
++        cjdns-add-riscv64-support.patch)
++sha512sums=('fd22ae084edf174052b2683fc5591aeb036791b1a710f49d57cab475b1fdc7e7a2d4fcc3482d5fd401e15b8fef49a8985bea93a4b5a192c62b31647c4667b610'
++            'SKIP'
++            'df8f2bd742c8e0406e2e70147775a2d69ce63bc054662598c305d4ecb7058eea12f253619d89aa51c8ef794e8db3b77515e0e556725be3f5fd8fd6036f17e193'
++            '5e588c9fb6e786cb90053cb2112827ec6258c7b14e6c234f82bc583b1213ac31e7a382cc55a336e9efd0f95ba60370f0b9ebc1ed871289ae22350f441d5b6275')
++b2sums=('06bd852cd22e93eea9f215409253270f0ba1e781a50d2c333f14c1ddac3eec4f93c02c93cb55adca26b76aab1586d85a3e559aa250ce0ddbf8ee2d6ca134b4c8'
++        'SKIP'
++        'b95c448cff7ec72bd5177b62ee247d18b6f1122e715ce8c11a1c65dfc47c496cb89737c212f5c382736e74edec9e8d7ea738111711904f65678cb87de77c0c4d'
++        '9e9acda7ead57424a2d9294288350bf890deec5f033252e0130d9fde0955e5842865ac71c5213603891fd0865f5320ef8a0ec12fc429eee9265a3b9edd9d11c8')
++
++prepare() {
++  cd sodiumoxide
++  git submodule update --init --recursive
++  patch -Np1 -i ../libsodium-fix-rust-c-target.patch
++
++  cd ../${pkgname}-${pkgname}-v${pkgver}
++  patch -Np1 -i ../cjdns-add-riscv64-support.patch
++  echo -e '\n[patch."https://github.com/cjdelisle/sodiumoxide"]\nlibsodium-sys = { path = "../sodiumoxide/libsodium-sys" }' \
++    >> Cargo.toml
++  echo -e '\n[patch.crates-io]\nring = { git = "https://github.com/felixonmars/ring", branch = "0.16.20" }' \
++    >> Cargo.toml
++  cargo update -p libsodium-sys
++  cargo update -p ring
++}
+ 
+ build() {
+   cd ${pkgname}-${pkgname}-v${pkgver}
