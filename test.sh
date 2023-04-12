@@ -17,12 +17,12 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
   echo "Trying to apply patch for $_dir..."
 
   pushd $_dir
-  _tmp=$(sudo -u nobody mktemp -d)
-  cd $_tmp
+  _tmp_svn=$(sudo -u felix mktemp -d)
+  cd $_tmp_svn
 
   PKGBASE=$_dir
-  sudo -u nobody svn checkout svn://svn.archlinux.org/packages/$PKGBASE || \
-  sudo -u nobody svn checkout svn://svn.archlinux.org/community/$PKGBASE || continue
+  sudo -u felix svn checkout svn://svn.archlinux.org/packages/$PKGBASE || \
+  sudo -u felix svn checkout svn://svn.archlinux.org/community/$PKGBASE || continue
 
   cd $PKGBASE/trunk
 
@@ -50,11 +50,14 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
     exit 1
   fi
 
-  cp $ORIGDIR/$PKGBASE/* ./
+  _tmp_trunk=$(sudo -u felix mktemp -d)
+  cp $ORIGDIR/$PKGBASE/* $_tmp_trunk
+  cp -r . $_tmp_trunk
+  cd $_tmp_trunk
 
-  sudo -u nobody patch -p0 -i ./riscv64.patch || exit 1
+  sudo -u felix patch -p0 -i ./riscv64.patch || exit 1
 
-  sudo -u nobody makepkg --verifysource --skippgpcheck || exit 1
+  sudo -u felix makepkg --verifysource --skippgpcheck || exit 1
 
   popd
 done
