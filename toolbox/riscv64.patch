@@ -1,29 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,14 +11,24 @@ license=(APACHE)
+@@ -11,8 +11,10 @@ license=(APACHE)
  depends=(podman bash flatpak)
- makedepends=(go shellcheck go-md2man bash-completion ninja git meson)
- _commit=52c85b60d95ecb2c01cbd3901a16e7c43cd85440	#refs/tags/0.0.99.3^{}
+ makedepends=(go shellcheck go-md2man bash-completion ninja git meson podman)
+ _commit=f7c4c7dedb34be33333065296275869e77464400	#refs/tags/0.0.99.4^{}
 -source=("git+$url#commit=$_commit")
 -sha256sums=('SKIP')
 +source=("git+$url#commit=$_commit"
 +        "add_dynamic_linker.patch::https://patch-diff.githubusercontent.com/raw/containers/toolbox/pull/1159.patch")
 +sha256sums=('SKIP'
-+            '172cb39e992052ceadffa479d33c164824f4963c014dcfb6277d9df11df3f0b8')
++            'a9178677c13d15559320ef8e02af8f6961b06d801db091b2c95f741384edd8c7')
  
  pkgver() {
    cd toolbox
-   git describe --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+@@ -25,7 +27,7 @@ prepare() {
+   git cherry-pick -n 816a7cab9e2f02f2eb828062be54ffef2e3666dc
+   git cherry-pick -n f555029304415a06bde410deb879cd2cc7dad444
+   git cherry-pick -n fc5f568c5d82f4a16982268fa67092e52be91fbe
+-    
++  patch -p1 -Ni "${srcdir}/add_dynamic_linker.patch"
  }
  
-+prepare() {
-+  cd toolbox
-+  patch -p1 -Ni "${srcdir}/add_dynamic_linker.patch"
-+  cd src
-+  go mod edit -replace golang.org/x/sys=golang.org/x/sys@v0.2.0
-+  go mod download golang.org/x/sys
-+}
-+
  build() {
-   export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
-   export CGO_LDFLAGS="${LDFLAGS}"
