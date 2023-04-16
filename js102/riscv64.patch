@@ -1,20 +1,17 @@
---- PKGBUILD	(revision 470897)
-+++ PKGBUILD	(working copy)
-@@ -12,9 +12,11 @@
- checkdepends=(mercurial git)
- options=(!lto)
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,8 +31,10 @@ options=(!lto)
  _relver=${pkgver}esr
--source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc})
-+source=(https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
-+        tests-skip-some-tests-on-rv64.patch)
- sha256sums=('31b074623f09ca821a8a7dee0b3d2df1a45f1164264d31c26b4969a4d6a21dd1'
--            'SKIP')
-+            'SKIP'
-+            '6f9dc585367257e1d793b4cb6860d2b9ea00bc01e57d659202f5f5a27218dcfd')
- validpgpkeys=('14F26682D0916CDD81E37B6D61B7B526D98F0353') # Mozilla Software Releases <release@mozilla.com>
- 
- # Make sure the duplication between bin and lib is found
-@@ -24,6 +26,8 @@
+ source=(
+   https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
++  tests-skip-some-tests-on-rv64.patch
+ )
+ b2sums=('b4d8eaa6d72b009d12b435781c360f043bca7554d8b069b8d858399ece03f20703d7e36427a3f92d0b801a94b1c3f132904f21e51ba4118116bbfa4e5668d651'
++        'SKIP'
+         'SKIP')
+ validpgpkeys=(
+   14F26682D0916CDD81E37B6D61B7B526D98F0353  # Mozilla Software Releases <release@mozilla.com>
+@@ -45,6 +47,8 @@ prepare() {
    mkdir mozbuild
    cd firefox-$pkgver
  
@@ -23,7 +20,7 @@
    cat >../mozconfig <<END
  ac_add_options --enable-application=js
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
-@@ -33,12 +37,13 @@
+@@ -54,12 +58,13 @@ ac_add_options --enable-release
  ac_add_options --enable-hardening
  ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
@@ -38,7 +35,7 @@
  
  # System libraries
  ac_add_options --with-system-zlib
-@@ -62,40 +67,40 @@
+@@ -83,40 +88,40 @@ build() {
    # Do 3-tier PGO
    echo "Building instrumented JS..."
    cat >.mozconfig ../mozconfig - <<END
