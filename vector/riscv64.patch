@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -5,7 +5,7 @@ pkgver=0.28.2
+ pkgrel=1
+ pkgdesc="A high-performance observability data pipeline"
+ arch=("x86_64")
+-_target="x86_64-unknown-linux-gnu"
++_target="riscv64gc-unknown-linux-gnu"
+ url="https://vector.dev"
+ license=("MPL2")
+ options=(!lto) # TODO: Build with LTO
+@@ -38,6 +38,8 @@ sha512sums=('5326f333a560bcb06a4eb048b6d950dfaa5e512abae0d74d439ab7f2cbdb2e0f70b
+ prepare() {
+     cd "${pkgname}-${pkgver}"
+ 
++    sed -i "/\[patch.crates-io\]/a ring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" Cargo.toml
++    cargo update -p ring
+     cargo fetch \
+         --locked
+ }
