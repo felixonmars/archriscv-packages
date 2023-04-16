@@ -1,3 +1,5 @@
+diff --git a/trunk/PKGBUILD b/trunk/PKGBUILD
+index 4483fe9..8c294be 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -27,12 +27,22 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
@@ -11,7 +13,7 @@
 +        riscv-crashpad.patch
 +        riscv-dav1d.patch
 +        riscv-sandbox.patch)
- sha256sums=('ddfd37373c1fa0f433a6ac11f0baa2b1f3fdfb9c7b5867e32a4300f2eb5aff41'
+ sha256sums=('9c7227e11b85af2eb828f41c0f83ffa94e17128ed7a368ce4afec9c1357b7ae1'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
              'e66be069d932fe18811e789c57b96249b7250257ff91a3d82d15e2a7283891b7'
              '7f3b1b22d6a271431c1f9fc92b6eb49c6d80b8b3f868bdee07a6a1a16630a302'
@@ -22,24 +24,23 @@
 +            '70f8bcd3dd68c13d1e074415952c0b7e3e3b6058c97d39ba7a78dc17daa30547'
 +            'fd30767b8587338d1a38165aaaeef7e44a6ea91c4cfa644effaaa363e698796a'
 +            'b56dc00f6de8d0dfaad8d3cca37c061ca26d6fc9feb7ec1726166d5cfeff9a1a')
- 
+
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -108,6 +118,13 @@ prepare() {
+@@ -108,6 +118,12 @@ prepare() {
    # https://crbug.com/1314342
    patch -Np1 -i ../disable-GlobalMediaControlsCastStartStop.patch
- 
+
 +  # riscv64
 +  patch -Np1 -i ../riscv-angle.patch
 +  patch -Np1 -i ../riscv-base.patch
 +  patch -Np1 -i ../riscv-crashpad.patch
 +  patch -Np1 -i ../riscv-dav1d.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
-+
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -163,6 +180,10 @@ build() {
+@@ -163,6 +179,10 @@ build() {
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
@@ -48,5 +49,5 @@
 +    'use_lld=false'
 +    'enable_swiftshader=true'
    )
- 
+
    if [[ -n ${_system_libs[icu]+set} ]]; then
