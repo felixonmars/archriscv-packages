@@ -1,22 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,8 +16,18 @@ optdepends=('pipewire: WebRTC desktop sharing under Wayland')
+@@ -15,8 +15,20 @@ makedepends=(cmake ninja python-html5lib gperf jsoncpp qt6-tools pipewire nodejs
+ optdepends=('pipewire: WebRTC desktop sharing under Wayland')
  groups=(qt6)
- options=(debug)
  _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
 -source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
--sha256sums=('55f85af736a1dc79a41b8d95014ba27d8fce0be44293a69e64fece7fa12b2925')
+-sha256sums=('2a10da34a71b307e9ff11ec086455dd20b83d5b0ee6bda499c4ba9221e306f07')
 +source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz
-+        qt6-webengine-chromium-riscv64.patch
-+        qt6-webengine-cmake-riscv64.patch)
-+sha256sums=('55f85af736a1dc79a41b8d95014ba27d8fce0be44293a69e64fece7fa12b2925'
-+            '9d745072a01417a39f1ec532fcee26cf8a214332e7cea29e94d61684d10de377'
-+            'fdf8bb4f09adefa432ed7ab3b0e2f375f5b99fcb80d39415f3c574cbe6b71fb2')
++        riscv-{angle,breakpad,crashpad,dav1d,sandbox}.patch)
++sha256sums=('2a10da34a71b307e9ff11ec086455dd20b83d5b0ee6bda499c4ba9221e306f07'
++            'dfb1b19a25341c54bac3b761cec0c3853d9cd2b7b54c11bde97bf016a6dafd57'
++            'bbd83a325b3ee6a703386eac0dff5beeaaa0b2ecc2393ce4683b7bc7ca08fa7e'
++            '71db9c9fa85767a34baa12cb06580cf04c069ef0c9690dd7cfce09f11d1eec58'
++            '9de2326157f22a7d304cf7f70e74827cbffc69c5d2aecdbd30eb68c0b3cfecf1'
++            'd73e386237f9c068d24f3f18f87b17d5f39564f089242f976dd371de7cdf832e')
 +
 +prepare() {
-+  # ported from openSUSE (see https://build.opensuse.org/package/show/openSUSE:Factory:RISCV/chromium)
-+  patch -d $_pkgfn/src/3rdparty -p0 < qt6-webengine-chromium-riscv64.patch # Fix riscv64 build for Chromium
-+  patch -d $_pkgfn -p1 < qt6-webengine-cmake-riscv64.patch # Fix Qt's CMake architecture detection
++  for _patch in angle breakpad crashpad dav1d sandbox; do
++    patch -d $_pkgfn/src/3rdparty -p0 < riscv-$_patch.patch
++  done
 +}
  
  build() {
