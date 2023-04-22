@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,11 +11,14 @@ license=(BSD)
+ depends=(python-nest-asyncio python-traitlets python-async_generator python-jupyter-client jupyter-nbformat python-testpath)
+ makedepends=(python-build python-installer python-hatchling)
+ checkdepends=(python-pytest-asyncio python-xmltodict jupyter-nbconvert python-ipywidgets python-flaky)
+-source=(https://github.com/jupyter/nbclient/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
+-sha256sums=('a8db99eb1ae5b1925039d8e91c77ea7410d6ce6c071eb075c4509d166d0be3b6')
++source=(https://github.com/jupyter/nbclient/archive/v$pkgver/$pkgname-$pkgver.tar.gz
++        $pkgname-fix-test.patch::https://github.com/jupyter/nbclient/pull/285.diff)
++sha256sums=('a8db99eb1ae5b1925039d8e91c77ea7410d6ce6c071eb075c4509d166d0be3b6'
++            '93f4569738a874cf4b29d8e7db3cee5b6083b1fa666e42984fb10445f18bd083')
+ 
+ build() {
+   cd nbclient-$pkgver
++  patch -Np1 -i ../$pkgname-fix-test.patch
+   python -m build --wheel --no-isolation
+ }
+ 
