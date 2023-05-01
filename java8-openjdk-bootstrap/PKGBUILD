@@ -1,0 +1,341 @@
+# Maintainer: Levente Polyak <anthraxx[at]archlinux[dot]org>
+# Maintainer: Frederik Schwan <freswa at archlinux dot org>
+# Maintainer: Guillaume ALAUX <guillaume@archlinux.org>
+# Contributor: Boyan Ding <stu_dby@126.com>
+
+pkgname=('jre8-openjdk-bootstrap-headless' 'jre8-openjdk-bootstrap' 'jdk8-openjdk-bootstrap')
+pkgbase=java8-openjdk-bootstrap
+
+_majorver=8
+_minorver=372
+_updatever=07
+pkgver=${_majorver}.${_minorver}.u${_updatever}
+pkgrel=1
+arch=(any)
+url='https://openjdk.java.net/'
+license=('custom')
+makedepends=(
+  'bash'
+  'ccache'
+  'cpio'
+  'git'
+  'java-environment=8'
+  'unzip'
+  'zip'
+  riscv64-linux-gnu-{binutils,gcc,glibc,linux-api-headers}
+)
+_extra_riscv64_packages=(
+  libcups-1:2.4.2-6-riscv64
+  fontconfig-2:2.14.2-1-riscv64
+  freetype2-2.13.0-1-riscv64
+  alsa-lib-1.2.8-1-riscv64
+  libxrandr-1.5.3-1-riscv64
+  libxext-1.3.5-1-riscv64
+  libx11-1.8.4-1-riscv64
+  libxrender-0.9.11-1-riscv64
+  xorgproto-2022.2-1-any
+  libxtst-1.2.4-1.1-riscv64
+  giflib-5.2.1-2-riscv64
+  libxt-1.3.0-1-riscv64
+  libxi-1.8-3-riscv64
+  libpng-1.6.39-1-riscv64
+  harfbuzz-7.2.0-1-riscv64
+  graphite-1:1.3.14-3-riscv64
+  libxcb-1.15-2-riscv64
+  libsm-1.2.4-1-riscv64
+  libice-1.1.1-2-riscv64
+)
+_core_riscv64_packages=(
+  # The glibc from rootfs is too old
+  # If we do not upgrade it, we will encounter the following error:
+  # configure: error: --with-giflib=system specified, but no giflib found!
+  glibc-2.37-2.1-riscv64
+)
+options=(!lto !strip)
+source=(https://github.com/openjdk/jdk${_majorver}u/archive/refs/tags/jdk${_majorver}u${_minorver}-b${_updatever}.tar.gz
+        gcc11.patch::https://raw.githubusercontent.com/archlinux/svntogit-packages/packages/java8-openjdk/repos/extra-x86_64/gcc11.patch
+        java8-openjdk-add-riscv-support.patch::https://gitee.com/misaka00251/openjdk-1.8.0/raw/e4b9d135939e2263146905911ad100424101e305/add-riscv-support.patch
+        https://archriscv.felixc.at/images/archriscv-20220727.tar.zst)
+b2sums=('35bef818f7e9f6872356672e1bed50233fc4fa094c1a6eac30395d05cc8addb59b5eb0b985d3702d78939ab0a08195f87b2b2d9a7533058516e9b4477f7ae334'
+        '9679e4dfb6027a87376081489c09810812d6849573afac4ea96abe3a3e00ca5b6af7d0ffb010c43b93cfa913f9e97fbb9f11e19fcc86a89b4548442671c32da1'
+        '86cd7d1079944b29441227da00df2c4ee45ccf6c95a5c20eb9cc5e9d02e9fa6b6c8d26f69216b42d8e7832ad0f592a689464521765622f9355f4184ff87b6f06'
+        '4fd04ff9af4ac802a7d49a132e94897fba563c98464e15696bf55acb0433eed5e105549db1d49d4ddb8531add4bcf3b1ee36b5bb8557df43b2334c7760576cc3'
+        '09b92d6124ea15a860eb380396568cf4f768e82db0318d1affd266417a2e399dbff432e6d3832f610b04d5e4c0f25695211b26065d5becf054cd7161f5540b07'
+        'e8ed2b388036cc181b6aed2acc7a8ce6437555c69bf70922bf9a71f68f1fc01e40ff2e1b758fec77eeaa2d1b49f5709a7d854ae4843bf0b3eaffa4f46e382d83'
+        'b88f1561c74f59d192b4fc9141dc9df5cb68d99d83a89df44326b61b2bcb31b84e636f79bbe51e82ddd436239a0850117bdc52bc73bf421d606e4f2a967bb829'
+        'e13ebcccc47303751b6117cdada322a422337b135d2aa9a301d696d7da9bb48efd87af880b71180d944e826f9992f4410c7303783a10d432af0d21350f6d4f66'
+        '1621a4380ed452d81724a0e4edc3161a5470e17227dd452e72e43648b01914c390cc57e396d9f1cb546da969e074cf6a924979bd53b7b949d915666ebf8170bf'
+        'f968b85c2a73fcde0c176aaf7cf9290a37a28e60323ea221db077053f29b9fc2a3990afa50de699b68050bbf20bb10ca33c9e648e6a57e6d8a41b467c42b2b3b'
+        '2caee8d2b17b76837a2c0bebd088f35efb6650af75ac238db65c10d0d2aa74bb3746c9787343c6170d95d145c9183aca9addbc98de7e281a52e871dd6479b1a8'
+        '78ce9992ee436a9e310e75b948cddaae5ea4a5b96c841719c30907655343c6a644d95b22657421ce2ef30ccd287770df2092026f5d9937a4482d5065dac23655'
+        '991f2266175efda816bfd223555f1141f1e4eaca17886eff7a0a3c2cb268da844df94d8e049109453ffe6f6abae548604e4962bea328728d9929c2f14716ee9f'
+        '8807e36ba91854577d29930983a6a8518e760b295bb3e79d68663351835da3c8c1b869434690fb1f8ad1017a621c317d32256074992473bb5efae32737fd9b35'
+        '7bb884c4edccefff949edbc9b2714525ddd9900f88a7db46eeb7c859159d2173872737831f90146aca7df7846ca807ff3103eadd37abc1d165a667a449c663ab'
+        'f785b7f633cba1447b51e933f992d8718e008bdc166bd05c63f829a03f2a54677e08d3ad3edc87f649b3a1cccfdd57e545b85b44566c1ac514e9173a7fb474ef'
+        'd54f687803c0549e33751086e70b3263b9d84b14777f8ae55318af9ebb2b853a0d2c8a6af791e31ce940b326486fbdd17caed8a21c8a2b15b8701f7f0fd73c87'
+        '87a37896d652d0ac791c8ef61d08546e83c35f1d0831a998f140914cbd0e1d0b9c9dfa2444393d6578c11ae9c3b9c3f6453b81f9b789391913725fb3336eef5f'
+        '0930b1f76718a0acf630caa2f870f6f8f3e079d54aaac463314216a70a7ecb51a8a78765c8e8b2468553cea7dfe2615ed988e4a8bc5e6243de7a1c2d6fd5521e'
+        'faa4cc4cc743da685e8989776223335a33b553cb51174a8ce601ed2de512e9cd9a95014b7f1c263d6fcb3ebd6f1e7fdd384cacaf7a8abe3a6d21e4f0536e56f7'
+        '89cddcdc4fe092952efa113059b6301e23a5c65276ebad87b7e3e6c035ce4d58defcdc7b88899a8a0b33140e759d9e4860b7004b69355c1f45810d7b9f4698db'
+        'a90c60e473779d5836e646573b356aaf37851ae1b2e8970cb8077148dd3c63dbaa0d9bb8ef6cab66a09cc3c560f70e7aef7394e8f73d940b1a648fe2419fd411'
+        '9ed3675abe43d0e31d089b5909ef3fce6207bd88bb13341d86ae3ee1b591074feacd304959a4afb3bad4ee1ba461df0356ed3b922705b28b495bbc6ae508465c'
+        '63da0a7730df571c9e8a16da75e6d4528d5e3252c06488bc7a4105f586f5212faf56c2e41e024d2c844252ae520a0cbdae2e07b41e85c721f0b2bc57592a3d8e')
+noextract=(archriscv-20220727.tar.zst)
+
+for pkg in "${_extra_riscv64_packages[@]}"; do
+  source+=("https://archriscv.felixc.at/repo/extra/${pkg}.pkg.tar.zst")
+  noextract+=("${pkg}.pkg.tar.zst")
+done
+
+for pkg in "${_core_riscv64_packages[@]}"; do
+  source+=("https://archriscv.felixc.at/repo/core/${pkg}.pkg.tar.zst")
+  noextract+=("${pkg}.pkg.tar.zst")
+done
+
+_JARCH=riscv64
+_DOC_ARCH=riscv64
+
+_jdkname=openjdk8
+_jvmdir=/usr/lib/jvm/java-8-openjdk-bootstrap
+_prefix="jdk8u/image"
+_imgdir="${_prefix}/jvm/openjdk-1.8.0_$(printf '%.2d' ${_minorver})"
+_nonheadless=(bin/policytool
+              lib/${_JARCH}/libjsound.so
+              lib/${_JARCH}/libjsoundalsa.so
+              lib/${_JARCH}/libsplashscreen.so)
+
+prepare() {
+  mkdir -p "$srcdir/sysroot"
+  for f in "${noextract[@]}"
+  do
+    bsdtar -xf "$srcdir/$f" -C "$srcdir/sysroot"
+  done
+
+  cd "$srcdir"/jdk8u-jdk${_majorver}u${_minorver}-b${_updatever}
+
+  # Fix build with C++17 (Fedora)
+  patch -Np1 -i "${srcdir}"/gcc11.patch
+  # RISC-V Support
+  patch -Np1 -i "${srcdir}"/java8-openjdk-add-riscv-support.patch
+  (cd common/autoconf && bash ./autogen.sh)
+}
+
+build() {
+  cd jdk8u-jdk${_majorver}u${_minorver}-b${_updatever}
+
+  unset JAVA_HOME
+  # http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1346
+  export MAKEFLAGS=${MAKEFLAGS/-j*}
+
+  unset CFLAGS
+  unset CXXFLAGS
+  unset LDFLAGS
+
+  export CC=riscv64-linux-gnu-gcc
+  export CXX=riscv64-linux-gnu-g++
+
+  install -d -m 755 "${srcdir}/${_prefix}/"
+  bash configure \
+    --prefix="${srcdir}/${_prefix}" \
+    --with-update-version="${_minorver}" \
+    --with-build-number="b${_updatever}" \
+    --with-milestone="fcs" \
+    --enable-unlimited-crypto \
+    --with-giflib=system \
+    --with-zlib=system \
+    --openjdk-target=riscv64-linux-gnu \
+    --with-jvm-variants=zero \
+    --disable-jfr \
+    --with-sysroot="$srcdir/sysroot" \
+    --with-extra-cflags="-O3 -Wno-error=nonnull -Wno-error=deprecated-declarations -Wno-error=stringop-overflow= -Wno-error=return-type -Wno-error=cpp -fno-lifetime-dse -fno-delete-null-pointer-checks -fcommon -fno-exceptions -Wno-error=format-overflow=" \
+    --with-extra-cxxflags="-fcommon -fno-exceptions" \
+    --with-freetype-include="$srcdir/sysroot/usr/include/freetype2" \
+    --with-freetype-lib="$srcdir/sysroot/usr/lib" \
+    CFLAGS="--sysroot $srcdir/sysroot" CXXFLAGS="--sysroot $srcdir/sysroot" \
+    
+
+  # These help to debug builds: LOG=trace HOTSPOT_BUILD_JOBS=1
+  # Without 'DEBUG_BINARIES', i686 won't build: http://mail.openjdk.java.net/pipermail/core-libs-dev/2013-July/019203.html
+  make
+  make docs
+
+  # FIXME sadly 'DESTDIR' is not used here!
+  make install
+
+  cd ../${_imgdir}
+
+  # A lot of build stuff were directly taken from
+  # http://pkgs.fedoraproject.org/cgit/java-1.8.0-openjdk.git/tree/java-1.8.0-openjdk.spec
+
+  # http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1437
+  find . -iname '*.jar' -exec chmod ugo+r {} \;
+  chmod ugo+r lib/ct.sym
+
+  # remove redundant *diz and *debuginfo files
+  find . -iname '*.diz' -exec rm {} \;
+  find . -iname '*.debuginfo' -exec rm {} \;
+}
+
+check() {
+  cd jdk8u-jdk${_majorver}u${_minorver}-b${_updatever}
+  #make -k test
+}
+
+package_jre8-openjdk-bootstrap-headless() {
+  pkgdesc='OpenJDK Java 8 headless runtime environment'
+  depends=('java-runtime-common' 'ca-certificates-utils' 'nss')
+  optdepends=('java-rhino: for some JavaScript support')
+  provides=('java-runtime-headless=8' 'java-runtime-headless-openjdk=8')
+  # Upstream config files that should go to etc and get backup
+  _backup_etc=(etc/java-8-openjdk-bootstrap/${_JARCH}/jvm.cfg
+               etc/java-8-openjdk-bootstrap/calendars.properties
+               etc/java-8-openjdk-bootstrap/content-types.properties
+               etc/java-8-openjdk-bootstrap/flavormap.properties
+               etc/java-8-openjdk-bootstrap/images/cursors/cursors.properties
+               etc/java-8-openjdk-bootstrap/logging.properties
+               etc/java-8-openjdk-bootstrap/management/jmxremote.access
+               etc/java-8-openjdk-bootstrap/management/jmxremote.password
+               etc/java-8-openjdk-bootstrap/management/management.properties
+               etc/java-8-openjdk-bootstrap/management/snmp.acl
+               etc/java-8-openjdk-bootstrap/net.properties
+               etc/java-8-openjdk-bootstrap/psfont.properties.ja
+               etc/java-8-openjdk-bootstrap/psfontj2d.properties
+               etc/java-8-openjdk-bootstrap/security/java.policy
+               etc/java-8-openjdk-bootstrap/security/java.security
+               etc/java-8-openjdk-bootstrap/sound.properties)
+  replaces=('jre8-openjdk-headless-wm')
+  backup=(${_backup_etc[@]})
+  install=install_jre8-openjdk-bootstrap-headless.sh
+
+  cd ${_imgdir}/jre
+
+  install -d -m 755 "${pkgdir}${_jvmdir}/jre/"
+  cp -a bin lib "${pkgdir}${_jvmdir}/jre"
+
+  cp ../release "${pkgdir}${_jvmdir}" # FS#52692
+
+  # Set config files
+  mv "${pkgdir}${_jvmdir}"/jre/lib/management/jmxremote.password{.template,}
+  mv "${pkgdir}${_jvmdir}"/jre/lib/management/snmp.acl{.template,}
+
+  # Remove 'non-headless' lib files
+  for f in "${_nonheadless[@]}"; do
+    rm "${pkgdir}${_jvmdir}/jre/${f}"
+  done
+
+  # Man pages
+  pushd "${pkgdir}${_jvmdir}/jre/bin"
+  install -d -m 755 "${pkgdir}"/usr/share/man/{,ja/}man1/
+  for file in *; do
+    if [ -f "${srcdir}/${_imgdir}/man/man1/${file}.1" ]; then
+      install -m 644 "${srcdir}/${_imgdir}/man/man1/${file}.1" \
+        "${pkgdir}/usr/share/man/man1/${file}-${_jdkname}.1"
+    fi
+    if [ -f "${srcdir}/${_imgdir}/man/ja/man1/${file}.1" ]; then
+      install -m 644 "${srcdir}/${_imgdir}/man/ja/man1/${file}.1" \
+        "${pkgdir}/usr/share/man/ja/man1/${file}-${_jdkname}.1"
+    fi
+  done
+  popd
+
+  # Link JKS keystore from ca-certificates-utils
+  rm -f "${pkgdir}${_jvmdir}/jre/lib/security/cacerts"
+  ln -sf /etc/ssl/certs/java/cacerts "${pkgdir}${_jvmdir}/jre/lib/security/cacerts"
+
+  # Install license
+  install -d -m 755 "${pkgdir}/usr/share/licenses/${pkgbase}/"
+  install -m 644 ASSEMBLY_EXCEPTION LICENSE THIRD_PARTY_README \
+                 "${pkgdir}/usr/share/licenses/${pkgbase}"
+  ln -sf /usr/share/licenses/${pkgbase} "${pkgdir}/usr/share/licenses/${pkgname}"
+
+  # Move config files that were set in _backup_etc from ./lib to /etc
+  for file in "${_backup_etc[@]}"; do
+    _filepkgpath=${_jvmdir}/jre/lib/${file#etc/java-8-openjdk-bootstrap/}
+    install -D -m 644 "${pkgdir}${_filepkgpath}" "${pkgdir}/${file}"
+    ln -sf /${file} "${pkgdir}${_filepkgpath}"
+  done
+}
+
+package_jre8-openjdk-bootstrap() {
+  pkgdesc='OpenJDK Java 8 full runtime environment'
+  depends=(
+    "jre8-openjdk-bootstrap-headless=${pkgver}-${pkgrel}"
+    'xdg-utils'
+    'hicolor-icon-theme'
+    'giflib'
+  )
+  optdepends=('icedtea-web: web browser plugin + Java Web Start'
+              'alsa-lib: for basic sound support'
+              'gtk2: for the Gtk+ look and feel - desktop usage'
+              'java8-openjfx: for JavaFX GUI components support')
+  provides=('java-runtime=8' 'java-runtime-openjdk=8')
+  install=install_jre8-openjdk-bootstrap.sh
+  replaces=('jre8-openjdk-wm')
+
+  cd ${_imgdir}/jre
+
+  for f in "${_nonheadless[@]}"; do
+    install -D ${f} "${pkgdir}${_jvmdir}/jre/${f}"
+  done
+
+  # Man pages
+  pushd "${pkgdir}${_jvmdir}/jre/bin"
+  install -d -m 755 "${pkgdir}"/usr/share/man/{,ja/}man1/
+  for file in *; do
+    install -m 644 "${srcdir}/${_imgdir}/man/man1/${file}.1" \
+      "${pkgdir}/usr/share/man/man1/${file}-${_jdkname}.1"
+    install -m 644 "${srcdir}/${_imgdir}/man/ja/man1/${file}.1" \
+      "${pkgdir}/usr/share/man/ja/man1/${file}-${_jdkname}.1"
+  done
+  popd
+
+  # Install license
+  install -d -m 755 "${pkgdir}/usr/share/licenses/${pkgbase}/"
+  ln -sf /usr/share/licenses/${pkgbase} "${pkgdir}/usr/share/licenses/${pkgname}"
+}
+
+package_jdk8-openjdk-bootstrap() {
+  pkgdesc='OpenJDK Java 8 development kit'
+  depends=('java-environment-common' "jre8-openjdk-bootstrap=${pkgver}-${pkgrel}")
+  provides=('java-environment=8' 'java-environment-openjdk=8')
+  replaces=('jdk8-openjdk-wm')
+  install=install_jdk8-openjdk-bootstrap.sh
+
+  cd ${_imgdir}
+
+  # Main files
+  install -d -m 755 "${pkgdir}${_jvmdir}"
+
+  cp -a include lib "${pkgdir}${_jvmdir}"
+
+  # 'bin' files
+  pushd bin
+
+  # 'java-rmi.cgi' will be handled separately as it should not be in the PATH and has no man page
+  for b in $(ls | grep -v java-rmi.cgi); do
+    if [ -e ../jre/bin/${b} ]; then
+      # Provide a link of the jre binary in the jdk/bin/ directory
+      ln -s ../jre/bin/${b} "${pkgdir}${_jvmdir}/bin/${b}"
+    else
+      # Copy binary to jdk/bin/
+      install -D -m 755 ${b} "${pkgdir}${_jvmdir}/bin/${b}"
+      # Copy man page
+      if [ -f ../man/man1/${b}.1 ]; then
+        install -D -m 644 ../man/man1/${b}.1 "${pkgdir}/usr/share/man/man1/${b}-${_jdkname}.1"
+      fi
+      if [ -f ../man/ja/man1/${b}.1 ]; then
+        install -D -m 644 ../man/ja/man1/${b}.1 "${pkgdir}/usr/share/man/ja/man1/${b}-${_jdkname}.1"
+      fi
+    fi
+  done
+  popd
+
+  # Handling 'java-rmi.cgi' separately
+  install -D -m 755 bin/java-rmi.cgi "${pkgdir}${_jvmdir}/bin/java-rmi.cgi"
+
+  # link license
+  install -d -m 755 "${pkgdir}/usr/share/licenses/"
+  ln -sf /usr/share/licenses/${pkgbase} "${pkgdir}/usr/share/licenses/${pkgname}"
+}
+
+# vim: ts=2 sw=2 et:
