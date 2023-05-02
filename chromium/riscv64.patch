@@ -1,10 +1,10 @@
-diff --git a/trunk/PKGBUILD b/trunk/PKGBUILD
-index 2d5b426..d48b7c7 100644
+diff --git trunk/PKGBUILD trunk/PKGBUILD
+index e91c7bc..b68d790 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -27,12 +27,22 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         https://github.com/foutrelis/chromium-launcher/archive/v$_launcher_ver/chromium-launcher-$_launcher_ver.tar.gz
-         sql-relax-constraints-on-VirtualCursor-layout.patch
+@@ -29,14 +29,24 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
+         download-bubble-typename.patch
+         webauthn-variant.patch
          disable-GlobalMediaControlsCastStartStop.patch
 -        use-oauth2-client-switches-as-default.patch)
 +        use-oauth2-client-switches-as-default.patch
@@ -13,9 +13,11 @@ index 2d5b426..d48b7c7 100644
 +        riscv-crashpad.patch
 +        riscv-dav1d.patch
 +        riscv-sandbox.patch)
- sha256sums=('168c62fea9f428f99fbf967f36a75ee5da160429e3a5b86bf02188c5fe7c79fd'
+ sha256sums=('76cec11dc13abe6703305b0300e1fe24c8f547c1ff313f7be09db0e23d12ee1e'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             'e66be069d932fe18811e789c57b96249b7250257ff91a3d82d15e2a7283891b7'
+             '5f868cba9e4d387499711738adc6fd87ab9f1ef61f464016bc682660ae59206a'
+             'd464eed4be4e9bf6187b4c40a759c523b7befefa25ba34ad6401b2a07649ca2a'
+             '590fabbb26270947cb477378b53a9dcd17855739076b4af9983e1e54dfcab6d7'
              '7f3b1b22d6a271431c1f9fc92b6eb49c6d80b8b3f868bdee07a6a1a16630a302'
 -            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
 +            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
@@ -27,7 +29,7 @@ index 2d5b426..d48b7c7 100644
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -108,6 +118,13 @@ prepare() {
+@@ -112,6 +122,13 @@ prepare() {
    # https://crbug.com/1314342
    patch -Np1 -i ../disable-GlobalMediaControlsCastStartStop.patch
  
@@ -38,10 +40,10 @@ index 2d5b426..d48b7c7 100644
 +  patch -Np1 -i ../riscv-dav1d.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
 +
-   # Link to system tools required by the build
-   mkdir -p third_party/node/linux/node-linux-x64/bin
-   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -163,6 +180,10 @@ build() {
+   # Build fixes
+   patch -Np1 -i ../download-bubble-typename.patch
+   patch -Np1 -i ../webauthn-variant.patch
+@@ -171,6 +188,10 @@ build() {
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
