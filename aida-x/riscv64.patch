@@ -1,0 +1,63 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -4,7 +4,7 @@ pkgbase=aida-x
+ _name="${pkgbase^^}"
+ pkgname=(
+   aida-x
+-  aida-x-{clap,lv2,standalone,vst,vst3}
++  aida-x-{clap,lv2,standalone,vst}
+ )
+ pkgver=1.0.0
+ pkgrel=1
+@@ -24,9 +24,12 @@ makedepends=(
+ checkdepends=(
+   lv2lint
+ )
+-source=($url/releases/download/$pkgver/$_name-$pkgver-src.tar.xz)
+-sha512sums=('b814f1969bc151f64b16d3ac596f158c609994f71cd0c219c918bd099ee0c3b4114bfe8dd4e3d72ac9ea78a4acdad6ba45b86c58ac730c1182737535ee19235e')
+-b2sums=('84901085fc08b98531dca80388dfd8f8fa18f0ab3f72f9dd058c61d420e04a0f9243ef291ca9a1fcec3769cd99ea62371ec79fef622a00cefcba8320b7033d66')
++source=($url/releases/download/$pkgver/$_name-$pkgver-src.tar.xz
++        disable-vst3.patch)
++sha512sums=('b814f1969bc151f64b16d3ac596f158c609994f71cd0c219c918bd099ee0c3b4114bfe8dd4e3d72ac9ea78a4acdad6ba45b86c58ac730c1182737535ee19235e'
++            '1134eb6320dff5e4386ac1797b336bf4c17b2d00dff949e8e775b66e3b24f23e02d31e66e2d6e312f69dbc6c0ba5de9a0506fcb69570ac323a76255a857b7ef5')
++b2sums=('84901085fc08b98531dca80388dfd8f8fa18f0ab3f72f9dd058c61d420e04a0f9243ef291ca9a1fcec3769cd99ea62371ec79fef622a00cefcba8320b7033d66'
++        '2f1e12730282a24ed3d90f0aafa5d331da27d13cd9960e6130108496d7c8f8a0e8f060984ab6fd33668399de9e41cbe37f506439e28cfa191bbeef1aec39b545')
+ 
+ _pick() {
+   local p="$1" f d; shift
+@@ -38,6 +41,11 @@ _pick() {
+   done
+ }
+ 
++prepare() {
++  cd $_name-$pkgver
++  patch -Np1 -i ../disable-vst3.patch
++}
++
+ build() {
+   local cmake_options=(
+     -B build
+@@ -154,23 +162,3 @@ package_aida-x-vst() {
+   # mv -v $pkgname/* "$pkgdir"
+   install -vDm 755 build/bin/$_name-vst2.so -t "$pkgdir/usr/lib/vst/"
+ }
+-
+-package_aida-x-vst3() {
+-  pkgdesc+=" - VST3 plugin"
+-  groups=(
+-    pro-audio
+-    vst3-plugins
+-  )
+-  depends=(
+-    dbus
+-    gcc-libs
+-    glibc
+-    libglvnd
+-    libx11
+-    libxext
+-    vst3-host
+-  )
+-
+-  # mv -v $pkgname/* "$pkgdir"
+-  install -vDm 755 build/bin/$_name.vst3/Contents/$CARCH-linux/*.so -t "$pkgdir/usr/lib/vst3/$_name.vst3/Contents/$CARCH-linux/"
+-}
