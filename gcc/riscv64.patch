@@ -1,16 +1,16 @@
 diff --git PKGBUILD PKGBUILD
-index 8f15064..4ea57fe 100644
+index 6bc839a..3288375 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -7,7 +7,7 @@
  # toolchain build order: linux-api-headers->glibc->binutils->gcc->glibc->binutils->gcc
  # NOTE: libtool requires rebuilt with each new gcc version
  
--pkgname=(gcc gcc-libs lib32-gcc-libs gcc-fortran gcc-objc gcc-ada gcc-go gcc-d lto-dump libgccjit)
-+pkgname=(gcc gcc-libs gcc-fortran gcc-objc gcc-go gcc-d lto-dump libgccjit)
- pkgver=12.2.1
+-pkgname=(gcc gcc-libs lib32-gcc-libs gcc-ada gcc-d gcc-fortran gcc-go gcc-objc lto-dump libgccjit)
++pkgname=(gcc gcc-libs gcc-d gcc-fortran gcc-go gcc-objc lto-dump libgccjit)
+ pkgver=13.1.1
  _majorver=${pkgver%%.*}
- _commit=fb2d50f72caf3b84b315bc760368670680999749
+ _commit=9a167ee2f8b9a0859fbab6cfdc276cf1f272effe
 @@ -19,11 +19,8 @@ url='https://gcc.gnu.org'
  makedepends=(
    binutils
@@ -23,40 +23,35 @@ index 8f15064..4ea57fe 100644
    libisl
    libmpc
    python
-@@ -41,6 +38,8 @@ _libdir=usr/lib/gcc/$CHOST/${pkgver%%+*}
+@@ -41,6 +38,7 @@ _libdir=usr/lib/gcc/$CHOST/${pkgver%%+*}
  source=(git+https://sourceware.org/git/gcc.git#commit=${_commit}
          c89 c99
          gcc-ada-repro.patch
-+        libitm-riscv64.patch
 +        unfilter-default-library-path.patch
  )
  validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.org
                86CFFCA918CF3AF47147588051E8B148A9999C34  # evangelos@foutrelis.com
-@@ -49,7 +48,9 @@ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.
+@@ -49,7 +47,8 @@ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.
  sha256sums=('SKIP'
              'de48736f6e4153f03d0a5d38ceb6c6fdb7f054e8f47ddd6af0a3dbf14f27b931'
              '2513c6d9984dd0a2058557bf00f06d8d5181734e41dcfe07be7ed86f2959622a'
 -            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f')
 +            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f'
-+            '8a71bbb41463fb0e8518d5cff671097704fb8b01867ea224b8ebfe6ba3e4f6d6'
 +            '7183fdeea8fd148cf9dd03b0932f9d439b818a5ab3bc9a5e20d8e0b41c9e0efd')
  
  prepare() {
    [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
-@@ -64,6 +65,12 @@ prepare() {
+@@ -64,6 +63,9 @@ prepare() {
    # Reproducible gcc-ada
    patch -Np0 < "$srcdir/gcc-ada-repro.patch"
  
-+  # libitm riscv
-+  patch -Np1 < ../libitm-riscv64.patch
-+
 +  # Remove codes filtering default library paths to make mold work correctly
 +  patch -Np1 < ../unfilter-default-library-path.patch
 +
    mkdir -p "$srcdir/gcc-build"
    mkdir -p "$srcdir/libgccjit-build"
  }
-@@ -91,12 +98,12 @@ build() {
+@@ -91,12 +93,12 @@ build() {
        --enable-link-serialization=1
        --enable-linker-build-id
        --enable-lto
@@ -70,16 +65,16 @@ index 8f15064..4ea57fe 100644
        --disable-werror
    )
  
-@@ -109,7 +116,7 @@ build() {
+@@ -109,7 +111,7 @@ build() {
    CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
  
    "$srcdir/gcc/configure" \
--    --enable-languages=c,c++,ada,fortran,go,lto,objc,obj-c++,d \
-+    --enable-languages=c,c++,fortran,go,lto,objc,obj-c++,d \
+-    --enable-languages=ada,c,c++,d,fortran,go,lto,objc,obj-c++ \
++    --enable-languages=c,c++,d,fortran,go,lto,objc,obj-c++ \
      --enable-bootstrap \
      "${_confflags[@]:?_confflags unset}"
  
-@@ -122,6 +129,10 @@ build() {
+@@ -122,6 +124,10 @@ build() {
  
    # make documentation
    make -O -C $CHOST/libstdc++-v3/doc doc-man-doxygen
@@ -90,7 +85,7 @@ index 8f15064..4ea57fe 100644
  
    # Build libgccjit separately, to avoid building all compilers with --enable-host-shared
    # which brings a performance penalty
-@@ -157,9 +168,9 @@ check() {
+@@ -157,9 +163,9 @@ check() {
  package_gcc-libs() {
    pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
@@ -102,7 +97,7 @@ index 8f15064..4ea57fe 100644
    replaces=($pkgname-multilib libgphobos)
  
    cd gcc-build
-@@ -172,9 +183,8 @@ package_gcc-libs() {
+@@ -172,9 +178,8 @@ package_gcc-libs() {
               libgomp \
               libitm \
               libquadmath \
@@ -114,7 +109,7 @@ index 8f15064..4ea57fe 100644
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -191,19 +201,18 @@ package_gcc-libs() {
+@@ -191,18 +196,17 @@ package_gcc-libs() {
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-info
    done
  
@@ -132,12 +127,11 @@ index 8f15064..4ea57fe 100644
  package_gcc() {
    pkgdesc="The GNU Compiler Collection - C and C++ frontends"
    depends=("gcc-libs=$pkgver-$pkgrel" 'binutils>=2.28' libmpc zstd libisl.so)
-   groups=('base-devel')
 -  optdepends=('lib32-gcc-libs: for generating code for 32-bit ABI')
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs)
-@@ -217,22 +226,18 @@ package_gcc() {
+@@ -216,22 +220,18 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -162,7 +156,7 @@ index 8f15064..4ea57fe 100644
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -247,16 +252,11 @@ package_gcc() {
+@@ -246,16 +246,11 @@ package_gcc() {
    make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
    make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
    make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
@@ -180,7 +174,7 @@ index 8f15064..4ea57fe 100644
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -265,9 +265,9 @@ package_gcc() {
+@@ -264,9 +259,9 @@ package_gcc() {
    ln -s gcc "$pkgdir"/usr/bin/cc
  
    # create cc-rs compatible symlinks
@@ -192,7 +186,7 @@ index 8f15064..4ea57fe 100644
    done
  
    # POSIX conformance launcher scripts for c89 and c99
-@@ -277,9 +277,6 @@ package_gcc() {
+@@ -276,9 +271,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -202,7 +196,7 @@ index 8f15064..4ea57fe 100644
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -299,8 +296,6 @@ package_gcc-fortran() {
+@@ -298,8 +290,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -211,7 +205,7 @@ index 8f15064..4ea57fe 100644
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -330,45 +325,6 @@ package_gcc-objc() {
+@@ -329,45 +319,6 @@ package_gcc-objc() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -257,7 +251,7 @@ index 8f15064..4ea57fe 100644
  package_gcc-go() {
    pkgdesc='Go front-end for GCC'
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -378,11 +334,10 @@ package_gcc-go() {
+@@ -377,11 +328,10 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
@@ -270,7 +264,7 @@ index 8f15064..4ea57fe 100644
    install -Dm755 gcc/go1 "$pkgdir/${_libdir}/go1"
  
    # Install Runtime Library Exception
-@@ -391,43 +346,6 @@ package_gcc-go() {
+@@ -390,42 +340,6 @@ package_gcc-go() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -278,7 +272,6 @@ index 8f15064..4ea57fe 100644
 -  pkgdesc='32-bit runtime libraries shipped by GCC'
 -  depends=('lib32-glibc>=2.27')
 -  provides=(libgo.so libgfortran.so libubsan.so libasan.so)
--  groups=(multilib-devel)
 -  options=(!emptydirs !strip)
 -
 -  cd gcc-build
@@ -314,7 +307,7 @@ index 8f15064..4ea57fe 100644
  package_gcc-d() {
    pkgdesc="D frontend for GCC"
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -443,7 +361,6 @@ package_gcc-d() {
+@@ -441,7 +355,6 @@ package_gcc-d() {
  
    make -C $CHOST/libphobos DESTDIR="$pkgdir" install
    rm -f "$pkgdir/usr/lib/"lib{gphobos,gdruntime}.so*
