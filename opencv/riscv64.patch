@@ -7,12 +7,12 @@
 -pkgname=(opencv opencv-samples python-opencv opencv-cuda)
 +pkgname=(opencv opencv-samples python-opencv)
  pkgver=4.7.0
- pkgrel=6
+ pkgrel=10
  pkgdesc='Open Source Computer Vision Library'
 @@ -12,7 +12,7 @@ license=(BSD)
  url='https://opencv.org/'
  depends=(tbb openexr gst-plugins-base libdc1394 cblas lapack libgphoto2 openjpeg2 ffmpeg protobuf)
- makedepends=(cmake python-numpy python-setuptools mesa eigen hdf5 lapacke qt5-base vtk glew ant java-environment
+ makedepends=(cmake python-numpy python-setuptools mesa eigen hdf5 lapacke qt6-5compat vtk glew ant java-environment
 -             pugixml openmpi cudnn fmt nlohmann-json)
 +             pugixml openmpi fmt nlohmann-json)
  optdepends=('opencv-samples: samples'
@@ -27,7 +27,7 @@
  
  prepare() {
    patch -d $pkgname-$pkgver -p1 < vtk9.patch # Don't require all vtk optdepends
-@@ -48,7 +50,6 @@ build() {
+@@ -49,7 +51,6 @@ build() {
           -DINSTALL_PYTHON_EXAMPLES=ON \
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DCPU_BASELINE_DISABLE=SSE3 \
@@ -35,7 +35,7 @@
           -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -63,15 +64,6 @@ build() {
+@@ -64,15 +65,6 @@ build() {
    cmake -B build -S $pkgname-$pkgver $_opts \
      -DBUILD_WITH_DEBUG_INFO=ON
    cmake --build build
@@ -51,7 +51,7 @@
  }
  
  package_opencv() {
-@@ -114,25 +106,3 @@ package_python-opencv() {
+@@ -115,25 +107,3 @@ package_python-opencv() {
    install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
