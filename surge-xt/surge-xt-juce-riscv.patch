@@ -1,0 +1,47 @@
+diff --git a/modules/juce_dsp/juce_dsp.cpp b/modules/juce_dsp/juce_dsp.cpp
+index fdf1df319..622afdbfd 100644
+--- a/modules/juce_dsp/juce_dsp.cpp
++++ b/modules/juce_dsp/juce_dsp.cpp
+@@ -79,7 +79,7 @@
+ #include "widgets/juce_Chorus.cpp"
+ 
+ #if JUCE_USE_SIMD
+- #if defined(__i386__) || defined(__amd64__) || defined(_M_X64) || defined(_X86_) || defined(_M_IX86)
++ #if defined(__i386__) || defined(__amd64__) || defined(_M_X64) || defined(_X86_) || defined(_M_IX86) || defined(__riscv)
+   #ifdef __AVX2__
+    #include "native/juce_avx_SIMDNativeOps.cpp"
+   #else
+diff --git a/modules/juce_dsp/juce_dsp.h b/modules/juce_dsp/juce_dsp.h
+index 2c7a37488..da65120b5 100644
+--- a/modules/juce_dsp/juce_dsp.h
++++ b/modules/juce_dsp/juce_dsp.h
+@@ -82,6 +82,20 @@
+ 
+  #include <arm_neon.h>
+ 
++#elif defined(__riscv)
++
++ #ifndef JUCE_USE_SIMD
++  #define JUCE_USE_SIMD 1
++ #endif
++
++ #if JUCE_USE_SIMD
++  #ifndef SIMDE_ENABLE_NATIVE_ALIASES
++   #define SIMDE_ENABLE_NATIVE_ALIASES
++  #endif
++
++  #include "simde/x86/sse2.h"
++ #endif
++
+ #else
+ 
+  // No SIMD Support
+@@ -221,7 +235,7 @@ namespace juce
+  #include "native/juce_fallback_SIMDNativeOps.h"
+ 
+  // include the correct native file for this build target CPU
+- #if defined(__i386__) || defined(__amd64__) || defined(_M_X64) || defined(_X86_) || defined(_M_IX86)
++ #if defined(__i386__) || defined(__amd64__) || defined(_M_X64) || defined(_X86_) || defined(_M_IX86) || defined(__riscv)
+   #ifdef __AVX2__
+    #include "native/juce_avx_SIMDNativeOps.h"
+   #else
