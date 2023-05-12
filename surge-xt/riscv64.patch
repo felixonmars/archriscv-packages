@@ -1,0 +1,60 @@
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD	(revision 1458889)
++++ PKGBUILD	(working copy)
+@@ -76,6 +76,8 @@
+   'github.com-taocpp-PEGTL::git+https://github.com/taocpp/PEGTL'
+   'github.com-gulrak-filesystem::git+https://github.com/gulrak/filesystem'
+   'github.com-lv2-porting-project-JUCE::git+https://github.com/lv2-porting-project/JUCE#branch=lv2'
++  "$pkgname-riscv.patch"
++  "$pkgname-juce-riscv.patch"
+ )
+ b2sums=('SKIP'
+         '6e71b56ffde699319def99e03637d9c3fb6197a6e0637b9f44b52a9207a8e06c8d482c05cdd711ec2c5901f403381dda70e786bca6b56cce14dc449325f24761'
+@@ -96,7 +98,9 @@
+         'SKIP'
+         'SKIP'
+         'SKIP'
+-        'SKIP')
++        'SKIP'
++        'dc5d04d5b3ff3d650d1d88a09ec0ebf70ba777ace0795ab649d3ba60546bfe0b9b6f885b5ad42bf4e33c3feb3bac7b3295054b23d7e3032e0710e14d7d4f9ddb'
++        '8130d1822d475fc95b262714b2190a11fd9d435c5ed262d0f3d38eb98b5df23f00e87e60140bdb4fab0060d40745b0ca5edb1467355a367531560c2892054710')
+ 
+ pkgver() {
+   cd "$pkgname"
+@@ -165,6 +169,15 @@
+   # add missing LV2 header
+   cd "$srcdir/github.com-lv2-porting-project-JUCE"
+   patch -p1 -i "$srcdir/fix-lv2-ftbfs.patch"
++
++  cd "$srcdir/$pkgname"
++  patch -p1 -i "$srcdir/$pkgname-riscv.patch"
++
++  cd "$srcdir/$pkgname/libs/JUCE"
++  patch -p1 -i "$srcdir/$pkgname-juce-riscv.patch"
++
++  cd "$srcdir/github.com-lv2-porting-project-JUCE"
++  patch -p1 -i "$srcdir/$pkgname-juce-riscv.patch"
+ }
+ 
+ build() {
+@@ -179,7 +192,8 @@
+     -DCMAKE_INSTALL_LIBDIR='/usr/lib' \
+     -DCMAKE_BUILD_TYPE=Release \
+     -W no-dev \
+-    -DSURGE_BUILD_TESTRUNNER=OFF
++    -DSURGE_BUILD_TESTRUNNER=OFF \
++    -DSURGE_SKIP_LUA=ON
+ 
+   cmake --build build
+ 
+@@ -193,7 +207,8 @@
+     -W no-dev \
+     -DSURGE_BUILD_TESTRUNNER=OFF \
+     -DJUCE_SUPPORTS_LV2=True \
+-    -DSURGE_JUCE_PATH="$srcdir/github.com-lv2-porting-project-JUCE"
++    -DSURGE_JUCE_PATH="$srcdir/github.com-lv2-porting-project-JUCE" \
++    -DSURGE_SKIP_LUA=ON
+ 
+   cmake --build build-lv2 --target surge-xt_LV2 surge-fx_LV2 --parallel
+ }

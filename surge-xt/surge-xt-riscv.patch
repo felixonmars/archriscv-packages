@@ -1,0 +1,160 @@
+Submodule libs/sst/sst-plugininfra contains modified content
+diff --git a/libs/sst/sst-plugininfra/src/cpufeatures.cpp b/libs/sst/sst-plugininfra/src/cpufeatures.cpp
+index 6048c3e..4dda0e7 100644
+--- a/libs/sst/sst-plugininfra/src/cpufeatures.cpp
++++ b/libs/sst/sst-plugininfra/src/cpufeatures.cpp
+@@ -1,8 +1,7 @@
+ #include "sst/plugininfra/cpufeatures.h"
+ 
+-#if defined(__arm__) || defined(__aarch64__)
+-#define ARM_NEON 1
+-#else
++#if defined(__i386__) || defined(__x86_64__)
++#define USING_X86 1
+ #include <xmmintrin.h>
+ #endif
+ 
+@@ -19,7 +18,7 @@
+ #include <intrin.h>
+ #define cpuid(info, x) __cpuidex(info, x, 0)
+ #else
+-#if LINUX && !ARM_NEON
++#if LINUX && USING_X86
+ #ifdef __GNUC__
+ //  GCC Intrinsics
+ #include <cpuid.h>
+@@ -115,7 +114,7 @@ std::string brand()
+ 
+ bool isArm()
+ {
+-#if ARM_NEON || defined(__aarch64__)
++#if defined(__arm__) || defined(__aarch64__)
+     return true;
+ #else
+     return false;
+@@ -123,22 +122,20 @@ bool isArm()
+ }
+ bool isX86()
+ {
+-#if ARM_NEON || defined(__aarch64__)
+-    return false;
+-#else
++#if USING_X86
+     return true;
++#else
++    return false;
+ #endif
+ }
+ bool hasSSE2() { return true; }
+ bool hasAVX()
+ {
+-#if ARM_NEON || defined(__aarch64__)
++#if !USING_X86
+     return true; // thanks simde
+-#else
+-#if MAC
++#elif MAC
+     return true;
+-#endif
+-#if WINDOWS || LINUX
++#elif WINDOWS || LINUX
+     int info[4];
+     cpuid(info, 0);
+     unsigned int nIds = info[0];
+@@ -156,13 +153,11 @@ bool hasAVX()
+ 
+     return avxSup;
+ #endif
+-
+-#endif
+ }
+ 
+ FPUStateGuard::FPUStateGuard()
+ {
+-#ifndef ARM_NEON
++#if USING_X86
+     auto _SSE_Flags = 0x8040;
+     bool fpuExceptions = false;
+ 
+@@ -192,7 +187,7 @@ FPUStateGuard::FPUStateGuard()
+ 
+ FPUStateGuard::~FPUStateGuard()
+ {
+-#ifndef ARM_NEON
++#if USING_X86
+     _mm_setcsr(priorS);
+ #endif
+ 
+diff --git a/src/common/CMakeLists.txt b/src/common/CMakeLists.txt
+index 89094275..7fa3c671 100644
+--- a/src/common/CMakeLists.txt
++++ b/src/common/CMakeLists.txt
+@@ -56,12 +56,12 @@ else()
+           ../../libs/JUCE/modules/juce_dsp/juce_dsp.cpp
+           )
+   if (APPLE)
+-    target_sources(juce_dsp_rack_sub PUBLIC
++    target_sources(juce_dsp_rack_sub PRIVATE
+             ../../libs/JUCE/modules/juce_core/juce_core.mm
+             ../../libs/JUCE/modules/juce_audio_formats/juce_audio_formats.mm
+             )
+   else()
+-    target_sources(juce_dsp_rack_sub PUBLIC
++    target_sources(juce_dsp_rack_sub PRIVATE
+             ../../libs/JUCE/modules/juce_core/juce_core.cpp
+             ../../libs/JUCE/modules/juce_audio_formats/juce_audio_formats.cpp
+             )
+diff --git a/src/common/dsp/vembertech/basic_dsp.cpp b/src/common/dsp/vembertech/basic_dsp.cpp
+index 19a40ed2..880ee098 100644
+--- a/src/common/dsp/vembertech/basic_dsp.cpp
++++ b/src/common/dsp/vembertech/basic_dsp.cpp
+@@ -262,24 +262,6 @@ float sine_ss(unsigned int x) // using 24-bit range as [0..2PI] input
+ 
+     return P * (y * abs(y) - y) + y;   // Q * y + P * y * abs(y)   */
+ }
+-#if !_M_X64 && !defined(ARM_NEON)
+-__m64 sine(__m64 x)
+-{
+-    __m64 xabs = _mm_xor_si64(x, _mm_srai_pi16(x, 15));
+-    __m64 y = _mm_subs_pi16(_mm_srai_pi16(x, 1), _mm_mulhi_pi16(x, xabs));
+-    y = _mm_slli_pi16(y, 2);
+-    y = _mm_adds_pi16(y, y);
+-    const __m64 Q = _mm_set1_pi16(0x6333);
+-    const __m64 P = _mm_set1_pi16(0x1CCD);
+-
+-    __m64 yabs = _mm_xor_si64(y, _mm_srai_pi16(y, 15));
+-    __m64 y1 = _mm_mulhi_pi16(Q, y);
+-    __m64 y2 = _mm_mulhi_pi16(P, _mm_slli_pi16(_mm_mulhi_pi16(y, yabs), 1));
+-
+-    y = _mm_add_pi16(y1, y2);
+-    return _mm_adds_pi16(y, y);
+-}
+-#endif
+ 
+ int sine(int x) // 16-bit sine
+ {
+diff --git a/src/common/dsp/vembertech/portable_intrinsics.h b/src/common/dsp/vembertech/portable_intrinsics.h
+index baf4f5b5..6e487853 100644
+--- a/src/common/dsp/vembertech/portable_intrinsics.h
++++ b/src/common/dsp/vembertech/portable_intrinsics.h
+@@ -1,6 +1,6 @@
+ #pragma once
+ 
+-#if LINUX && !ARM_NEON
++#if defined(__i386__) || defined(__x86_64__)
+ #include <immintrin.h>
+ #endif
+ 
+diff --git a/src/common/globals.h b/src/common/globals.h
+index 6acdc7c2..e983415d 100644
+--- a/src/common/globals.h
++++ b/src/common/globals.h
+@@ -39,7 +39,7 @@
+     (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+ #include <emmintrin.h>
+ #else
+-#if defined(__arm__) || defined(__aarch64__)
++#if defined(__arm__) || defined(__aarch64__) || defined(__riscv)
+ #define SIMDE_ENABLE_NATIVE_ALIASES
+ #include "simde/x86/sse2.h"
+ #else
