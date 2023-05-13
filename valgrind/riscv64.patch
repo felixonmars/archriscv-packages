@@ -1,10 +1,10 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 457315)
-+++ PKGBUILD	(working copy)
-@@ -20,29 +20,26 @@
+diff --git PKGBUILD PKGBUILD
+index 853c165..0943e81 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,29 +20,27 @@
  license=('GPL')
- url='http://valgrind.org/'
+ url='https://valgrind.org/'
  depends=('glibc' 'perl' 'debuginfod')
 -makedepends=('gdb' 'lib32-glibc' 'lib32-gcc-libs' 'docbook-xml'
 +makedepends=('gdb' 'docbook-xml'
@@ -15,43 +15,53 @@ Index: PKGBUILD
  replaces=('valgrind-multilib')
  options=('!emptydirs' '!strip')
 -source=(https://sourceware.org/pub/valgrind/valgrind-${pkgver}.tar.bz2{,.asc}
-+source=(https://github.com/petrpavlu/valgrind-riscv64/archive/013094fca0a039149aa574e8459fbe07c2359aba.tar.gz
++_commit='71272b252977fe52f03ea4fa8306b457b098cca5'
++source=(https://github.com/petrpavlu/valgrind-riscv64/archive/$_commit.tar.gz
          valgrind-3.7.0-respect-flags.patch)
  validpgpkeys=(
    0E9FFD0C16A1856CF9C7C690BA0166E698FA6035 # Julian Seward <jseward@acm.org>
    EC3CFE88F6CA0788774F5C1D1AA44BE649DE760A # Mark Wielaard <mjw@gnu.org>
  )
--sha512sums=('f720a89dc4c4989cc5714bff9efe97529f71990bcfad7a92b889ce099c4326d6da07fa4d5fbab2e9125e20f352354f6178471e49e419b613a3c82c2a1c667ab2'
+-sha512sums=('3e86cda2f2d6cd30807fac7933ba2c46a97a2b4a868db989e6b0cceeadf029af7ee34ba900466a346948289aacb30f4399799bb83b97cc49a4d2d810441e5cfd'
 -            'SKIP'
-+sha512sums=('9e067d2eeeec3cd33fdf1e884804e7c4a51a77d8213968da21087c88328edd847f92ca9207eb75263b4cfc613870bc94c53748d97539a3754b71dfff6cff1621'
++sha512sums=('5e0634ed81970c0b9d274511e622b505798c601886f25ee86a2c81614c7aae8ff0d663e725f1a4418d8590e39ad85cc195f9015185f342e1a06608feb1e2b978'
              'e0cec39381cefeca09ae4794cca309dfac7c8693e6315e137e64f5c33684598726d41cfbb4edf764fe985503b13ff596184ca5fc32b159d500ec092e4cf8838c')
--b2sums=('d3ccd25789ec4d87a0ddab58d8098246a33a083505b42adaa94ee3af659cbe073e516bc98163ef56233e6cd9de2125839b71ee443fbc0db6557dcb35a6c05280'
+-b2sums=('1f7306d288eb5ecfb2b2f0b2dc68960ecd4a7213b96a2e4ecb9990a755e8c233b0e9d190c0f807019bde669f44a631c8dafe9eb521d739561e6f889f7bdaca5c'
 -        'SKIP'
-+b2sums=('9e7069e9cfbb2aaf6b6233ab9d04783f4315dded7fbda1fe6d615002c4330550bdbc8a057ef5e5371ed64041e4d5b66ae73370a6304bacaba6346a101ed6881c'
++b2sums=('48ba35d9710cc321ad695031873089065658c7dc6f3a0f97ad79be559371fe1d8d029a3b33420780e37ff322b185884491850acee32feb24369aa793f043daa4'
          'af556fdf3c02e37892bfe9afebc954cf2f1b2fa9b75c1caacfa9f3b456ebc02bf078475f9ee30079b3af5d150d41415a947c3d04235c1ea8412cf92b959c484a')
  options=(!lto) # https://bugs.kde.org/show_bug.cgi?id=338252
  
  prepare() {
 -  cd valgrind-${pkgver}
-+  cd valgrind-riscv64-013094fca0a039149aa574e8459fbe07c2359aba
++  cd valgrind-riscv64-$_commit
    patch -Np1 < ../valgrind-3.7.0-respect-flags.patch
    sed -i 's|sgml/docbook/xsl-stylesheets|xml/docbook/xsl-stylesheets-1.79.2-nons|' docs/Makefile.am
  
-@@ -55,7 +52,7 @@
+@@ -55,7 +53,7 @@
    CFLAGS=${CFLAGS/-fno-plt/}
    CXXFLAGS=${CXXFLAGS/-fno-plt/}
  
 -  cd valgrind-${pkgver}
-+  cd valgrind-riscv64-013094fca0a039149aa574e8459fbe07c2359aba
++  cd valgrind-riscv64-$_commit
    ./configure \
      --prefix=/usr \
      --sysconfdir=/etc \
-@@ -108,7 +105,7 @@
+@@ -70,7 +68,7 @@
+   # only run if glibc-debug is supplied manually
+   if ! pacman -Q glibc-debug; then echo -e "\033[1;31mcheck() not run, supply glibc-debug if unintended!\033[0m"; return 0; fi
+ 
+-  cd valgrind-${pkgver}
++  cd valgrind-riscv64-$_commit
+ 
+   # Make sure a basic binary runs. There should be no errors.
+   ./vg-in-place --error-exitcode=1 /bin/true
+@@ -108,7 +106,7 @@
  }
  
  package() {
 -  cd valgrind-${pkgver}
-+  cd valgrind-riscv64-013094fca0a039149aa574e8459fbe07c2359aba
++  cd valgrind-riscv64-$_commit
    make DESTDIR="${pkgdir}" install
  
    install -Dm644 docs/*.1 -t "$pkgdir/usr/share/man/man1"
