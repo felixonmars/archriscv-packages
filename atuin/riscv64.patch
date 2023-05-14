@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,15 +9,28 @@ arch=('x86_64')
+ url="https://github.com/ellie/atuin"
+ license=('MIT')
+ depends=('gcc-libs')
+-makedepends=('cargo')
++makedepends=('cargo' 'git')
+ optdepends=('bash-preexec: bash integration')
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+-sha256sums=('00ba6eea19f11b3f73652e71af69b3dc7eb221761519f3b9680047f5476915b4')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
++        sodiumoxide-0.2.7::git+https://github.com/sodiumoxide/sodiumoxide.git#tag=0.2.7
++        git+https://github.com/jedisct1/libsodium
++        sodiumoxide-fix-riscv-build.patch::https://github.com/sodiumoxide/sodiumoxide/pull/474.patch)
++sha256sums=('00ba6eea19f11b3f73652e71af69b3dc7eb221761519f3b9680047f5476915b4'
++            'SKIP'
++            'SKIP'
++            'a903844fc8cbadaa7c92c3a64248ae8643f670a7ea32c56c5409d939628e6b2c')
+ options=('!lto')
+ 
+ prepare() {
+-  cd "$pkgname-$pkgver"
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  cd sodiumoxide-0.2.7
++  git submodule init
++  git config submodule.libsodium-sys/libsodium.url "$srcdir/libsodium"
++  git -c protocol.file.allow=always submodule update
++  patch -Np1 -i $srcdir/sodiumoxide-fix-riscv-build.patch
++  cd "../$pkgname-$pkgver"
++  echo -e "\n[patch.crates-io]\nlibsodium-sys = { path = '../sodiumoxide-0.2.7/libsodium-sys' }\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }\n" >> Cargo.toml
++  cargo update -p libsodium-sys
++  cargo fetch --locked
+   mkdir completions/
+ }
+ 
