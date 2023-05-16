@@ -1,0 +1,235 @@
+diff --git a/Source/CMakeLists.txt b/Source/CMakeLists.txt
+index 82f69e5c..ee71c2b8 100644
+--- a/Source/CMakeLists.txt
++++ b/Source/CMakeLists.txt
+@@ -34,7 +34,7 @@ if(TARGET_PLATFORM_ANDROID OR TARGET_PLATFORM_IOS OR TARGET_PLATFORM_JS OR BUILD
+ 	list(APPEND DEFINITIONS_LIST DISABLE_LOGGING=1)
+ endif()
+ 
+-if(TARGET_PLATFORM_UNIX AND NOT TARGET_PLATFORM_UNIX_ARM AND NOT TARGET_PLATFORM_UNIX_AARCH64)
++if(TARGET_PLATFORM_UNIX AND NOT TARGET_PLATFORM_UNIX_ARM AND NOT TARGET_PLATFORM_UNIX_AARCH64 AND NOT TARGET_PLATFORM_UNIX_RISCV64)
+ 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -mssse3")
+ endif()
+ 
+diff --git a/Source/gs/GSH_OpenGL/CMakeLists.txt b/Source/gs/GSH_OpenGL/CMakeLists.txt
+index ab40170d..a2da9da5 100644
+--- a/Source/gs/GSH_OpenGL/CMakeLists.txt
++++ b/Source/gs/GSH_OpenGL/CMakeLists.txt
+@@ -21,7 +21,7 @@ if(TARGET_PLATFORM_UNIX_ARM)
+ 	list(APPEND GSH_OPENGL_COMPILE_OPTIONS "-mfpu=neon")
+ endif()
+ 
+-if(TARGET_PLATFORM_UNIX AND NOT TARGET_PLATFORM_UNIX_ARM AND NOT TARGET_PLATFORM_UNIX_AARCH64)
++if(TARGET_PLATFORM_UNIX AND NOT TARGET_PLATFORM_UNIX_ARM AND NOT TARGET_PLATFORM_UNIX_AARCH64 AND NOT TARGET_PLATFORM_UNIX_RISCV64)
+ 	list(APPEND GSH_OPENGL_COMPILE_OPTIONS -msse -msse2 -mssse3)
+ endif()
+ 
+diff --git a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
+index e94920b5..f0171797 100644
+--- a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
++++ b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
+@@ -567,13 +567,127 @@ inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int co
+ }
+ 
+ #else
+-/*
+-// If we have a platform that does not have SIMD then implement the basic case here.
+-void convertColumn8(uint8* dest, const int destStride, uint8* src, int colNum)
++#include <simde/x86/sse.h>
++#include <simde/x86/sse2.h>
++#include <simde/x86/ssse3.h>
++
++void convertColumn8(uint8* dest, const int destStride, int colNum, simde__m128i a, simde__m128i b, simde__m128i c, simde__m128i d)
+ {
+-	
++	simde__m128i* mdest = (simde__m128i*)dest;
++
++	simde__m128i temp_a = a;
++	simde__m128i temp_c = c;
++
++	a = simde_mm_unpacklo_epi8(temp_a, b);
++	c = simde_mm_unpackhi_epi8(temp_a, b);
++	b = simde_mm_unpacklo_epi8(temp_c, d);
++	d = simde_mm_unpackhi_epi8(temp_c, d);
++
++	temp_a = a;
++	temp_c = c;
++
++	a = simde_mm_unpacklo_epi16(temp_a, b);
++	c = simde_mm_unpackhi_epi16(temp_a, b);
++	b = simde_mm_unpacklo_epi16(temp_c, d);
++	d = simde_mm_unpackhi_epi16(temp_c, d);
++
++	temp_a = a;
++	simde__m128i temp_b = b;
++
++	a = simde_mm_unpacklo_epi8(temp_a, c);
++	b = simde_mm_unpackhi_epi8(temp_a, c);
++	c = simde_mm_unpacklo_epi8(temp_b, d);
++	d = simde_mm_unpackhi_epi8(temp_b, d);
++
++	temp_a = a;
++	temp_c = c;
++
++	a = simde_mm_unpacklo_epi64(temp_a, b);
++	c = simde_mm_unpackhi_epi64(temp_a, b);
++	b = simde_mm_unpacklo_epi64(temp_c, d);
++	d = simde_mm_unpackhi_epi64(temp_c, d);
++
++	if((colNum & 1) == 0)
++	{
++		c = simde_mm_shuffle_epi32(c, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
++		d = simde_mm_shuffle_epi32(d, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
++	}
++	else
++	{
++		a = simde_mm_shuffle_epi32(a, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
++		b = simde_mm_shuffle_epi32(b, SIMDE_MM_SHUFFLE(2, 3, 0, 1));
++	}
++
++	int mStride = destStride / 16;
++
++	mdest[0] = a;
++	mdest[mStride] = b;
++	mdest[mStride * 2] = c;
++	mdest[mStride * 3] = d;
+ }
+-*/
++
++inline void convertColumn8(uint8* dest, const int destStride, uint8* src, int colNum)
++{
++	simde__m128i* mSrc = (simde__m128i*)src;
++
++	simde__m128i a = mSrc[0];
++	simde__m128i b = mSrc[1];
++	simde__m128i c = mSrc[2];
++	simde__m128i d = mSrc[3];
++	convertColumn8(dest, destStride, colNum, a, b, c, d);
++}
++
++inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int colNum)
++{
++	simde__m128i* mSrc = (simde__m128i*)src;
++
++	simde__m128i a = mSrc[0];
++	simde__m128i b = mSrc[1];
++	simde__m128i c = mSrc[2];
++	simde__m128i d = mSrc[3];
++
++	// 4 bpp looks like 2 8bpp columns side by side.
++	// The 4pp are expanded to 8bpp.
++	// so 01 23 45 67 89 ab cd ef gh ij kl mn op qr st uv expands to
++	// 00 01 02 03 08 09 0a 0b 0g 0h 0i 0j 0o 0p 0q 0r as the first row on the left hand block.
++
++	simde__m128i perm = simde_mm_setr_epi8(0, 1, 4, 5, 8, 9, 0x0c, 0x0d, 2, 3, 6, 7, 0x0a, 0x0b, 0x0e, 0x0f);
++	a = simde_mm_shuffle_epi8(a, perm);
++	b = simde_mm_shuffle_epi8(b, perm);
++	c = simde_mm_shuffle_epi8(c, perm);
++	d = simde_mm_shuffle_epi8(d, perm);
++
++	simde__m128i a_orig = a;
++
++	const simde__m128i mask = simde_mm_set1_epi32(0x0f0f0f0f);
++	const simde__m128i shiftCount = simde_mm_set_epi32(0, 0, 0, 4);
++	simde__m128i lowNybbles = simde_mm_and_si128(a, mask);
++	simde__m128i highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(a, shiftCount), mask);
++	a = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
++	simde__m128i a2 = simde_mm_unpackhi_epi8(lowNybbles, highNybbles);
++
++	lowNybbles = simde_mm_and_si128(b, mask);
++	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(b, shiftCount), mask);
++	b = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
++	simde__m128i b2 = simde_mm_unpackhi_epi8(lowNybbles, highNybbles);
++
++	lowNybbles = simde_mm_and_si128(c, mask);
++	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(c, shiftCount), mask);
++	c = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
++	simde__m128i c2 = simde_mm_unpackhi_epi8(lowNybbles, highNybbles);
++
++	lowNybbles = simde_mm_and_si128(d, mask);
++	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(d, shiftCount), mask);
++	d = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
++	simde__m128i d2 = simde_mm_unpackhi_epi8(lowNybbles, highNybbles);
++
++	convertColumn8(dest, destStride, colNum, a, b, c, d);
++	if(destStride > 16)
++	{
++		convertColumn8(dest + 16, destStride, colNum, a2, b2, c2, d2);
++	}
++}
++
+ #endif
+ 
+ void CGSH_OpenGL::TexUpdater_Psm8(uint32 bufPtr, uint32 bufWidth, unsigned int texX, unsigned int texY, unsigned int texWidth, unsigned int texHeight)
+diff --git a/Source/hdd/ApaDefs.h b/Source/hdd/ApaDefs.h
+index ae9b5bcc..8dfbe04c 100644
+--- a/Source/hdd/ApaDefs.h
++++ b/Source/hdd/ApaDefs.h
+@@ -1,5 +1,7 @@
+ #pragma once
+ 
++#include <cstdint>
++
+ namespace Hdd
+ {
+ 	enum
+diff --git a/Source/hdd/ApaReader.cpp b/Source/hdd/ApaReader.cpp
+index bf9b5861..78ab8df9 100644
+--- a/Source/hdd/ApaReader.cpp
++++ b/Source/hdd/ApaReader.cpp
+@@ -1,5 +1,6 @@
+ #include "ApaReader.h"
+ #include <cassert>
++#include <cstdint>
+ #include <cstring>
+ #include "HddDefs.h"
+ 
+diff --git a/Source/hdd/PfsDefs.h b/Source/hdd/PfsDefs.h
+index 5557e2d5..810adcb7 100644
+--- a/Source/hdd/PfsDefs.h
++++ b/Source/hdd/PfsDefs.h
+@@ -1,5 +1,7 @@
+ #pragma once
+ 
++#include <cstdint>
++
+ namespace Hdd
+ {
+ 	enum
+diff --git a/Source/hdd/PfsReader.cpp b/Source/hdd/PfsReader.cpp
+index 37e907fe..507bed07 100644
+--- a/Source/hdd/PfsReader.cpp
++++ b/Source/hdd/PfsReader.cpp
+@@ -1,5 +1,6 @@
+ #include "PfsReader.h"
+ #include <cassert>
++#include <cstdint>
+ #include <cstring>
+ #include "HddDefs.h"
+ #include "StringUtils.h"
+Submodule deps/CodeGen contains modified content
+diff --git a/deps/CodeGen/src/Jitter_CodeGenFactory.cpp b/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
+index 78137902..132d5390 100644
+--- a/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
++++ b/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
+@@ -1,4 +1,5 @@
+ #include "Jitter_CodeGenFactory.h"
++#include <stdexcept>
+ 
+ #ifdef _WIN32
+ 
+Submodule deps/Dependencies contains modified content
+diff --git a/deps/Dependencies/cmake-modules/Header.cmake b/deps/Dependencies/cmake-modules/Header.cmake
+index d2a9d04..1253ce7 100644
+--- a/deps/Dependencies/cmake-modules/Header.cmake
++++ b/deps/Dependencies/cmake-modules/Header.cmake
+@@ -35,6 +35,9 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL "${CMAKE_SOURCE_DIR}")
+ 		elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
+ 			message("-- Arch: arm --")
+ 			set(TARGET_PLATFORM_UNIX_ARM TRUE)
++		elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^riscv64")
++			message("-- Arch: riscv64 --")
++			set(TARGET_PLATFORM_UNIX_RISCV64 TRUE)
+ 		endif()
+ 	endif()
+ 	
