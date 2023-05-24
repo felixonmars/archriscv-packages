@@ -21,13 +21,11 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
   cd $_tmp
 
   PKGBASE=$_dir
-  sudo -u nobody svn checkout svn://svn.archlinux.org/packages/$PKGBASE || \
-  sudo -u nobody svn checkout svn://svn.archlinux.org/community/$PKGBASE || continue
+  sudo -u nobody git clone https://gitlab.archlinux.org/archlinux/packaging/packages/$PKGBASE.git || continue
+  cd $PKGBASE
 
-  cd $PKGBASE/trunk
-
-  PKGNAME=$(. PKGBUILD; echo $pkgname)
-  for _REPO in core extra community; do
+  PKGNAME=$(. PKGBUILD >/dev/null; echo $pkgname)
+  for _REPO in core extra; do
     if pacman -Sql $_REPO | grep "^$PKGNAME$" >/dev/null; then
       REPO=$_REPO
       break
@@ -40,13 +38,9 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
     exit 1
   fi
 
-  ARCH=$(. PKGBUILD; echo $arch)
-
-  if [ "${ARCH}" == "any" ] && ! cd ../repos/$REPO-any; then
-    error "Release directory does not exist for $REPO-any."
-    exit 1
-  elif [ "${ARCH}" != "any" ] && ! cd ../repos/$REPO-x86_64; then
-    error "Release directory does not exist for $REPO-x86_64."
+  LATEST_VERSION=$(expac -S %v $PKGNAME)
+  if ! sudo -u nobody git checkout ${LATEST_VERSION/:/-}; then
+    error "Repository does not contain tag of latest non-testing version $LATEST_VERSION."
     exit 1
   fi
 
@@ -58,4 +52,3 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
 
   popd
 done
-
