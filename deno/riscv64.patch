@@ -1,40 +1,26 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,17 +11,42 @@ url="https://deno.land"
+@@ -11,12 +11,31 @@ url="https://deno.land"
  license=('MIT')
  options=('!lto')
  depends=('gcc-libs')
--makedepends=('git' 'python' 'cargo' 'nodejs')
--source=("git+https://github.com/denoland/deno.git#commit=$_commit")
--sha512sums=('SKIP')
-+makedepends=('git' 'python' 'cargo' 'nodejs' 'gn' 'ninja' 'clang' 'lld')
-+source=("git+https://github.com/denoland/deno.git#commit=$_commit"
-+        "git+https://github.com/denoland/rusty_v8.git#commit=1f5aa8a0c8d75d2fbe79385090db188410002332" # v0.68.0
-+        "rusty-v8-support-unconventional-builds.patch::https://patch-diff.githubusercontent.com/raw/denoland/rusty_v8/pull/1209.patch")
-+sha512sums=('SKIP'
-+            'SKIP'
-+            '5e5fa1ab4a38510d3347d98bb87394ebab246ba2b0c2bb0415f691413f76a2b4dc8f026a1330d84d175ebf45a43aa2ddeb672608a92ac75dbb49795a222c3313')
+-makedepends=('git' 'python' 'rust' 'nodejs')
++makedepends=('git' 'python' 'rust' 'nodejs' 'gn' 'ninja' 'clang' 'lld')
+ source=("git+https://github.com/denoland/deno.git#commit=$_commit")
+ sha512sums=('SKIP')
  
- prepare() {
--  cd $pkgname
-+  cd rusty_v8
-+  git submodule update --init --recursive
-+  patch -Np1 -i ../rusty-v8-support-unconventional-builds.patch
-+
-+  cd ../$pkgname
-   git submodule update --init --recursive
-+  echo -e "\n[patch.crates-io]\nv8 = { path = '../rusty_v8' }\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p v8
++prepare() {
++  cd $pkgname
++  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
 +  cargo update -p ring
- }
- 
++}
++
  build() {
    cd $pkgname
 +
 +  local _extra_gn_args=(
 +    'custom_toolchain="//build/toolchain/linux/unbundle:default"'
 +    'host_toolchain="//build/toolchain/linux/unbundle:default"'
-+    'v8_enable_shared_ro_heap=true'
 +  )
 +
 +  export CC=clang CXX=clang++ AR=ar NM=nm
