@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,8 +8,8 @@ pkgdesc='Fast symbolic manipulation library, written in C++'
+ url='http://sympy.org/'
+ arch=(x86_64)
+ license=(MIT)
+-depends=(llvm-libs arb libmpc gmp-ecm primesieve gperftools)
+-makedepends=(cmake boost llvm cereal)
++depends=(arb libmpc gmp-ecm primesieve gperftools)
++makedepends=(cmake boost cereal)
+ source=(https://github.com/symengine/symengine/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz
+         llvm-shared.patch)
+ sha256sums=('9c007c99e9633f5549a55fa7a66ebcbcf9e04092eb55f7bb781c22b9cf0570c4'
+@@ -20,6 +20,7 @@ prepare() {
+ }
+ 
+ build() {
++  # LLVM's MCJIT doesn't support riscv64
+   cmake -B build -S $pkgname-$pkgver \
+     -DCMAKE_INSTALL_PREFIX=/usr \
+     -DBUILD_SHARED_LIBS=ON \
+@@ -28,7 +29,7 @@ build() {
+     -DWITH_SYMENGINE_THREAD_SAFE=ON \
+     -DWITH_ARB=ON \
+     -DWITH_ECM=ON \
+-    -DWITH_LLVM=ON \
++    -DWITH_LLVM=OFF \
+     -DWITH_MPFR=ON \
+     -DWITH_MPC=ON \
+     -DWITH_PRIMESIEVE=ON \
