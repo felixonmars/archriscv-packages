@@ -1,0 +1,37 @@
+diff --git PKGBUILD PKGBUILD
+index aaa1733c..6051541d 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,11 +35,18 @@ makedepends=(
+   ninja
+ )
+ _tag=a596a88115890a6f8ecd41518f1dbcdea1f6cd61
++_lj_commit=1f0967342d9ddd02d251241d1b3a4ba4a863ed18
+ source=(git+https://github.com/wangqr/Aegisub#tag=${_tag}
+-        boost-1.81.0.patch)
++        boost-1.81.0.patch
++        "use-riscv64.patch"
++        "git+https://github.com/infiWang/LuaJIT#commit=${_lj_commit}"
++        "apply-aegisub-lj-settings.patch")
+ #validpgpkeys=(6DD9508BCB1CE31AF295FF9B6A889F50A8B00C08) # Thomas Goyne <plorkyeran@aegisub.org>
+ b2sums=('SKIP'
+-        '5b6874ebb89f6ed3ab7929796bd1f59e1748c418ae5397df265fe3007d9f971eec7388f5f6a2dcac020d71c9cffece931a1ae5eb78f8ff4ab61fdc4c5e65328a')
++        '5b6874ebb89f6ed3ab7929796bd1f59e1748c418ae5397df265fe3007d9f971eec7388f5f6a2dcac020d71c9cffece931a1ae5eb78f8ff4ab61fdc4c5e65328a'
++        '7feb00b644efa2b8e4d06caa76af2fc4e1023265f223703d097fea41e934aa9cb21684f4766edce124afcc9d84371cbaa9c0312573371a9d2a94a7aff0490a25'
++        'SKIP'
++        '0214688f2c974459badc05d379dc3720abc411fbd4cce46894dd477b1d39966b32e8718656e109191cf3d9e8c5d5212f163b26e0b3bf268a100f97cb270975b0')
+ 
+ pkgver() {
+   cd Aegisub
+@@ -47,8 +54,11 @@ pkgver() {
+ }
+ 
+ prepare() {
++  patch -Np1 -d LuaJIT < apply-aegisub-lj-settings.patch
+   cd Aegisub
+   patch -Np1 -i ../boost-1.81.0.patch # Patch from Gentoo]
++  patch -Np1 -i ../use-riscv64.patch
++  cd vendor && rm -rf luajit && ln -s $srcdir/LuaJIT luajit
+ }
+ 
+ build() {
