@@ -10,7 +10,7 @@ if [[ ! -r "$1" ]]; then
   exit 1
 fi
 
-configs=$(grep -v '^#' "$1" | sed 's/^CONFIG_//' |
+configs=$(grep -v '^#' "$1" | sed -E 's/^CONFIG_//;s/\s+$//g' |
     awk -F'=' '
       {
         if ($2="y") {
@@ -24,7 +24,7 @@ configs=$(grep -v '^#' "$1" | sed 's/^CONFIG_//' |
       ')
 
 if [[ -z "$2" ]]; then
-  ./scripts/config "${configs[@]}"
+  ./scripts/config ${configs[@]}
 else
-  ./scripts/config --file "$2" "${configs[@]}"
+  ./scripts/config --file "$2" ${configs[@]}
 fi
