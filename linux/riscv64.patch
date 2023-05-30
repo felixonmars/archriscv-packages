@@ -1,51 +1,51 @@
 diff --git PKGBUILD PKGBUILD
-index a2a699f4..06c80a16 100644
+index 6082dfb..125c2a7 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,6 +18,8 @@
+@@ -30,6 +30,8 @@
  source=(
    "$_srcname::git+https://github.com/archlinux/linux?signed#tag=$_srctag"
-   config         # the main kernel config file
+   config  # the main kernel config file
 +  riscv64.config-patch
 +  force-disable-sv57.patch::https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/kinetic/patch/?id=f38611903ae7808ab1b7427809f478fbe0d20917
  )
  validpgpkeys=(
-   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
-@@ -26,7 +28,9 @@
-   'C7E7849466FE2358343588377258734B41C31549'  # David Runge <dvzrv@archlinux.org>
+   ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
+@@ -38,7 +40,9 @@
+   C7E7849466FE2358343588377258734B41C31549  # David Runge <dvzrv@archlinux.org>
  )
- sha256sums=('SKIP'
--            'de96ef80c3d883d03bce280ea1aebb1691aeebfcab82bf14a63d4ab5d9dca4b1')
-+            'de96ef80c3d883d03bce280ea1aebb1691aeebfcab82bf14a63d4ab5d9dca4b1'
-+            '77a16292a15b8c700521786dfe49fafbeeebf7338111b76d081b7e6cab4580a5'
-+            '8968d16070c3fb13db839c649a8407680288322a1ba6869bcfee19c8bd87de87')
+ b2sums=('SKIP'
+-        'c2d1c69265adc041dc0364e448f6e86dc4c9ca1207c84071abc1675dd820534a8ab5a230e579e68bfb1bf2b861f23ad34e090f8ceaef5e265ea95e2bc6946013')
++        'c2d1c69265adc041dc0364e448f6e86dc4c9ca1207c84071abc1675dd820534a8ab5a230e579e68bfb1bf2b861f23ad34e090f8ceaef5e265ea95e2bc6946013'
++        'e95c74ff6ac0498c04dfe489aa8e3df9a47c4401e729662fb8db7704842dc92e56f5eff191f8a5c8d56dcf39abd132de7b41e13a6cbed09aa1e0e74dd9ea1324'
++        'c259d46d3a394cf7074b7cf41a2b21cfaf2eed2506fda614ce51e8105d1cc5324206e5677f2748a6b1cc447035ebee0460d9ac19afc4a4f8a242fa88237f6c02')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +58,12 @@
-   make olddefconfig
+@@ -73,6 +77,12 @@
+   _make olddefconfig
    diff -u ../config .config || :
  
 +  patch -Np0 < ../riscv64.config-patch
 +  mv .config .config.1
-+  make mrproper
++  _make mrproper
 +  mv .config.1 .config
-+  make olddefconfig
++  _make olddefconfig
 +
-   make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -87,6 +97,9 @@
-   make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+ 
+@@ -117,6 +127,9 @@
+   _make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
 +  echo "Installing dtbs..."
-+  make INSTALL_DTBS_PATH="$pkgdir/usr/share/dtbs/$kernver" dtbs_install
++  _make INSTALL_DTBS_PATH="$pkgdir/usr/share/dtbs/$kernver" dtbs_install
 +
    # remove build and source links
    rm "$modulesdir"/{source,build}
  }
-@@ -102,19 +115,16 @@
+@@ -132,19 +145,16 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -68,7 +68,7 @@ index a2a699f4..06c80a16 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -136,7 +146,7 @@
+@@ -166,7 +176,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
