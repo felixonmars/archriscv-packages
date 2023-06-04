@@ -1,13 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,8 +20,8 @@ build() {
+@@ -10,17 +10,22 @@ license=('LGPL2.1' 'custom: QPL-1.0')
+ url="https://caml.inria.fr/"
+ makedepends=('ncurses>=5.6-7')
+ optdepends=('ncurses: advanced ncurses features' 'tk: advanced tk features')
+-source=(https://caml.inria.fr/distrib/ocaml-${pkgver%.*}/${pkgname}-${pkgver}.tar.xz)
+-sha512sums=('1ddc5ae1cbdccdb44dd1bb9878470bbac3ba225d4339aae35220cac99dda2640c74d48e536111ee47e7fe2a9848db8581966a6f1e182bb102ffade0454dc4ecd')
++source=(https://caml.inria.fr/distrib/ocaml-${pkgver%.*}/${pkgname}-${pkgver}.tar.xz
++        riscv-opt-bpo.patch::https://github.com/ocaml/ocaml/compare/5.0.0...hack3ric:ocaml:f60413a1111c391a0b74c3924b36d0253bcc895c.diff)
++sha512sums=('1ddc5ae1cbdccdb44dd1bb9878470bbac3ba225d4339aae35220cac99dda2640c74d48e536111ee47e7fe2a9848db8581966a6f1e182bb102ffade0454dc4ecd'
++            '209ca73a13843c880fc6cbaf02cc79bc1a9d3825c552c6cf2bfd21d4ce941489363d11b8dfb081eae80059d23bb94a0f97f3f3842788254b4738e8a87e260f53')
+ options=('!makeflags' '!emptydirs' 'staticlibs')
+ 
+-
++prepare() {
++  cd "${srcdir}/${pkgname}-${pkgver}"
++  patch -Np1 -i ../riscv-opt-bpo.patch
++}
+ 
+ build() {
    cd "${srcdir}/${pkgname}-${pkgver}"
    CFLAGS+=' -ffat-lto-objects'
    CXXFLAGS+=' -ffat-lto-objects'
 -  ./configure --prefix /usr --mandir /usr/share/man -enable-frame-pointers
--  make --debug=v world.opt
 +  ./configure --prefix /usr --mandir /usr/share/man
-+  make --debug=v world
+   make --debug=v world.opt
  }
  
- package_ocaml() {
