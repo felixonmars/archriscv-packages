@@ -32,7 +32,7 @@ gh_repo = g.get_repo(ENV["GITHUB_REPO"])
 
 def is_rotten(package):
     with tempfile.TemporaryDirectory() as tempdir:
-        sh.asp.checkout(package, _cwd=tempdir, _env=ENV)
+        sh.pkgctl.repo.clone(package, _cwd=tempdir, _env=ENV)
 
         try:
             for repo_dir in os.scandir(os.path.join(tempdir, package, "repos")):
@@ -127,13 +127,6 @@ def main():
                 "\n".join(sorted(qemu_user_blacklist_ghosts))))
 
     packages = packages & all_packages
-
-    i = 0
-    packages_list = list(packages)
-    while i < len(packages_list):
-        logger.debug(f"updating tracked packages {i}/{len(packages_list)}")
-        sh.asp.update(*packages_list[i:i + 100])
-        i += 100
 
     futures = {}
     with concurrent.futures.ThreadPoolExecutor() as pool:
