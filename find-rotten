@@ -23,6 +23,7 @@ RE_HUNK_FAILED = re.compile(r"^\d+ out of \d+ hunks? FAILED", re.MULTILINE)
 RE_REVERSED = re.compile(r"^Reversed \(or previously applied\) patch detected")
 RE_PR_RM_PACKAGE = re.compile(r"^(rm|rmv)(pkg|patch): ([^ ]+)")
 
+SOURCE_REPO = 'https://gitlab.archlinux.org/archlinux/packaging/packages/{package}'
 ARCHLINUX_REPO = 'https://geo.mirror.pkgbuild.com/{repo}/os/x86_64'
 
 repo = Repo()
@@ -32,7 +33,7 @@ gh_repo = g.get_repo(ENV["GITHUB_REPO"])
 
 def is_rotten(package):
     with tempfile.TemporaryDirectory() as tempdir:
-        sh.pkgctl.repo.clone(package, _cwd=tempdir, _env=ENV)
+        sh.git.clone("--depth=1", SOURCE_REPO.format(package=package), _cwd=tempdir, _env=ENV)
 
         try:
             for repo_dir in os.scandir(os.path.join(tempdir, package, "repos")):
