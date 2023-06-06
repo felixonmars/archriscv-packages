@@ -26,6 +26,7 @@ RE_PR_RM_PACKAGE = re.compile(r"^(rm|rmv)(pkg|patch): ([^ ]+)")
 
 ARCHLINUX_REPO = 'https://geo.mirror.pkgbuild.com/{repo}/os/x86_64'
 CACHEDIR = ENV.get("CACHEDIR", "~/projects/arch/packages")
+NOUPDATE = ENV.get("NOUPDATE") == "1"
 
 repo = Repo()
 g = Github(ENV.get("GITHUB_TOKEN"))
@@ -36,11 +37,15 @@ gh_repo = g.get_repo(ENV.get("GITHUB_REPO", "felixonmars/archriscv-packages"))
 def get_all_packages() -> dict[str, str]:
     result = {}
     with tempfile.TemporaryDirectory() as tempdir:
-        handle = Handle('/', tempdir)
+        if not NOUPDATE:
+            handle = Handle('/', tempdir)
+        else:
+            handle = Handle('/', '/var/lib/pacman')
         for db_name in ['core', 'extra']:
             db: DB = handle.register_syncdb(db_name, pyalpm.SIG_DATABASE_OPTIONAL)
-            db.servers = [ARCHLINUX_REPO.format(repo=db.name)]
-            db.update(False)
+            if not NOUPDATE:
+                db.servers = [ARCHLINUX_REPO.format(repo=db.name)]
+                db.update(False)
             result.update({pkg.base: pkg.version for pkg in db.pkgcache})
     return result
 
