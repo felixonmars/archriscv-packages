@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import tempfile
+from pathlib import Path
 
 import pyalpm
 from pyalpm import Handle, DB
@@ -45,20 +46,21 @@ def get_all_packages() -> dict[str, str]:
 
 
 all_packages = get_all_packages()
-if not os.path.exists(os.path.expanduser('~/.cache/packages')):
-    os.makedirs(os.path.expanduser('~/.cache/packages'))
+cachepath = Path('~/.cache/packages')
+if not cachepath.exists():
+    cachepath.mkdir(parents=True)
 
 
 def is_rotten(package):
     version = all_packages[package].replace(':', '-')
-    if os.path.exists(f"~/.cache/packages/{package}"):
-        if version not in sh.git.tag(_tty_out=False, _cwd=f"~/.cache/packages/{package}").split():
-            sh.git.pull(_cwd=f"~/.cache/packages/{package}")
+    if (cachepath / package).exists():
+        if version not in sh.git.tag(_tty_out=False, _cwd=cachepath / package).split():
+            sh.git.pull(_cwd=cachepath / package)
     else:
         sh.git.clone(SOURCE_REPO.format(package=package), _cwd="~/.cache/packages")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        sh.git.clone(f"~/.cache/packages/{package}", _cwd=tempdir, _env=ENV)
+        sh.git.clone(cachepath / package, _cwd=tempdir, _env=ENV)
         sh.git.checkout(version, _cwd=f"{tempdir}/{package}", _env=ENV)
 
         try:
