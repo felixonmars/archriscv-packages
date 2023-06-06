@@ -24,12 +24,12 @@ RE_HUNK_FAILED = re.compile(r"^\d+ out of \d+ hunks? FAILED", re.MULTILINE)
 RE_REVERSED = re.compile(r"^Reversed \(or previously applied\) patch detected")
 RE_PR_RM_PACKAGE = re.compile(r"^(rm|rmv)(pkg|patch): ([^ ]+)")
 
-SOURCE_REPO = 'https://gitlab.archlinux.org/archlinux/packaging/packages/{package}'
 ARCHLINUX_REPO = 'https://geo.mirror.pkgbuild.com/{repo}/os/x86_64'
+CACHEDIR = ENV.get("CACHEDIR", "~/projects/arch/packages")
 
 repo = Repo()
-g = Github(ENV["GITHUB_TOKEN"])
-gh_repo = g.get_repo(ENV["GITHUB_REPO"])
+g = Github(ENV.get("GITHUB_TOKEN"))
+gh_repo = g.get_repo(ENV.get("GITHUB_REPO", "felixonmars/archriscv-packages"))
 
 
 # get packages list from repo
@@ -46,7 +46,7 @@ def get_all_packages() -> dict[str, str]:
 
 
 all_packages = get_all_packages()
-cachepath = Path('~/.cache/packages').expanduser()
+cachepath = Path(CACHEDIR).expanduser()
 if not cachepath.exists():
     cachepath.mkdir(parents=True)
 
@@ -57,7 +57,7 @@ def is_rotten(package):
         if version not in sh.git.tag(_tty_out=False, _cwd=cachepath / package).split():
             sh.git.pull(_cwd=cachepath / package)
     else:
-        sh.git.clone(SOURCE_REPO.format(package=package), _cwd=cachepath)
+        sh.pkgctl.repo.clone(package, _cwd=cachepath)
 
     with tempfile.TemporaryDirectory() as tempdir:
         sh.git.clone(cachepath / package, _cwd=tempdir, _env=ENV)
