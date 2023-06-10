@@ -6,7 +6,7 @@
    https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
 +  tests-skip-some-tests-on-rv64.patch
  )
- b2sums=('b4d8eaa6d72b009d12b435781c360f043bca7554d8b069b8d858399ece03f20703d7e36427a3f92d0b801a94b1c3f132904f21e51ba4118116bbfa4e5668d651'
+ b2sums=('b19db1b35e6c652e2cd44ec5219bd5c42aacd55987962dbcaf50b5ec54d2ac5066290264f938ba3d45ef111779b9f27b06736ae7df11fa62478ab2179acfe723'
 +        'SKIP'
          'SKIP')
  validpgpkeys=(
@@ -35,68 +35,45 @@
  
  # System libraries
  ac_add_options --with-system-zlib
-@@ -83,40 +88,40 @@ build() {
+@@ -82,40 +87,7 @@ build() {
+ 
    # Do 3-tier PGO
    echo "Building instrumented JS..."
-   cat >.mozconfig ../mozconfig - <<END
+-  cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-profile-generate=cross
-+#ac_add_options --enable-profile-generate=cross
- END
-   ./mach build
- 
+-END
+-  ./mach build
+-
 -  echo "Profiling instrumented JS..."
 -  (
 -    local js="$PWD/obj/dist/bin/js"
 -    export LLVM_PROFILE_FILE="$PWD/js-%p-%m.profraw"
-+#   echo "Profiling instrumented JS..."
-+#   (
-+#     local js="$PWD/obj/dist/bin/js"
-+#     export LLVM_PROFILE_FILE="$PWD/js-%p-%m.profraw"
- 
+-
 -    cd js/src/octane
 -    "$js" run.js
-+#     cd js/src/octane
-+#     "$js" run.js
- 
+-
 -    cd ../../../third_party/webkit/PerformanceTests/ARES-6
 -    "$js" cli.js
-+#     cd ../../../third_party/webkit/PerformanceTests/ARES-6
-+#     "$js" cli.js
- 
+-
 -    cd ../SunSpider/sunspider-0.9.1
 -    "$js" sunspider-standalone-driver.js
 -  )
-+#     cd ../SunSpider/sunspider-0.9.1
-+#     "$js" sunspider-standalone-driver.js
-+#   )
- 
+-
 -  llvm-profdata merge -o merged.profdata *.profraw
-+#   llvm-profdata merge -o merged.profdata *.profraw
- 
+-
 -  stat -c "Profile data found (%s bytes)" merged.profdata
 -  test -s merged.profdata
-+#   stat -c "Profile data found (%s bytes)" merged.profdata
-+#   test -s merged.profdata
- 
+-
 -  echo "Removing instrumented JS..."
 -  ./mach clobber
-+#   echo "Removing instrumented JS..."
-+#   ./mach clobber
- 
+-
 -  echo "Building optimized JS..."
 -  cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-lto=cross
 -ac_add_options --enable-profile-use=cross
 -ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
 -END
--  ./mach build
-+#   echo "Building optimized JS..."
-+#   cat >.mozconfig ../mozconfig - <<END
-+# ac_add_options --enable-lto=cross
-+# ac_add_options --enable-profile-use=cross
-+# ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
-+# END
-+#   ./mach build
++  cat >.mozconfig ../mozconfig
+   ./mach build
  }
  
- check() {
