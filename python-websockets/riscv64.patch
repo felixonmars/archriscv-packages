@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,9 +14,17 @@ makedepends=('python-setuptools' 'python-sphinx' 'python-sphinx-copybutton'
+              'python-sphinx-furo' 'python-sphinx-inline-tabs'
+              'python-sphinxcontrib-spelling' 'python-sphinxcontrib-trio'
+              'python-sphinxext-opengraph')
+-source=(https://github.com/aaugustin/websockets/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz)
+-sha512sums=('087b1920ff26e21b8d3b80b53249d44b841fc45a4992df1ad725112404f724a41aaa2d759a2bd521dfe337459f8bf0d2ae048c423489f527c68f6825f928b582')
+-b2sums=('f3a739368ff9d78fef79324af59d1e77b3fb654b8b1a847373a29f19b11ae9266b9a938d235ee27d12b59d9b4cf29825fc7298ff2f35e5b260df2c7a41a1bd78')
++source=(https://github.com/aaugustin/websockets/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz
++        $pkgname-float-timeout-factor.patch)
++sha512sums=('087b1920ff26e21b8d3b80b53249d44b841fc45a4992df1ad725112404f724a41aaa2d759a2bd521dfe337459f8bf0d2ae048c423489f527c68f6825f928b582'
++            '19fa5de2bc51909f9a72528c1a568d18863223d1018611a80ca0679fc486340222f022bd0600533ca0b978cb206f8a78e66feeceaf5b0b0629b1025f5ab056bc')
++b2sums=('f3a739368ff9d78fef79324af59d1e77b3fb654b8b1a847373a29f19b11ae9266b9a938d235ee27d12b59d9b4cf29825fc7298ff2f35e5b260df2c7a41a1bd78'
++        'b63bf39375b7deb8ed3049c07af39f9ce7b08d696c0ad06bf013c3cb5bb9a8f9592f59c5bd00b524298fd56f5539e631429336989bff611b7b68147617505523')
++
++prepare() {
++  cd websockets-${pkgver}
++  patch -Np0 -i ../$pkgname-float-timeout-factor.patch
++}
+ 
+ build() {
+   cd websockets-${pkgver}
+@@ -27,7 +35,7 @@ build() {
+ 
+ check() {
+   cd websockets-${pkgver}
+-  python setup.py test
++  WEBSOCKETS_TESTS_TIMEOUT_FACTOR=1.1 python setup.py test
+ }
+ 
+ package() {
