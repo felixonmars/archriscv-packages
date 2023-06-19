@@ -1,8 +1,8 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 464609)
-+++ PKGBUILD	(working copy)
-@@ -151,7 +151,7 @@
+diff --git PKGBUILD PKGBUILD
+index 4095ce6..109a8be 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -155,7 +155,7 @@ build() {
  }
  
  check() {
@@ -11,3 +11,16 @@ Index: PKGBUILD
  }
  
  package_systemd() {
+@@ -258,6 +258,12 @@ package_systemd() {
+ 
+   # overwrite the systemd-user PAM configuration with our own
+   install -D -m0644 systemd-user.pam "$pkgdir"/etc/pam.d/systemd-user
++
++  # workaround GCC 13's text relocation breaking MemoryDenyWriteExecute
++  install -dm755 "$pkgdir"/usr/lib/systemd/system/systemd-logind.service.d
++  install -dm755 "$pkgdir"/usr/lib/systemd/system/systemd-networkd.service.d
++  echo -e '[Service]\nMemoryDenyWriteExecute=no' > "$pkgdir"/usr/lib/systemd/system/systemd-logind.service.d/memory-deny-write-execute.conf
++  echo -e '[Service]\nMemoryDenyWriteExecute=no' > "$pkgdir"/usr/lib/systemd/system/systemd-networkd.service.d/memory-deny-write-execute.conf
+ }
+ 
+ package_systemd-libs() {
