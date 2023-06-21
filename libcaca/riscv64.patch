@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,16 @@ license=('custom:WTFPL')
+ depends=('freeglut' 'gcc-libs' 'glibc' 'glu' 'imlib2' 'libglvnd' 'libx11' 'ncurses' 'slang' 'zlib')
+ makedepends=('doxygen' 'pango' 'python')
+ optdepends=('python: Python bindings')
+-source=("https://github.com/cacalabs/libcaca/releases/download/v$pkgver/$pkgname-$pkgver.tar.bz2")
+-sha256sums=('ff9aa641af180a59acedc7fc9e663543fb397ff758b5122093158fd628125ac1')
++source=("https://github.com/cacalabs/libcaca/releases/download/v$pkgver/$pkgname-$pkgver.tar.bz2"
++        "$pkgname-fix-instruction-detection.patch::https://github.com/cacalabs/libcaca/pull/76.patch")
++sha256sums=('ff9aa641af180a59acedc7fc9e663543fb397ff758b5122093158fd628125ac1'
++            '2d40a2c2654369e0583f9c26653b56d6b4306d76ad12c78478de489a8f91160b')
++
++prepare() {
++  cd $pkgname-$pkgver
++  patch -Np1 -i ../$pkgname-fix-instruction-detection.patch
++  autoreconf -fi
++}
+ 
+ build() {
+   cd $pkgname-$pkgver
