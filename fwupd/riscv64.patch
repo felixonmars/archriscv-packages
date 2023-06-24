@@ -1,0 +1,32 @@
+diff --git PKGBUILD PKGBUILD
+index c69d56f..0deea56 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,7 +10,7 @@ pkgdesc="Simple daemon to allow session software to update firmware"
+ arch=(x86_64)
+ url="https://github.com/fwupd/fwupd"
+ license=(LGPL)
+-depends=(libxmlb efivar python libsmbios libgusb
++depends=(libxmlb efivar python libgusb
+          polkit shared-mime-info tpm2-tss flashrom
+          libjcat fwupd-efi gcab hicolor-icon-theme
+          bluez gnutls
+@@ -44,7 +44,9 @@ build() {
+     arch-meson ${pkgname}-${pkgver} build \
+         -D b_lto=false \
+         -D docs=enabled \
+-        -D plugin_intel_spi=true \
++        -D plugin_intel_spi=false \
++        -D plugin_msr=disabled \
++        -D plugin_dell=disabled \
+         -D supported_build=enabled \
+         -D efi_binary=false
+     meson compile -C build
+@@ -62,7 +64,4 @@ package() {
+     rm -r "${pkgdir}"/usr/share/installed-tests/
+     mv "${pkgdir}"/usr/bin/{,fwupd-}dbxtool
+     mv "${pkgdir}"/usr/share/man/man1/{,fwupd-}dbxtool.1
+-    # Remove msr module-load config as it is built-in
+-    rm "${pkgdir}"/usr/lib/modules-load.d/fwupd-msr.conf
+-    rmdir "${pkgdir}"/usr/lib/modules-load.d
+ }
