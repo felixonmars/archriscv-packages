@@ -1,49 +1,47 @@
-diff --git trunk/PKGBUILD trunk/PKGBUILD
-index e91c7bc..b68d790 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,14 +29,24 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         download-bubble-typename.patch
+@@ -31,7 +31,9 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
          webauthn-variant.patch
+         random-fixes-for-gcc13.patch
          disable-GlobalMediaControlsCastStartStop.patch
 -        use-oauth2-client-switches-as-default.patch)
 +        use-oauth2-client-switches-as-default.patch
-+        riscv-angle.patch
-+        riscv-base.patch
-+        riscv-crashpad.patch
-+        riscv-dav1d.patch
-+        riscv-sandbox.patch)
- sha256sums=('76cec11dc13abe6703305b0300e1fe24c8f547c1ff313f7be09db0e23d12ee1e'
++        riscv-{angle,base,crashpad,dav1d,libgav1,libyuv,sandbox}.patch
++        swiftshader-gcc-13-fix.patch)
+ sha256sums=('8289ec1ec9e2540313af10bcf97721ec560789c931fc0583a2f5a545f223d262'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '5f868cba9e4d387499711738adc6fd87ab9f1ef61f464016bc682660ae59206a'
-             'd464eed4be4e9bf6187b4c40a759c523b7befefa25ba34ad6401b2a07649ca2a'
+             '621ed210d75d0e846192c1571bb30db988721224a41572c27769c0288d361c11'
+@@ -40,7 +42,15 @@ sha256sums=('8289ec1ec9e2540313af10bcf97721ec560789c931fc0583a2f5a545f223d262'
              '590fabbb26270947cb477378b53a9dcd17855739076b4af9983e1e54dfcab6d7'
+             'ba4dd0a25a4fc3267ed19ccb39f28b28176ca3f97f53a4e9f5e9215280040ea0'
              '7f3b1b22d6a271431c1f9fc92b6eb49c6d80b8b3f868bdee07a6a1a16630a302'
 -            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
 +            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
 +            'fb0738fc32f228cef59e5516dbb4acd8818f1e2ba9db2cfbc21cf72a4ace8c3f'
-+            'da17695cc437eb3f2a71719772d29ee9d0b6f80152536b061208ab29253fca7c'
++            '67fef79581b480ae1f97a4cf6bd4d4e93eee81aed1bf5c129cf2524c26c64f30'
 +            '70f8bcd3dd68c13d1e074415952c0b7e3e3b6058c97d39ba7a78dc17daa30547'
-+            'fd30767b8587338d1a38165aaaeef7e44a6ea91c4cfa644effaaa363e698796a'
-+            'b56dc00f6de8d0dfaad8d3cca37c061ca26d6fc9feb7ec1726166d5cfeff9a1a')
++            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
++            '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
++            'd71a8dd17e3acb8f76032a35a6e633ddb12304194f36b6fc7bc24b4f0867f0bf'
++            'c11730bfbc8788540582c9f5922b8d6ba16c264b97f0f7bd05db3fba008cac7f'
++            '60b2f96dca144d94c273e1388f4f7c8a83553611255812f4a44e02668dc4957c')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -112,6 +122,13 @@ prepare() {
-   # https://crbug.com/1314342
-   patch -Np1 -i ../disable-GlobalMediaControlsCastStartStop.patch
- 
-+  # riscv64
-+  patch -Np1 -i ../riscv-angle.patch
-+  patch -Np1 -i ../riscv-base.patch
-+  patch -Np1 -i ../riscv-crashpad.patch
-+  patch -Np1 -i ../riscv-dav1d.patch
-+  patch -Np1 -i ../riscv-sandbox.patch
-+
-   # Build fixes
+@@ -123,6 +133,12 @@ prepare() {
    patch -Np1 -i ../download-bubble-typename.patch
    patch -Np1 -i ../webauthn-variant.patch
-@@ -171,6 +188,10 @@ build() {
+   patch -Np1 -i ../random-fixes-for-gcc13.patch
++  patch -Np1 -i ../swiftshader-gcc-13-fix.patch
++
++  # riscv64
++  for rvpatch in riscv-{angle,base,crashpad,dav1d,libgav1,libyuv,sandbox}.patch; do
++    patch -Np1 -i ../$rvpatch
++  done
+ 
+   # Link to system tools required by the build
+   mkdir -p third_party/node/linux/node-linux-x64/bin
+@@ -179,6 +195,10 @@ build() {
      'enable_widevine=true'
      'enable_nacl=false'
      "google_api_key=\"$_google_api_key\""
