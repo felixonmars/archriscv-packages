@@ -1,0 +1,205 @@
+diff --git a/libitm/config/riscv/asm.h b/libitm/config/riscv/asm.h
+new file mode 100644
+index 0000000..0f58bc1
+--- /dev/null
++++ b/libitm/config/riscv/asm.h
+@@ -0,0 +1,28 @@
++#ifndef _RV_ASM_H
++#define _RV_ASM_H
++
++#if __riscv_xlen == 64
++#  define GPR_L ld
++#  define GPR_S sd
++#  define SZ_GPR 8
++#elif __riscv_xlen == 32
++#  define GPR_L lw
++#  define GPR_S sw
++#  define SZ_GPR 4
++#else
++#  error Unsupported XLEN (must be 64-bit or 32-bit).
++#endif
++
++#if defined(__riscv_flen) && __riscv_flen == 64
++#  define FPR_L fld
++#  define FPR_S fsd
++#  define SZ_FPR 8
++#elif defined(__riscv_flen) && __riscv_flen == 32
++#  define FPR_L flw
++#  define FPR_S fsw
++#  define SZ_FPR 4
++#else
++#  define SZ_FPR 0
++#endif
++
++#endif  /* _RV_ASM_H */
+diff --git a/libitm/config/riscv/sjlj.S b/libitm/config/riscv/sjlj.S
+new file mode 100644
+index 0000000..b4e15fc
+--- /dev/null
++++ b/libitm/config/riscv/sjlj.S
+@@ -0,0 +1,120 @@
++#include "asmcfi.h"
++#include "asm.h"
++
++	.text
++	.align	2
++	.global	_ITM_beginTransaction
++	.type	_ITM_beginTransaction, @function
++
++_ITM_beginTransaction:
++	cfi_startproc
++    mv a1, sp
++	addi sp, sp, -(14*SZ_GPR+12*SZ_FPR)
++	cfi_adjust_cfa_offset(14*SZ_GPR+12*SZ_FPR)
++
++	/* Return Address */
++	GPR_S ra, 0*SZ_GPR(sp)
++	cfi_rel_offset(ra, 0*SZ_GPR)
++
++	/* Caller's sp */
++	GPR_S a1, 1*SZ_GPR(sp)
++
++	/* Caller's s0/fp */
++	GPR_S fp, 2*SZ_GPR(sp)
++	cfi_rel_offset(fp, 2*SZ_GPR)
++
++	/* Callee-saved registers */
++	GPR_S s1, 3*SZ_GPR(sp)
++	GPR_S s2, 4*SZ_GPR(sp)
++	GPR_S s3, 5*SZ_GPR(sp)
++	GPR_S s4, 6*SZ_GPR(sp)
++	GPR_S s5, 7*SZ_GPR(sp)
++	GPR_S s6, 8*SZ_GPR(sp)
++	GPR_S s7, 9*SZ_GPR(sp)
++	GPR_S s8, 10*SZ_GPR(sp)
++	GPR_S s9, 11*SZ_GPR(sp)
++	GPR_S s10, 12*SZ_GPR(sp)
++	GPR_S s11, 13*SZ_GPR(sp)
++
++#if defined(__riscv_flen)
++	/* Callee-saved floating-point registers */
++	FPR_S fs0, 0*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs1, 1*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs2, 2*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs3, 3*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs4, 4*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs5, 5*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs6, 6*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs7, 7*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs8, 8*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs9, 9*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs10, 10*SZ_FPR+14*SZ_GPR(sp)
++	FPR_S fs11, 11*SZ_FPR+14*SZ_GPR(sp)
++#endif
++	mv fp, sp
++
++	/* Invoke GTM_begin_transaction with the struct we've just built.  */
++	mv a1, sp
++	jal ra, GTM_begin_transaction
++
++	/* Return; we don't need to restore any of the call-saved regs.  */
++	GPR_L ra, 0*SZ_GPR(sp)
++	cfi_restore(ra)
++	GPR_L fp, 2*SZ_GPR(sp)
++	cfi_restore(fp)
++
++	addi sp, sp, 14*SZ_GPR+12*SZ_FPR
++	cfi_adjust_cfa_offset(-(14*SZ_GPR+12*SZ_FPR))
++
++	ret
++	cfi_endproc
++	.size	_ITM_beginTransaction, . - _ITM_beginTransaction
++
++	.align	2
++	.global	GTM_longjmp
++	.hidden	GTM_longjmp
++	.type	GTM_longjmp, @function
++
++GTM_longjmp:
++	/* The first parameter becomes the return value (x0).
++	   The third parameter is ignored for now.  */
++    cfi_startproc
++	GPR_L s1, 3*SZ_GPR(a1)
++	GPR_L s2, 4*SZ_GPR(a1)
++	GPR_L s3, 5*SZ_GPR(a1)
++	GPR_L s4, 6*SZ_GPR(a1)
++	GPR_L s5, 7*SZ_GPR(a1)
++	GPR_L s6, 8*SZ_GPR(a1)
++	GPR_L s7, 9*SZ_GPR(a1)
++	GPR_L s8, 10*SZ_GPR(a1)
++	GPR_L s9, 11*SZ_GPR(a1)
++	GPR_L s10, 12*SZ_GPR(a1)
++	GPR_L s11, 13*SZ_GPR(a1)
++
++#if defined(__riscv_flen)
++	FPR_L fs0, 0*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs1, 1*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs2, 2*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs3, 3*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs4, 4*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs5, 5*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs6, 6*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs7, 7*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs8, 8*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs9, 9*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs10, 10*SZ_FPR+14*SZ_GPR(a1)
++	FPR_L fs11, 11*SZ_FPR+14*SZ_GPR(a1)
++#endif
++
++	GPR_L ra, 0*SZ_GPR(a1)
++	GPR_L fp, 2*SZ_GPR(a1)
++	GPR_L a3, 1*SZ_GPR(a1)
++	cfi_def_cfa(a1, 0)
++	mv sp, a3
++	jr ra
++	cfi_endproc
++	.size	GTM_longjmp, . - GTM_longjmp
++
++#ifdef __linux__
++.section .note.GNU-stack, "", @progbits
++#endif
+diff --git a/libitm/config/riscv/target.h b/libitm/config/riscv/target.h
+new file mode 100644
+index 0000000..b20de73
+--- /dev/null
++++ b/libitm/config/riscv/target.h
+@@ -0,0 +1,26 @@
++namespace GTM HIDDEN {
++
++typedef struct gtm_jmpbuf
++  {
++    long int pc;
++    void *cfa;
++    long int s[12]; /* Saved registers, s0 is fp */
++
++    /* FP saved registers */
++#if defined(__riscv_flen) && __riscv_flen == 64
++    double fs[12];
++#elif defined(__riscv_flen) && __riscv_flen == 32
++    float fs[12];
++#endif
++  } gtm_jmpbuf;
++
++/* ??? The size of one line in hardware caches (in bytes). */
++#define HW_CACHELINE_SIZE 64
++
++static inline void
++cpu_relax (void)
++{
++    __asm__ volatile ("" : : : "memory");
++}
++
++} // namespace GTM
+diff --git a/libitm/configure.tgt b/libitm/configure.tgt
+index 4c0e78c..635c1d4 100644
+--- a/libitm/configure.tgt
++++ b/libitm/configure.tgt
+@@ -82,6 +82,8 @@ EOF
+ 
+   loongarch*)   ARCH=loongarch ;;
+ 
++  riscv*)		ARCH=riscv ;;
++
+   sh*)		ARCH=sh ;;
+ 
+   sparc)
