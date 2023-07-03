@@ -1,0 +1,410 @@
+diff --git a/build/premake/premake5.lua b/build/premake/premake5.lua
+index 9539e2a..12dcd43 100644
+--- a/build/premake/premake5.lua
++++ b/build/premake/premake5.lua
+@@ -105,6 +105,8 @@ else
+ 		arch = "e2k"
+ 	elseif string.find(machine, "ppc64") == 1 or string.find(machine, "powerpc64") == 1 then
+ 		arch = "ppc64"
++	elseif string.find(machine, "riscv64") == 1 then
++		arch = "riscv64"
+ 	else
+ 		print("WARNING: Cannot determine architecture from GCC, assuming x86")
+ 	end
+@@ -896,6 +898,8 @@ function setup_all_libs ()
+ 		table.insert(source_dirs, "lib/sysdep/arch/e2k");
+ 	elseif arch == "ppc64" then
+ 		table.insert(source_dirs, "lib/sysdep/arch/ppc64");
++	elseif arch == "riscv64" then
++		table.insert(source_dirs, "lib/sysdep/arch/riscv64");
+ 	end
+ 
+ 	-- OS-specific
+diff --git a/libraries/source/nvtt/src/extern/poshlib/posh.h b/libraries/source/nvtt/src/extern/poshlib/posh.h
+index 5382294..dfbe635 100644
+--- a/libraries/source/nvtt/src/extern/poshlib/posh.h
++++ b/libraries/source/nvtt/src/extern/poshlib/posh.h
+@@ -540,6 +540,17 @@ LLVM:
+ #  define POSH_CPU_STRING "PA-RISC"
+ #endif
+ 
++#if defined __riscv
++#  define POSH_CPU_RISCV 1
++#  if __riscv_xlen == 64
++#    define POSH_CPU_RISCV64 1
++#    define POSH_CPU_STRING "riscv64"
++#  elif __riscv_xlen == 32
++#    define POSH_CPU_RISCV32 1
++#    define POSH_CPU_STRING "riscv32"
++#  endif
++#endif
++
+ #if !defined POSH_CPU_STRING
+ #  error POSH cannot determine target CPU
+ #  define POSH_CPU_STRING "Unknown" /* this is here for Doxygen's benefit */
+diff --git a/libraries/source/nvtt/src/src/nvcore/Debug.cpp b/libraries/source/nvtt/src/src/nvcore/Debug.cpp
+index a211715..89ff150 100644
+--- a/libraries/source/nvtt/src/src/nvcore/Debug.cpp
++++ b/libraries/source/nvtt/src/src/nvcore/Debug.cpp
+@@ -674,6 +674,9 @@ namespace
+ #    elif NV_CPU_AARCH64
+         ucontext_t * ucp = (ucontext_t *)secret;
+         return (void *) ucp->uc_mcontext.pc;
++#    elif POSH_CPU_RISCV64
++        ucontext_t * ucp = (ucontext_t *)secret;
++        return (void *) ucp->uc_mcontext.__gregs[REG_PC];
+ #    else
+ #      error "Unknown CPU"
+ #    endif
+diff --git a/libraries/source/nvtt/src/src/nvcore/Debug.h b/libraries/source/nvtt/src/src/nvcore/Debug.h
+index 75fb41c..37fc407 100644
+--- a/libraries/source/nvtt/src/src/nvcore/Debug.h
++++ b/libraries/source/nvtt/src/src/nvcore/Debug.h
+@@ -166,7 +166,7 @@ NVCORE_API void NV_CDECL nvDebugPrint( const char *msg, ... ) __attribute__((for
+ namespace nv
+ {
+     inline bool isValidPtr(const void * ptr) {
+-    #if NV_CPU_X86_64 || POSH_CPU_PPC64 || NV_CPU_AARCH64
++    #if NV_CPU_X86_64 || POSH_CPU_PPC64 || NV_CPU_AARCH64 || POSH_CPU_RISCV64
+         if (ptr == NULL) return true;
+         if (reinterpret_cast<uint64>(ptr) < 0x10000ULL) return false;
+         if (reinterpret_cast<uint64>(ptr) >= 0x000007FFFFFEFFFFULL) return false;
+diff --git a/libraries/source/nvtt/src/src/nvcore/nvcore.h b/libraries/source/nvtt/src/src/nvcore/nvcore.h
+index 518e743..a14c348 100644
+--- a/libraries/source/nvtt/src/src/nvcore/nvcore.h
++++ b/libraries/source/nvtt/src/src/nvcore/nvcore.h
+@@ -111,6 +111,8 @@
+ #   define NV_CPU_ARM 1
+ #elif defined POSH_CPU_AARCH64
+ #   define NV_CPU_AARCH64 1
++#elif defined POSH_CPU_RISCV
++#   define NV_CPU_RISCV 1
+ #else
+ #   error "Unsupported CPU"
+ #endif
+diff --git a/libraries/source/nvtt/src/src/nvthread/Atomic.h b/libraries/source/nvtt/src/src/nvthread/Atomic.h
+index 3010a5f..b9fd72d 100644
+--- a/libraries/source/nvtt/src/src/nvthread/Atomic.h
++++ b/libraries/source/nvtt/src/src/nvthread/Atomic.h
+@@ -73,6 +73,16 @@ namespace nv {
+         // also utilizes a full barrier
+         // currently treating load like x86 - this could be wrong
+ 
++        // this is the easiest but slowest way to do this
++        nvCompilerReadWriteBarrier();
++		uint32 ret = *ptr; // replace with ldrex?
++        nvCompilerReadWriteBarrier();
++        return ret;
++#elif POSH_CPU_RISCV64
++        // need more specific cpu type for riscv64?
++        // also utilizes a full barrier
++        // currently treating load like x86 - this could be wrong
++
+         // this is the easiest but slowest way to do this
+         nvCompilerReadWriteBarrier();
+ 		uint32 ret = *ptr; // replace with ldrex?
+@@ -102,6 +112,11 @@ namespace nv {
+         nvCompilerReadWriteBarrier();
+ 		*ptr = value; //strex?
+ 		nvCompilerReadWriteBarrier();
++#elif POSH_CPU_RISCV64
++        // this is the easiest but slowest way to do this
++        nvCompilerReadWriteBarrier();
++		*ptr = value; //strex?
++		nvCompilerReadWriteBarrier();
+ #else
+ #error "Atomics not implemented."
+ #endif
+diff --git a/libraries/source/spidermonkey/0001-feature-riscv64-support-from-Debian-and-clang.patch b/libraries/source/spidermonkey/0001-feature-riscv64-support-from-Debian-and-clang.patch
+new file mode 100644
+index 0000000..be6f936
+--- /dev/null
++++ b/libraries/source/spidermonkey/0001-feature-riscv64-support-from-Debian-and-clang.patch
+@@ -0,0 +1,164 @@
++From: William Grant <wgrant@ubuntu.com>
++Date: Tue, 14 Apr 2020 02:18:28 +0200
++Subject: Add riscv64 support
++
++Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=932893
++Bug-Mozilla: https://bugzilla.mozilla.org/show_bug.cgi?id=1661027
++
++From: Zenithal <i@zenithal.me>
++
++Add clang support
++---
++ build/moz.configure/init.configure                     |  3 +++
++ js/src/jit/AtomicOperations.h                          |  3 ++-
++ js/src/jit/shared/AtomicOperations-feeling-lucky-gcc.h |  5 +++++
++ mfbt/tests/TestPoisonArea.cpp                          |  3 +++
++ python/mozbuild/mozbuild/configure/constants.py        |  2 ++
++ third_party/rust/cc/.cargo-checksum.json               |  2 +-
++ third_party/rust/cc/src/lib.rs                         | 14 +++++++++-----
++ 7 files changed, 25 insertions(+), 7 deletions(-)
++
++diff --git a/build/moz.configure/init.configure b/build/moz.configure/init.configure
++index b887153..54615d8 100644
++--- a/build/moz.configure/init.configure
+++++ b/build/moz.configure/init.configure
++@@ -758,6 +758,9 @@ def split_triplet(triplet, allow_msvc=False):
++     elif cpu == 'sh4':
++         canonical_cpu = 'sh4'
++         endianness = 'little'
+++    elif cpu.startswith('riscv64'):
+++        canonical_cpu = 'riscv64'
+++        endianness = 'little'
++     else:
++         raise ValueError('Unknown CPU type: %s' % cpu)
++ 
++diff --git a/js/src/jit/AtomicOperations.h b/js/src/jit/AtomicOperations.h
++index 0486cba..d00e276 100644
++--- a/js/src/jit/AtomicOperations.h
+++++ b/js/src/jit/AtomicOperations.h
++@@ -391,7 +391,8 @@ inline bool AtomicOperations::isLockfreeJS(int32_t size) {
++ #elif defined(__ppc__) || defined(__PPC__) || defined(__sparc__) ||     \
++     defined(__ppc64__) || defined(__PPC64__) || defined(__ppc64le__) || \
++     defined(__PPC64LE__) || defined(__alpha__) || defined(__hppa__) ||  \
++-    defined(__sh__) || defined(__s390__) || defined(__s390x__)
+++    defined(__sh__) || defined(__s390__) || defined(__s390x__) ||       \
+++    defined(__riscv)
++ #  include "jit/shared/AtomicOperations-feeling-lucky.h"
++ #else
++ #  error "No AtomicOperations support provided for this platform"
++diff --git a/js/src/jit/shared/AtomicOperations-feeling-lucky-gcc.h b/js/src/jit/shared/AtomicOperations-feeling-lucky-gcc.h
++index f002cd4..413591a 100644
++--- a/js/src/jit/shared/AtomicOperations-feeling-lucky-gcc.h
+++++ b/js/src/jit/shared/AtomicOperations-feeling-lucky-gcc.h
++@@ -70,6 +70,11 @@
++ #  endif
++ #endif
++ 
+++#if defined(__riscv) && __riscv_xlen == 64
+++#  define HAS_64BIT_ATOMICS
+++#  define HAS_64BIT_LOCKFREE
+++#endif
+++
++ #ifdef JS_CODEGEN_NONE
++ #  ifdef JS_64BIT
++ #    define HAS_64BIT_ATOMICS
++diff --git a/mfbt/tests/TestPoisonArea.cpp b/mfbt/tests/TestPoisonArea.cpp
++index fbd3364..0a67e8c 100644
++--- a/mfbt/tests/TestPoisonArea.cpp
+++++ b/mfbt/tests/TestPoisonArea.cpp
++@@ -169,6 +169,9 @@ static const ia64_instr _return_instr = {
++ #  define RETURN_INSTR _return_instr
++ #  define RETURN_INSTR_TYPE ia64_instr
++ 
+++#elif defined(__riscv)
+++#define RETURN_INSTR 0x80828082 /* ret; ret */
+++
++ #else
++ #  error "Need return instruction for this architecture"
++ #endif
++diff --git a/python/mozbuild/mozbuild/configure/constants.py b/python/mozbuild/mozbuild/configure/constants.py
++index 7542dcd..c9dd1bb 100644
++--- a/python/mozbuild/mozbuild/configure/constants.py
+++++ b/python/mozbuild/mozbuild/configure/constants.py
++@@ -49,6 +49,7 @@ CPU_bitness = {
++     'mips64': 64,
++     'ppc': 32,
++     'ppc64': 64,
+++    'riscv64': 64,
++     's390': 32,
++     's390x': 64,
++     'sh4': 32,
++@@ -88,6 +89,7 @@ CPU_preprocessor_checks = OrderedDict((
++     ('mips64', '__mips64'),
++     ('mips32', '__mips__'),
++     ('sh4', '__sh__'),
+++    ('riscv64', '__riscv && __riscv_xlen == 64'),
++ ))
++ 
++ assert sorted(CPU_preprocessor_checks.keys()) == sorted(CPU.POSSIBLE_VALUES)
++diff --git a/third_party/rust/cc/src/lib.rs b/third_party/rust/cc/src/lib.rs
++index 621d31d..968d03a 100644
++--- a/third_party/rust/cc/src/lib.rs
+++++ b/third_party/rust/cc/src/lib.rs
++@@ -1365,10 +1365,10 @@ impl Build {
++                     cmd.push_cc_arg("-ffunction-sections".into());
++                     cmd.push_cc_arg("-fdata-sections".into());
++                 }
++-                // Disable generation of PIC on RISC-V for now: rust-lld doesn't support this yet
+++                // Disable generation of PIC on bare-metal for now: rust-lld doesn't support this yet
++                 if self
++                     .pic
++-                    .unwrap_or(!target.contains("windows-gnu") && !target.contains("riscv"))
+++                    .unwrap_or(!target.contains("windows") && !target.contains("-none-"))
++                 {
++                     cmd.push_cc_arg("-fPIC".into());
++                     // PLT only applies if code is compiled with PIC support,
++@@ -1397,7 +1397,11 @@ impl Build {
++         // Target flags
++         match cmd.family {
++             ToolFamily::Clang => {
++-                cmd.args.push(format!("--target={}", target).into());
+++                if target.starts_with("riscv64gc-") {
+++                    cmd.args.push(format!("--target={}", target.replace("riscv64gc", "riscv64")).into());
+++                } else {
+++                    cmd.args.push(format!("--target={}", target).into());
+++                }
++             }
++             ToolFamily::Msvc { clang_cl } => {
++                 // This is an undocumented flag from MSVC but helps with making
++@@ -1588,13 +1588,16 @@ impl Build {
++                     if let Some(arch) = parts.next() {
++                         let arch = &arch[5..];
++                         cmd.args.push(("-march=rv".to_owned() + arch).into());
++-                        // ABI is always soft-float right now, update this when this is no longer the
++-                        // case:
++-                        if arch.starts_with("64") {
+++                        if target.contains("linux") && arch.starts_with("64") {
+++                            cmd.args.push("-mabi=lp64d".into());
+++                        } else if target.contains("linux") && arch.starts_with("32") {
+++                            cmd.args.push("-mabi=ilp32d".into());
+++                        } else if arch.starts_with("64") {
++                             cmd.args.push("-mabi=lp64".into());
++                         } else {
++                             cmd.args.push("-mabi=ilp32".into());
++                         }
+++                        cmd.args.push("-mcmodel=medany".into());
++                     }
++                 }
++             }
++@@ -2024,6 +2027,7 @@ impl Build {
++                         "riscv32imac-unknown-none-elf" => Some("riscv32-unknown-elf"),
++                         "riscv32imc-unknown-none-elf" => Some("riscv32-unknown-elf"),
++                         "riscv64gc-unknown-none-elf" => Some("riscv64-unknown-elf"),
+++                        "riscv64gc-unknown-linux-gnu" => Some("riscv64-linux-gnu"),
++                         "riscv64imac-unknown-none-elf" => Some("riscv64-unknown-elf"),
++                         "s390x-unknown-linux-gnu" => Some("s390x-linux-gnu"),
++                         "sparc-unknown-linux-gnu" => Some("sparc-linux-gnu"),
++diff --git a/third_party/rust/cc/.cargo-checksum.json b/third_party/rust/cc/.cargo-checksum.json
++index 417fde7..ac7d18a 100644
++--- a/third_party/rust/cc/.cargo-checksum.json
+++++ b/third_party/rust/cc/.cargo-checksum.json
++@@ -1 +1 @@
++-{"files":{"Cargo.lock":"3aff5f8b0a7f4d72852b11b0526f0002e6bf55f19f1ebd6470d7f97fbd540e60","Cargo.toml":"6ab10d9b6a9c6f0909074e6698c90c6b6a7223661ec2e83174d2593117cbe7f2","LICENSE-APACHE":"a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2","LICENSE-MIT":"378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397","README.md":"7184fbdf375a057e673257348f6d7584c0dd11b66318d98f3647f69eb610b097","src/bin/gcc-shim.rs":"b77907875029494b6288841c3aed2e4939ed40708c7f597fca5c9e2570490ca6","src/com.rs":"bcdaf1c28b71e6ef889c6b08d1ce9d7c0761344a677f523bc4c3cd297957f804","src/lib.rs":"4753929dbb7b676c19d7cfa06d0a47e37003554b80c536cbf2b892d591ef61c2","src/registry.rs":"3cc1b5a50879fa751572878ae1d0afbfc960c11665258492754b2c8bccb0ff5d","src/setup_config.rs":"7014103587d3382eac599cb76f016e2609b8140970861b2237982d1db24af265","src/winapi.rs":"ea8b7edbb9ff87957254f465c2334e714c5d6b3b19a8d757c48ea7ca0881c50c","src/windows_registry.rs":"388e79dcf3e84078ae0b086c6cdee9cf9eb7e3ffafdcbf3e2df26163661f5856","tests/cc_env.rs":"e02b3b0824ad039b47e4462c5ef6dbe6c824c28e7953af94a0f28f7b5158042e","tests/cflags.rs":"57f06eb5ce1557e5b4a032d0c4673e18fbe6f8d26c1deb153126e368b96b41b3","tests/cxxflags.rs":"c2c6c6d8a0d7146616fa1caed26876ee7bc9fcfffd525eb4743593cade5f3371","tests/support/mod.rs":"71620b178583b6e6e5e0d4cac14e2cef6afc62fb6841e0c72ed1784543abf8ac","tests/test.rs":"1605640c9b94a77f48fc92e1dc0485bdf1960da5626e2e00279e4703691656bc"},"package":"aa87058dce70a3ff5621797f1506cb837edd02ac4c0ae642b4542dce802908b8"}
++\ No newline at end of file
+++{"files":{"Cargo.lock":"3aff5f8b0a7f4d72852b11b0526f0002e6bf55f19f1ebd6470d7f97fbd540e60","Cargo.toml":"6ab10d9b6a9c6f0909074e6698c90c6b6a7223661ec2e83174d2593117cbe7f2","LICENSE-APACHE":"a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2","LICENSE-MIT":"378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397","README.md":"7184fbdf375a057e673257348f6d7584c0dd11b66318d98f3647f69eb610b097","src/bin/gcc-shim.rs":"b77907875029494b6288841c3aed2e4939ed40708c7f597fca5c9e2570490ca6","src/com.rs":"bcdaf1c28b71e6ef889c6b08d1ce9d7c0761344a677f523bc4c3cd297957f804","src/lib.rs":"c5e5a3c6a17d98b9fad6984a6e37bc38d14a0d6948ebf84bea76ef47e10d743d","src/registry.rs":"3cc1b5a50879fa751572878ae1d0afbfc960c11665258492754b2c8bccb0ff5d","src/setup_config.rs":"7014103587d3382eac599cb76f016e2609b8140970861b2237982d1db24af265","src/winapi.rs":"ea8b7edbb9ff87957254f465c2334e714c5d6b3b19a8d757c48ea7ca0881c50c","src/windows_registry.rs":"388e79dcf3e84078ae0b086c6cdee9cf9eb7e3ffafdcbf3e2df26163661f5856","tests/cc_env.rs":"e02b3b0824ad039b47e4462c5ef6dbe6c824c28e7953af94a0f28f7b5158042e","tests/cflags.rs":"57f06eb5ce1557e5b4a032d0c4673e18fbe6f8d26c1deb153126e368b96b41b3","tests/cxxflags.rs":"c2c6c6d8a0d7146616fa1caed26876ee7bc9fcfffd525eb4743593cade5f3371","tests/support/mod.rs":"71620b178583b6e6e5e0d4cac14e2cef6afc62fb6841e0c72ed1784543abf8ac","tests/test.rs":"1605640c9b94a77f48fc92e1dc0485bdf1960da5626e2e00279e4703691656bc"},"package":"aa87058dce70a3ff5621797f1506cb837edd02ac4c0ae642b4542dce802908b8"}
+diff --git a/libraries/source/spidermonkey/patch.sh b/libraries/source/spidermonkey/patch.sh
+index d16742c..9d08923 100644
+--- a/libraries/source/spidermonkey/patch.sh
++++ b/libraries/source/spidermonkey/patch.sh
+@@ -85,3 +85,9 @@ then
+     # https://svnweb.freebsd.org/ports/head/lang/spidermonkey78/files/patch-third__party_rust_cc_src_lib.rs?view=log
+     patch -p1 < ../FixFreeBSDRustThirdPartyOSDetection.diff
+ fi
++
++if [ "$(uname -m)" = "riscv64" ];
++then
++    patch -p1 < ../0001-feature-riscv64-support-from-Debian-and-clang.patch
++    patch -p1 < ../tests-skip-some-tests-on-rv64.patch
++fi
+diff --git a/libraries/source/spidermonkey/tests-skip-some-tests-on-rv64.patch b/libraries/source/spidermonkey/tests-skip-some-tests-on-rv64.patch
+new file mode 100644
+index 0000000..eb8e7db
+--- /dev/null
++++ b/libraries/source/spidermonkey/tests-skip-some-tests-on-rv64.patch
+@@ -0,0 +1,27 @@
++diff --unified --recursive --text a/js/src/tests/non262/Array/regress-157652.js b/js/src/tests/non262/Array/regress-157652.js
++--- a/js/src/tests/non262/Array/regress-157652.js	2022-02-16 20:45:04.795659521 +0800
+++++ b/js/src/tests/non262/Array/regress-157652.js	2022-02-16 21:58:08.905996653 +0800
++@@ -1,4 +1,4 @@
++-// |reftest| skip-if(xulRuntime.XPCOMABI.match(/x86_64|aarch64|ppc64|ppc64le|s390x|mips64/)||Android) -- No test results
+++// |reftest| skip-if(xulRuntime.XPCOMABI.match(/x86_64|aarch64|ppc64|ppc64le|s390x|mips64|riscv64/)||Android) -- No test results
++ /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++ /* This Source Code Form is subject to the terms of the Mozilla Public
++  * License, v. 2.0. If a copy of the MPL was not distributed with this
++diff --unified --recursive --text a/js/src/tests/non262/Array/regress-330812.js b/js/src/tests/non262/Array/regress-330812.js
++--- a/js/src/tests/non262/Array/regress-330812.js	2022-02-16 20:45:04.798992836 +0800
+++++ b/js/src/tests/non262/Array/regress-330812.js	2022-02-16 21:58:54.699088464 +0800
++@@ -1,4 +1,4 @@
++-// |reftest| slow-if(xulRuntime.XPCOMABI.match(/x86_64|aarch64|ppc64|ppc64le|s390x|mips64/)||Android) -- No test results
+++// |reftest| skip-if(xulRuntime.XPCOMABI.match(/x86_64|aarch64|ppc64|ppc64le|s390x|mips64|riscv64/)||Android) -- No test results
++ /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++ /* This Source Code Form is subject to the terms of the Mozilla Public
++  * License, v. 2.0. If a copy of the MPL was not distributed with this
++diff --unified --recursive --text a/js/src/tests/non262/regress/regress-422348.js b/js/src/tests/non262/regress/regress-422348.js
++--- a/js/src/tests/non262/regress/regress-422348.js	2022-02-16 20:45:04.715659964 +0800
+++++ b/js/src/tests/non262/regress/regress-422348.js	2022-02-16 21:59:55.658750431 +0800
++@@ -1,4 +1,4 @@
++-// |reftest| skip-if(xulRuntime.XPCOMABI.match(/x86_64|aarch64|ppc64|ppc64le|s390x|mips64/)) -- On 64-bit, takes forever rather than throwing
+++// |reftest| skip-if(xulRuntime.XPCOMABI.match(/x86_64|aarch64|ppc64|ppc64le|s390x|mips64|riscv64/)) -- On 64-bit, takes forever rather than throwing
++ /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
++ /* This Source Code Form is subject to the terms of the Mozilla Public
++  * License, v. 2.0. If a copy of the MPL was not distributed with this
+diff --git a/source/lib/sysdep/arch.h b/source/lib/sysdep/arch.h
+index 7455097..ef22403 100644
+--- a/source/lib/sysdep/arch.h
++++ b/source/lib/sysdep/arch.h
+@@ -82,9 +82,15 @@
+ #else
+ # define ARCH_E2K 0
+ #endif
++// .. riscv64
++#if defined(__riscv) && (__riscv_xlen == 64)
++# define ARCH_RISCV64 1
++#else
++# define ARCH_RISCV64 0
++#endif
+ 
+ // ensure exactly one architecture has been detected
+-#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64) != 1
++#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64+ARCH_RISCV64) != 1
+ # error "architecture not correctly detected (either none or multiple ARCH_* defined)"
+ #endif
+ 
+diff --git a/source/lib/sysdep/arch/riscv64/riscv64.cpp b/source/lib/sysdep/arch/riscv64/riscv64.cpp
+new file mode 100644
+index 0000000..9b72e74
+--- /dev/null
++++ b/source/lib/sysdep/arch/riscv64/riscv64.cpp
+@@ -0,0 +1,49 @@
++/* Copyright (C) 2015 Wildfire Games.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining
++ * a copy of this software and associated documentation files (the
++ * "Software"), to deal in the Software without restriction, including
++ * without limitation the rights to use, copy, modify, merge, publish,
++ * distribute, sublicense, and/or sell copies of the Software, and to
++ * permit persons to whom the Software is furnished to do so, subject to
++ * the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included
++ * in all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
++ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
++ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
++ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ */
++
++/*
++ * routines specific to riscv64
++ */
++
++#include "precompiled.h"
++
++#include "lib/sysdep/cpu.h"
++
++intptr_t cpu_AtomicAdd(volatile intptr_t* location, intptr_t increment)
++{
++	return __sync_fetch_and_add(location, increment);
++}
++
++bool cpu_CAS(volatile intptr_t* location, intptr_t expected, intptr_t newValue)
++{
++	return __sync_bool_compare_and_swap(location, expected, newValue);
++}
++
++bool cpu_CAS64(volatile i64* location, i64 expected, i64 newValue)
++{
++	return __sync_bool_compare_and_swap(location, expected, newValue);
++}
++
++const char* cpu_IdentifierString()
++{
++	return "unknown"; // TODO
++}
