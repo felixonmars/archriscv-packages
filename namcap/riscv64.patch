@@ -1,22 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,11 +11,17 @@ license=('GPL')
- depends=('python' 'pyalpm' 'licenses' 'binutils' 'elfutils' 'python-pyelftools' 'pkgconf')
- checkdepends=('systemd' 'python-pytest' 'python-six')
- makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
--source=(https://gitlab.archlinux.org/pacman/namcap/-/archive/${pkgver}/namcap-${pkgver}.tar.bz2)
--sha512sums=('ab4d1658dbdf192d1d91e3cf3cd3e4cab0be6021561e6d14ad86603b95f6261eb97bd3087a003ce493b3dea7a240d8fdddc29f059613b3ff3fb718467cd8078e')
-+source=(https://gitlab.archlinux.org/pacman/namcap/-/archive/${pkgver}/namcap-${pkgver}.tar.bz2
-+        support-other-arches.patch
-+        fix-riscv64-test.patch)
-+sha512sums=('ab4d1658dbdf192d1d91e3cf3cd3e4cab0be6021561e6d14ad86603b95f6261eb97bd3087a003ce493b3dea7a240d8fdddc29f059613b3ff3fb718467cd8078e'
-+            '552eb498a734bda37b6d596f8fca61e433ccb5d00b93b9015e996afb1715258d16fe7daf4f3737abd4638502a9ef63c645c620ed3c208533fe1a722dbd509603'
-+            '7352ff5ce60845a074c1657feb5013f2a45489066636492e0f65bb63a95868b5cd859f838715d5691290f49b88600919484ccca2e939dcfa49b933ee5290f925')
+@@ -22,12 +22,22 @@ checkdepends=(python-pytest
+ makedepends=(python-{build,installer,wheel}
+             python-setuptools)
+ _archive="$pkgname-$pkgver"
+-source=("$url/-/releases/$pkgver/downloads/$_archive.tar.bz2"{,.asc})
++source=("$url/-/releases/$pkgver/downloads/$_archive.tar.bz2"{,.asc}
++        "support-other-arches.patch"
++        "fix-riscv64-test.patch")
+ sha256sums=('2da8f2dc267dc9be053e4c5719a4eda24eb0227ae5f0387089b392cf01bd1d80'
+-            'SKIP')
++            'SKIP'
++            '3807c7ce59a50efb7c9a3189409364f0ce78d8b07c558e4b9b5b715e94b8564d'
++            'fa3904f9320b4d897cf40c3551dca16a123f2bf6ab005caf0dd50e42ce62e11b')
+ validpgpkeys=(9F377DDB6D3153A48EB3EB1E63CC496475267693  # caleb@alerque.com
+               CCB34EBBB9541EF3F7B366C1D4A753468A5A5B67) # alerque@archlinux.org
  
- prepare() {
-   cd ${pkgname}-${pkgver}
-+  patch -Np1 -i "${srcdir}/support-other-arches.patch"
-+  patch -Np1 -i "${srcdir}/fix-riscv64-test.patch"
- }
- 
++prepare() {
++  cd $pkgname-$pkgver
++  patch -Np1 -i ../support-other-arches.patch
++  patch -Np1 -i ../fix-riscv64-test.patch
++}
++
  build() {
+   cd "$_archive"
+   python -m build -wn
