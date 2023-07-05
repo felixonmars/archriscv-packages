@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,9 +9,16 @@ makedepends=('rust' 'cargo' 'glibc' 'llvm-libs' 'gcc-libs' 'clang' 'python')
+ arch=('x86_64')
+ license=('MIT')
+ url="https://github.com/Aloxaf/silicon"
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/Aloxaf/silicon/archive/v$pkgver.tar.gz")
++source=("$pkgname-$pkgver.tar.gz::https://github.com/Aloxaf/silicon/archive/v$pkgver.tar.gz"
++        "fix-pointer-type.patch::https://github.com/Aloxaf/silicon/commit/f666c95d3dab85a81d60067e2f25d29ee8ab59e7.diff")
+ options=('!lto')
+-sha256sums=('784a6f99001f2000422b676e637fe83a5dc27f5fc55ad33e227c882ce20e6439')
++sha256sums=('784a6f99001f2000422b676e637fe83a5dc27f5fc55ad33e227c882ce20e6439'
++            '5396ae39e392bd51abf7ea777b791a70b88d3930648cf1682586bc615f815a47')
++
++prepare() {
++    cd "$srcdir/silicon-$pkgver"
++    patch -Np1 -i ../fix-pointer-type.patch
++}
+ 
+ build() {
+     cd "$srcdir/silicon-$pkgver"
