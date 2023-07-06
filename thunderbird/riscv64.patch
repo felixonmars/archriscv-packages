@@ -1,54 +1,32 @@
-diff --git PKGBUILD PKGBUILD
-index 08d5022..7e59eab 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,7 +35,8 @@ source=(https://archive.mozilla.org/pub/thunderbird/releases/$pkgver/source/thun
-         mozconfig.cfg
+@@ -36,7 +36,8 @@ source=(https://archive.mozilla.org/pub/thunderbird/releases/$pkgver/source/thun
          metainfo.patch
          rustc_version-0.4.0.patch
--        gcc-13.patch)
-+        gcc-13.patch
+         gcc-13.patch
+-        rust-1.70.patch)
++        rust-1.70.patch
 +        makotokato-riscv64-support-and-zenithal-backported.patch)
  validpgpkeys=(
    14F26682D0916CDD81E37B6D61B7B526D98F0353 # Mozilla Software Releases <release@mozilla.com>
    4360FE2109C49763186F8E21EBE41E90F6F12F6D # Mozilla Software Releases <release@mozilla.com>
-@@ -58,14 +59,10 @@ prepare() {
- 
-   echo "${noextract[@]}"
- 
--  local src
--  for src in "${source[@]}"; do
--    src="${src%%::*}"
--    src="${src##*/}"
--    [[ $src = *.patch ]] || continue
--    msg2 "Applying patch $src..."
--    patch -Np1 < "../$src"
--  done
-+  patch -Np1 < "../gcc-13.patch"
-+  patch -Np1 < "../metainfo.patch"
-+  patch -Np1 < "../rustc_version-0.4.0.patch"
-+  patch -Np1 < "../makotokato-riscv64-support-and-zenithal-backported.patch"
- 
-   printf "%s" "$_google_api_key" >google-api-key
-   printf "%s" "$_mozilla_api_key" >mozilla-api-key
-@@ -221,10 +218,11 @@ sha512sums=('dfe62f0d8b7750e54793e32e78fb0784c7c8e39b95dc4c03ac393e51195ec8883ed
+@@ -224,11 +225,12 @@ sha512sums=('303787a8f22a204e48784d54320d5f4adaeeeedbe4c2294cd26ad75792272ffc945
              'a0061fcb2a7f66061e336a8d95948592f56f4752e56467f14ba63846720ebf845cce7511d1a2637e3b80d5a1ffdaa2fb783fa37195103425ef65222d45372012'
              '6918c0de63deeddc6f53b9ba331390556c12e0d649cf54587dfaabb98b32d6a597b63cf02809c7c58b15501720455a724d527375a8fb9d757ccca57460320734'
              '5cd3ac4c94ef6dcce72fba02bc18b771a2f67906ff795e0e3d71ce7db6d8a41165bd5443908470915bdbdb98dddd9cf3f837c4ba3a36413f55ec570e6efdbb9f'
 -            'a34dd97954f415a5ffe956ca1f10718bd164950566ceba328805c2ccbb54ed9081df07f2e063479bf932c4a443bb5b7443cca2f82eea3914465ed6e4863e0c0e'
-+            'c8267de2c71c6b93da5ebbed159bf89417cadcca4f9377779439a25b0462779ce759015d4e886457721dbe2e8a370ed6295f5e77662a8376ccce3332d89492ba'
++            'd8138ae75c4436df9ee9429dd8afe459170e07db3abbab986d67a6f082b5b6c8fa922dd44e1be5320a44b2f351500f120892ef6ce3fad5f3c8f3d460b2998b5f'
              '7e43b1f25827ddae615ad43fc1e11c6ba439d6c2049477dfe60e00188a70c0a76160c59a97cc01d1fd99c476f261c7cecb57628b5be48874be7cf991c22db290'
              '36d9662fc94cbf7dcf371adc13a9cda679bc75df961d86de019d3c8ebb0be3062d5ef762d175fab58696db74758100a65de45d7832e0e2bd4e15c901f72d8349'
              '3fbbcdb2cdce00156ec54d517d4709203b5324cc73b02df32be3891eed24c37d8ea4ac8acee3b462da340ef7e2addd602575f350b10d830cf3eefb707e849794'
+             '1e8699ff5cfb2fe0d6b43af7afe22fe354601b29f4b81f919e5569bbfe2215a4f7319c9c04bc3b64bc557f924122c9e8c33c9a7a57f4dfb63f13dc36f9bc679c'
 +            'c76715d6badc09ca6273c2393b832da80891741189df6301b325a06417819fc9cfe811d4c626e1b94b0b4feb53296b309b3b79deb26b84f45ed14d5b1d7e4c2e'
-             'dc5af20d0614190b2f4f963a28874e4fce8141d3c44a55d5ebc0c964a3412e168f165783eeeeacdbdc2c845b6fe9df75ab99d4071af76a7beb1f016df0a081b5'
-             '617ab9d71d97c154a42e7426a7572a08d21eeb3a0a6d56f1fd6a23ffd20a0f8c35d47207665cd7aaa0858fa987ab94c0e2cd6077881ecfc1f0a85f086b151240'
-             'bcda6ead704758005c3412749436481075e3e0a5d8530efb47408cc1fa00cebb24bf5576ea126b7804e67f8d7a74ef1d22202d5305ba8f85a1b151ffcf1cf69d'
-diff --git mozconfig.cfg mozconfig.cfg
-index 3d8da9a..5276b5c 100644
+             '0d3ec14b80d936bf3d8c676ff3350e64148899ec0c1f675ce9afb4c1b4db190b7aff896b1b6021710ee6bef5e187c7dec2e5186ec7d7cbd4db5147bae5525274'
+             '234f9f8cb953367427acf4f66d78b09b17b42a5b68e7e88d6d05a553480b97d0ba6795c6397d47c2ec56128f9617eb12fde62ae5da561a4f46265f4848a3958b'
+             '36bfd1a60fba2e68f9f70acdf16baf70bb98cf9d29b9445e1bb12049cf0a35e31690bf1a08921bbfb231f028f37229166ea003a441ccfa4d9f92037611c987a3'
 --- mozconfig.cfg
 +++ mozconfig.cfg
-@@ -1,13 +1,17 @@
+@@ -1,13 +1,16 @@
  ac_add_options --enable-application=comm/mail
  
  ac_add_options --prefix=/usr
@@ -61,7 +39,7 @@ index 3d8da9a..5276b5c 100644
  ac_add_options --enable-hardening
 -ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
- # https://bugzilla.mozilla.org/show_bug.cgi?id=1423822
+-# https://bugzilla.mozilla.org/show_bug.cgi?id=1423822
 -ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
 +ac_add_options --without-wasm-sandboxed-libraries
 +ac_add_options --disable-bootstrap
