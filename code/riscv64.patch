@@ -1,0 +1,63 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,7 +16,7 @@ depends=($_electron 'libsecret' 'libx11' 'libxkbfile' 'ripgrep')
+ optdepends=('bash-completion: Bash completions'
+             'zsh-completions: ZSH completitons'
+             'x11-ssh-askpass: SSH authentication')
+-makedepends=('git' 'gulp' 'npm' 'python' 'yarn' 'nodejs-lts-gallium' 'desktop-file-utils')
++makedepends=('git' 'gulp' 'npm' 'python' 'yarn' 'nodejs-lts-gallium' 'desktop-file-utils' 'zip')
+ provides=('vscode')
+ source=("$pkgname::git+$url.git#tag=$pkgver"
+         'code.js'
+@@ -42,6 +42,9 @@ case "$CARCH" in
+   armv7h)
+     _vscode_arch=arm
+     ;;
++  riscv64)
++    _vscode_arch=riscv64
++    ;;
+   *)
+     # Needed for mksrcinfo
+     _vscode_arch=DUMMY
+@@ -51,6 +54,9 @@ esac
+ prepare() {
+   cd $pkgname
+ 
++  # Add missing riscv definition
++  sed -i "/BUILD_TARGETS = \[/a { platform: 'linux', arch: 'riscv64' }," build/gulpfile.vscode.js
++
+   # Change electron binary name to the target electron
+   sed -e "s|name=electron|name=$_electron |" \
+       -e '/PKGBUILD/d' \
+@@ -99,7 +105,30 @@ prepare() {
+ 
+ build() {
+   cd $pkgname
+-  yarn install --arch=$_vscode_arch
++  ELECTRON_SKIP_BINARY_DOWNLOAD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn install --arch=$_vscode_arch
++
++  # The build process wants a zipped electron, let's construct one from system electron and put it in cache.
++  local _electron_ver=$(</usr/lib/$_electron/version)
++  # Not sure why /bin/sha256sum returns a different result. We have to invoke node here.
++  local _hash=$(node -e "console.log(crypto.createHash('sha256').update('https://github.com/electron/electron/releases/download/v$_electron_ver').digest('hex'))")
++  local _electron_zip="electron-v$_electron_ver-linux-$CARCH.zip"
++  cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
++  local _cache_dir="$HOME/.cache/electron/$_hash" 
++  mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
++
++  # Native node extensions caused segfault or strange behaviors. 
++  # Confirmed for @vscode/spdlog and node-pty. Let's build all native extensions in debug mode just in case.
++  # TODO: needs further investigation
++  for _module in @vscode/spdlog @parcel/watcher keytar native-is-elevated native-keymap native-watchdog node-pty windows-foreground-love
++  do
++    pushd node_modules/$_module
++    node-gyp rebuild --target=$_electron_ver --arch=$CARCH --dist-url=https://electronjs.org/headers --debug
++    mkdir build/Release
++    cp build/Debug/*.node build/Release
++    rm -rf build/Debug
++    popd
++  done
++
+   gulp --max_old_space_size=8192 \
+        --openssl-legacy-provider \
+        vscode-linux-$_vscode_arch-min
