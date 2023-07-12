@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index 84bc4da..78d243b 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -3,7 +3,7 @@
@@ -6,8 +8,8 @@
  pkgbase=opencv
 -pkgname=(opencv opencv-samples python-opencv opencv-cuda)
 +pkgname=(opencv opencv-samples python-opencv)
- pkgver=4.7.0
- pkgrel=13
+ pkgver=4.8.0
+ pkgrel=2
  pkgdesc='Open Source Computer Vision Library'
 @@ -12,7 +12,7 @@ license=(BSD)
  url='https://opencv.org/'
@@ -18,16 +20,16 @@
  optdepends=('opencv-samples: samples'
              'vtk: for the viz module'
              'glew: for the viz module'
-@@ -30,6 +30,8 @@ sha256sums=('8df0079cdbe179748a18d44731af62a245a45ebf5085223dc03133954c662973'
-             'a71e8ffad606d518a846296a06e59beac38887b30021a72b08321aeffd43a75d'
-             '572f7b774678e2fc46b524ce72d4b0ddf175b2a576c6dcfd013d16165ba39863'
+@@ -26,6 +26,8 @@ source=(https://github.com/opencv/opencv/archive/$pkgver/$pkgname-$pkgver.tar.gz
+ sha256sums=('cbf47ecc336d2bff36b0dcd7d6c179a9bb59e805136af6b9670ca944aef889bd'
+             'b4aef0f25a22edcd7305df830fa926ca304ea9db65de6ccd02f6cfa5f3357dbb'
              'f35a2d4ea0d6212c7798659e59eda2cb0b5bc858360f7ce9c696c77d3029668e')
 +# fix error 'relocation truncated to fit: R_RISCV_PCREL_HI20 against `.LC19''
 +options=(!lto)
  
  prepare() {
    patch -d $pkgname-$pkgver -p1 < vtk9.patch # Don't require all vtk optdepends
-@@ -56,7 +58,6 @@ build() {
+@@ -50,7 +52,6 @@ build() {
           -DINSTALL_PYTHON_EXAMPLES=ON \
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DCPU_BASELINE_DISABLE=SSE3 \
@@ -35,7 +37,7 @@
           -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -71,17 +72,6 @@ build() {
+@@ -67,17 +68,6 @@ build() {
    cmake -B build -S $pkgname-$pkgver $_opts \
      -DBUILD_WITH_DEBUG_INFO=ON
    cmake --build build
@@ -53,7 +55,7 @@
  }
  
  package_opencv() {
-@@ -123,26 +113,3 @@ package_python-opencv() {
+@@ -119,26 +109,3 @@ package_python-opencv() {
    # install license file
    install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
