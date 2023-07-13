@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -30,8 +30,10 @@ optdepends=(
+   'python-gobject: for nvchecker-notify'
+   'libnotify: for nvchecker-notify'
+ )
+-source=("git+https://github.com/lilydjwg/nvchecker.git?signed#tag=$_tag")
+-sha512sums=('SKIP')
++source=("git+https://github.com/lilydjwg/nvchecker.git?signed#tag=$_tag"
++        "bump-test-versions.patch::https://github.com/lilydjwg/nvchecker/pull/231.diff")
++sha512sums=('SKIP'
++            '17a4a9f0230a21b231124a48679a7f34fc4e1da470fe0e2857c3aae4cb0f7f7ff1b1723db995dc97b33e09671b8d8a5913fee35a89ab8b84056768c37208b04f')
+ validpgpkeys=(
+   # No direct trust chain. Some related stuffs:
+   # https://api.github.com/users/lilydjwg/gpg_keys
+@@ -58,6 +60,8 @@ prepare() {
+     git log --oneline -1 "${_c}"
+     git cherry-pick -n "${_c}"
+   done
++
++  patch -Np1 -i ../bump-test-versions.patch
+ }
+ 
+ build() {
