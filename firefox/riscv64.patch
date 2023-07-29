@@ -1,6 +1,8 @@
---- PKGBUILD	(revision 470796)
-+++ PKGBUILD	(working copy)
-@@ -27,7 +27,6 @@
+diff --git PKGBUILD PKGBUILD
+index 31d3a96..e621d71 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,7 +28,6 @@ makedepends=(
    cbindgen
    clang
    diffutils
@@ -8,7 +10,7 @@
    imake
    inetutils
    jack
-@@ -131,15 +130,20 @@
+@@ -104,22 +103,28 @@ ac_add_options --enable-application=browser
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
  
  ac_add_options --prefix=/usr
@@ -32,7 +34,6 @@
  # Branding
  ac_add_options --enable-official-branding
  ac_add_options --enable-update-channel=release
-@@ -146,7 +150,8 @@
  ac_add_options --with-distribution-id=org.archlinux
  ac_add_options --with-unsigned-addon-scopes=app,system
  ac_add_options --allow-addon-sideload
@@ -42,7 +43,7 @@
  export MOZ_APP_REMOTINGNAME=${pkgname//-/}
  
  # Keys
-@@ -161,7 +166,7 @@
+@@ -134,7 +139,7 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -51,7 +52,7 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -179,39 +184,41 @@
+@@ -152,39 +157,41 @@ build() {
    ulimit -n 4096
  
    # Do 3-tier PGO
@@ -59,14 +60,8 @@
 -  cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-profile-generate=cross
 -END
-+  # disable PGO
-+#  echo "Building instrumented browser..."
-+   cat >.mozconfig ../mozconfig
-+#  cat >.mozconfig ../mozconfig - <<END
-+#ac_add_options --enable-profile-generate=cross
-+#END
-   ./mach build
- 
+-  ./mach build
+-
 -  echo "Profiling instrumented browser..."
 -  ./mach package
 -  LLVM_PROFDATA=llvm-profdata \
@@ -85,13 +80,19 @@
 -
 -  echo "Building optimized browser..."
 -  cat >.mozconfig ../mozconfig - <<END
--ac_add_options --enable-lto=cross
+-ac_add_options --enable-lto=cross,full
 -ac_add_options --enable-profile-use=cross
 -ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
 -ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
 -END
--  ./mach build
--
++  # disable PGO
++#  echo "Building instrumented browser..."
++   cat >.mozconfig ../mozconfig
++#  cat >.mozconfig ../mozconfig - <<END
++#ac_add_options --enable-profile-generate=cross
++#END
+   ./mach build
+ 
 -  echo "Building symbol archive..."
 -  ./mach buildsymbols
 +#  echo "Profiling instrumented browser..."
@@ -112,7 +113,7 @@
 +#
 +#  echo "Building optimized browser..."
 +#  cat >.mozconfig ../mozconfig - <<END
-+#ac_add_options --enable-lto=cross
++#ac_add_options --enable-lto=cross,full
 +#ac_add_options --enable-profile-use=cross
 +#ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
 +#ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
@@ -124,9 +125,9 @@
  }
  
  package() {
-@@ -279,12 +286,12 @@
-     ln -srfv "$pkgdir/usr/lib/libnssckbi.so" "$nssckbi"
-   fi
+@@ -264,12 +271,12 @@ ObjectPath=/org/mozilla/${pkgname//-/}/SearchProvider
+ Version=2
+ END
  
 -  export SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE="$startdir/.crash-stats-api.token"
 -  if [[ -f $SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE ]]; then
