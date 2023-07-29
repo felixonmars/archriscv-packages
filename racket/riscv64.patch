@@ -1,20 +1,18 @@
-diff --git PKGBUILD PKGBUILD
-index 995d5068..ff79e278 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,12 +21,16 @@
+@@ -22,12 +22,16 @@ b2sums=('860aa8fd7673ec484a9856a8b7dea8915ca444fb15158703b8e04562b489a548e350f41
  prepare() {
    cd "$pkgbase-$pkgver"
    echo "Icon=drracket" >> share/pkgs/drracket/drracket/drracket.desktop
 +  _sharedir=/usr/share/autoconf/build-aux
 +  for _file in "config.guess" "config.sub"; do
-+    find -name "${_file}" -exec  cp -v "${_sharedir}/${_file}" {} \;   
++    find -name "${_file}" -exec  cp -v "${_sharedir}/${_file}" {} \;
 +  done
  }
  
  build() {
    cd "$pkgbase-$pkgver/src"
-   [ "$CARCH" == "x86_64" ] && export CFLAGS+=" -fPIC"
+   [ "$CARCH" == "x86_64" ] && export CFLAGS+=" -fPIC -ffat-lto-objects"
 -  ./configure --prefix=/usr --sysconfdir=/etc --enable-shared
 +  ./configure --prefix=/usr --sysconfdir=/etc --enable-shared --enable-bcdefault
    make
