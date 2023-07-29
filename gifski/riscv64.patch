@@ -1,33 +1,12 @@
+diff --git PKGBUILD PKGBUILD
+index 4dedc05..ba25665 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,14 +11,27 @@ url='https://gif.ski'
- license=('AGPL3')
- depends=('ffmpeg4.4')
- makedepends=('cargo' 'clang')
--source=("$pkgname-$pkgver.tar.gz::https://github.com/ImageOptim/$pkgname/archive/$pkgver.tar.gz")
--sha512sums=('aa6b3ce1f3ece992c41a699ebed91b175a4c3e03307fd6f30b23c0f74f7061468a6ae962b8a41c20563306386b818eec8ffd41357f609879e8dc62912d67cc38')
-+source=("$pkgname-$pkgver.tar.gz::https://github.com/ImageOptim/$pkgname/archive/$pkgver.tar.gz"
-+        "fix-unsigned-char.patch::https://github.com/zmwangx/rust-ffmpeg/commit/d5e9f34b6a3cf309178389ac996b6ff0130a2cb7.diff")
-+sha512sums=('aa6b3ce1f3ece992c41a699ebed91b175a4c3e03307fd6f30b23c0f74f7061468a6ae962b8a41c20563306386b818eec8ffd41357f609879e8dc62912d67cc38'
-+            'c59729837a1012e32be8fe0d7a01bc05f67a636d76f92c59a4a44eb5a2017e675237b3ed512740dbf3b62617eba3b347382f0ca3402bdbadf7f37189b129b435')
- options=('!lto')
- 
+@@ -18,7 +18,7 @@ options=('!lto')
  prepare() {
--  cd $pkgname-$pkgver
-+  # Gifski breaks on ffmpeg-next@>=5, so patch 4.4.0 instead
-+  # https://github.com/ImageOptim/gifski/issues/242#issuecomment-1110901414
-+  mkdir cargo-clone
-+  cargo install --root cargo-clone cargo-clone
-+  cargo-clone/bin/cargo-clone clone ffmpeg-next@4.4.0
-+  cd ffmpeg-next
-+  patch -Np1 -i ../fix-unsigned-char.patch
-+  cd ..
+   cd $pkgname-$pkgver
  
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  cd $pkgname-$pkgver
-+  # They already uses [patch.crates-io]
-+  echo -e "\nffmpeg-next = { path = '../ffmpeg-next' }" >> Cargo.toml
-+  cargo update -p ffmpeg-next
 +  cargo fetch --locked
  }
  
