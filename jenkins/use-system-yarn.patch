@@ -1,0 +1,72 @@
+diff --git a/war/pom.xml b/war/pom.xml
+index e446795972..872a0c62be 100644
+--- a/war/pom.xml
++++ b/war/pom.xml
+@@ -778,51 +778,45 @@ THE SOFTWARE.
+             </executions>
+           </plugin>
+           <plugin>
+-            <groupId>com.github.eirslett</groupId>
+-            <artifactId>frontend-maven-plugin</artifactId>
+-            <version>1.13.4</version>
++            <groupId>org.codehaus.mojo</groupId>
++            <artifactId>exec-maven-plugin</artifactId>
++            <version>3.0.0</version>
+             <executions>
+-
+               <execution>
+-                <id>install node and yarn</id>
++                <id>yarn install</id>
+                 <goals>
+-                  <goal>install-node-and-yarn</goal>
++                  <goal>exec</goal>
+                 </goals>
+                 <phase>initialize</phase>
+                 <configuration>
+-                  <nodeVersion>v${node.version}</nodeVersion>
+-                  <yarnVersion>v${yarn.version}</yarnVersion>
+-                  <nodeDownloadRoot>https://repo.jenkins-ci.org/nodejs-dist/</nodeDownloadRoot>
+-                  <!-- tried to create a mirror for yarnDownloadRoot but it did not work -->
++                  <executable>yarn</executable>
+                 </configuration>
+               </execution>
+ 
+-              <execution>
+-                <id>yarn install</id>
+-                <goals>
+-                  <goal>yarn</goal>
+-                </goals>
+-                <phase>initialize</phase>
+-              </execution>
+-
+               <execution>
+                 <id>yarn build</id>
+                 <goals>
+-                  <goal>yarn</goal>
++                  <goal>exec</goal>
+                 </goals>
+                 <phase>generate-sources</phase>
+                 <configuration>
+-                  <arguments>build</arguments>
++                  <executable>yarn</executable>
++                  <arguments>
++                    <argument>build</argument>
++                  </arguments>
+                 </configuration>
+               </execution>
+ 
+               <execution>
+                 <id>yarn lint</id>
+                 <goals>
+-                  <goal>yarn</goal>
++                  <goal>exec</goal>
+                 </goals>
+                 <configuration>
+-                  <arguments>lint:ci</arguments>
++                  <executable>yarn</executable>
++                  <arguments>
++                    <argument>lint:ci</argument>
++                  </arguments>
+                   <skip>${yarn.lint.skip}</skip>
+                 </configuration>
+               </execution>
