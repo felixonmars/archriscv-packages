@@ -1,35 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 02bb539..5ea90b9 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,19 +9,25 @@ _myver=${pkgver/_rel*}
- pkgrel=1
- arch=('x86_64')
- makedepends=('cmake' 'zlib' 'lz4' 'zstd' 'libaio' 'systemd-tools' 'pam' 'numactl' 'jemalloc' 'openssl'
--             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'libfido2') # 'boost'
-+             'rpcsvc-proto' 'doxygen' 'graphviz' 'libevent' 'protobuf' 'libfido2' 'clang') # 'boost'
- license=('GPL')
-+# Can't use -Wl,-plugin-opt=-target-abi=lp64d, because both CFLAGS and CXXFLAGS need it,
-+# but specifying both will cause LLVMgold to complain about multiple -target-abi.
-+# Also, -ffat-lto-objects can't resolve the compile error here. We have to set !lto
-+options=('!lto')
- url="https://www.percona.com/software/mysql-database/percona-server"
- source=("https://www.percona.com/downloads/Percona-Server-${pkgver%.*_*}/Percona-Server-$_pkgver/source/tarball/percona-server-$_pkgver.tar.gz"
-         "https://boostorg.jfrog.io/artifactory/main/release/$_boost_ver/source/boost_${_boost_ver//./_}.tar.gz"
-         'my.cnf'
+@@ -18,14 +18,16 @@ source=("https://www.percona.com/downloads/Percona-Server-${pkgver%.*_*}/Percona
          'mysql-user.conf'
--        'mysqlrouter-user.conf')
-+        'mysqlrouter-user.conf'
-+        'add-riscv-support.patch::https://patch-diff.githubusercontent.com/raw/percona/percona-server/pull/5030.patch')
- sha256sums=('04ea622f8914a1d15fb7f649ff4c556a81f351f21c7fb74a36e43ecf600a1827'
+         'mysqlrouter-user.conf'
+         'mysql-build-fix.patch'
+-        'protobuf-23.patch')
++        'protobuf-23.patch'
++		'add-riscv-support.patch::https://patch-diff.githubusercontent.com/raw/percona/percona-server/pull/5030.patch')
+ sha256sums=('9871cac20c226bba7607f35c19ee23516a38c67573dd48618727c74eae22912e'
              '5347464af5b14ac54bb945dc68f1dd7c56f0dad7262816b956138fc53bcc0131'
              'b467b04d6d06152b2abc33f2a6de63fef0fc922dd5119d2ee1d07d3c1a489731'
              '5d7710fe88ec6d298175a309c0b776142397b119c468830b2865980292ed5da6'
--            '4ca7ffdcb2d1716d4f31e4c7dd314e5d76e64f13fdc67c5d81c53650b793f5e0')
-+            '4ca7ffdcb2d1716d4f31e4c7dd314e5d76e64f13fdc67c5d81c53650b793f5e0'
+             '4ca7ffdcb2d1716d4f31e4c7dd314e5d76e64f13fdc67c5d81c53650b793f5e0'
+             'ea17c754d5595bf053d733373b7c4ae6d608a9f85a990dbe5779b499dd398bef'
+-            '2d73c79f355eaf3c0bced0f0da6ad099323f4f489d5cddb609cf01af5a617305')
++            '2d73c79f355eaf3c0bced0f0da6ad099323f4f489d5cddb609cf01af5a617305'
 +            '465d90e49cf781b200e8d7155d7273dfde2781438f268f1dea8978259b3d4053')
  
  prepare() {
  	cd $pkgbase-$_pkgver
-@@ -38,6 +44,8 @@ prepare() {
+@@ -46,6 +48,8 @@ prepare() {
  
  	sed '/^PrivateTmp=/ a StateDirectory=mysqlrouter\nRuntimeDirectory=mysqlrouter' \
  		-i scripts/systemd/mysqlrouter.service.in
@@ -38,17 +30,14 @@
  }
  
  build() {
-@@ -45,9 +53,11 @@ build() {
- 	mkdir -p build
+@@ -54,8 +58,8 @@ build() {
  	cd build
  
-+	export CC=clang CXX=clang++ CFLAGS="${CFLAGS//-fstack-clash-protection/}" CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
-+	# -ffat-lto-objects not supported & -Werror
- 	cmake ../$pkgbase-$_pkgver \
--		-DCMAKE_C_FLAGS_RELWITHDEBINFO="${CFLAGS} -DNDEBUG -ffat-lto-objects" \
--		-DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${CXXFLAGS} -DNDEBUG -ffat-lto-objects" \
-+		-DCMAKE_C_FLAGS_RELWITHDEBINFO="${CFLAGS} -DNDEBUG" \
-+		-DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${CXXFLAGS} -DNDEBUG" \
+ 	cmake "../$pkgbase-$_pkgver" \
+-		-DCMAKE_C_FLAGS_RELWITHDEBINFO="${CFLAGS} -DNDEBUG -ffat-lto-objects -msse4.2 -mpclmul" \
+-		-DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${CXXFLAGS} -DNDEBUG -ffat-lto-objects -msse4.2 -mpclmul" \
++		-DCMAKE_C_FLAGS_RELWITHDEBINFO="${CFLAGS} -DNDEBUG -ffat-lto-objects" \
++		-DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${CXXFLAGS} -DNDEBUG -ffat-lto-objects" \
  		-Wno-dev \
  		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
  		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
