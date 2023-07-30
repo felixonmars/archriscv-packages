@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,19 @@ license=('AGPL3')
+ depends=('gtk3')
+ makedepends=('cmake' 'systemd' 'glu' 'ninja' 'git')
+ options=('!makeflags')
+-source=(https://github.com/prusa3d/PrusaSlicer/archive/version_${pkgver}/${pkgname}-${pkgver}.tar.gz)
+-sha256sums=('a15f68e3b18a047c8c9a18a9d91629d2c777be1932087684cf6d2332d0888e77')
++source=(https://github.com/prusa3d/PrusaSlicer/archive/version_${pkgver}/${pkgname}-${pkgver}.tar.gz
++        onetbb-fix.patch::https://patch-diff.githubusercontent.com/raw/oneapi-src/oneTBB/pull/550.patch
++        $pkgname-tbbfix.patch)
++sha256sums=('a15f68e3b18a047c8c9a18a9d91629d2c777be1932087684cf6d2332d0888e77'
++            '7f44a282449ff108a5f40856e9c93fbe2dd57e5a0815edaf2d41376f6bdf3bda'
++            '39c97b951f2a9e5f022983194737e6e68acbe3c0c5ed9238db6429faf8d37255')
++
++prepare() {
++  cd PrusaSlicer-version_${pkgver}/deps/TBB
++
++  cp ${srcdir}/onetbb-fix.patch ./
++  patch -Np0 -i ${srcdir}/$pkgname-tbbfix.patch
++}
+ 
+ build() {
+   cd PrusaSlicer-version_${pkgver}
