@@ -1,0 +1,50 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,22 +15,31 @@ makedepends=('python' 'bam' 'mesa' 'imagemagick' 'gendesk' 'git')
+ source=("git+https://github.com/teeworlds/teeworlds.git#tag=$pkgver"
+         "git+https://github.com/teeworlds/teeworlds-maps.git"
+         "git+https://github.com/teeworlds/teeworlds-translation.git"
+-        "bam-v0.5.1.tar.gz::https://github.com/matricks/bam/archive/v0.5.1.tar.gz")
++        "bam-v0.5.1.tar.gz::https://github.com/matricks/bam/archive/v0.5.1.tar.gz"
++        "add-riscv-defines.patch"
++        "allow-riscv64-build.patch")
+ sha512sums=('SKIP'
+             'SKIP'
+             'SKIP'
+-            'e6f1b3daad6073c58b0e3cbf836bb0a6b66f0c36532d6e6eca9949239ab8b584cc88f892cce6f74974e370a8a688f33a95dde86dd65cc1790e49e5f8aeab0fef')
++            'e6f1b3daad6073c58b0e3cbf836bb0a6b66f0c36532d6e6eca9949239ab8b584cc88f892cce6f74974e370a8a688f33a95dde86dd65cc1790e49e5f8aeab0fef'
++            '62d4e6ec2addeb350f9772029881161e4bcbecca7c445c0ad1d983a8a97d8c3025658da9d5d6dd63fa0604bf448522574c06999495551eb0add5a43d86781e6d'
++            'dd70871eefda84250d8ae8a6800447a9c887a45e28e8593f759eabcc9a9b4a935cb1bf74310c0e6922d4eb7136c295621d2cd116d6420dfff50d74348c34bb27')
+ 
+ prepare() {
+   convert +set date:create +set date:modify "${pkgname}/other/icons/teeworlds.ico" "${srcdir}/${pkgname}.png"
+   gendesk -n --pkgname "${pkgname}" --pkgdesc "${pkgdesc}" \
+     --name 'Teeworlds' --categories 'Game;ArcadeGame'
+ 
++  cd bam-0.5.1
++  patch -Np1 -i ../add-riscv-defines.patch
++  cd ..
++
+   cd teeworlds
+   git submodule init
+   git config submodule."datasrc/languages".url "${srcdir}"/teeworlds-translation
+   git config submodule."datasrc/maps".url "${srcdir}"/teeworlds-maps
+   git -c protocol.file.allow=always submodule update
++  patch -Np1 -i ../allow-riscv64-build.patch
+ }
+ 
+ build() {
+@@ -47,10 +56,10 @@ package() {
+ 
+   # Install data files
+   mkdir -p "${pkgdir}"/usr/share/${pkgname}/data
+-  cp -r build/x86_64/release/data/* "${pkgdir}"/usr/share/${pkgname}/data
++  cp -r build/$CARCH/release/data/* "${pkgdir}"/usr/share/${pkgname}/data
+ 
+-  install -Dm755 build/x86_64/release/${pkgname} "${pkgdir}"/usr/bin/${pkgname}
+-  install -Dm755 build/x86_64/release/${pkgname}_srv "${pkgdir}"/usr/bin/${pkgname}_srv
++  install -Dm755 build/$CARCH/release/${pkgname} "${pkgdir}"/usr/bin/${pkgname}
++  install -Dm755 build/$CARCH/release/${pkgname}_srv "${pkgdir}"/usr/bin/${pkgname}_srv
+ 
+   install -Dm644 "${srcdir}"/${pkgname}.desktop "${pkgdir}"/usr/share/applications/${pkgname}.desktop
+   install -Dm644 "${srcdir}"/${pkgname}-0.png "${pkgdir}"/usr/share/pixmaps/${pkgname}.png
