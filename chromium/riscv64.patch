@@ -1,51 +1,46 @@
+diff --git PKGBUILD PKGBUILD
+index 9a8e0e9..e09bf6c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,7 +31,9 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         webauthn-variant.patch
-         random-fixes-for-gcc13.patch
-         disable-GlobalMediaControlsCastStartStop.patch
+@@ -29,13 +29,19 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
+         https://github.com/stha09/chromium-patches/releases/download/chromium-${pkgver%%.*}-patchset-$_gcc_patchset/chromium-${pkgver%%.*}-patchset-$_gcc_patchset.tar.xz
+         REVERT-disable-autoupgrading-debug-info.patch
+         random-build-fixes.patch
 -        use-oauth2-client-switches-as-default.patch)
 +        use-oauth2-client-switches-as-default.patch
-+        riscv-{angle,base,crashpad,dav1d,libgav1,libyuv,sandbox}.patch
-+        swiftshader-gcc-13-fix.patch)
- sha256sums=('a9f3440feeab51f56b199797b83b458ca545bf67e114c62b21470fadd5a41dea'
++        riscv-{angle,crashpad,dav1d,libgav1,sandbox}.patch)
+ sha256sums=('e9d4bcae7bc812afc430188b48cdc86ab31c4a6d161c34a770b8d56d3121f771'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '621ed210d75d0e846192c1571bb30db988721224a41572c27769c0288d361c11'
-@@ -40,7 +42,15 @@ sha256sums=('a9f3440feeab51f56b199797b83b458ca545bf67e114c62b21470fadd5a41dea'
-             '590fabbb26270947cb477378b53a9dcd17855739076b4af9983e1e54dfcab6d7'
-             'ba4dd0a25a4fc3267ed19ccb39f28b28176ca3f97f53a4e9f5e9215280040ea0'
-             '7f3b1b22d6a271431c1f9fc92b6eb49c6d80b8b3f868bdee07a6a1a16630a302'
+             '4f91bd10a8ae2aa7b040a8b27e01f38910ad33cbe179e39a1ae550c9c1523384'
+             '1b782b0f6d4f645e4e0daa8a4852d63f0c972aa0473319216ff04613a0592a69'
+             'fd472e8c2a68b2d13ce6cab1db99818d7043e49cecf807bf0c5fc931f0c036a3'
 -            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
 +            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
-+            'fb0738fc32f228cef59e5516dbb4acd8818f1e2ba9db2cfbc21cf72a4ace8c3f'
-+            '67fef79581b480ae1f97a4cf6bd4d4e93eee81aed1bf5c129cf2524c26c64f30'
++            'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
 +            '85644fd6b1a64e7cf76f690f1427010cdf773938987f7e1a93b2977873707a4f'
 +            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
 +            '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
-+            'd71a8dd17e3acb8f76032a35a6e633ddb12304194f36b6fc7bc24b4f0867f0bf'
-+            'c11730bfbc8788540582c9f5922b8d6ba16c264b97f0f7bd05db3fba008cac7f'
-+            '60b2f96dca144d94c273e1388f4f7c8a83553611255812f4a44e02668dc4957c')
++            'c11730bfbc8788540582c9f5922b8d6ba16c264b97f0f7bd05db3fba008cac7f')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -123,6 +133,14 @@ prepare() {
-   patch -Np1 -i ../download-bubble-typename.patch
-   patch -Np1 -i ../webauthn-variant.patch
-   patch -Np1 -i ../random-fixes-for-gcc13.patch
-+  patch -Np1 -i ../swiftshader-gcc-13-fix.patch
-+
+@@ -120,6 +126,13 @@ prepare() {
+   patch -Np1 -i ../patches/chromium-114-maldoca-include.patch
+   patch -Np1 -i ../patches/chromium-115-verify_name_match-include.patch
+ 
 +  # riscv64
-+  for rvpatch in riscv-{angle,base,dav1d,libgav1,libyuv,sandbox}.patch; do
++  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
 +
 +  cd third_party/crashpad/crashpad && patch -Np1 -i $srcdir/riscv-crashpad.patch && cd -
- 
++
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
-@@ -179,6 +197,10 @@ build() {
-     'enable_widevine=true'
+   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
+@@ -176,6 +189,10 @@ build() {
      'enable_nacl=false'
+     'enable_rust=false'
      "google_api_key=\"$_google_api_key\""
 +    'use_thin_lto=false'
 +    'is_clang=true'
