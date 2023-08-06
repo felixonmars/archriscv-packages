@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index f716aff..cc84b4b 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -7,7 +7,7 @@
@@ -6,9 +8,9 @@
  
 -pkgname=(gcc gcc-libs lib32-gcc-libs gcc-ada gcc-d gcc-fortran gcc-go gcc-objc lto-dump libgccjit)
 +pkgname=(gcc gcc-libs gcc-d gcc-fortran gcc-go gcc-objc lto-dump libgccjit)
- pkgver=13.1.1
+ pkgver=13.2.1
  _majorver=${pkgver%%.*}
- _commit=9a167ee2f8b9a0859fbab6cfdc276cf1f272effe
+ _commit=860b0f0ef787f756c0e293671b4c4622dff63a79
 @@ -19,11 +19,8 @@ url='https://gcc.gnu.org'
  makedepends=(
    binutils
@@ -75,18 +77,7 @@
      --enable-bootstrap \
      "${_confflags[@]:?_confflags unset}"
  
-@@ -122,6 +127,10 @@ build() {
- 
-   # make documentation
-   make -O -C $CHOST/libstdc++-v3/doc doc-man-doxygen
-+  
-+  # Patch spec strings embedded in binaries
-+  sed -i 's/%{pthread:--push-state --as-needed -latomic --pop-state}/  --push-state --as-needed -latomic --pop-state         /' gcc/xgcc
-+  sed -i 's/%{pthread:--push-state --as-needed -latomic --pop-state}/  --push-state --as-needed -latomic --pop-state         /' gcc/xg++
- 
-   # Build libgccjit separately, to avoid building all compilers with --enable-host-shared
-   # which brings a performance penalty
-@@ -157,9 +166,9 @@ check() {
+@@ -157,9 +162,9 @@ check() {
  package_gcc-libs() {
    pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
@@ -98,7 +89,7 @@
    replaces=($pkgname-multilib libgphobos)
  
    cd gcc-build
-@@ -172,9 +181,8 @@ package_gcc-libs() {
+@@ -172,9 +177,8 @@ package_gcc-libs() {
               libgomp \
               libitm \
               libquadmath \
@@ -110,7 +101,7 @@
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -191,18 +199,17 @@ package_gcc-libs() {
+@@ -191,18 +195,17 @@ package_gcc-libs() {
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-info
    done
  
@@ -132,7 +123,7 @@
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs)
-@@ -216,22 +223,18 @@ package_gcc() {
+@@ -216,22 +219,18 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -157,7 +148,7 @@
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -246,16 +249,11 @@ package_gcc() {
+@@ -246,16 +245,11 @@ package_gcc() {
    make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
    make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
    make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
@@ -175,7 +166,7 @@
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -264,9 +262,9 @@ package_gcc() {
+@@ -264,9 +258,9 @@ package_gcc() {
    ln -s gcc "$pkgdir"/usr/bin/cc
  
    # create cc-rs compatible symlinks
@@ -187,7 +178,7 @@
    done
  
    # POSIX conformance launcher scripts for c89 and c99
-@@ -276,9 +274,6 @@ package_gcc() {
+@@ -276,9 +270,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -197,7 +188,7 @@
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -298,8 +293,6 @@ package_gcc-fortran() {
+@@ -298,8 +289,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -206,7 +197,7 @@
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -329,45 +322,6 @@ package_gcc-objc() {
+@@ -329,45 +318,6 @@ package_gcc-objc() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -252,7 +243,7 @@
  package_gcc-go() {
    pkgdesc='Go front-end for GCC'
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -377,11 +331,10 @@ package_gcc-go() {
+@@ -377,11 +327,10 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
@@ -265,7 +256,7 @@
    install -Dm755 gcc/go1 "$pkgdir/${_libdir}/go1"
  
    # Install Runtime Library Exception
-@@ -390,42 +343,6 @@ package_gcc-go() {
+@@ -390,42 +339,6 @@ package_gcc-go() {
      "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
@@ -308,7 +299,7 @@
  package_gcc-d() {
    pkgdesc="D frontend for GCC"
    depends=("gcc=$pkgver-$pkgrel" libisl.so)
-@@ -441,7 +358,6 @@ package_gcc-d() {
+@@ -441,7 +354,6 @@ package_gcc-d() {
  
    make -C $CHOST/libphobos DESTDIR="$pkgdir" install
    rm -f "$pkgdir/usr/lib/"lib{gphobos,gdruntime}.so*
