@@ -1,0 +1,728 @@
+diff --git a/riscv/include/asm-generic b/riscv/include/asm-generic
+new file mode 120000
+index 0000000..43690c4
+--- /dev/null
++++ b/riscv/include/asm-generic
+@@ -0,0 +1 @@
++../../generic/include/asm-generic
+\ No newline at end of file
+diff --git a/riscv/include/asm/auxvec.h b/riscv/include/asm/auxvec.h
+new file mode 100644
+index 0000000..e5b1c68
+--- /dev/null
++++ b/riscv/include/asm/auxvec.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2012 ARM Ltd.
++ * Copyright (C) 2015 Regents of the University of California
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef _ASM_RISCV_AUXVEC_H
++#define _ASM_RISCV_AUXVEC_H
++
++/* vDSO location */
++#define AT_SYSINFO_EHDR 33
++
++#endif /* _ASM_RISCV_AUXVEC_H */
+diff --git a/riscv/include/asm/bitsperlong.h b/riscv/include/asm/bitsperlong.h
+new file mode 100644
+index 0000000..37c9abe
+--- /dev/null
++++ b/riscv/include/asm/bitsperlong.h
+@@ -0,0 +1,25 @@
++/*
++ * Copyright (C) 2012 ARM Ltd.
++ * Copyright (C) 2015 Regents of the University of California
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef _ASM_RISCV_BITSPERLONG_H
++#define _ASM_RISCV_BITSPERLONG_H
++
++#define __BITS_PER_LONG (__SIZEOF_POINTER__ * 8)
++
++#include <asm-generic/bitsperlong.h>
++
++#endif /* _ASM_RISCV_BITSPERLONG_H */
+diff --git a/riscv/include/asm/bpf_perf_event.h b/riscv/include/asm/bpf_perf_event.h
+new file mode 100644
+index 0000000..3097758
+--- /dev/null
++++ b/riscv/include/asm/bpf_perf_event.h
+@@ -0,0 +1 @@
++#include <asm-generic/bpf_perf_event.h>
+diff --git a/riscv/include/asm/byteorder.h b/riscv/include/asm/byteorder.h
+new file mode 100644
+index 0000000..440329e
+--- /dev/null
++++ b/riscv/include/asm/byteorder.h
+@@ -0,0 +1,23 @@
++/*
++ * Copyright (C) 2012 ARM Ltd.
++ * Copyright (C) 2015 Regents of the University of California
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#ifndef _ASM_RISCV_BYTEORDER_H
++#define _ASM_RISCV_BYTEORDER_H
++
++#include <linux/byteorder/little_endian.h>
++
++#endif /* _ASM_RISCV_BYTEORDER_H */
+diff --git a/riscv/include/asm/elf.h b/riscv/include/asm/elf.h
+new file mode 100644
+index 0000000..cad942a
+--- /dev/null
++++ b/riscv/include/asm/elf.h
+@@ -0,0 +1,95 @@
++/*
++ * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
++ * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
++ * Copyright (C) 2012 Regents of the University of California
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ */
++
++#ifndef _ASM_ELF_H
++#define _ASM_ELF_H
++
++#include <asm/ptrace.h>
++
++/* ELF register definitions */
++typedef unsigned long elf_greg_t;
++typedef struct user_regs_struct elf_gregset_t;
++#define ELF_NGREG (sizeof(elf_gregset_t) / sizeof(elf_greg_t))
++
++typedef union __riscv_fp_state elf_fpregset_t;
++
++#if __riscv_xlen == 64
++#define ELF_RISCV_R_SYM(r_info)		ELF64_R_SYM(r_info)
++#define ELF_RISCV_R_TYPE(r_info)	ELF64_R_TYPE(r_info)
++#else
++#define ELF_RISCV_R_SYM(r_info)		ELF32_R_SYM(r_info)
++#define ELF_RISCV_R_TYPE(r_info)	ELF32_R_TYPE(r_info)
++#endif
++
++/*
++ * RISC-V relocation types
++ */
++
++/* Relocation types used by the dynamic linker */
++#define R_RISCV_NONE		0
++#define R_RISCV_32		1
++#define R_RISCV_64		2
++#define R_RISCV_RELATIVE	3
++#define R_RISCV_COPY		4
++#define R_RISCV_JUMP_SLOT	5
++#define R_RISCV_TLS_DTPMOD32	6
++#define R_RISCV_TLS_DTPMOD64	7
++#define R_RISCV_TLS_DTPREL32	8
++#define R_RISCV_TLS_DTPREL64	9
++#define R_RISCV_TLS_TPREL32	10
++#define R_RISCV_TLS_TPREL64	11
++
++/* Relocation types not used by the dynamic linker */
++#define R_RISCV_BRANCH		16
++#define R_RISCV_JAL		17
++#define R_RISCV_CALL		18
++#define R_RISCV_CALL_PLT	19
++#define R_RISCV_GOT_HI20	20
++#define R_RISCV_TLS_GOT_HI20	21
++#define R_RISCV_TLS_GD_HI20	22
++#define R_RISCV_PCREL_HI20	23
++#define R_RISCV_PCREL_LO12_I	24
++#define R_RISCV_PCREL_LO12_S	25
++#define R_RISCV_HI20		26
++#define R_RISCV_LO12_I		27
++#define R_RISCV_LO12_S		28
++#define R_RISCV_TPREL_HI20	29
++#define R_RISCV_TPREL_LO12_I	30
++#define R_RISCV_TPREL_LO12_S	31
++#define R_RISCV_TPREL_ADD	32
++#define R_RISCV_ADD8		33
++#define R_RISCV_ADD16		34
++#define R_RISCV_ADD32		35
++#define R_RISCV_ADD64		36
++#define R_RISCV_SUB8		37
++#define R_RISCV_SUB16		38
++#define R_RISCV_SUB32		39
++#define R_RISCV_SUB64		40
++#define R_RISCV_GNU_VTINHERIT	41
++#define R_RISCV_GNU_VTENTRY	42
++#define R_RISCV_ALIGN		43
++#define R_RISCV_RVC_BRANCH	44
++#define R_RISCV_RVC_JUMP	45
++#define R_RISCV_LUI		46
++#define R_RISCV_GPREL_I		47
++#define R_RISCV_GPREL_S		48
++#define R_RISCV_TPREL_I		49
++#define R_RISCV_TPREL_S		50
++#define R_RISCV_RELAX		51
++#define R_RISCV_SUB6		52
++#define R_RISCV_SET6		53
++#define R_RISCV_SET8		54
++#define R_RISCV_SET16		55
++#define R_RISCV_SET32		56
++#define R_RISCV_32_PCREL	57
++
++
++#endif /* _ASM_ELF_H */
+diff --git a/riscv/include/asm/errno.h b/riscv/include/asm/errno.h
+new file mode 100644
+index 0000000..4c82b50
+--- /dev/null
++++ b/riscv/include/asm/errno.h
+@@ -0,0 +1 @@
++#include <asm-generic/errno.h>
+diff --git a/riscv/include/asm/fcntl.h b/riscv/include/asm/fcntl.h
+new file mode 100644
+index 0000000..46ab12d
+--- /dev/null
++++ b/riscv/include/asm/fcntl.h
+@@ -0,0 +1 @@
++#include <asm-generic/fcntl.h>
+diff --git a/riscv/include/asm/hwcap.h b/riscv/include/asm/hwcap.h
+new file mode 100644
+index 0000000..f333221
+--- /dev/null
++++ b/riscv/include/asm/hwcap.h
+@@ -0,0 +1,36 @@
++/*
++ * Copied from arch/arm64/include/asm/hwcap.h
++ *
++ * Copyright (C) 2012 ARM Ltd.
++ * Copyright (C) 2017 SiFive
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++#ifndef __UAPI_ASM_HWCAP_H
++#define __UAPI_ASM_HWCAP_H
++
++/*
++ * Linux saves the floating-point registers according to the ISA Linux is
++ * executing on, as opposed to the ISA the user program is compiled for.  This
++ * is necessary for a handful of esoteric use cases: for example, userpsace
++ * threading libraries must be able to examine the actual machine state in
++ * order to fully reconstruct the state of a thread.
++ */
++#define COMPAT_HWCAP_ISA_I	(1 << ('I' - 'A'))
++#define COMPAT_HWCAP_ISA_M	(1 << ('M' - 'A'))
++#define COMPAT_HWCAP_ISA_A	(1 << ('A' - 'A'))
++#define COMPAT_HWCAP_ISA_F	(1 << ('F' - 'A'))
++#define COMPAT_HWCAP_ISA_D	(1 << ('D' - 'A'))
++#define COMPAT_HWCAP_ISA_C	(1 << ('C' - 'A'))
++
++#endif
+diff --git a/riscv/include/asm/ioctl.h b/riscv/include/asm/ioctl.h
+new file mode 100644
+index 0000000..b279fe0
+--- /dev/null
++++ b/riscv/include/asm/ioctl.h
+@@ -0,0 +1 @@
++#include <asm-generic/ioctl.h>
+diff --git a/riscv/include/asm/ioctls.h b/riscv/include/asm/ioctls.h
+new file mode 100644
+index 0000000..ec34c76
+--- /dev/null
++++ b/riscv/include/asm/ioctls.h
+@@ -0,0 +1 @@
++#include <asm-generic/ioctls.h>
+diff --git a/riscv/include/asm/ipcbuf.h b/riscv/include/asm/ipcbuf.h
+new file mode 100644
+index 0000000..84c7e51
+--- /dev/null
++++ b/riscv/include/asm/ipcbuf.h
+@@ -0,0 +1 @@
++#include <asm-generic/ipcbuf.h>
+diff --git a/riscv/include/asm/mman.h b/riscv/include/asm/mman.h
+new file mode 100644
+index 0000000..8eebf89
+--- /dev/null
++++ b/riscv/include/asm/mman.h
+@@ -0,0 +1 @@
++#include <asm-generic/mman.h>
+diff --git a/riscv/include/asm/msgbuf.h b/riscv/include/asm/msgbuf.h
+new file mode 100644
+index 0000000..809134c
+--- /dev/null
++++ b/riscv/include/asm/msgbuf.h
+@@ -0,0 +1 @@
++#include <asm-generic/msgbuf.h>
+diff --git a/riscv/include/asm/param.h b/riscv/include/asm/param.h
+new file mode 100644
+index 0000000..965d454
+--- /dev/null
++++ b/riscv/include/asm/param.h
+@@ -0,0 +1 @@
++#include <asm-generic/param.h>
+diff --git a/riscv/include/asm/poll.h b/riscv/include/asm/poll.h
+new file mode 100644
+index 0000000..c98509d
+--- /dev/null
++++ b/riscv/include/asm/poll.h
+@@ -0,0 +1 @@
++#include <asm-generic/poll.h>
+diff --git a/riscv/include/asm/posix_types.h b/riscv/include/asm/posix_types.h
+new file mode 100644
+index 0000000..22cae62
+--- /dev/null
++++ b/riscv/include/asm/posix_types.h
+@@ -0,0 +1 @@
++#include <asm-generic/posix_types.h>
+diff --git a/riscv/include/asm/ptrace.h b/riscv/include/asm/ptrace.h
+new file mode 100644
+index 0000000..292cd90
+--- /dev/null
++++ b/riscv/include/asm/ptrace.h
+@@ -0,0 +1,90 @@
++/*
++ * Copyright (C) 2012 Regents of the University of California
++ *
++ *   This program is free software; you can redistribute it and/or
++ *   modify it under the terms of the GNU General Public License
++ *   as published by the Free Software Foundation, version 2.
++ *
++ *   This program is distributed in the hope that it will be useful,
++ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *   GNU General Public License for more details.
++ */
++
++#ifndef _ASM_RISCV_PTRACE_H
++#define _ASM_RISCV_PTRACE_H
++
++#ifndef __ASSEMBLY__
++
++#include <linux/types.h>
++
++/*
++ * User-mode register state for core dumps, ptrace, sigcontext
++ *
++ * This decouples struct pt_regs from the userspace ABI.
++ * struct user_regs_struct must form a prefix of struct pt_regs.
++ */
++struct user_regs_struct {
++	unsigned long pc;
++	unsigned long ra;
++	unsigned long sp;
++	unsigned long gp;
++	unsigned long tp;
++	unsigned long t0;
++	unsigned long t1;
++	unsigned long t2;
++	unsigned long s0;
++	unsigned long s1;
++	unsigned long a0;
++	unsigned long a1;
++	unsigned long a2;
++	unsigned long a3;
++	unsigned long a4;
++	unsigned long a5;
++	unsigned long a6;
++	unsigned long a7;
++	unsigned long s2;
++	unsigned long s3;
++	unsigned long s4;
++	unsigned long s5;
++	unsigned long s6;
++	unsigned long s7;
++	unsigned long s8;
++	unsigned long s9;
++	unsigned long s10;
++	unsigned long s11;
++	unsigned long t3;
++	unsigned long t4;
++	unsigned long t5;
++	unsigned long t6;
++};
++
++struct __riscv_f_ext_state {
++	__u32 f[32];
++	__u32 fcsr;
++};
++
++struct __riscv_d_ext_state {
++	__u64 f[32];
++	__u32 fcsr;
++};
++
++struct __riscv_q_ext_state {
++	__u64 f[64] __attribute__((aligned(16)));
++	__u32 fcsr;
++	/*
++	 * Reserved for expansion of sigcontext structure.  Currently zeroed
++	 * upon signal, and must be zero upon sigreturn.
++	 */
++	__u32 reserved[3];
++};
++
++union __riscv_fp_state {
++	struct __riscv_f_ext_state f;
++	struct __riscv_d_ext_state d;
++	struct __riscv_q_ext_state q;
++};
++
++#endif /* __ASSEMBLY__ */
++
++#endif /* _ASM_RISCV_PTRACE_H */
+diff --git a/riscv/include/asm/resource.h b/riscv/include/asm/resource.h
+new file mode 100644
+index 0000000..04bc4db
+--- /dev/null
++++ b/riscv/include/asm/resource.h
+@@ -0,0 +1 @@
++#include <asm-generic/resource.h>
+diff --git a/riscv/include/asm/sembuf.h b/riscv/include/asm/sembuf.h
+new file mode 100644
+index 0000000..7673b83
+--- /dev/null
++++ b/riscv/include/asm/sembuf.h
+@@ -0,0 +1 @@
++#include <asm-generic/sembuf.h>
+diff --git a/riscv/include/asm/setup.h b/riscv/include/asm/setup.h
+new file mode 100644
+index 0000000..552df83
+--- /dev/null
++++ b/riscv/include/asm/setup.h
+@@ -0,0 +1 @@
++#include <asm-generic/setup.h>
+diff --git a/riscv/include/asm/shmbuf.h b/riscv/include/asm/shmbuf.h
+new file mode 100644
+index 0000000..83c05fc
+--- /dev/null
++++ b/riscv/include/asm/shmbuf.h
+@@ -0,0 +1 @@
++#include <asm-generic/shmbuf.h>
+diff --git a/riscv/include/asm/sigcontext.h b/riscv/include/asm/sigcontext.h
+new file mode 100644
+index 0000000..6e936db
+--- /dev/null
++++ b/riscv/include/asm/sigcontext.h
+@@ -0,0 +1,30 @@
++/*
++ * Copyright (C) 2012 Regents of the University of California
++ *
++ *   This program is free software; you can redistribute it and/or
++ *   modify it under the terms of the GNU General Public License
++ *   as published by the Free Software Foundation, version 2.
++ *
++ *   This program is distributed in the hope that it will be useful,
++ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *   GNU General Public License for more details.
++ */
++
++#ifndef _ASM_RISCV_SIGCONTEXT_H
++#define _ASM_RISCV_SIGCONTEXT_H
++
++#include <asm/ptrace.h>
++
++/*
++ * Signal context structure
++ *
++ * This contains the context saved before a signal handler is invoked;
++ * it is restored by sys_sigreturn / sys_rt_sigreturn.
++ */
++struct sigcontext {
++	struct user_regs_struct sc_regs;
++	union __riscv_fp_state sc_fpregs;
++};
++
++#endif /* _ASM_RISCV_SIGCONTEXT_H */
+diff --git a/riscv/include/asm/siginfo.h b/riscv/include/asm/siginfo.h
+new file mode 100644
+index 0000000..f96849a
+--- /dev/null
++++ b/riscv/include/asm/siginfo.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2012 ARM Ltd.
++ * Copyright (C) 2016 SiFive, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++#ifndef __ASM_SIGINFO_H
++#define __ASM_SIGINFO_H
++
++#define __ARCH_SI_PREAMBLE_SIZE	(__SIZEOF_POINTER__ == 4 ? 12 : 16)
++
++#include <asm-generic/siginfo.h>
++
++#endif
+diff --git a/riscv/include/asm/signal.h b/riscv/include/asm/signal.h
+new file mode 100644
+index 0000000..7b1573c
+--- /dev/null
++++ b/riscv/include/asm/signal.h
+@@ -0,0 +1 @@
++#include <asm-generic/signal.h>
+diff --git a/riscv/include/asm/socket.h b/riscv/include/asm/socket.h
+new file mode 100644
+index 0000000..6b71384
+--- /dev/null
++++ b/riscv/include/asm/socket.h
+@@ -0,0 +1 @@
++#include <asm-generic/socket.h>
+diff --git a/riscv/include/asm/sockios.h b/riscv/include/asm/sockios.h
+new file mode 100644
+index 0000000..def6d47
+--- /dev/null
++++ b/riscv/include/asm/sockios.h
+@@ -0,0 +1 @@
++#include <asm-generic/sockios.h>
+diff --git a/riscv/include/asm/stat.h b/riscv/include/asm/stat.h
+new file mode 100644
+index 0000000..3dc90fa
+--- /dev/null
++++ b/riscv/include/asm/stat.h
+@@ -0,0 +1 @@
++#include <asm-generic/stat.h>
+diff --git a/riscv/include/asm/statfs.h b/riscv/include/asm/statfs.h
+new file mode 100644
+index 0000000..0b91fe1
+--- /dev/null
++++ b/riscv/include/asm/statfs.h
+@@ -0,0 +1 @@
++#include <asm-generic/statfs.h>
+diff --git a/riscv/include/asm/swab.h b/riscv/include/asm/swab.h
+new file mode 100644
+index 0000000..7847e56
+--- /dev/null
++++ b/riscv/include/asm/swab.h
+@@ -0,0 +1 @@
++#include <asm-generic/swab.h>
+diff --git a/riscv/include/asm/syscalls.h b/riscv/include/asm/syscalls.h
+new file mode 100644
+index 0000000..206dc4b
+--- /dev/null
++++ b/riscv/include/asm/syscalls.h
+@@ -0,0 +1,29 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2017-2018 SiFive
++ */
++
++/*
++ * There is explicitly no include guard here because this file is expected to
++ * be included multiple times in order to define the syscall macros via
++ * __SYSCALL.
++ */
++
++/*
++ * Allows the instruction cache to be flushed from userspace.  Despite RISC-V
++ * having a direct 'fence.i' instruction available to userspace (which we
++ * can't trap!), that's not actually viable when running on Linux because the
++ * kernel might schedule a process on another hart.  There is no way for
++ * userspace to handle this without invoking the kernel (as it doesn't know the
++ * thread->hart mappings), so we've defined a RISC-V specific system call to
++ * flush the instruction cache.
++ *
++ * __NR_riscv_flush_icache is defined to flush the instruction cache over an
++ * address range, with the flush applying to either all threads or just the
++ * caller.  We don't currently do anything with the address range, that's just
++ * in there for forwards compatibility.
++ */
++#ifndef __NR_riscv_flush_icache
++#define __NR_riscv_flush_icache (__NR_arch_specific_syscall + 15)
++#endif
++__SYSCALL(__NR_riscv_flush_icache, sys_riscv_flush_icache)
+diff --git a/riscv/include/asm/termbits.h b/riscv/include/asm/termbits.h
+new file mode 100644
+index 0000000..3935b10
+--- /dev/null
++++ b/riscv/include/asm/termbits.h
+@@ -0,0 +1 @@
++#include <asm-generic/termbits.h>
+diff --git a/riscv/include/asm/termios.h b/riscv/include/asm/termios.h
+new file mode 100644
+index 0000000..280d78a
+--- /dev/null
++++ b/riscv/include/asm/termios.h
+@@ -0,0 +1 @@
++#include <asm-generic/termios.h>
+diff --git a/riscv/include/asm/types.h b/riscv/include/asm/types.h
+new file mode 100644
+index 0000000..b9e79bc
+--- /dev/null
++++ b/riscv/include/asm/types.h
+@@ -0,0 +1 @@
++#include <asm-generic/types.h>
+diff --git a/riscv/include/asm/ucontext.h b/riscv/include/asm/ucontext.h
+new file mode 100644
+index 0000000..9f983d3
+--- /dev/null
++++ b/riscv/include/asm/ucontext.h
+@@ -0,0 +1,45 @@
++/*
++ * Copyright (C) 2012 ARM Ltd.
++ * Copyright (C) 2017 SiFive, Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * This file was copied from arch/arm64/include/uapi/asm/ucontext.h
++ */
++#ifndef __ASM_UCONTEXT_H
++#define __ASM_UCONTEXT_H
++
++#include <linux/types.h>
++
++struct ucontext {
++	unsigned long	  uc_flags;
++	struct ucontext	 *uc_link;
++	stack_t		  uc_stack;
++	sigset_t	  uc_sigmask;
++	/* There's some padding here to allow sigset_t to be expanded in the
++	 * future.  Though this is unlikely, other architectures put uc_sigmask
++	 * at the end of this structure and explicitly state it can be
++	 * expanded, so we didn't want to box ourselves in here. */
++	__u8		  __unused[1024 / 8 - sizeof(sigset_t)];
++	/* We can't put uc_sigmask at the end of this structure because we need
++	 * to be able to expand sigcontext in the future.  For example, the
++	 * vector ISA extension will almost certainly add ISA state.  We want
++	 * to ensure all user-visible ISA state can be saved and restored via a
++	 * ucontext, so we're putting this at the end in order to allow for
++	 * infinite extensibility.  Since we know this will be extended and we
++	 * assume sigset_t won't be extended an extreme amount, we're
++	 * prioritizing this. */
++	struct sigcontext uc_mcontext;
++};
++
++#endif /* __ASM_UCONTEXT_H */
+diff --git a/riscv/include/asm/unistd.h b/riscv/include/asm/unistd.h
+new file mode 100644
+index 0000000..96bb270
+--- /dev/null
++++ b/riscv/include/asm/unistd.h
+@@ -0,0 +1 @@
++#include <asm-generic/unistd.h>
+diff --git a/riscv/include/drm b/riscv/include/drm
+new file mode 120000
+index 0000000..6313e55
+--- /dev/null
++++ b/riscv/include/drm
+@@ -0,0 +1 @@
++../../generic/include/drm
+\ No newline at end of file
+diff --git a/riscv/include/linux b/riscv/include/linux
+new file mode 120000
+index 0000000..59772be
+--- /dev/null
++++ b/riscv/include/linux
+@@ -0,0 +1 @@
++../../generic/include/linux
+\ No newline at end of file
+diff --git a/riscv/include/mtd b/riscv/include/mtd
+new file mode 120000
+index 0000000..a6f25f6
+--- /dev/null
++++ b/riscv/include/mtd
+@@ -0,0 +1 @@
++../../generic/include/mtd
+\ No newline at end of file
+diff --git a/riscv/include/rdma b/riscv/include/rdma
+new file mode 120000
+index 0000000..f637ac0
+--- /dev/null
++++ b/riscv/include/rdma
+@@ -0,0 +1 @@
++../../generic/include/rdma
+\ No newline at end of file
+diff --git a/riscv/include/scsi b/riscv/include/scsi
+new file mode 120000
+index 0000000..5500328
+--- /dev/null
++++ b/riscv/include/scsi
+@@ -0,0 +1 @@
++../../generic/include/scsi
+\ No newline at end of file
+diff --git a/riscv/include/sound b/riscv/include/sound
+new file mode 120000
+index 0000000..a4a2aa5
+--- /dev/null
++++ b/riscv/include/sound
+@@ -0,0 +1 @@
++../../generic/include/sound
+\ No newline at end of file
+diff --git a/riscv/include/video b/riscv/include/video
+new file mode 120000
+index 0000000..2e843e8
+--- /dev/null
++++ b/riscv/include/video
+@@ -0,0 +1 @@
++../../generic/include/video
+\ No newline at end of file
+diff --git a/riscv/include/xen b/riscv/include/xen
+new file mode 120000
+index 0000000..96d026c
+--- /dev/null
++++ b/riscv/include/xen
+@@ -0,0 +1 @@
++../../generic/include/xen
+\ No newline at end of file
