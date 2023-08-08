@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,14 +10,18 @@ arch=('x86_64')
+ url="https://github.com/sabotage-linux/kernel-headers"
+ license=('LGPL')
+ depends=('musl')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/sabotage-linux/kernel-headers/archive/v${pkgver/_/-}.tar.gz")
+-sha512sums=('db0239c40399c89cc250b9f1f53b7ec4eb119fde6b25c503aef7e88b80694df3a5e89196a22e66376731764bac83d9120794ee6c601a95b824f1ab770cb45a61')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/sabotage-linux/kernel-headers/archive/v${pkgver/_/-}.tar.gz"
++        "riscv-headers.patch")
++sha512sums=('db0239c40399c89cc250b9f1f53b7ec4eb119fde6b25c503aef7e88b80694df3a5e89196a22e66376731764bac83d9120794ee6c601a95b824f1ab770cb45a61'
++            '3405f32c9b3b1e7a9d9780d43737a165fb43136f8829ddd194932bf33d593d1a39cf765b0b9e1c7d7c93e28ea4ba9a8de705736205c7c915c8601c7cdbe93687')
+ 
+ _CARCH=$CARCH
+ [[ $CARCH = i?86 ]] && _CARCH=x86
++[[ $CARCH = riscv* ]] && _CARCH=riscv
+ 
+ build() {
+   cd "$srcdir"/kernel-headers-${pkgver/_/-}
++  patch -Np1 -i ../riscv-headers.patch
+   make ARCH=${_CARCH} prefix=/usr/lib/musl
+ }
+ 
