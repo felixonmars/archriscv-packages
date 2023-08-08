@@ -1,0 +1,52 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,18 +10,32 @@ url="https://github.com/cilium/pwru"
+ license=("GPL2")
+ depends=("glibc")
+ makedepends=("clang" "llvm" "go")
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+-sha256sums=('221666f47d9dcd69302fe2ddd52e65337351fd4e8d5a448bd27514f39ff34bbf')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
++        "ebpf-0.11.0.tar.gz::https://github.com/cilium/ebpf/archive/refs/tags/v0.11.0.tar.gz"
++        "pwru-add-vmlinux-riscv64.patch"
++        "ebpf-add-riscv64-linux-string.patch")
++sha256sums=('221666f47d9dcd69302fe2ddd52e65337351fd4e8d5a448bd27514f39ff34bbf'
++            '1dc484a4302ae19948c961395b1ecdc9de63a6f2637335554117a0d86eed2223'
++            'd7c7942dc3dd6874d5b35063e11231b2f99c418a1c3d5fd97f607c1c4aa956b7'
++            '806ce3189a21d601b2587eb5693237ed650b3c109ab250e103c634340c7fb153')
+ 
+ prepare() {
++	cd ebpf-0.11.0
++	patch -Np1 -i ../ebpf-add-riscv64-linux-string.patch
++	cd ..
++
+ 	cd "$pkgname-$pkgver"
++	patch -Np1 -i ../pwru-add-vmlinux-riscv64.patch
++	go mod edit -replace github.com/cilium/ebpf=../ebpf-0.11.0
++	go mod tidy
++	go mod vendor
+ 	export CGO_CPPFLAGS="${CPPFLAGS}"
+ 	export CGO_CFLAGS="${CFLAGS}"
+ 	export CGO_CXXFLAGS="${CXXFLAGS}"
+ 	export CGO_LDFLAGS="${LDFLAGS}"
+ 	export GOPATH="${srcdir}"
+ 	export GOFLAGS="-buildmode=pie -mod=vendor -modcacherw"
+-	export TARGET_GOARCH=amd64
++	export TARGET_GOARCH=riscv64
+ 	go generate
+ }
+ 
+@@ -33,10 +47,12 @@ build() {
+ 	export CGO_LDFLAGS="${LDFLAGS}"
+ 	export GOPATH="${srcdir}"
+ 	export GOFLAGS="-buildmode=pie -mod=vendor -modcacherw"
++	export GOARCH=riscv64 TARGET_GOARCH=riscv64 LIBPCAP_ARCH=riscv64-unknown-linux-gnu
+ 	make libpcap/libpcap.a
+ 	go build \
+ 		-ldflags "-compressdwarf=false -linkmode external -X \"github.com/cilium/pwru/internal/pwru.Version=${pkgver}\"" \
+-		-o ${pkgname}
++		-o ${pkgname} \
++		*.go  # WORKAROUND: `riscv` is a reserved architecture in Go, so *_riscv.go is not included by default on linux/riscv64
+ }
+ 
+ package() {
