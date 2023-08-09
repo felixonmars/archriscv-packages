@@ -38,10 +38,10 @@
 +
 +  # The build process wants a zipped electron, let's construct one from system electron and put it in cache.
 +  local _electron_ver=$(</usr/lib/$_electron/version)
-+  # Not sure why /bin/sha256sum returns a different result. We have to invoke node here.
-+  local _hash=$(node -e "console.log(crypto.createHash('sha256').update('https://github.com/electron/electron/releases/download/v$_electron_ver').digest('hex'))")
-+  local _electron_zip="electron-v$_electron_ver-linux-$CARCH.zip"
++  local _hash=$(echo -n "https://github.com/electron/electron/releases/download/v$_electron_ver" | sha256sum | cut -d ' ' -f 1)
++  local _electron_zip="electron-v$_electron_ver-linux-riscv64.zip"
 +  cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
++  echo "$(sha256sum "/tmp/$_electron_zip" | cut -d " " -f 1) *$_electron_zip" >> build/checksums/electron.txt 
 +  local _cache_dir="$HOME/.cache/electron/$_hash" 
 +  mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
 +
