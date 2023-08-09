@@ -1,0 +1,72 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,22 +23,32 @@ makedepends=(gendesk
+              nodejs-lts-gallium # grep NODE_VERSION .github/workflows/build.yml
+              node-gyp
+              yarn
+-             jq)
++             jq zip)
+ optdepends=('texlive-bin: For Latex support')
+ # Migration path for soon to be deleted AUR package; remove if ever reinstated
+ replaces=(zettlr-bin)
+ _archive="$_pkgname-$_pkgver"
+ source=("$_url/archive/v$_pkgver/$_archive.tar.gz"
+         "$pkgname.sh"
+-        "$pkgname.xml")
++        "$pkgname.xml"
++        "liblzma-fix.patch::https://github.com/addaleax/lzma-native/pull/135.patch"
++        "electron-packager-riscv64.patch")
+ sha256sums=('d745f33592635916b260000c6e8f706374d439a07444e0cb6c0911114b9e4091'
+             'e300f2cac217f98ab5c365dccc7581410bc296f2842d52f7f1520dd6679d20cf'
+-            'c3ecbb490a1d4fa5bc42f7166cc375e5629a452d25bb1d4facb5541938681292')
++            'c3ecbb490a1d4fa5bc42f7166cc375e5629a452d25bb1d4facb5541938681292'
++            '066f050457349873ff36375b547dd7de482ecce182ed9d9ad2514db8fc81c75b'
++            '52b8f1250740402821c62d717aaf60b84acddfae456e3eeea99649c1b7c062c8')
+ 
+ #_yarnargs="--cache-folder '$srcdir/cache' --link-folder '$srcdir/link'"
+ 
+ prepare() {
+ 	local _electronVersion=$($_electron --version | sed -e 's/^v//')
++	local _hash=$(echo -n "https://github.com/electron/electron/releases/download/v$_electronVersion" | sha256sum | cut -d ' ' -f 1)
++	local _electron_zip="electron-v$_electronVersion-linux-riscv64.zip"
++	cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
++	local _cache_dir="$HOME/.cache/electron/$_hash"
++	mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
++	
+ 	gendesk -q -f -n \
+ 		--pkgname "$pkgname" \
+ 		--pkgdesc "$pkgdesc" \
+@@ -52,14 +62,19 @@ prepare() {
+ 	sed -i "s/\([\^ :]\)${_oldElectron[0]}/\1$_electronVersion/"  package.json yarn.lock
+ 	echo -ne '#!/usr/bin/env bash\n\nexit 0' > scripts/get-pandoc.sh
+ 	sed -e "s/@ELECTRON@/$_electron/" "../${source[1]}" > $pkgname.sh
+-	yarn $_yarnargs install --immutable # postinstall script installs electron-builder deps
+-	ln -sf /usr/bin/pandoc resources/pandoc-linux-x64
++	jq ".resolutions.\"lzma-native\" = \"patch:lzma-native@npm%3A8.0.6#${srcdir}/liblzma-fix.patch\"
++	  | .resolutions.\"electron-packager\" = \"patch:electron-packager@npm%3A17.1.1#${srcdir}/electron-packager-riscv64.patch\"
++	   " package.json > package.json.new
++	mv package.json.new package.json
++	ELECTRON_SKIP_BINARY_DOWNLOAD=1 yarn $_yarnargs install # postinstall script installs electron-builder deps
++	ln -sf /usr/bin/pandoc resources/pandoc-linux-riscv64
+ }
+ 
+ build() {
+ 	cd "$_archive"
+ 	local NODE_ENV=''
+-	yarn $_yarnargs package:linux-x64
++	export PATH+=":$(realpath node_modules/.bin)"
++	cross-env NODE_ENV=production npm_config_arch=riscv64 electron-forge package --platform=linux --arch=riscv64
+ }
+ 
+ package() {
+@@ -68,8 +83,8 @@ package() {
+ 	install -Dm0755 "$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
+ 	local _destdir="usr/lib/$pkgname"
+ 	install -Dm0644 -t "$pkgdir/$_destdir/" \
+-		"out/$_pkgname-linux-x64/resources/"{app.asar,icon.code.icns}
+-	cp -a out/$_pkgname-linux-x64/resources/app.asar.unpacked "$pkgdir/$_destdir/"
++		"out/$_pkgname-linux-riscv64/resources/"{app.asar,icon.code.icns}
++	cp -a out/$_pkgname-linux-riscv64/resources/app.asar.unpacked "$pkgdir/$_destdir/"
+ 	for px in 16 24 32 48 64 96 128 256 512 1024; do
+ 		install -Dm0644 "resources/icons/png/${px}x${px}.png" \
+ 			"$pkgdir/usr/share/icons/hicolor/${px}x${px}/apps/$pkgname.png"
