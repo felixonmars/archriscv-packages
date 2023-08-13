@@ -2,7 +2,7 @@
 +++ PKGBUILD
 @@ -13,7 +13,9 @@ _gcc_patchset=2
  # shellcheck disable=SC2034
- pkgrel=1
+ pkgrel=2
  
 +_build_profile=Release
  _major_ver=${pkgver%%.*}
@@ -10,17 +10,16 @@
  if [[ ${_use_suffix} != 0 ]]; then
    pkgname="electron${_major_ver}"
  else
-@@ -34,7 +36,8 @@ depends=('c-ares' 'gtk3' 'libevent' 'nss' 'wayland')
- makedepends=('clang' 'git' 'gn' 'gperf' 'harfbuzz-icu' 'http-parser'
+@@ -35,7 +37,7 @@ makedepends=('clang' 'git' 'gn' 'gperf' 'harfbuzz-icu' 'http-parser'
               'qt5-base' 'java-runtime-headless' 'libnotify' 'lld' 'llvm'
               'ninja' 'npm' 'pciutils' 'pipewire' 'python' 'python-httplib2'
--             'python-pyparsing' 'python-six' 'wget' 'yarn' 'patchutils')
-+             'python-pyparsing' 'python-six' 'wget' 'yarn' 'patchutils'
-+             'go' 'p7zip' 'bazel' 'jdk11-openjdk' 'llvm')
+              'python-requests' 'python-pyparsing' 'python-six' 'wget' 'yarn'
+-             'patchutils')
++             'patchutils' 'go' 'p7zip' 'bazel' 'jdk11-openjdk' 'llvm')
  # shellcheck disable=SC2034
  optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'libappindicator-gtk3: StatusNotifierItem support'
-@@ -87,6 +90,18 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+@@ -88,6 +90,18 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          'REVERT-roll-src-third_party-ffmpeg-m102.patch'
          'REVERT-roll-src-third_party-ffmpeg-m106.patch'
          'angle-wayland-include-protocol.patch'
@@ -39,7 +38,7 @@
         )
  # shellcheck disable=SC2034
  sha256sums=('SKIP'
-@@ -124,7 +139,19 @@ sha256sums=('SKIP'
+@@ -125,7 +139,19 @@ sha256sums=('SKIP'
              'bfafedebd915e1824562329a3afc8589401342eff87dba53c78502b869023b7e'
              '30df59a9e2d95dcb720357ec4a83d9be51e59cc5551365da4c0073e68ccdec44'
              '4c12d31d020799d31355faa7d1fe2a5a807f7458e7f0c374adf55edb37032152'
@@ -50,7 +49,7 @@
 +            'b2bee22e96fceb794bfe16a670251959ee9ca7c87ed5048c9eb6cebd6e3b4bc3'
 +            '840947515347933da383408711696150cf8020b35d7abe1265b87084dfe1f3df'
 +            'a191ef5190e5f823e6be078df53ed1a888558673040985d79347a26644c39b63'
-+            '378ab9fd608cf6a9b2f3631798001a836997f13bcd296940afb538448e0f8b9d'
++            'c760f4a7e13f9afb9ae3d801d08dd743784de7b1d3b79642619790f3ee89e36a'
 +            '85644fd6b1a64e7cf76f690f1427010cdf773938987f7e1a93b2977873707a4f'
 +            '32811636eecd187dd386bbdd0fa1216728d6010f96fae8f1714dded04a95a5f4'
 +            'd901e905a9b4303e6334bf39475bcbcdf22959796954de66507857108d53570f'
@@ -60,7 +59,7 @@
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -188,11 +215,36 @@ EOF
+@@ -189,11 +215,34 @@ EOF
    echo "Linking chromium from sources..."
    ln -s chromium-mirror src
  
@@ -72,9 +71,7 @@
 +  local infra_rev=$(python "$_electron-deps-parser.py" infra src/DEPS)
 +  curl "https://chromium.googlesource.com/infra/infra/+/$infra_rev/DEPS?format=text" | base64 -d > DEPS_infra
 +  local luci_go_rev=$(python "$_electron-deps-parser.py" luci_go DEPS_infra)
-+  go install "go.chromium.org/luci/swarming/cmd/...@$luci_go_rev"       # not sure if it really get used
-+  go install "go.chromium.org/luci/client/cmd/...@$luci_go_rev"         # not sure if it really get used
-+  go install "go.chromium.org/luci/cipd/client/cmd/...@$luci_go_rev"    # usage confirmed
++  go install "go.chromium.org/luci/cipd/client/cmd/...@$luci_go_rev"
 +
 +  # Fix .cipd-bin problem
 +  mkdir depot_tools/.cipd_bin
@@ -97,7 +94,7 @@
    (
      cd src/electron || exit
      patch -Np1 -i ../../std-vector-non-const.patch
-@@ -248,11 +300,24 @@ EOF
+@@ -249,11 +298,24 @@ EOF
    filterdiff -p1 -x include/GLSLANG/ShaderLang.h < ../5d1ac2e0d5f61913aad62dadb65a7fea6f1b93ae.patch | patch -Np1 -d third_party/angle
    patch -Np1  <../dawn-tint-add-cstdint.patch -d third_party/dawn
    patch -Np1 -i ../comp-viz-add-cstdint.patch
@@ -122,7 +119,7 @@
  
    # Revert ffmpeg roll requiring new channel layout API support
    # https://crbug.com/1325301
-@@ -311,6 +376,10 @@ build() {
+@@ -312,6 +374,10 @@ build() {
    CXXFLAGS+=' -Wno-builtin-macro-redefined'
    CPPFLAGS+=' -D__DATE__=  -D__TIME__=  -D__TIMESTAMP__='
  
@@ -133,7 +130,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -340,7 +409,6 @@ build() {
+@@ -341,7 +407,6 @@ build() {
      host_toolchain = "//build/toolchain/linux/unbundle:default"
      clang_base_path = "/usr"
      clang_use_chrome_plugins = false
@@ -141,7 +138,7 @@
      chrome_pgo_phase = 0
      treat_warnings_as_errors = false
      disable_fieldtrial_testing_config = true
-@@ -355,17 +423,18 @@ build() {
+@@ -356,17 +421,18 @@ build() {
      use_system_wayland_scanner = true
      icu_use_data_file = false
      is_component_ffmpeg = false
