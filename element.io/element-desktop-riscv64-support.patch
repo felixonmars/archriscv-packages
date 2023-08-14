@@ -1,0 +1,40 @@
+--- scripts/hak/target.ts.orig	2023-08-13 08:44:26.292841975 -0400
++++ scripts/hak/target.ts	2023-08-13 08:50:33.362395808 -0400
+@@ -33,13 +33,14 @@
+     | "aarch64-unknown-linux-musl"
+     | "aarch64-unknown-linux-gnu"
+     | "powerpc64le-unknown-linux-musl"
+-    | "powerpc64le-unknown-linux-gnu";
++    | "powerpc64le-unknown-linux-gnu"
++    | "riscv64gc-unknown-linux-gnu";
+ 
+ // Values are expected to match those used in `process.platform`.
+ export type Platform = "darwin" | "linux" | "win32";
+ 
+ // Values are expected to match those used in `process.arch`.
+-export type Arch = "arm64" | "ia32" | "x64" | "ppc64" | "universal";
++export type Arch = "arm64" | "ia32" | "x64" | "ppc64" | "universal" | "riscv";
+ 
+ // Values are expected to match those used by Visual Studio's `vcvarsall.bat`.
+ // See https://docs.microsoft.com/cpp/build/building-on-the-command-line?view=msvc-160#vcvarsall-syntax
+@@ -162,6 +163,12 @@
+     libC: MUSL,
+ };
+ 
++const riscv64gcUnknownLinuxGnu: LinuxTarget = {
++    id: "riscv64gc-unknown-linux-gnu",
++    platform: "linux",
++    arch: "riscv64",
++    libC: GLIBC,
++};
+ export const TARGETS: Record<TargetId, Target> = {
+     // macOS
+     "aarch64-apple-darwin": aarch64AppleDarwin,
+@@ -180,6 +187,7 @@
+     "aarch64-unknown-linux-gnu": aarch64UnknownLinuxGnu,
+     "powerpc64le-unknown-linux-musl": powerpc64leUnknownLinuxMusl,
+     "powerpc64le-unknown-linux-gnu": powerpc64leUnknownLinuxGnu,
++    "riscv64gc-unknown-linux-gnu": riscv64gcUnknownLinuxGnu
+ };
+ 
+ export function getHost(): Target | undefined {

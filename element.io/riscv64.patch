@@ -1,0 +1,97 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,7 +12,7 @@ pkgdesc="Glossy Matrix collaboration client — "
+ arch=(x86_64)
+ url="https://element.io"
+ license=(Apache)
+-makedepends=(npm git yarn python rust tcl ${_electron} nodejs libxcrypt-compat)
++makedepends=(npm git yarn python rust tcl ${_electron} nodejs libxcrypt-compat sentry-cli go jq zip p7zip)
+ _url="https://github.com/vector-im/element"
+ source=(element-web-${pkgver}.tar.gz::${_url}-web/archive/v${pkgver}.tar.gz
+         element-web-${pkgver}.tar.gz.asc::${_url}-web/releases/download/v${pkgver}/v${pkgver}-src.tar.gz.asc
+@@ -20,28 +20,64 @@ source=(element-web-${pkgver}.tar.gz::${_url}-web/archive/v${pkgver}.tar.gz
+         element-desktop-${pkgver}.tar.gz.asc::${_url}-desktop/releases/download/v${pkgver}/v${pkgver}-src.tar.gz.asc
+         autolaunch.patch
+         io.element.Element.desktop
+-        element-desktop.sh)
++        element-desktop.sh
++        element-desktop-riscv64-support.patch
++        git+https://github.com/kxxt/app-builder
++        builder-util+24.4.0.patch
++        app-builder-lib+24.5.2.patch)
+ sha256sums=('3e92beb12f19b73a111d3481b275ce8600ed84f714f536a730d1ba37c520d85f'
+             'SKIP'
+             'bde90a6ff893a46872845d4e04825087c05a05b42a859694548821c43d968a47'
+             'SKIP'
+             '268485f35103d00a89be7f5c84703e3d393350c71f4f90932f7bcb5ea2fd094f'
+             '0103f28a32fe31f698836516783c1c70a76a0117b5df7fd0af5c422c224220f9'
+-            'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba')
++            'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba'
++            'b2d5381ad4b6f406ea2edce11cbd013840bab6af09d6a2a067b214d85eb84ebf'
++            'SKIP'
++            '887a6c6e0f1ad5ceceef1e35582bd7498145406945d08ed036d98311cec35a89'
++            '96f0242d8071075b2f8d916b2f0eabeba660d7314a504792965ee2ff89965175')
+ validpgpkeys=(712BFBEE92DCA45252DB17D7C7BE97EFA179B100) # Element Releases <releases@riot.im>
+ 
+ prepare() {
+   # Specify electron version in launcher
+   sed -i "s|@ELECTRON@|${_electron}|" element-desktop.sh
+ 
++  export ELECTRON_SKIP_BINARY_DOWNLOAD=1 
++  export SENTRYCLI_USE_LOCAL=1 SENTRYCLI_SKIP_DOWNLOAD=1
++  export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
++
+   cd element-web-${pkgver}
+   yarn install --no-fund
+ 
+   cd ../element-desktop-${pkgver}
+   patch -p1 < ../autolaunch.patch
+-  sed -i 's|"target": "deb"|"target": "dir"|' package.json
++  patch -Np0 -i ../element-desktop-riscv64-support.patch
++  jq '.build.linux.target=["dir"]' package.json > package.json.new
++  mv package.json.new package.json
+   sed -i 's|"https://packages.element.io/desktop/update/"|null|' element.io/release/config.json
+   yarn install --no-fund
++
++  mkdir patches
++  cp ../builder-util+24.4.0.patch ../app-builder-lib+24.5.2.patch patches
++  npx patch-package </dev/null
++
++  yarn run hak fetch matrix-seshat
++  pushd .hak/matrix-seshat/riscv64gc-unknown-linux-gnu/build/
++  echo -e "[patch.crates-io]\nnix = { git = 'https://github.com/kxxt/nix.git', branch = 'archrv-element-fix' }" >> Cargo.toml
++  cargo update -p nix
++  popd
++
++  mkdir -p  node_modules/7zip-bin/linux/riscv64
++  ln -s /usr/bin/7za node_modules/7zip-bin/linux/riscv64/7za
++
++  local _builder_bin=node_modules/app-builder-bin/linux/riscv64
++  mkdir "$_builder_bin"
++  go build -C ../app-builder
++  cp ../app-builder/app-builder "$_builder_bin"
++
++  local _electron_ver=$(jq -r .version node_modules/electron/package.json)
++  local _electron_zip="electron-v$_electron_ver-linux-riscv64.zip"
++  cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./
+ }
+ 
+ build() {
+@@ -53,7 +89,7 @@ build() {
+   export SQLCIPHER_BUNDLED=1
+   export CFLAGS+=" -ffat-lto-objects"
+   yarn run build:native
+-  yarn run build
++  ELECTRON_CACHE=/tmp yarn run build
+ }
+ 
+ package_element-web() {
+@@ -81,7 +117,7 @@ package_element-desktop() {
+   install -d "${pkgdir}"{/usr/lib/element/,/etc/webapps/element}
+ 
+   # Install the app content, replace the webapp with a symlink to the system package
+-  cp -r dist/linux-unpacked/resources/* "${pkgdir}"/usr/lib/element/
++  cp -r dist/linux-riscv64-unpacked/resources/* "${pkgdir}"/usr/lib/element/
+   ln -s /usr/share/webapps/element "${pkgdir}"/usr/lib/element/webapp
+ 
+   # Config file
