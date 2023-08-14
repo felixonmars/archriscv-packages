@@ -2,7 +2,7 @@
 +++ PKGBUILD
 @@ -12,7 +12,9 @@ _chromiumver=112.0.5615.204
  # shellcheck disable=SC2034
- pkgrel=1
+ pkgrel=2
  
 +_build_profile=Release
  _major_ver=${pkgver%%.*}
@@ -14,16 +14,17 @@
  makedepends=('clang' 'git' 'gn' 'gperf' 'harfbuzz-icu' 'http-parser'
               'qt5-base' 'java-runtime-headless' 'libnotify' 'lld' 'llvm'
               'ninja' 'npm' 'pciutils' 'pipewire' 'python' 'python-httplib2'
--             'python-pyparsing' 'python-six' 'wget' 'yarn')
-+             'python-pyparsing' 'python-six' 'wget' 'yarn'
+-             'python-requests' 'python-pyparsing' 'python-six' 'wget' 'yarn')
++             'python-requests' 'python-pyparsing' 'python-six' 'wget' 'yarn'
 +             'go' 'p7zip' 'bazel' 'jdk17-openjdk' 'llvm')
  # shellcheck disable=SC2034
  optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'pipewire: WebRTC desktop sharing under Wayland'
-@@ -76,6 +79,18 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+@@ -76,6 +79,19 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          'iwyu-add-cstdint-for-int-types-in-s2cellid.patch'
          'random-fixes-for-gcc13.patch'
          'more-fixes-for-gcc13.patch'
++        'REVERT-problematic-signal-handling-workaround.patch'
 +        "$_electron-support-riscv64-in-electron_runtime_api_delegate.cc.patch"
 +        "$_electron-extensions-common-api-runtime.json-support-riscv64.patch"
 +        "$_electron-riscv-angle.patch"
@@ -39,16 +40,17 @@
         )
  # shellcheck disable=SC2034
  sha256sums=('SKIP'
-@@ -104,7 +119,19 @@ sha256sums=('SKIP'
+@@ -104,7 +120,20 @@ sha256sums=('SKIP'
              '5dfbfd073f78c887bbffca2b644116571cc9b1196867e44e8fc0cbb40afcf1bc'
              'd97dc00f66fa5868584e4b6d5ef817911eab2dc8022a37c75a00d063f4dac483'
              '3fb0636e9560760d99e7c9606b1c9b59eef9d91ed3419cc95b43302759f249be'
 -            '9d1f69f668e12fc14b4ccbcf88cb5a3acf666df06dafa8834f037bd8110ca17f')
 +            '9d1f69f668e12fc14b4ccbcf88cb5a3acf666df06dafa8834f037bd8110ca17f'
++            '87d2c69292ac55ea1784f812c30acdbc341d4333d790fab3439a6b60393bb6c9'
 +            'b2bee22e96fceb794bfe16a670251959ee9ca7c87ed5048c9eb6cebd6e3b4bc3'
 +            '840947515347933da383408711696150cf8020b35d7abe1265b87084dfe1f3df'
 +            'a191ef5190e5f823e6be078df53ed1a888558673040985d79347a26644c39b63'
-+            'e290a0edb072a46d915d03eab2845aa405b9afbb85d2dee54d1c5efddf3938f8'
++            '1816d36eb6a17cd10ec310d2f81aac94b3fb27ad715e172e2c754e027dcf991d'
 +            '85644fd6b1a64e7cf76f690f1427010cdf773938987f7e1a93b2977873707a4f'
 +            '32811636eecd187dd386bbdd0fa1216728d6010f96fae8f1714dded04a95a5f4'
 +            'd901e905a9b4303e6334bf39475bcbcdf22959796954de66507857108d53570f'
@@ -60,7 +62,7 @@
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -168,11 +195,34 @@ EOF
+@@ -168,11 +197,34 @@ EOF
    echo "Linking chromium from sources..."
    ln -s chromium-mirror src
  
@@ -95,10 +97,12 @@
    (
      cd src/electron || exit
      patch -Np1 -i ../../std-vector-non-const.patch
-@@ -232,6 +282,21 @@ EOF
+@@ -232,6 +284,23 @@ EOF
    patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
    patch -Np1 -i "${srcdir}/default_app-icon.patch"  # Icon from .desktop file
  
++  patch -Rp1 -i ../REVERT-problematic-signal-handling-workaround.patch
++
 +  # RISC-V Patches
 +  patch -Np1 -d third_party/crashpad/crashpad < "${srcdir}/$_electron-riscv-crashpad.patch"
 +  patch -Np1 -i ../$_electron-riscv-angle.patch
@@ -117,7 +121,7 @@
    # Allow building against system libraries in official builds
    echo "Patching Chromium for using system libraries..."
    sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
-@@ -268,6 +333,10 @@ build() {
+@@ -268,6 +337,10 @@ build() {
    CXXFLAGS+=' -Wno-builtin-macro-redefined'
    CPPFLAGS+=' -D__DATE__=  -D__TIME__=  -D__TIMESTAMP__='
  
@@ -128,7 +132,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -297,7 +366,6 @@ build() {
+@@ -297,7 +370,6 @@ build() {
      host_toolchain = "//build/toolchain/linux/unbundle:default"
      clang_base_path = "/usr"
      clang_use_chrome_plugins = false
@@ -136,7 +140,7 @@
      chrome_pgo_phase = 0
      treat_warnings_as_errors = false
      disable_fieldtrial_testing_config = true
-@@ -311,17 +379,18 @@ build() {
+@@ -311,17 +383,18 @@ build() {
      use_system_libffi = true
      icu_use_data_file = false
      is_component_ffmpeg = false
