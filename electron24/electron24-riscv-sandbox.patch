@@ -1,9 +1,8 @@
-From 70e33255addd78e89b38162fa14375923c0cef2a Mon Sep 17 00:00:00 2001
+From e307939e9d40fac4b7664b90f000e6abc035130f Mon Sep 17 00:00:00 2001
 From: kxxt <rsworktech@outlook.com>
-Date: Wed, 2 Aug 2023 16:41:54 +0800
-Subject: [PATCH] electron24 sandbox patch
+Date: Sat, 12 Aug 2023 22:19:00 +0800
+Subject: [PATCH] upgpatch: fix sandbox for electron24
 
-fix __NR_pipe in baseline_policy.cc
 ---
  sandbox/features.gni                          |    3 +-
  sandbox/linux/bpf_dsl/linux_syscall_ranges.h  |    6 +
@@ -494,7 +493,7 @@ index 9be7b03ec4377..41b3605dce15d 100644
  };
  
 diff --git a/sandbox/linux/seccomp-bpf/syscall.cc b/sandbox/linux/seccomp-bpf/syscall.cc
-index 02cbb047c1558..61453ecf96c9e 100644
+index 02cbb047c1558..57da8c1754f46 100644
 --- a/sandbox/linux/seccomp-bpf/syscall.cc
 +++ b/sandbox/linux/seccomp-bpf/syscall.cc
 @@ -18,7 +18,7 @@ namespace sandbox {
@@ -545,9 +544,9 @@ index 02cbb047c1558..61453ecf96c9e 100644
 +    register intptr_t inout __asm__("a0") = nr;
 +    register const intptr_t* data __asm__("t0") = args;
 +    asm volatile("jal SyscallAsm\n"
-+                 : "+r"(inout)
-+                 : "r"(data)
-+                 : "memory", "a1", "a2", "a3", "a4", "a5", "a6");
++                 : "=r"(inout)
++                 : "0"(inout), "r"(data)
++                 : "memory", "a1", "a2", "a3", "a4", "a5", "a6", "a7");
 +    ret = inout;
 +  }
 +
