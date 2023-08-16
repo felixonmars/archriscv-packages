@@ -1,0 +1,15 @@
+#!/usr/bin/ruby
+
+vendor_config, target_config = ARGV
+
+target_config = File.readlines(target_config).map(&:strip) 
+
+File.readlines(vendor_config).map(&:strip).each do |config|
+  next if config.start_with?("#")
+  config_name = config.split("=").first
+  target = target_config.find { |line| line.start_with?(
+    config_name + "=",
+    "# " + config_name + " is not set"
+  ) }
+  puts "#{config} != #{target}" if target != config
+end
