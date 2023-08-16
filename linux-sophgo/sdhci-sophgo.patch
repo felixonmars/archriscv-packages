@@ -1,0 +1,84 @@
+commit 3976f7805ea259ccc87d588b4aec58ab7bf0f71d
+Author: Felix Yan <felixonmars@archlinux.org>
+Date:   Wed Aug 16 10:49:28 2023 +0300
+
+    driver: mmc: add config for MMC_SDHCI_SOPHGO
+    
+    Make it a tristate module and add a config option for it, just like
+    other MMC drivers. Fixes build failures with MMC_SDHCI/MMC_SDHCI_PLTFM
+    configured as a module.
+
+diff --git a/arch/riscv/configs/sophgo_mango_fedora_defconfig b/arch/riscv/configs/sophgo_mango_fedora_defconfig
+index 39b176947523..38a6cbc03951 100644
+--- a/arch/riscv/configs/sophgo_mango_fedora_defconfig
++++ b/arch/riscv/configs/sophgo_mango_fedora_defconfig
+@@ -2778,6 +2778,7 @@ CONFIG_MMC_SDHCI=y
+ CONFIG_MMC_SDHCI_PCI=m
+ CONFIG_MMC_SDHCI_PLTFM=y
+ CONFIG_MMC_SDHCI_CADENCE=m
++CONFIG_MMC_SDHCI_SOPHGO=y
+ CONFIG_MMC_ALCOR=m
+ CONFIG_MMC_TIFM_SD=m
+ CONFIG_MMC_SPI=y
+diff --git a/arch/riscv/configs/sophgo_mango_normal_defconfig b/arch/riscv/configs/sophgo_mango_normal_defconfig
+index 2a660ce43afa..43192fc6f700 100644
+--- a/arch/riscv/configs/sophgo_mango_normal_defconfig
++++ b/arch/riscv/configs/sophgo_mango_normal_defconfig
+@@ -133,6 +133,7 @@ CONFIG_USB_DWC2=y
+ CONFIG_MMC=y
+ CONFIG_MMC_SDHCI=y
+ CONFIG_MMC_SDHCI_PLTFM=y
++CONFIG_MMC_SDHCI_SOPHGO=y
+ CONFIG_RTC_CLASS=y
+ # CONFIG_VIRTIO_MENU is not set
+ # CONFIG_VHOST_MENU is not set
+diff --git a/arch/riscv/configs/sophgo_mango_ubuntu_defconfig b/arch/riscv/configs/sophgo_mango_ubuntu_defconfig
+index ea23d6ae39e8..81b6dec112d1 100644
+--- a/arch/riscv/configs/sophgo_mango_ubuntu_defconfig
++++ b/arch/riscv/configs/sophgo_mango_ubuntu_defconfig
+@@ -3791,6 +3791,7 @@ CONFIG_MMC_SDHCI_OF_DWCMSHC=m
+ CONFIG_MMC_SDHCI_CADENCE=m
+ CONFIG_MMC_SDHCI_F_SDH30=m
+ CONFIG_MMC_SDHCI_MILBEAUT=m
++CONFIG_MMC_SDHCI_SOPHGO=y
+ CONFIG_MMC_ALCOR=m
+ CONFIG_MMC_TIFM_SD=m
+ CONFIG_MMC_SPI=y
+diff --git a/drivers/mmc/host/Kconfig b/drivers/mmc/host/Kconfig
+index fb1062a6394c..a81456f03eb6 100644
+--- a/drivers/mmc/host/Kconfig
++++ b/drivers/mmc/host/Kconfig
+@@ -698,6 +698,20 @@ config MMC_SDHCI_SPRD
+ 
+ 	  If unsure, say N.
+ 
++config MMC_SDHCI_SOPHGO
++	tristate "Sophgo/BitMain SDIO host Controller"
++	depends on MMC_SDHCI_PLTFM
++	help
++	  This selects the SDIO Host Controller in Sophgo/BitMain
++	  SoCs.
++
++	  If you have a controller with this interface, say Y or M here.
++
++	  If unsure, say N.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called sdhci-sophgo.
++
+ config MMC_TMIO_CORE
+ 	tristate
+ 
+diff --git a/drivers/mmc/host/Makefile b/drivers/mmc/host/Makefile
+index 5c2490b9c945..9cfc239cb293 100644
+--- a/drivers/mmc/host/Makefile
++++ b/drivers/mmc/host/Makefile
+@@ -97,7 +97,7 @@ obj-$(CONFIG_MMC_SDHCI_MICROCHIP_PIC32)	+= sdhci-pic32.o
+ obj-$(CONFIG_MMC_SDHCI_BRCMSTB)		+= sdhci-brcmstb.o
+ obj-$(CONFIG_MMC_SDHCI_OMAP)		+= sdhci-omap.o
+ obj-$(CONFIG_MMC_SDHCI_SPRD)		+= sdhci-sprd.o
+-obj-$(CONFIG_SOC_SOPHGO)		+= sdhci-sophgo.o
++obj-$(CONFIG_MMC_SDHCI_SOPHGO)		+= sdhci-sophgo.o
+ obj-$(CONFIG_MMC_CQHCI)			+= cqhci.o
+ cqhci-y					+= cqhci-core.o
+ cqhci-$(CONFIG_MMC_CRYPTO)		+= cqhci-crypto.o
