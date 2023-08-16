@@ -13,11 +13,11 @@ fi
 configs=$(grep -v '^#' "$1" | sed -E 's/^CONFIG_//;s/\s+$//g' |
     awk -F'=' '
       {
-        if ($2="y") {
+        if ($2=="y") {
           print "-e "$1
-        } else if ($2="n") {
+        } else if ($2=="n") {
           print "-d "$1
-        } else if ($2="m") {
+        } else if ($2=="m") {
           print "-m "$1
         }
       }
