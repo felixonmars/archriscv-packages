@@ -8,11 +8,11 @@
 +        use-oauth2-client-switches-as-default.patch
 +        swiftshader-use-llvm16.patch
 +        riscv-{angle,crashpad,dav1d,libgav1,sandbox}.patch)
- sha256sums=('6da04e232fcb3ebffdd4354c4ae382df24db0ddd6cf29eaaa4ed905ae84b47d3'
+ sha256sums=('1ec1052a959abced9642b36482549bc2ebefa428ed136289d8e0c54b4ccd1c81'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '4f91bd10a8ae2aa7b040a8b27e01f38910ad33cbe179e39a1ae550c9c1523384'
+             '25ad7c1a5e0b7332f80ed15ccf07d7e871d8ffb4af64df7c8fef325a527859b0'
              '1b782b0f6d4f645e4e0daa8a4852d63f0c972aa0473319216ff04613a0592a69'
-             'cf8e3db56da0fd45dfd4d4194169067db75b49fd11890f35cf618e6942f3ae43'
+             'e938c6ee7087eed8f0de83ffb0ca89e328575808fafa4fe3950aeb1bc58b9411'
 -            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
 +            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
@@ -33,16 +33,17 @@
    [snappy]=snappy
    [woff2]=woff2
    [zlib]=minizip
-@@ -111,12 +119,20 @@ prepare() {
+@@ -111,6 +119,7 @@ prepare() {
  
    # Build fixes
    patch -Np1 -i ../random-build-fixes.patch
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
  
    # Fixes for building with libstdc++ instead of libc++
-   patch -Np1 -i ../patches/chromium-114-ruy-include.patch
-   patch -Np1 -i ../patches/chromium-114-vk_mem_alloc-include.patch
    patch -Np1 -i ../patches/chromium-114-maldoca-include.patch
+@@ -119,6 +128,13 @@ prepare() {
+   patch -Np1 -i ../patches/chromium-116-object_paint_properties_sparse-include.patch
+   patch -Np1 -i ../patches/chromium-116-profile_view_utils-include.patch
  
 +  # riscv64
 +  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox}.patch; do
@@ -54,7 +55,7 @@
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -172,6 +188,10 @@ build() {
+@@ -174,6 +190,10 @@ build() {
      'enable_nacl=false'
      'enable_rust=false'
      "google_api_key=\"$_google_api_key\""
