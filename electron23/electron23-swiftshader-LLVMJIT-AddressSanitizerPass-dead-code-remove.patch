@@ -1,0 +1,58 @@
+Compiler complains about missing symbol on arm64:
+
+[ 1362s] ../../third_party/swiftshader/src/Reactor/LLVMJIT.cpp: In member function 'void rr::JITBuilder::runPasses()':
+[ 1362s] ../../third_party/swiftshader/src/Reactor/LLVMJIT.cpp:942:34: error: 'AddressSanitizerPass' is not a member of 'llvm'; did you mean 'AddressSanitizerOptions'?
+[ 1362s]   942 |                 pm.addPass(llvm::AddressSanitizerPass(llvm::AddressSanitizerOptions{}));
+[ 1362s]       |                                  ^~~~~~~~~~~~~~~~~~~~
+[ 1362s]       |                                  AddressSanitizerOptions
+
+The offending code is dead, and this patch proves it.
+
+--- src/third_party/swiftshader/src/Reactor/LLVMJIT.cpp.old	2022-11-30 10:29:13.429851800 +0000
++++ src/third_party/swiftshader/src/Reactor/LLVMJIT.cpp	2022-11-30 21:19:08.387147100 +0000
+@@ -930,18 +930,19 @@
+ 	{
+ 		pm.addPass(llvm::createModuleToFunctionPassAdaptor(std::move(fpm)));
+ 	}
+-
++#if __has_feature(memory_sanitizer)
+ 	if(__has_feature(memory_sanitizer) && msanInstrumentation)
+ 	{
+ 		llvm::MemorySanitizerOptions msanOpts(0 /* TrackOrigins */, false /* Recover */, false /* Kernel */, true /* EagerChecks */);
+ 		pm.addPass(llvm::MemorySanitizerPass(msanOpts));
+ 	}
+-
++#endif
++#if __has_feature(address_sanitizer)
+ 	if(__has_feature(address_sanitizer) && ADDRESS_SANITIZER_INSTRUMENTATION_SUPPORTED)
+ 	{
+ 		pm.addPass(llvm::AddressSanitizerPass(llvm::AddressSanitizerOptions{}));
+ 	}
+-
++#endif
+ 	pm.run(*module, mam);
+ #else  // Legacy pass manager
+ 	llvm::legacy::PassManager passManager;
+@@ -961,18 +962,19 @@
+ 		passManager.add(llvm::createSROAPass());
+ 		passManager.add(llvm::createInstructionCombiningPass());
+ 	}
+-
++#if __has_feature(memory_sanitizer)
+ 	if(__has_feature(memory_sanitizer) && msanInstrumentation)
+ 	{
+ 		llvm::MemorySanitizerOptions msanOpts(0 /* TrackOrigins */, false /* Recover */, false /* Kernel */);
+ 		passManager.add(llvm::createMemorySanitizerLegacyPassPass(msanOpts));
+ 	}
+-
++#endif
++#if __has_feature(address_sanitizer)
+ 	if(__has_feature(address_sanitizer) && ADDRESS_SANITIZER_INSTRUMENTATION_SUPPORTED)
+ 	{
+ 		passManager.add(llvm::createAddressSanitizerFunctionPass());
+ 	}
+-
++#endif
+ 	passManager.run(*module);
+ #endif
+ }
