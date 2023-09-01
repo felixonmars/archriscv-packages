@@ -19,7 +19,7 @@
  # shellcheck disable=SC2034
  optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'libappindicator-gtk3: StatusNotifierItem support'
-@@ -85,6 +87,19 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+@@ -85,6 +87,20 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          'v8-move-the-Stack-object-from-ThreadLocalTop.patch'
          'REVERT-roll-src-third_party-ffmpeg-m102.patch'
          'REVERT-roll-src-third_party-ffmpeg-m106.patch'
@@ -33,13 +33,14 @@
 +        "$_electron-riscv-dav1d.patch"
 +        "$_electron-swiftshader-use-system-llvm.patch"
 +        "$_electron-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch"
++        "$_electron-swiftshader-llvm-15.patch"
 +        "$_electron-gclient-ignore-prebuilt-platform-specific-deps.patch"
 +        "$_electron-deps-parser.py"
 +        "$_electron-patch-2c8a019f39d2-fix.patch"
         )
  # shellcheck disable=SC2034
  sha256sums=('SKIP'
-@@ -119,7 +134,20 @@ sha256sums=('SKIP'
+@@ -119,7 +135,21 @@ sha256sums=('SKIP'
              'f41215af1f98d552cdfde7e924ba6d2f77883310aad57ebba7fe73d3883f8668'
              '49c3e599366909ddac6a50fa6f9420e01a7c0ffd029a20567a41d741a15ec9f7'
              '30df59a9e2d95dcb720357ec4a83d9be51e59cc5551365da4c0073e68ccdec44'
@@ -55,13 +56,14 @@
 +            '1806faa7a571f05f278215469a9ee248f1c4c420716bc8d5be4525fcf7373768'
 +            'd901e905a9b4303e6334bf39475bcbcdf22959796954de66507857108d53570f'
 +            'cf80c0d70f8933a4495c71d7be681c1457a69d26e95d2ad41da4bb02b7cbee4c'
++            '89db820524e8d524c86461ee4fa08433d361f40b42f1b5c488ebdaa0e0491990'
 +            'b28b64181c46549e94e8c26d5401b0036991c18c60040c444a262484addd0d0d'
 +            'cb8c2d8d620f95053e5de17b2234099b56c8ae6fa5868a38dbb0dbaf322e19a5'
 +            'b49817246739c5792762b2de07082873a795a0245a585d99c78bd7a1762cb5f1')
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -183,14 +211,38 @@ EOF
+@@ -183,14 +213,38 @@ EOF
    echo "Linking chromium from sources..."
    ln -s chromium-mirror src
  
@@ -100,7 +102,7 @@
    )
  
    echo "Running hooks..."
-@@ -243,12 +295,27 @@ EOF
+@@ -243,12 +297,28 @@ EOF
    patch -Np1  <../2039d5dff0cef8fe3841519f0418caef6ec47d2d.patch -d third_party/abseil-cpp
    filterdiff -p1 -x include/GLSLANG/ShaderLang.h < ../5d1ac2e0d5f61913aad62dadb65a7fea6f1b93ae.patch | patch -Np1 -d third_party/angle
    patch -Np1  <../dawn-tint-add-cstdint.patch -d third_party/dawn
@@ -124,11 +126,12 @@
 +  # Build failes with the bundled LLVM 10.
 +  patch -Np1 -i ../$_electron-swiftshader-use-system-llvm.patch
 +  patch -Np1 -i ../$_electron-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
++  patch -Np0 -i ../$_electron-swiftshader-llvm-15.patch
 +
    # Revert ffmpeg roll requiring new channel layout API support
    # https://crbug.com/1325301
    patch -Rp1 -i ../REVERT-roll-src-third_party-ffmpeg-m102.patch
-@@ -303,6 +370,10 @@ build() {
+@@ -303,6 +373,10 @@ build() {
    CXXFLAGS+=' -Wno-builtin-macro-redefined'
    CPPFLAGS+=' -D__DATE__=  -D__TIME__=  -D__TIMESTAMP__='
  
@@ -139,7 +142,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -332,7 +403,6 @@ build() {
+@@ -332,7 +406,6 @@ build() {
      host_toolchain = "//build/toolchain/linux/unbundle:default"
      clang_base_path = "/usr"
      clang_use_chrome_plugins = false
@@ -147,7 +150,7 @@
      chrome_pgo_phase = 0
      treat_warnings_as_errors = false
      disable_fieldtrial_testing_config = true
-@@ -346,17 +416,18 @@ build() {
+@@ -346,17 +419,18 @@ build() {
      use_system_libffi = true
      icu_use_data_file = false
      is_component_ffmpeg = false
