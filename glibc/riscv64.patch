@@ -1,17 +1,16 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 468520)
-+++ PKGBUILD	(working copy)
-@@ -7,7 +7,7 @@
+diff --git PKGBUILD PKGBUILD
+index 9148ee3..a1b3dea 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -7,14 +7,14 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
  
  pkgbase=glibc
 -pkgname=(glibc lib32-glibc)
 +pkgname=(glibc)
- pkgver=2.37
- _commit=a704fd9a133bfb10510e18702f48a6a9c88dbbd5
- pkgrel=2
-@@ -14,7 +14,7 @@
+ pkgver=2.38
+ _commit=6b99458d197ab779ebb6ff632c168e2cbfa4f543
+ pkgrel=3
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
@@ -20,15 +19,15 @@ Index: PKGBUILD
  options=(staticlibs !lto)
  source=(git+https://sourceware.org/git/glibc.git#commit=${_commit}
          locale.gen.txt
-@@ -60,7 +60,6 @@
-       --enable-bind-now
+@@ -61,7 +61,6 @@ build() {
        --enable-cet
+       --enable-fortify-source
        --enable-kernel=4.4
 -      --enable-multi-arch
        --enable-stack-protector=strong
        --enable-systemtap
-       --disable-crypt
-@@ -97,30 +96,6 @@
+       --disable-profile
+@@ -90,23 +89,6 @@ build() {
    # build info pages manually for reproducibility
    make info
  
@@ -47,21 +46,14 @@ Index: PKGBUILD
 -      --libexecdir=/usr/lib32 \
 -      "${_configure_flags[@]}"
 -
--  # build libraries with fortify disabled
--  echo "build-programs=no" >> configparms
--  make -O
--
--  # re-enable fortify for programs
--  sed -i "/build-programs=/s#no#yes#" configparms
--  echo "CFLAGS += -Wp,-D_FORTIFY_SOURCE=2" >> configparms
 -  make -O
 -
    # pregenerate C.UTF-8 locale until it is built into glibc
    # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)-
    elf/ld.so --library-path "$PWD" locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
-@@ -156,10 +131,10 @@
+@@ -141,10 +123,10 @@ check() {
+   skip_test tst-process_mrelease    sysdeps/unix/sysv/linux/Makefile
    skip_test tst-adjtime             time/Makefile
-   skip_test tst-clock2              time/Makefile
  
 -  make -O check
 +  TIMEOUTFACTOR=20 make -O check
@@ -72,7 +64,7 @@ Index: PKGBUILD
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat'
-@@ -207,26 +182,3 @@
+@@ -192,26 +174,3 @@ package_glibc() {
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
  
