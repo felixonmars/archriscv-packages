@@ -1,8 +1,8 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,16 +18,32 @@ makedepends=(cargo
+@@ -17,16 +17,33 @@ makedepends=(cargo
+              cmake
               gtk3
-              make
               python
 -             sdl2)
 +             sdl2
@@ -13,27 +13,28 @@
  optdepends=('vulkan-intel: vulkan support for intel')
  _archive=("$pkgname-$pkgver")
 -source=("$url/archive/$pkgver/$_archive.tar.gz")
--sha256sums=('3c4e1b060d7adde39d2d274582f0ab754af3f19856c3a110d9d92fc7d4b7ccd2')
+-sha256sums=('4926c7fe1033a6f529bac649921c66bf98a03d70d4f0f7a7f7cdd1c74bb33533')
 +source=("$url/archive/$pkgver/$_archive.tar.gz"
++        "git+https://github.com/rust-skia/rust-skia.git#tag=0.62.0"
 +        "skia_native_build.patch")
-+sha256sums=('3c4e1b060d7adde39d2d274582f0ab754af3f19856c3a110d9d92fc7d4b7ccd2'
-+            '556990d259c5017082d5346b1184c256436abc05e052f2995e60f29c60e4d1ad')
++sha256sums=('4926c7fe1033a6f529bac649921c66bf98a03d70d4f0f7a7f7cdd1c74bb33533'
++            'SKIP'
++            '7ec3b586aa492bc4e7417e55f46519e4d3dd40da51d758905b00f8c0913be387')
 +options=(!lto)
  
  prepare() {
++	cd rust-skia
++	git submodule update --init --recursive
++	git apply ../skia_native_build.patch
++	cp /usr/bin/ninja skia-bindings/depot_tools/
++	cd ..
++
  	cd "$_archive"
  	sed -i -e '/^incremental/a opt-level = 3' Cargo.toml
 -	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+	echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+	cargo update -p ring
-+	mkdir .cargo
-+	cargo vendor >> .cargo/config.toml
-+	pushd vendor/skia-bindings
-+	curl 'https://codeload.github.com/rust-skia/skia/tar.gz/m103-0.51.1' | tar -xz && mv 'skia-m103-0.51.1' 'skia'
-+	mkdir depot_tools
-+	cp /usr/bin/ninja depot_tools/
-+	popd
-+	patch -Np1 -i "../skia_native_build.patch"
++	echo -e "\n[patch.crates-io]\nskia-bindings = { path = '../rust-skia/skia-bindings' }\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++	cargo update -p skia-bindings -p ring
++	cargo fetch --locked
  }
  
  build() {
