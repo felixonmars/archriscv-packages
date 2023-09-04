@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,8 +9,16 @@ url='https://github.com/google/highway/'
+ license=('Apache')
+ depends=('gcc-libs')
+ makedepends=('cmake' 'gtest')
+-source=("https://github.com/google/highway/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha256sums=('5434488108186c170a5e2fca5e3c9b6ef59a1caa4d520b008a9b8be6b8abe6c5')
++source=("https://github.com/google/highway/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz"
++        "compile-only-emu128.patch")
++sha256sums=('5434488108186c170a5e2fca5e3c9b6ef59a1caa4d520b008a9b8be6b8abe6c5'
++            '068ca74f3c33bed3ebd2ea5ef59c42e50b81101809893292335b9a38b47743cf')
++options=(!lto)
++
++prepare() {
++    cd ${pkgname}-${pkgver}
++    patch -Np1 -i ../compile-only-emu128.patch
++}
+ 
+ build() {
+     cmake -B build -S "${pkgname}-${pkgver}" \
