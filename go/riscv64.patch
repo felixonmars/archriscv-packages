@@ -1,10 +1,17 @@
 diff --git PKGBUILD PKGBUILD
-index 1a4d48d4..d10bb477 100644
+index cece4cc..d368d3c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -30,8 +30,7 @@
+@@ -29,9 +29,14 @@
+ sha256sums=('bfa36bf75e9a1e9cbbdb9abcf9d1707e479bd3a07880a8ae3564caee5711cb99'
              'SKIP')
  
++prepare() {
++  cd $pkgname/src
++  # Workaround for AUIPC+JALR optimized as deadcode
++  sed -i 's/ && r\.Type()\.IsDirectCall()//' cmd/link/internal/ld/deadcode.go
++}
++
  build() {
 -  export GOARCH=amd64
 -  export GOAMD64=v1 # make sure we're building for the right x86-64 version
@@ -12,7 +19,7 @@ index 1a4d48d4..d10bb477 100644
    export GOROOT_FINAL=/usr/lib/go
    export GOROOT_BOOTSTRAP=/usr/lib/go
  
-@@ -50,7 +49,7 @@
+@@ -50,7 +55,7 @@
    cd "$pkgname"
  
    install -d "$pkgdir/usr/bin" "$pkgdir/usr/lib/go" "$pkgdir/usr/share/doc/go" \
