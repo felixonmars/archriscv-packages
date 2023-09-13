@@ -1,24 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,16 +16,19 @@ makedepends=('boost' 'cmake' 'mesa' 'zip' 'libsm' 'rust' 'python' 'python-virtua
- options=('!lto') # breaks spidermonkey linking (https://bugs.gentoo.org/746947)
+@@ -17,11 +17,15 @@ options=('!lto') # breaks spidermonkey linking (https://bugs.gentoo.org/746947)
  source=("https://releases.wildfiregames.com/$pkgname-$_pkgver-unix-build.tar.xz"
          mozjs_virtualenv.patch
--        fix_python_3.11_ftbfs.patch)
-+        fix_python_3.11_ftbfs.patch
-+        add-riscv64-support.patch)
+         fix_python_3.11_ftbfs.patch
++        add-riscv64-support.patch
++        "fix-riscv64-build.patch::https://code.wildfiregames.com/D5127?download=true"
+         https://github.com/0ad/0ad/commit/839edc3a.patch
+         https://github.com/0ad/0ad/commit/093e1eb2.patch)
  sha512sums=('aaf647d5d8454c244015d2a198beeaaebc571a5bc96446f3acff8dbd05f9843029c500bf4162651a5e1fcdb42bd5fb5b4f5c512c78372479fbd8565dd093f272'
              '3a0f935ab05e1c0d6a926ba02a5ed72afbb94b6910acaad77661b927680f192a06c7614287fad2ff8a54e3e1ee814614c9abfc9497a27e86b9e58ae1f6eebbfb'
--            '3f3738d151f970f900e74ecc6203f6a8ded326d11e76eab0179cd3d5b4b422af978265c63c2f0e27e751d183f50651d17e2cbc42b850d5a41ab4ba9d83bdb8b9')
-+            '3f3738d151f970f900e74ecc6203f6a8ded326d11e76eab0179cd3d5b4b422af978265c63c2f0e27e751d183f50651d17e2cbc42b850d5a41ab4ba9d83bdb8b9'
-+            '3b8456690dd1674e216734c7b61abd1f5e60576d7b0108a8557f48a67fb2f844a0d73dc468240afe1a9b7e74dcb5bd247cd3675fd392cb4e19d48e837327757a')
+             '748a75420541947e2a215b3a8789a0e137179e4981d0977e1c4b20cd7b86af2d96b9976e04d60ace8d5ee465d542cadc42ee9bceedaaa97d2b320f533e3e3892'
++            '3b8456690dd1674e216734c7b61abd1f5e60576d7b0108a8557f48a67fb2f844a0d73dc468240afe1a9b7e74dcb5bd247cd3675fd392cb4e19d48e837327757a'
++            '9dba3d00ceb61bd0b08fc3dea4d975e14428b93383fb24c4de69e594d3a9c5ed95f37aade3681aac42a80af53c0c1286e54fb7e2d7f3ff8a4dbe27ad7718074f'
+             '1dfc8a0c6ac29040f72d9bbf6b631a74cbdec444b9078a015345139228666354d9b5059f85b640ce3afc0f590bcbe8afd5e158509a0c95751e1cd69fece46876'
+             'a7fd1454385f56b7c8cb0fc6ac001761d4419df4aeec570ba846c7df4eb327d25b9ff1a7946cb334315109fa90ca2c1820583619f4e1ec5d53805afa08e10093')
  
- prepare() {
-   cd "$pkgname-$_pkgver"
+@@ -30,6 +34,8 @@ prepare() {
  
    # Thanks Debian!
    patch -Np1 -i "$srcdir"/fix_python_3.11_ftbfs.patch
 +  patch -Np1 -i "$srcdir"/add-riscv64-support.patch
++  patch -Np0 -i "$srcdir"/fix-riscv64-build.patch
    cp "$srcdir"/mozjs_virtualenv.patch libraries/source/spidermonkey
- }
- 
+   patch -p1 -i ../839edc3a.patch # Fix build with fmt 10
+   patch -p1 -i ../093e1eb2.patch # Fix build with GCC 13
