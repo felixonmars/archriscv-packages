@@ -1,8 +1,18 @@
 diff --git PKGBUILD PKGBUILD
-index 4095ce6..109a8be 100644
+index 44f935a..f735a97 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -155,7 +155,7 @@ build() {
+@@ -18,8 +18,7 @@ makedepends=('acl' 'cryptsetup' 'docbook-xsl' 'gperf' 'lz4' 'xz' 'pam' 'libelf'
+              'python-jinja' 'python-lxml' 'quota-tools' 'shadow' 'git'
+              'meson' 'libseccomp' 'pcre2' 'audit' 'kexec-tools' 'libxkbcommon'
+              'bash-completion' 'p11-kit' 'systemd' 'libfido2' 'tpm2-tss' 'rsync'
+-             'bpf' 'libbpf' 'clang' 'llvm' 'curl' 'gnutls' 'python-pyelftools'
+-             'lib32-gcc-libs')
++             'bpf' 'libbpf' 'clang' 'llvm' 'curl' 'gnutls' 'python-pyelftools')
+ checkdepends=('python-pefile')
+ options=('strip')
+ validpgpkeys=('63CDA1E5D3FC22B998D20DD6327F26951A015CC4'  # Lennart Poettering <lennart@poettering.net>
+@@ -159,7 +158,7 @@ build() {
  }
  
  check() {
@@ -11,16 +21,3 @@ index 4095ce6..109a8be 100644
  }
  
  package_systemd() {
-@@ -258,6 +258,12 @@ package_systemd() {
- 
-   # overwrite the systemd-user PAM configuration with our own
-   install -D -m0644 systemd-user.pam "$pkgdir"/etc/pam.d/systemd-user
-+
-+  # workaround GCC 13's text relocation breaking MemoryDenyWriteExecute
-+  install -dm755 "$pkgdir"/usr/lib/systemd/system/systemd-logind.service.d
-+  install -dm755 "$pkgdir"/usr/lib/systemd/system/systemd-networkd.service.d
-+  echo -e '[Service]\nMemoryDenyWriteExecute=no' > "$pkgdir"/usr/lib/systemd/system/systemd-logind.service.d/memory-deny-write-execute.conf
-+  echo -e '[Service]\nMemoryDenyWriteExecute=no' > "$pkgdir"/usr/lib/systemd/system/systemd-networkd.service.d/memory-deny-write-execute.conf
- }
- 
- package_systemd-libs() {
