@@ -2,7 +2,7 @@
 +++ PKGBUILD
 @@ -12,7 +12,9 @@ _chromiumver=114.0.5735.134
  # shellcheck disable=SC2034
- pkgrel=2
+ pkgrel=1
  
 +_build_profile=Release
  _major_ver=${pkgver%%.*}
@@ -31,9 +31,9 @@
 +        "$_electron-riscv-sandbox.patch"
 +        "$_electron-riscv-crashpad.patch"
 +        "$_electron-riscv-dav1d.patch"
++        "$_electron-riscv-base.patch"
 +        "$_electron-swiftshader-use-system-llvm.patch"
 +        "$_electron-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch"
-+        "$_electron-swiftshader-llvm-15.patch"
 +        "$_electron-gclient-ignore-prebuilt-platform-specific-deps.patch"
 +        "$_electron-deps-parser.py"
 +        "$_electron-partition_alloc.gni-add-missing-riscv64-definition.patch"
@@ -53,16 +53,27 @@
 +            'a89ab6edda8dcc6349bd357ccb0d5bcd8e2b92a2c5891437e14008da3f2e7f88'
 +            '85644fd6b1a64e7cf76f690f1427010cdf773938987f7e1a93b2977873707a4f'
 +            '32811636eecd187dd386bbdd0fa1216728d6010f96fae8f1714dded04a95a5f4'
++            'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
 +            'd901e905a9b4303e6334bf39475bcbcdf22959796954de66507857108d53570f'
 +            'cf80c0d70f8933a4495c71d7be681c1457a69d26e95d2ad41da4bb02b7cbee4c'
-+            '89db820524e8d524c86461ee4fa08433d361f40b42f1b5c488ebdaa0e0491990'
 +            'b28b64181c46549e94e8c26d5401b0036991c18c60040c444a262484addd0d0d'
-+            'cb8c2d8d620f95053e5de17b2234099b56c8ae6fa5868a38dbb0dbaf322e19a5'
++            '4b04b17c997b0f22b4d9ea1940809fbc29dea230c14643cf97a65a4e154bcb3a'
 +            '8d8141ad3dd6d4ddc79e1c29e613d551d70ed5d9bb67c79538e7e80d89470420')
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -141,11 +170,34 @@ EOF
+@@ -134,6 +163,10 @@ solutions = [
+   },
+ ]
+ EOF
++ 
++  # Pin depot_tools
++  local _depot_tools_rev="$(python "$_electron-deps-parser.py" depot_tools chromium-mirror/DEPS)"
++  git -C depot_tools checkout $_depot_tools_rev
+ 
+   export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+   export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
+@@ -141,11 +174,34 @@ EOF
    echo "Linking chromium from sources..."
    ln -s chromium-mirror src
  
@@ -97,7 +108,7 @@
    (
      cd src/electron || exit
      patch -Np1 -i ../../std-vector-non-const.patch
-@@ -192,6 +244,24 @@ EOF
+@@ -192,6 +248,24 @@ EOF
    patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
    patch -Np1 -i "${srcdir}/default_app-icon.patch"  # Icon from .desktop file
  
@@ -109,6 +120,7 @@
 +  patch -Np1 -i ../$_electron-riscv-angle.patch
 +  patch -Np1 -i ../$_electron-riscv-sandbox.patch
 +  patch -Np1 -i ../$_electron-riscv-dav1d.patch
++  patch -Np1 -i ../$_electron-riscv-base.patch
 +  patch -Np1 -d electron < ../$_electron-support-riscv64-in-electron_runtime_api_delegate.cc.patch
 +  patch -Np0 -i ../$_electron-extensions-common-api-runtime.json-support-riscv64.patch
 +  patch -Np1 -i ../$_electron-partition_alloc.gni-add-missing-riscv64-definition.patch
@@ -116,13 +128,12 @@
 +  # Build failes with the bundled LLVM 10.
 +  patch -Np1 -i ../$_electron-swiftshader-use-system-llvm.patch
 +  patch -Np1 -i ../$_electron-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
-+  patch -Np0 -i ../$_electron-swiftshader-llvm-15.patch
 +
 +
    # Allow building against system libraries in official builds
    echo "Patching Chromium for using system libraries..."
    sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
-@@ -223,11 +293,19 @@ build() {
+@@ -223,11 +297,19 @@ build() {
    export AR=ar
    export NM=nm
  
@@ -142,7 +153,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -257,7 +335,6 @@ build() {
+@@ -257,7 +339,6 @@ build() {
      host_toolchain = "//build/toolchain/linux/unbundle:default"
      clang_base_path = "/usr"
      clang_use_chrome_plugins = false
@@ -150,7 +161,7 @@
      chrome_pgo_phase = 0
      treat_warnings_as_errors = false
      disable_fieldtrial_testing_config = true
-@@ -271,17 +348,18 @@ build() {
+@@ -271,17 +352,18 @@ build() {
      use_system_libffi = true
      icu_use_data_file = false
      is_component_ffmpeg = false
