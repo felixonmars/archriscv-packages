@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index a17236b..fd218ef 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,15 @@ license=('MIT')
+ depends=('gcc-libs' 'glibc')
+ provides=('libyaml-cpp.so')
+ makedepends=('cmake' 'ninja')
+-source=("https://github.com/jbeder/yaml-cpp/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha512sums=('aae9d618f906117d620d63173e95572c738db518f4ff1901a06de2117d8deeb8045f554102ca0ba4735ac0c4d060153a938ef78da3e0da3406d27b8298e5f38e')
++source=("https://github.com/jbeder/yaml-cpp/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz"
++        $pkgname-fix-unsigned-char.patch::https://github.com/jbeder/yaml-cpp/commit/fcbb8193b94921e058be7b563aea053531e5b2d9.patch)
++sha512sums=('aae9d618f906117d620d63173e95572c738db518f4ff1901a06de2117d8deeb8045f554102ca0ba4735ac0c4d060153a938ef78da3e0da3406d27b8298e5f38e'
++            '42f287717b749e7ab00f0ccf99e8a485539ec433dd5ae47856a51d409da74cebbf1f2ae6d392cc4d2f659fdc0c547c25b15fac6c3c493f3e8d2d21b5ee12283f')
++
++prepare() {
++  cd ${pkgname}-${pkgver}
++  patch -p1 -i ../$pkgname-fix-unsigned-char.patch
++}
+ 
+ build() {
+   cd ${pkgname}-${pkgver}
