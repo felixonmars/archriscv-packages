@@ -26,6 +26,9 @@ match sys.argv[1]:
         esbuild_ver_full = deps.deps["src/third_party/devtools-frontend/src/third_party/esbuild"]["packages"][0]["version"]
         esbuild_ver = re.match("^(.+)\.chromium.*$", esbuild_ver_full.split("@")[-1])[1]
         print(esbuild_ver)
+    case 'depot_tools':
+        depot_tools_rev = deps.deps['src/third_party/depot_tools'].split('@')[-1]
+        print(depot_tools_rev)
     case _:
         print("Unsupported arguments!", file=sys.stderr)
         sys.exit(-1)
