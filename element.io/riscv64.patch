@@ -9,30 +9,19 @@
  _url="https://github.com/vector-im/element"
  source=(element-web-${pkgver}.tar.gz::${_url}-web/archive/v${pkgver}.tar.gz
          element-web-${pkgver}.tar.gz.asc::${_url}-web/releases/download/v${pkgver}/v${pkgver}-src.tar.gz.asc
-@@ -20,28 +20,64 @@ source=(element-web-${pkgver}.tar.gz::${_url}-web/archive/v${pkgver}.tar.gz
-         element-desktop-${pkgver}.tar.gz.asc::${_url}-desktop/releases/download/v${pkgver}/v${pkgver}-src.tar.gz.asc
-         autolaunch.patch
-         io.element.Element.desktop
--        element-desktop.sh)
-+        element-desktop.sh
-+        element-desktop-riscv64-support.patch
-+        git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb
-+        builder-util+24.4.0.patch
-+        app-builder-lib+24.5.2.patch)
- sha256sums=('27fa94673d9376e18dd2e79879e6ec8b28381cb406b7eb30d5042f3b70584306'
-             'SKIP'
-             '3a8abc638e952db009b02ae1643d9f386489e02520063c83659b52fd7f21b031'
-             'SKIP'
-             '268485f35103d00a89be7f5c84703e3d393350c71f4f90932f7bcb5ea2fd094f'
-             '0103f28a32fe31f698836516783c1c70a76a0117b5df7fd0af5c422c224220f9'
--            'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba')
-+            'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba'
-+            '362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45'
-+            'SKIP'
-+            '887a6c6e0f1ad5ceceef1e35582bd7498145406945d08ed036d98311cec35a89'
-+            '96f0242d8071075b2f8d916b2f0eabeba660d7314a504792965ee2ff89965175')
+@@ -30,18 +30,55 @@ sha256sums=('c7395f14a7747ece79ade9ab1133e95abf9c35c73fa430220e4a5d8868cd5028'
+             'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba')
  validpgpkeys=(712BFBEE92DCA45252DB17D7C7BE97EFA179B100) # Element Releases <releases@riot.im>
  
++source+=(element-desktop-riscv64-support.patch
++         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb
++         builder-util+24.4.0.patch
++         app-builder-lib+24.5.2.patch)
++sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45'
++             'SKIP'
++             '887a6c6e0f1ad5ceceef1e35582bd7498145406945d08ed036d98311cec35a89'
++             '96f0242d8071075b2f8d916b2f0eabeba660d7314a504792965ee2ff89965175')
++
  prepare() {
    # Specify electron version in launcher
    sed -i "s|@ELECTRON@|${_electron}|" element-desktop.sh
@@ -77,7 +66,7 @@
  }
  
  build() {
-@@ -53,7 +89,7 @@ build() {
+@@ -53,7 +90,7 @@ build() {
    export SQLCIPHER_BUNDLED=1
    export CFLAGS+=" -ffat-lto-objects"
    yarn run build:native
@@ -86,7 +75,7 @@
  }
  
  package_element-web() {
-@@ -81,7 +117,7 @@ package_element-desktop() {
+@@ -81,7 +118,7 @@ package_element-desktop() {
    install -d "${pkgdir}"{/usr/lib/element/,/etc/webapps/element}
  
    # Install the app content, replace the webapp with a symlink to the system package
