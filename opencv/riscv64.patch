@@ -1,26 +1,26 @@
 diff --git PKGBUILD PKGBUILD
-index 2bcd378..4de1bf7 100644
+index f3638f0..94850f3 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -3,7 +3,7 @@
- # Contributor: Tobias Powalowski <tpowa@archlinux.org>
- 
+@@ -5,8 +5,7 @@
  pkgbase=opencv
--pkgname=(opencv opencv-samples python-opencv opencv-cuda)
-+pkgname=(opencv opencv-samples python-opencv)
+ pkgname=(opencv
+          opencv-samples
+-         python-opencv
+-         opencv-cuda)
++         python-opencv)
  pkgver=4.8.0
- pkgrel=5
+ pkgrel=6
  pkgdesc='Open Source Computer Vision Library'
-@@ -12,7 +12,7 @@ license=(BSD)
- url='https://opencv.org/'
- depends=(tbb openexr gst-plugins-base libdc1394 cblas lapack libgphoto2 openjpeg2 ffmpeg protobuf)
- makedepends=(cmake python-numpy python-setuptools mesa eigen hdf5 lapacke qt6-5compat vtk glew ant java-environment
--             pugixml openmpi cudnn fmt nlohmann-json)
-+             pugixml openmpi fmt nlohmann-json)
- optdepends=('opencv-samples: samples'
-             'vtk: for the viz module'
-             'glew: for the viz module'
-@@ -28,6 +28,8 @@ sha256sums=('cbf47ecc336d2bff36b0dcd7d6c179a9bb59e805136af6b9670ca944aef889bd'
+@@ -38,7 +37,6 @@ depends=(abseil-cpp
+          zlib)
+ makedepends=(ant
+              cmake
+-             cudnn
+              eigen
+              fmt
+              glew
+@@ -68,6 +66,8 @@ sha256sums=('cbf47ecc336d2bff36b0dcd7d6c179a9bb59e805136af6b9670ca944aef889bd'
              'b4aef0f25a22edcd7305df830fa926ca304ea9db65de6ccd02f6cfa5f3357dbb'
              'f35a2d4ea0d6212c7798659e59eda2cb0b5bc858360f7ce9c696c77d3029668e'
              '2acacd8df0fab431aa2197304c4496f3e4d8a8de9305994a6474e4c66dc3a159')
@@ -29,7 +29,7 @@ index 2bcd378..4de1bf7 100644
  
  prepare() {
    patch -d $pkgname-$pkgver -p1 < vtk9.patch # Don't require all vtk optdepends
-@@ -53,7 +55,6 @@ build() {
+@@ -93,7 +93,6 @@ build() {
           -DINSTALL_PYTHON_EXAMPLES=ON \
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DCPU_BASELINE_DISABLE=SSE3 \
@@ -37,7 +37,7 @@ index 2bcd378..4de1bf7 100644
           -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -70,17 +71,6 @@ build() {
+@@ -110,17 +109,6 @@ build() {
    cmake -B build -S $pkgname-$pkgver $_opts \
      -DBUILD_WITH_DEBUG_INFO=ON
    cmake --build build
@@ -55,7 +55,7 @@ index 2bcd378..4de1bf7 100644
  }
  
  package_opencv() {
-@@ -122,26 +112,3 @@ package_python-opencv() {
+@@ -171,26 +159,3 @@ package_python-opencv() {
    # install license file
    install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
