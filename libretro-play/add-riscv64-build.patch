@@ -1,5 +1,5 @@
 diff --git a/Source/CMakeLists.txt b/Source/CMakeLists.txt
-index 82f69e5c..ee71c2b8 100644
+index dfb0ce09..b3e77d02 100644
 --- a/Source/CMakeLists.txt
 +++ b/Source/CMakeLists.txt
 @@ -34,7 +34,7 @@ if(TARGET_PLATFORM_ANDROID OR TARGET_PLATFORM_IOS OR TARGET_PLATFORM_JS OR BUILD
@@ -25,7 +25,7 @@ index ab40170d..a2da9da5 100644
  endif()
  
 diff --git a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
-index e94920b5..f0171797 100644
+index 0a903513..f0171797 100644
 --- a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
 +++ b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
 @@ -567,13 +567,127 @@ inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int co
@@ -40,8 +40,7 @@ index e94920b5..f0171797 100644
 +#include <simde/x86/ssse3.h>
 +
 +void convertColumn8(uint8* dest, const int destStride, int colNum, simde__m128i a, simde__m128i b, simde__m128i c, simde__m128i d)
- {
--	
++{
 +	simde__m128i* mdest = (simde__m128i*)dest;
 +
 +	simde__m128i temp_a = a;
@@ -93,8 +92,7 @@ index e94920b5..f0171797 100644
 +	mdest[mStride] = b;
 +	mdest[mStride * 2] = c;
 +	mdest[mStride * 3] = d;
- }
--*/
++}
 +
 +inline void convertColumn8(uint8* dest, const int destStride, uint8* src, int colNum)
 +{
@@ -108,7 +106,7 @@ index e94920b5..f0171797 100644
 +}
 +
 +inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int colNum)
-+{
+ {
 +	simde__m128i* mSrc = (simde__m128i*)src;
 +
 +	simde__m128i a = mSrc[0];
@@ -145,7 +143,7 @@ index e94920b5..f0171797 100644
 +	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(c, shiftCount), mask);
 +	c = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
 +	simde__m128i c2 = simde_mm_unpackhi_epi8(lowNybbles, highNybbles);
-+
+ 
 +	lowNybbles = simde_mm_and_si128(d, mask);
 +	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(d, shiftCount), mask);
 +	d = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
@@ -156,7 +154,8 @@ index e94920b5..f0171797 100644
 +	{
 +		convertColumn8(dest + 16, destStride, colNum, a2, b2, c2, d2);
 +	}
-+}
+ }
+-*/
 +
  #endif
  
@@ -185,7 +184,7 @@ index 5557e2d5..810adcb7 100644
  {
  	enum
 diff --git a/Source/hdd/PfsReader.cpp b/Source/hdd/PfsReader.cpp
-index 37e907fe..507bed07 100644
+index 3db9fdcc..2ab7be6f 100644
 --- a/Source/hdd/PfsReader.cpp
 +++ b/Source/hdd/PfsReader.cpp
 @@ -1,5 +1,6 @@
@@ -197,7 +196,7 @@ index 37e907fe..507bed07 100644
  #include "StringUtils.h"
 Submodule deps/CodeGen contains modified content
 diff --git a/deps/CodeGen/src/Jitter_CodeGenFactory.cpp b/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
-index 78137902..132d5390 100644
+index 7813790..132d539 100644
 --- a/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
 +++ b/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
 @@ -1,4 +1,5 @@
