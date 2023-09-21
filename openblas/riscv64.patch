@@ -1,26 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index f191a8f..27532ac 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,8 +13,15 @@ url="https://www.openblas.net/"
- license=('BSD')
- depends=('gcc-libs')
- makedepends=('cmake' 'perl' 'gcc-fortran')
--source=(${_pkgname}-v${pkgver}.tar.gz::https://github.com/xianyi/OpenBLAS/archive/v${pkgver}.tar.gz)
--sha512sums=('ea64c693e57eb63cc2a88e4d6ab2d8cf9ab84ae6a15048fb12090a3570dd41053e62e99c1ff9d3e02dd67ca93233591ab41b8c017d06585d0a69222e1ad3023f')
-+source=(${_pkgname}-v${pkgver}.tar.gz::https://github.com/xianyi/OpenBLAS/archive/v${pkgver}.tar.gz
-+        $pkgname-riscv64-detection.patch::https://github.com/xianyi/OpenBLAS/commit/a721fccfdcbf54ab9d573e8e8259c6272636edc7.patch)
-+sha512sums=('ea64c693e57eb63cc2a88e4d6ab2d8cf9ab84ae6a15048fb12090a3570dd41053e62e99c1ff9d3e02dd67ca93233591ab41b8c017d06585d0a69222e1ad3023f'
-+            '4b9e8034e6732abd5a9892ed8e84f94892faddaee860c3af4738f82cb960eee269ebcd97b59d10e3715bdaf3f7fede0e78df66e357f30979ac45496ed8de3f98')
-+
-+prepare() {
-+  cd $_pkgname-$pkgver
-+  patch -Np1 -i ../$pkgname-riscv64-detection.patch
-+}
- 
- build() {
-   # Setting FC manually to avoid picking up f95 and breaking the cmake build
-@@ -27,7 +34,7 @@ build() {
+@@ -27,7 +27,7 @@ build() {
      -DNO_AFFINITY=ON \
      -DUSE_OPENMP=1 \
      -DNO_WARMUP=1 \
@@ -29,7 +9,7 @@ index f191a8f..27532ac 100644
      -DNUM_THREADS=64 \
      -DDYNAMIC_ARCH=ON
    cmake --build build
-@@ -39,7 +46,8 @@ build() {
+@@ -39,7 +39,8 @@ build() {
      -DNO_AFFINITY=ON \
      -DUSE_OPENMP=1 \
      -DNO_WARMUP=1 \
