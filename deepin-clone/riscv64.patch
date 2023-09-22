@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,12 +11,15 @@ depends=('deepin-qt5integration' 'deepin-file-manager' 'dtkcore' 'dtkgui' 'dtkwi
+          'gcc-libs' 'e2fsprogs' 'jfsutils' 'xfsprogs' 'partclone')
+ makedepends=('cmake' 'ninja' 'qt5-tools' 'deepin-gettext-tools')
+ groups=('deepin-extra')
+-source=("https://github.com/linuxdeepin/deepin-clone/archive/$pkgver/$pkgname-$pkgver.tar.gz")
+-sha512sums=('8fe1b1c9a722af982107101a3cc28faa942081e26e2a0a9903e8a34c80e9f6f96be29d76afec57956f0b09b8cb10b3d977e35890158c47da1d817e5d3fb047f4')
++source=("https://github.com/linuxdeepin/deepin-clone/archive/$pkgver/$pkgname-$pkgver.tar.gz"
++        "logger-to-dlogger.patch::https://github.com/linuxdeepin/deepin-clone/commit/b229deea2f55d0d00a858568b4d3490539f8689c.diff")
++sha512sums=('8fe1b1c9a722af982107101a3cc28faa942081e26e2a0a9903e8a34c80e9f6f96be29d76afec57956f0b09b8cb10b3d977e35890158c47da1d817e5d3fb047f4'
++            '209f15f83ba27e0796a0939cc93f9bafa1a28f05fbf0b9e866add27093f395801227b95be4e9f358f0118cfacb1036e34d24296123dff43b4d6e6eb4e4571671')
+ 
+ prepare() {
+   cd deepin-clone-$pkgver
+   sed -i 's|sbin|bin|' CMakeLists.txt
++  patch -Np1 -i ../logger-to-dlogger.patch
+ }
+ 
+ build() {
