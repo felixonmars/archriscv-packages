@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,12 +10,15 @@ license=('GPL3')
+ depends=(deepin-anything deepin-daemon deepin-qt5integration poppler-qt5)
+ makedepends=(cmake deepin-dock ninja qt5-tools)
+ groups=(deepin-extra)
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/linuxdeepin/dde-grand-search/archive/$pkgver.tar.gz")
+-sha512sums=('0ba2f13d799ec3973c5b36e4a317af770f5658f18e487a6f6e629733caac2726f8eac021dba53b9eae71d7b03d15223824cfab0d46c45b4ec6ef27627e9519c6')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/linuxdeepin/dde-grand-search/archive/$pkgver.tar.gz"
++        "fix-build.patch::https://github.com/linuxdeepin/dde-grand-search/commit/f66f34a8b0fb8852eb1d9e83ac05f89e2ba06cad.diff")
++sha512sums=('0ba2f13d799ec3973c5b36e4a317af770f5658f18e487a6f6e629733caac2726f8eac021dba53b9eae71d7b03d15223824cfab0d46c45b4ec6ef27627e9519c6'
++            'd442c1fc4bb33b434e93c7ca06e234b21f07436d6dbe7145bf681cbad0ba8ac70f533a573c203e41d953585ed24a18b015be4e70bca0885892707a7a17f6ea64')
+ 
+ prepare() {
+   cd dde-grand-search-$pkgver
+   sed -i 's/-fPIE -pie//g' src/*/CMakeLists.txt
++  patch -Np1 -i ../fix-build.patch
+ }
+ 
+ build() {
