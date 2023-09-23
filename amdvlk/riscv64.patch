@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,10 @@ provides=('vulkan-driver')
+ makedepends=('perl-xml-xpath' 'python' 'wayland' 'libxrandr' 'xorg-server-devel' 'directx-shader-compiler' 'glslang'
+              'cmake' 'ninja' 'git')
+ options=('!lto')
+-source=("https://github.com/GPUOpen-Drivers/AMDVLK/archive/v-${pkgver}.tar.gz")
+-sha256sums=('70753b0840079e35a4289e22838d72798867407936be70de7f76bf5040bfe642')
++source=("https://github.com/GPUOpen-Drivers/AMDVLK/archive/v-${pkgver}.tar.gz"
++        "fix-stb_sprintf.patch::https://github.com/nothings/stb/pull/1517.diff")
++sha256sums=('70753b0840079e35a4289e22838d72798867407936be70de7f76bf5040bfe642'
++            'adaac69864658e8af799cee6272ea6d3504c0021b8ba922e2c867d2cc9c0a62a')
+             
+ prepare() {
+   local nrepos path name revision
+@@ -32,6 +34,9 @@ prepare() {
+       popd
+     (( nrepos-- ))
+   done
++
++  cd pal/shared/devdriver/third_party/stb_sprintf/inc/
++  patch -Np1 -i $srcdir/fix-stb_sprintf.patch
+ }
+ 
+ build() {
