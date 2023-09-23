@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,16 +21,24 @@ depends=(
+ makedepends=(
+   git
+   meson
++  simde
+ )
+ _tag=fb891d030c26af63abf19ab098638a40e8a1d27b
+-source=(vapoursynth-plugin-lsmashsource::git+https://github.com/AkarinVS/L-SMASH-Works.git#tag=${_tag})
+-b2sums=(SKIP)
++source=(vapoursynth-plugin-lsmashsource::git+https://github.com/AkarinVS/L-SMASH-Works.git#tag=${_tag}
++        use-simde.patch)
++b2sums=('SKIP'
++        '811da3753a551069ba56f3cd98a0e2eeaddfbc6b75b4734491526596e1dc47be0ffe48bfe65c29d25138ee3a12ca1ee13df046def7381373a616586dbbe6094f')
+ 
+ pkgver() {
+   cd vapoursynth-plugin-lsmashsource
+   git describe --tags | sed 's/^v//'
+ }
+ 
++prepare() {
++  cd vapoursynth-plugin-lsmashsource
++  patch -Np1 -i ../use-simde.patch
++}
++
+ build() {
+   arch-meson vapoursynth-plugin-lsmashsource/VapourSynth build
+   meson compile -C build
