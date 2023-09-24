@@ -1,0 +1,126 @@
+From 994cbb58abfb61b04f589488a0743a275a714e06 Mon Sep 17 00:00:00 2001
+From: Lu Yahan <yahan@iscas.ac.cn>
+Date: Tue, 08 Aug 2023 10:30:50 +0800
+Subject: [PATCH] [riscv] Skip case about Float Nan.
+
+On RISC-V, except when otherwise stated, if the result of a floating-point operation is NaN, it is the canonical Nan.
+
+If the input is f32, it will be converted into f64 js code. When f32 is Nan, the output is the canonical Nan, so these cases can't get the correct result.
+
+Also port commit 0dbea94dbdd950cbe5ff018a3e43a4bac18c6045
+[compiler] Generalize InstructionSelectorT for Turboshaft (part 10)
+
+Bug: v8:12783
+
+Change-Id: I56188b5643b71d942d505b8ec009a0353d263aff
+Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/4757761
+Commit-Queue: Yahan Lu <yahan@iscas.ac.cn>
+Reviewed-by: Andreas Haas <ahaas@chromium.org>
+Auto-Submit: Yahan Lu <yahan@iscas.ac.cn>
+Cr-Commit-Position: refs/heads/main@{#89423}
+---
+
+diff --git a/src/compiler/backend/riscv/code-generator-riscv.cc b/src/compiler/backend/riscv/code-generator-riscv.cc
+index 63e2d1d..3121489 100644
+--- a/src/compiler/backend/riscv/code-generator-riscv.cc
++++ b/src/compiler/backend/riscv/code-generator-riscv.cc
+@@ -1540,31 +1540,11 @@
+       __ FPUCanonicalizeNaN(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+       break;
+     case kRiscvCvtSD: {
+-      Label done;
+-      __ feq_d(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
+-      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
+       __ fcvt_s_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+-      __ Branch(&done, eq, kScratchReg, Operand(1));
+-      __ And(kScratchReg2, kScratchReg2, Operand(0x8000000000000000));
+-      __ srai(kScratchReg2, kScratchReg2, 32);
+-      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
+-      __ fsgnj_s(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
+-                 kScratchDoubleReg);
+-      __ bind(&done);
+       break;
+     }
+     case kRiscvCvtDS: {
+-      Label done;
+-      __ feq_s(kScratchReg, i.InputDoubleRegister(0), i.InputDoubleRegister(0));
+-      __ fmv_x_d(kScratchReg2, i.InputDoubleRegister(0));
+       __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
+-      __ Branch(&done, eq, kScratchReg, Operand(1));
+-      __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
+-      __ slli(kScratchReg2, kScratchReg2, 32);
+-      __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
+-      __ fsgnj_d(i.OutputDoubleRegister(), i.OutputDoubleRegister(),
+-                 kScratchDoubleReg);
+-      __ bind(&done);
+       break;
+     }
+     case kRiscvCvtDW: {
+diff --git a/src/compiler/backend/riscv/instruction-selector-riscv.h b/src/compiler/backend/riscv/instruction-selector-riscv.h
+index 91e79b2..0e5d446 100644
+--- a/src/compiler/backend/riscv/instruction-selector-riscv.h
++++ b/src/compiler/backend/riscv/instruction-selector-riscv.h
+@@ -277,15 +277,19 @@
+ }
+ 
+ template <typename Adapter>
+-void InstructionSelectorT<Adapter>::VisitStackSlot(Node* node) {
+-  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+-  int alignment = rep.alignment();
+-  int slot = frame_->AllocateSpillSlot(rep.size(), alignment);
+-  OperandGenerator g(this);
++void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
++  if constexpr (Adapter::IsTurboshaft) {
++    UNIMPLEMENTED();
++  } else {
++    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
++    int alignment = rep.alignment();
++    int slot = frame_->AllocateSpillSlot(rep.size(), alignment);
++    OperandGenerator g(this);
+ 
+-  Emit(kArchStackSlot, g.DefineAsRegister(node),
+-       sequence()->AddImmediate(Constant(slot)),
+-       sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
++    Emit(kArchStackSlot, g.DefineAsRegister(node),
++         sequence()->AddImmediate(Constant(slot)),
++         sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
++  }
+ }
+ 
+ template <typename Adapter>
+diff --git a/src/compiler/backend/riscv/instruction-selector-riscv32.cc b/src/compiler/backend/riscv/instruction-selector-riscv32.cc
+index 727605d..abafd91 100644
+--- a/src/compiler/backend/riscv/instruction-selector-riscv32.cc
++++ b/src/compiler/backend/riscv/instruction-selector-riscv32.cc
+@@ -206,6 +206,7 @@
+       case MachineRepresentation::kWord64:
+       case MachineRepresentation::kNone:
+       case MachineRepresentation::kSimd256:  // Fall through.
++      case MachineRepresentation::kIndirectPointer:
+         UNREACHABLE();
+     }
+ 
+@@ -283,6 +284,7 @@
+       case MachineRepresentation::kNone:
+       case MachineRepresentation::kWord64:
+       case MachineRepresentation::kSimd256:  // Fall through.
++      case MachineRepresentation::kIndirectPointer:
+         UNREACHABLE();
+     }
+ 
+@@ -824,6 +826,7 @@
+     case MachineRepresentation::kMapWord:            // Fall through.
+     case MachineRepresentation::kWord64:
+     case MachineRepresentation::kNone:
++    case MachineRepresentation::kIndirectPointer:
+       UNREACHABLE();
+   }
+ 
+@@ -879,6 +882,7 @@
+     case MachineRepresentation::kMapWord:  // Fall through.
+     case MachineRepresentation::kNone:
+     case MachineRepresentation::kWord64:
++    case MachineRepresentation::kIndirectPointer:
+       UNREACHABLE();
+   }
+ 

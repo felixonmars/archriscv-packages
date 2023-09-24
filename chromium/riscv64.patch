@@ -1,30 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,13 +29,21 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         https://github.com/stha09/chromium-patches/releases/download/chromium-$_gcc_patchset/chromium-$_gcc_patchset.tar.xz
-         REVERT-disable-autoupgrading-debug-info.patch
-         random-build-fixes.patch
--        use-oauth2-client-switches-as-default.patch)
-+        use-oauth2-client-switches-as-default.patch
-+        swiftshader-use-llvm16.patch
-+        riscv-{angle,crashpad,dav1d,libgav1,sandbox}.patch)
- sha256sums=('1ec1052a959abced9642b36482549bc2ebefa428ed136289d8e0c54b4ccd1c81'
-             '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '25ad7c1a5e0b7332f80ed15ccf07d7e871d8ffb4af64df7c8fef325a527859b0'
-             '1b782b0f6d4f645e4e0daa8a4852d63f0c972aa0473319216ff04613a0592a69'
-             'e938c6ee7087eed8f0de83ffb0ca89e328575808fafa4fe3950aeb1bc58b9411'
--            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711')
-+            'e393174d7695d0bafed69e868c5fbfecf07aa6969f3b64596d0bae8b067e1711'
-+            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+            'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
-+            '85644fd6b1a64e7cf76f690f1427010cdf773938987f7e1a93b2977873707a4f'
-+            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+            '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
-+            '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae')
- 
- if (( _manual_clone )); then
-   source[0]=fetch-chromium-release
-@@ -64,7 +72,7 @@ declare -gA _system_libs=(
+@@ -68,7 +68,7 @@ declare -gA _system_libs=(
    [libxml]=libxml2
    [libxslt]=libxslt
    [opus]=opus
@@ -33,29 +9,39 @@
    [snappy]=snappy
    [woff2]=woff2
    [zlib]=minizip
-@@ -111,6 +119,7 @@ prepare() {
+@@ -77,6 +77,16 @@ _unwanted_bundled_libs=(
+   $(printf "%s\n" ${!_system_libs[@]} | sed 's/^libjpeg$/&_turbo/')
+ )
+ depends+=(${_system_libs[@]})
++source+=(swiftshader-use-llvm16.patch
++         riscv-{angle,dav1d,libgav1,sandbox,base,v8}.patch)
++sha256sums+=(
++            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
++            'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
++            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
++            '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
++            '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
++            'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
++            '9d16fbb661cf972da5292bf810795352d2d358bdcd446d4114181a65980b943d')
  
-   # Build fixes
-   patch -Np1 -i ../random-build-fixes.patch
+ # Google API keys (see https://www.chromium.org/developers/how-tos/api-keys)
+ # Note: These are for Arch Linux use ONLY. For your own distribution, please
+@@ -123,6 +133,14 @@ prepare() {
+   patch -Np1 -i ../patches/chromium-114-ruy-include.patch
+   patch -Np1 -i ../patches/chromium-114-vk_mem_alloc-include.patch
+ 
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
- 
-   # Fixes for building with libstdc++ instead of libc++
-   patch -Np1 -i ../patches/chromium-114-maldoca-include.patch
-@@ -119,6 +128,13 @@ prepare() {
-   patch -Np1 -i ../patches/chromium-116-object_paint_properties_sparse-include.patch
-   patch -Np1 -i ../patches/chromium-116-profile_view_utils-include.patch
- 
++
 +  # riscv64
-+  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox}.patch; do
++  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox,base}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
-+
-+  cd third_party/crashpad/crashpad && patch -Np1 -i $srcdir/riscv-crashpad.patch && cd -
++  patch -Np1 -d v8 < ../riscv-v8.patch
 +
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -174,6 +190,10 @@ build() {
+@@ -178,6 +196,10 @@ build() {
      'enable_nacl=false'
      'enable_rust=false'
      "google_api_key=\"$_google_api_key\""
