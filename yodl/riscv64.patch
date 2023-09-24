@@ -1,0 +1,14 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,6 +21,11 @@ build() {
+ 	cd "${srcdir}/${pkgname}-${pkgver}/${pkgname}"
+         CXXFLAGS+=' --std=c++20'
+         export CXXFLAGS
++	# yodl depends on icmake when building package,
++	# and icmake depends on libbobcat.so.6.
++	# But icmake needs to load libbobcat.so.5 at runtime.
++	ln -s /usr/lib/libbobcat.so.6 "${srcdir}/${pkgname}-${pkgver}/${pkgname}"/libbobcat.so.5
++	export LD_LIBRARY_PATH="${srcdir}/${pkgname}-${pkgver}/${pkgname}":$LD_LIBRARY_PATH
+ 	./build programs
+ 	./build macros
+ 	./build man
