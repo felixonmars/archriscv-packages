@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,11 +15,18 @@ depends=("libgl" "libx11" "libxcb" "mesa" "qt5-base" "qt5-svg" "qt5-x11extras" "
+ options=("!lto")
+ source=("https://github.com/baldurk/$pkgname/archive/v${pkgver}.tar.gz"
+         "https://github.com/baldurk/$pkgname/releases/download/v${pkgver}/v${pkgver}.tar.gz.asc"
+-        "https://github.com/baldurk/swig/archive/${pkgname}-modified-7.zip")
++        "https://github.com/baldurk/swig/archive/${pkgname}-modified-7.zip"
++        "add-riscv64-support.patch::https://github.com/baldurk/renderdoc/pull/3069.diff")
+ validpgpkeys=('1B039DB9A4718A2D699DE031AC612C3120C34695')
+ b2sums=('62572e3c2ca4423c3c220f946a419c74951858027a5369ae59e0a026ddaa35c96b44be7d06ce1ff4e8105f3e5edf0bb0227d11f1dd7d8a747cf75ad97e4f354e'
+         'SKIP'
+-        '136b0b48d5bddb2dfe6fffd54220a5b62bb9a725b800f1f7846d03469f0c859d0585a61118f64b2def81ad94ff650bdf82d1db7aeb7608a190792ce8033597dc')
++        '136b0b48d5bddb2dfe6fffd54220a5b62bb9a725b800f1f7846d03469f0c859d0585a61118f64b2def81ad94ff650bdf82d1db7aeb7608a190792ce8033597dc'
++        '3bfcca35149a5d588ecc252e7f954b7afb02890a96e5752d832a7d12809c91957656fd7fb011a213d2530b5fb98c7ffd25f884df945ae327f94f4873673991c9')
++
++prepare() {
++  cd "${pkgname}-$pkgver"
++  patch -Np1 -i ../add-riscv64-support.patch
++}
+ 
+ build() {
+     cmake -G Ninja \
