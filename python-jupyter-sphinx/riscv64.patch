@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index b9120c0..958643b 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,15 @@
+ makedepends=(python-build python-installer python-setuptools python-wheel)
+ checkdepends=(python-pytest)
+ #source=(https://pypi.io/packages/source/j/$_pipname/$_pipname-$pkgver.tar.gz) - doesn't include tests
+-source=(https://github.com/jupyter/jupyter-sphinx/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
+-sha256sums=('85999a5f224281ee95263787313b5cbf48fb3c0f406a88ad5d9debcf1d4d06d4')
++source=(https://github.com/jupyter/jupyter-sphinx/archive/v$pkgver/$pkgname-$pkgver.tar.gz
++        remove-sphinx.testing.util.path.patch::https://github.com/jupyter/jupyter-sphinx/pull/233.diff)
++sha256sums=('85999a5f224281ee95263787313b5cbf48fb3c0f406a88ad5d9debcf1d4d06d4'
++            '0b4d6c1b4e07d1018a4229d77bd97b7a3e16110e6e47e9210535ae70656610d9')
++
++prepare() {
++  cd $_pipname-$pkgver
++  patch -Np1 -i ../remove-sphinx.testing.util.path.patch
++}
+ 
+ build() {
+   cd $_pipname-$pkgver
