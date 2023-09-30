@@ -1,16 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,7 +15,13 @@ source=("https://github.com/mitmproxy/mitmproxy_rs/archive/$pkgver/$pkgname-$pkg
+@@ -9,13 +9,19 @@ arch=('x86_64')
+ url='https://github.com/mitmproxy/mitmproxy_rs'
+ license=('MIT')
+ depends=('python')
+-makedepends=('maturin' 'python-installer' 'cargo')
++makedepends=('maturin' 'python-installer' 'cargo' 'protobuf')
+ options=(!lto)
+ source=("https://github.com/mitmproxy/mitmproxy_rs/archive/$pkgver/$pkgname-$pkgver.tar.gz")
  sha512sums=('cf6fdd9419fe4e404c8db796b2d5bb1225d79e6c2d3a40876fed4496ff9c1952aec19a17d1924537d8611e845f029a98582a03d983ffeb46cb9e39df2718102c')
  
  build() {
 -  cd ${_pyname}-${pkgver}/mitmproxy-rs
 +  cd ${_pyname}-${pkgver}
-+  # patch ring and rust-protoc-bin-vendored crates.
-+  echo -e "\n[patch.crates-io]\
-+           \nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }\
-+           \nprotoc-bin-vendored = { git = 'https://github.com/moui0/rust-protoc-bin-vendored', branch = 'riscv64' }" >> Cargo.toml
-+  cargo update -p ring -p protoc-bin-vendored
++  # set PROTOC: path to protoc executable file.
++  export PROTOC=$(command -v protoc)
++  # patch ring.
++  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++  cargo update -p ring
 +  cd mitmproxy-rs
    maturin build --release --strip
  }
