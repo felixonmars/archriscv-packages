@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index 9148ee3..a1b3dea 100644
+index 0c8bfca..163c046 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -7,14 +7,14 @@
@@ -9,8 +9,8 @@ index 9148ee3..a1b3dea 100644
 -pkgname=(glibc lib32-glibc)
 +pkgname=(glibc)
  pkgver=2.38
- _commit=6b99458d197ab779ebb6ff632c168e2cbfa4f543
- pkgrel=3
+ _commit=f6445dc94da185b3d1ee283f0ca0a34c4e1986cc
+ pkgrel=5
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
@@ -19,15 +19,15 @@ index 9148ee3..a1b3dea 100644
  options=(staticlibs !lto)
  source=(git+https://sourceware.org/git/glibc.git#commit=${_commit}
          locale.gen.txt
-@@ -61,7 +61,6 @@ build() {
+@@ -54,7 +54,6 @@ build() {
        --enable-cet
        --enable-fortify-source
        --enable-kernel=4.4
 -      --enable-multi-arch
        --enable-stack-protector=strong
        --enable-systemtap
-       --disable-profile
-@@ -90,23 +89,6 @@ build() {
+       --disable-nscd
+@@ -84,23 +83,6 @@ build() {
    # build info pages manually for reproducibility
    make info
  
@@ -51,7 +51,7 @@ index 9148ee3..a1b3dea 100644
    # pregenerate C.UTF-8 locale until it is built into glibc
    # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)-
    elf/ld.so --library-path "$PWD" locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
-@@ -141,10 +123,10 @@ check() {
+@@ -135,10 +117,10 @@ check() {
    skip_test tst-process_mrelease    sysdeps/unix/sysv/linux/Makefile
    skip_test tst-adjtime             time/Makefile
  
@@ -64,7 +64,7 @@ index 9148ee3..a1b3dea 100644
    pkgdesc='GNU C Library'
    depends=('linux-api-headers>=4.10' tzdata filesystem)
    optdepends=('gd: for memusagestat'
-@@ -192,26 +174,3 @@ package_glibc() {
+@@ -181,26 +163,3 @@ package_glibc() {
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
  
