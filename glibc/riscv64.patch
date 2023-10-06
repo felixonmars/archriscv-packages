@@ -1,16 +1,14 @@
-diff --git PKGBUILD PKGBUILD
-index 0c8bfca..163c046 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -7,14 +7,14 @@
  # NOTE: valgrind requires rebuilt with each major glibc version
  
  pkgbase=glibc
--pkgname=(glibc lib32-glibc)
-+pkgname=(glibc)
+-pkgname=(glibc lib32-glibc glibc-locales)
++pkgname=(glibc glibc-locales)
  pkgver=2.38
- _commit=f6445dc94da185b3d1ee283f0ca0a34c4e1986cc
- pkgrel=5
+ _commit=750a45a783906a19591fb8ff6b7841470f1f5701
+ pkgrel=7
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL LGPL)
@@ -27,67 +25,39 @@ index 0c8bfca..163c046 100644
        --enable-stack-protector=strong
        --enable-systemtap
        --disable-nscd
-@@ -84,23 +83,6 @@ build() {
-   # build info pages manually for reproducibility
-   make info
+@@ -86,25 +85,7 @@ build() {
+     make info
+   )
  
--  cd "${srcdir}"/lib32-glibc-build
--  export CC="gcc -m32 -mstackrealign"
--  export CXX="g++ -m32 -mstackrealign"
+-  (
+-    cd lib32-glibc-build
+-    export CC="gcc -m32 -mstackrealign"
+-    export CXX="g++ -m32 -mstackrealign"
 -
--  echo "slibdir=/usr/lib32" >> configparms
--  echo "rtlddir=/usr/lib32" >> configparms
--  echo "sbindir=/usr/bin" >> configparms
--  echo "rootsbindir=/usr/bin" >> configparms
+-    echo "slibdir=/usr/lib32" >> configparms
+-    echo "rtlddir=/usr/lib32" >> configparms
+-    echo "sbindir=/usr/bin" >> configparms
+-    echo "rootsbindir=/usr/bin" >> configparms
 -
--  "${srcdir}"/glibc/configure \
--      --host=i686-pc-linux-gnu \
--      --libdir=/usr/lib32 \
--      --libexecdir=/usr/lib32 \
--      "${_configure_flags[@]}"
+-    "${srcdir}"/glibc/configure \
+-        --host=i686-pc-linux-gnu \
+-        --libdir=/usr/lib32 \
+-        --libexecdir=/usr/lib32 \
+-        "${_configure_flags[@]}"
 -
--  make -O
+-    make -O
+-  )
 -
-   # pregenerate C.UTF-8 locale until it is built into glibc
-   # (https://sourceware.org/glibc/wiki/Proposals/C.UTF-8, FS#74864)-
-   elf/ld.so --library-path "$PWD" locale/localedef -c -f ../glibc/localedata/charmaps/UTF-8 -i ../glibc/localedata/locales/C ../C.UTF-8/
-@@ -135,10 +117,10 @@ check() {
-   skip_test tst-process_mrelease    sysdeps/unix/sysv/linux/Makefile
-   skip_test tst-adjtime             time/Makefile
++  
+   # pregenerate locales here instead of in package
+   # functions because localedef does not like fakeroot
+   make -C "${srcdir}"/glibc/localedata objdir="${srcdir}"/glibc-build \
+@@ -140,7 +121,7 @@ check() (
+   _skip_test tst-process_mrelease    sysdeps/unix/sysv/linux/Makefile
+   _skip_test tst-adjtime             time/Makefile
  
 -  make -O check
 +  TIMEOUTFACTOR=20 make -O check
- }
+ )
  
--package_glibc() {
-+package() {
-   pkgdesc='GNU C Library'
-   depends=('linux-api-headers>=4.10' tzdata filesystem)
-   optdepends=('gd: for memusagestat'
-@@ -181,26 +163,3 @@ package_glibc() {
-   install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
- }
- 
--package_lib32-glibc() {
--  pkgdesc='GNU C Library (32-bit)'
--  depends=("glibc=$pkgver")
--  options+=('!emptydirs')
--
--  cd lib32-glibc-build
--
--  make install_root="${pkgdir}" install
--  rm -rf "${pkgdir}"/{etc,sbin,usr/{bin,sbin,share},var}
--
--  # We need to keep 32 bit specific header files
--  find "${pkgdir}"/usr/include -type f -not -name '*-32.h' -delete
--
--  # Dynamic linker
--  install -d "${pkgdir}"/usr/lib
--  ln -s ../lib32/ld-linux.so.2 "${pkgdir}"/usr/lib/
--
--  # Add lib32 paths to the default library search path
--  install -Dm644 "${srcdir}"/lib32-glibc.conf "${pkgdir}"/etc/ld.so.conf.d/lib32-glibc.conf
--
--  # Symlink /usr/lib32/locale to /usr/lib/locale
--  ln -s ../lib/locale "${pkgdir}"/usr/lib32/locale
--}
+ package_glibc() {
