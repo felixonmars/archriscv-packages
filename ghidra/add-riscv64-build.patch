@@ -1,5 +1,5 @@
 diff --git a/GPL/nativeBuildProperties.gradle b/GPL/nativeBuildProperties.gradle
-index 5e9c33f4e..cfad0b1d2 100644
+index 5e9c33f..cfad0b1 100644
 --- a/GPL/nativeBuildProperties.gradle
 +++ b/GPL/nativeBuildProperties.gradle
 @@ -43,6 +43,9 @@ model {
@@ -13,7 +13,7 @@ index 5e9c33f4e..cfad0b1d2 100644
  		}
  		if (isCurrentMac()) {
 diff --git a/GPL/nativePlatforms.gradle b/GPL/nativePlatforms.gradle
-index a75cf48a5..09b817dde 100644
+index a75cf48..09b817d 100644
 --- a/GPL/nativePlatforms.gradle
 +++ b/GPL/nativePlatforms.gradle
 @@ -23,6 +23,7 @@ project.ext.PLATFORMS = [
@@ -49,12 +49,12 @@ index a75cf48a5..09b817dde 100644
  /****************************************************************************
   * Establish Visual Studio configuration environment for Windows native builds
   * NOTE: vsconfig.gradle path is relative to each GPL project module
-diff --git a/Ghidra/Debug/Debugger-gadp/build.gradle b/Ghidra/Debug/Debugger-gadp/build.gradle
-index f4dbd3cd0..fc53db817 100644
---- a/Ghidra/Debug/Debugger-gadp/build.gradle
-+++ b/Ghidra/Debug/Debugger-gadp/build.gradle
-@@ -33,29 +33,31 @@ configurations {
- def platform = getCurrentPlatformName()
+diff --git a/gradle/debugger/hasProtobuf.gradle b/gradle/debugger/hasProtobuf.gradle
+index 23b4ce7..24adc50 100644
+--- a/gradle/debugger/hasProtobuf.gradle
++++ b/gradle/debugger/hasProtobuf.gradle
+@@ -26,31 +26,34 @@ def platform = getCurrentPlatformName()
+ 
  
  dependencies {
 -	allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:windows-x86_64@exe'
@@ -104,82 +104,11 @@ index f4dbd3cd0..fc53db817 100644
 +			}
  		}
  	}
++
+ }
  
-@@ -83,9 +85,14 @@ task generateProto {
- 	inputs.files(src)
- 	dependsOn(configurations.protocArtifact)
- 	doLast {
--		def exe = configurations.protocArtifact.first()
--		if (!isCurrentWindows()) {
--			exe.setExecutable(true)
-+		def exe
-+		if (isCurrentRiscv_64()) {
-+			exe = System.env.PROTOBUF_DESTDIR + "/usr/local/bin/protoc"
-+		} else {
-+			exe = configurations.protocArtifact.first()
-+			if (!isCurrentWindows()) {
-+				exe.setExecutable(true)
-+			}
- 		}
- 		exec {
- 			commandLine exe, "--java_out=$outdir", "-I$srcdir"
-diff --git a/Ghidra/Debug/Debugger-isf/build.gradle b/Ghidra/Debug/Debugger-isf/build.gradle
-index 6bf945c2e..32d416803 100644
---- a/Ghidra/Debug/Debugger-isf/build.gradle
-+++ b/Ghidra/Debug/Debugger-isf/build.gradle
-@@ -30,29 +30,31 @@ configurations {
- def platform = getCurrentPlatformName()
- 
- dependencies {
--	allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:windows-x86_64@exe'
--	allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:linux-x86_64@exe'
--	allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:linux-aarch_64@exe'
--	allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:osx-x86_64@exe'
--	allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:osx-aarch_64@exe'
-+	if (!isCurrentRiscv_64()) {
-+		allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:windows-x86_64@exe'
-+		allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:linux-x86_64@exe'
-+		allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:linux-aarch_64@exe'
-+		allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:osx-x86_64@exe'
-+		allProtocArtifacts 'com.google.protobuf:protoc:3.21.8:osx-aarch_64@exe'
- 
--	if (isCurrentWindows()) {
--		protocArtifact 'com.google.protobuf:protoc:3.21.8:windows-x86_64@exe'
--	}
--	if (isCurrentLinux()) {
--		if (platform.endsWith("x86_64")) {
--			protocArtifact 'com.google.protobuf:protoc:3.21.8:linux-x86_64@exe'
--		}
--		else {
--			protocArtifact 'com.google.protobuf:protoc:3.21.8:linux-aarch_64@exe'
-+		if (isCurrentWindows()) {
-+			protocArtifact 'com.google.protobuf:protoc:3.21.8:windows-x86_64@exe'
- 		}
--	}
--	if (isCurrentMac()) {
--		if (platform.endsWith("x86_64")) {
--			protocArtifact 'com.google.protobuf:protoc:3.21.8:osx-x86_64@exe'
-+		if (isCurrentLinux()) {
-+			if (platform.endsWith("x86_64")) {
-+				protocArtifact 'com.google.protobuf:protoc:3.21.8:linux-x86_64@exe'
-+			}
-+			else {
-+				protocArtifact 'com.google.protobuf:protoc:3.21.8:linux-aarch_64@exe'
-+			}
- 		}
--		else {
--			protocArtifact 'com.google.protobuf:protoc:3.21.8:osx-aarch_64@exe'
-+		if (isCurrentMac()) {
-+			if (platform.endsWith("x86_64")) {
-+				protocArtifact 'com.google.protobuf:protoc:3.21.8:osx-x86_64@exe'
-+			}
-+			else {
-+				protocArtifact 'com.google.protobuf:protoc:3.21.8:osx-aarch_64@exe'
-+			}
- 		}
- 	}
- 
-@@ -74,9 +76,14 @@ task generateProto {
+ /*protobuf {
+@@ -69,9 +72,14 @@ task generateProto {
  	inputs.files(src)
  	dependsOn(configurations.protocArtifact)
  	doLast {
