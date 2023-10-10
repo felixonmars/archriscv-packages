@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index 0864895..57349a7 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,13 +9,19 @@ arch=('x86_64')
+@@ -9,14 +9,22 @@ arch=('x86_64')
  url='https://github.com/mitmproxy/mitmproxy_rs'
  license=('MIT')
  depends=('python')
@@ -8,17 +10,20 @@
 +makedepends=('maturin' 'python-installer' 'cargo' 'protobuf')
  options=(!lto)
  source=("https://github.com/mitmproxy/mitmproxy_rs/archive/$pkgver/$pkgname-$pkgver.tar.gz")
- sha512sums=('cf6fdd9419fe4e404c8db796b2d5bb1225d79e6c2d3a40876fed4496ff9c1952aec19a17d1924537d8611e845f029a98582a03d983ffeb46cb9e39df2718102c')
+ sha512sums=('1ca6271fa875ed149f12f6ca5f34a308496b31a2a462db743d1d65b9895f9535f031e56d002cabf90e60c54e329a04596c6d8b5028d3bb564452676bbe75657e')
  
- build() {
--  cd ${_pyname}-${pkgver}/mitmproxy-rs
++prepare() {
 +  cd ${_pyname}-${pkgver}
-+  # set PROTOC: path to protoc executable file.
-+  export PROTOC=$(command -v protoc)
-+  # patch ring.
++  cargo fetch --locked
 +  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
 +  cargo update -p ring
-+  cd mitmproxy-rs
-   maturin build --release --strip
++}
++
+ build() {
+   cd ${_pyname}-${pkgver}/mitmproxy-rs
+-  maturin build --release --strip
++  # set PROTOC: path to protoc executable file.
++  PROTOC=/usr/bin/protoc maturin build --release --strip
  }
  
+ check() {
