@@ -1,62 +1,26 @@
-diff --git PKGBUILD PKGBUILD
-index 31d3a96..e621d71 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -28,7 +28,6 @@ makedepends=(
-   cbindgen
-   clang
-   diffutils
--  dump_syms
-   imake
-   inetutils
-   jack
-@@ -104,22 +103,28 @@ ac_add_options --enable-application=browser
- mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
- 
- ac_add_options --prefix=/usr
--ac_add_options --enable-release
-+# release mode incurs TEST-UNEXPECTED-FAIL | check_networking
-+# refer to config/makefiles/rust.mk#L408
-+ac_add_options --disable-release
- ac_add_options --enable-hardening
--ac_add_options --enable-optimize
+@@ -111,7 +111,6 @@ ac_add_options --enable-hardening
+ ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
  ac_add_options --enable-linker=lld
 -ac_add_options --disable-elf-hack
  ac_add_options --disable-bootstrap
  ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
  
-+ac_add_options --enable-optimize
-+ac_add_options --disable-debug
-+# rustc with opt-level 2 would segfault when compiling neqo-transport
-+export RUSTC_OPT_LEVEL=1
-+
- # Branding
- ac_add_options --enable-official-branding
- ac_add_options --enable-update-channel=release
- ac_add_options --with-distribution-id=org.archlinux
- ac_add_options --with-unsigned-addon-scopes=app,system
- ac_add_options --allow-addon-sideload
--export MOZILLA_OFFICIAL=1
-+# see check_network above
-+# export MOZILLA_OFFICIAL=1
- export MOZ_APP_REMOTINGNAME=${pkgname//-/}
- 
- # Keys
-@@ -134,7 +139,7 @@ ac_add_options --with-system-nss
+@@ -136,7 +135,7 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
 -ac_add_options --enable-crashreporter
-+# crashreporter not ported to riscv64
++ac_add_options --disable-crashreporter
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -152,39 +157,41 @@ build() {
-   ulimit -n 4096
+@@ -159,34 +158,7 @@ build() {
  
    # Do 3-tier PGO
--  echo "Building instrumented browser..."
+   echo "Building instrumented browser..."
 -  cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-profile-generate=cross
 -END
@@ -85,62 +49,16 @@ index 31d3a96..e621d71 100644
 -ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
 -ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
 -END
-+  # disable PGO
-+#  echo "Building instrumented browser..."
-+   cat >.mozconfig ../mozconfig
-+#  cat >.mozconfig ../mozconfig - <<END
-+#ac_add_options --enable-profile-generate=cross
-+#END
++  cat >.mozconfig ../mozconfig
    ./mach build
  
--  echo "Building symbol archive..."
--  ./mach buildsymbols
-+#  echo "Profiling instrumented browser..."
-+#  ./mach package
-+#  LLVM_PROFDATA=llvm-profdata \
-+#    JARLOG_FILE="$PWD/jarlog" \
-+#    xvfb-run -s "-screen 0 1920x1080x24 -nolisten local" \
-+#    ./mach python build/pgo/profileserver.py
-+#
-+#  stat -c "Profile data found (%s bytes)" merged.profdata
-+#  test -s merged.profdata
-+#
-+#  stat -c "Jar log found (%s bytes)" jarlog
-+#  test -s jarlog
-+#
-+#  echo "Removing instrumented browser..."
-+#  ./mach clobber
-+#
-+#  echo "Building optimized browser..."
-+#  cat >.mozconfig ../mozconfig - <<END
-+#ac_add_options --enable-lto=cross,full
-+#ac_add_options --enable-profile-use=cross
-+#ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
-+#ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
-+#END
-+#  ./mach build
-+#
-+#  echo "Building symbol archive..."
-+#  ./mach buildsymbols
- }
- 
- package() {
-@@ -264,12 +271,12 @@ ObjectPath=/org/mozilla/${pkgname//-/}/SearchProvider
- Version=2
- END
- 
--  export SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE="$startdir/.crash-stats-api.token"
--  if [[ -f $SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE ]]; then
--    make -C obj uploadsymbols
+   echo "Building symbol archive..."
+@@ -273,8 +245,6 @@ END
+   export SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE="$startdir/.crash-stats-api.token"
+   if [[ -f $SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE ]]; then
+     make -C obj uploadsymbols
 -  else
 -    cp -fvt "$startdir" obj/dist/*crashreporter-symbols-full.tar.zst
--  fi
-+  #export SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE="$startdir/.crash-stats-api.token"
-+  #if [[ -f $SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE ]]; then
-+  #  make -C obj uploadsymbols
-+  #else
-+  #  cp -fvt "$startdir" obj/dist/*crashreporter-symbols-full.tar.zst
-+  #fi
+   fi
  }
  
- # vim:set sw=2 sts=-1 et:
