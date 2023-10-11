@@ -1,0 +1,63 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -87,7 +87,6 @@ ac_add_options --enable-hardening
+ ac_add_options --enable-optimize
+ ac_add_options --enable-rust-simd
+ ac_add_options --enable-linker=lld
+-ac_add_options --disable-elf-hack
+ ac_add_options --disable-bootstrap
+ ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
+ 
+@@ -113,7 +112,7 @@ ac_add_options --with-system-nss
+ # Features
+ ac_add_options --enable-alsa
+ ac_add_options --enable-jack
+-ac_add_options --enable-crashreporter
++ac_add_options --disable-crashreporter
+ ac_add_options --disable-updater
+ ac_add_options --disable-tests
+ END
+@@ -132,34 +131,7 @@ build() {
+ 
+   # Do 3-tier PGO
+   echo "Building instrumented browser..."
+-  cat >.mozconfig ../mozconfig - <<END
+-ac_add_options --enable-profile-generate=cross
+-END
+-  ./mach build
+-
+-  echo "Profiling instrumented browser..."
+-  ./mach package
+-  LLVM_PROFDATA=llvm-profdata \
+-    JARLOG_FILE="$PWD/jarlog" \
+-    xvfb-run -s "-screen 0 1920x1080x24 -nolisten local" \
+-    ./mach python build/pgo/profileserver.py
+-
+-  stat -c "Profile data found (%s bytes)" merged.profdata
+-  test -s merged.profdata
+-
+-  stat -c "Jar log found (%s bytes)" jarlog
+-  test -s jarlog
+-
+-  echo "Removing instrumented browser..."
+-  ./mach clobber
+-
+-  echo "Building optimized browser..."
+-  cat >.mozconfig ../mozconfig - <<END
+-ac_add_options --enable-lto=cross
+-ac_add_options --enable-profile-use=cross
+-ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
+-ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
+-END
++  cat >.mozconfig ../mozconfig
+   ./mach build
+ 
+   echo "Building symbol archive..."
+@@ -246,7 +218,5 @@ END
+   export SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE="$startdir/.crash-stats-api.token"
+   if [[ -f $SOCORRO_SYMBOL_UPLOAD_TOKEN_FILE ]]; then
+     make -C obj uploadsymbols
+-  else
+-    cp -fvt "$startdir" obj/dist/*crashreporter-symbols-full.tar.zst
+   fi
+ }
