@@ -1,0 +1,42 @@
+diff --git PKGBUILD PKGBUILD
+index c28cba8..8644cf2 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -2,14 +2,14 @@
+ # Contributor: Matt Harrison <matt@harrison.us.com>
+ 
+ pkgbase=ollama
+-pkgname=(ollama ollama-cuda)
++pkgname=(ollama)
+ pkgdesc='Create, run and share large language models (LLMs)'
+ pkgver=0.1.1
+ pkgrel=2
+ arch=(x86_64)
+ url='https://github.com/jmorganca/ollama'
+ license=(MIT)
+-makedepends=(cmake cuda git go setconf)
++makedepends=(cmake git go setconf)
+ _ollamacommit=1852755154a8f82cc2dcb01c37159340a55347ca # tag: v0.1.1
+ # The git submodule commit hashes are here:
+ # https://github.com/jmorganca/ollama/tree/v0.1.1/llm/llama.cpp
+@@ -22,7 +22,7 @@ source=(git+$url#commit=$_ollamacommit
+ b2sums=('SKIP'
+         'SKIP'
+         'SKIP'
+-        '32fee3699a866165dd522095620dfb68082ec69c90d6fb09a16e50c5c2de51066b67bc4ceae34672c89990cf11e0d85bd7bb1f1ffa55b1163aedf93ed45095b2')
++        '38574dce81e0cbbdbc6f2949a935f8e3aaed07f5cafb67b69c6c0e701389c98c44cfa9d822ea5f4ab7757b349e43933b9f15315f6a9deb1bd7571848bce07f2e')
+ 
+ prepare() {
+   cd $pkgbase
+@@ -58,11 +58,6 @@ build() {
+   cd $pkgbase
+   go generate ./...
+   go build -buildmode=pie -trimpath -mod=readonly -modcacherw -ldflags=-linkmode=external -ldflags=-buildid=''
+-
+-  # with CUDA support (LLAMA_CUBLAS=on)
+-  cd ../${pkgbase}-cuda
+-  go generate ./...
+-  go build -buildmode=pie -trimpath -mod=readonly -modcacherw -ldflags=-linkmode=external -ldflags=-buildid=''
+ }
+ 
+ check() {
