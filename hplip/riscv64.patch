@@ -1,28 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index 6beb008..45320e2 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,7 +37,8 @@ source=(https://downloads.sourceforge.net/${pkgname}/$pkgname-$pkgver.tar.gz{,.a
-         # use the one from Fedora
-         hplip-configure-python.patch
-         python3.diff
--        reproducible-gzip.patch)
-+        reproducible-gzip.patch
-+        Prevent-linking-ImageProcessor.patch)
- sha512sums=('f7e8c431dece035c3e8709baffad7de923ec16ec168f0c1ab64e7aa72e2b3452bf510e3f98b1d0a783bf444869affc452c7adf8fdc2075fed341c64b55ec7c3e'
-             'SKIP'
-             'a12aaeece5285ffb86bdbc24871bf512fbc1f29da44ae51ded314378032662074a42b8aca23bebb378bf78ed15bb7f99da59bfb4cd456f3458e7a5ef42a900f8'
-@@ -48,7 +49,8 @@ sha512sums=('f7e8c431dece035c3e8709baffad7de923ec16ec168f0c1ab64e7aa72e2b3452bf5
-             'b7e67bccb2516f4d98e4c5ea55f7d2299d95bfdc341dbc0149af1423169bedcd8bcfdb125c92f373e9e7be57ea284fef80a8343035fb42572b9cb927929cd257'
-             '089c102357ea5fd55d81ae76aaff62713f780fd84500c3b92ecd6b2bb11ccdc3a162978548e9a5f9e98a8354a5be3997e416c52daa18eda4621ed79a29d6fea8'
-             'b8a4c860e90a52ec566ca5a9c7f3a5ecb7386ae76e17b2c6c878073e60eeaf0cb63883b740b4725794be9914e1ab8fc91313efb288395f3095f599c07f54cf14'
--            '379fcbe9dc2986da828a174a0ac4e71a1da43a98408894d5e713e09d7d9cba1e9fac30f9602b81d48d992abe6b65b6402b8a07664efe97400c5d839be33cf15f')
-+            '379fcbe9dc2986da828a174a0ac4e71a1da43a98408894d5e713e09d7d9cba1e9fac30f9602b81d48d992abe6b65b6402b8a07664efe97400c5d839be33cf15f'
-+            'f361fbf6ca84a99e17411716c0bfc9d283ea5ecc13517c70b89c2931cb2b0f54a423983383d0f3f25d8bb83813078c9d3aeb78178be77e80c7329046918c5c32')
- validpgpkeys=('4ABA2F66DBD5A95894910E0673D770CDA59047B9') # HPLIP (HP Linux Imaging and Printing) <hplip@hp.com>
- 
- prepare() {
-@@ -76,6 +78,9 @@ prepare() {
+@@ -76,6 +76,9 @@ prepare() {
   # make gzip creation reproducible by removing the timestamp
   patch -Np1 -i ../reproducible-gzip.patch
  
@@ -32,3 +10,10 @@ index 6beb008..45320e2 100644
   export AUTOMAKE='automake --foreign'
   autoreconf --force --install
  }
+@@ -115,3 +118,6 @@ package() {
+  python -m compileall -d /usr/share "$pkgdir/usr/share"
+  python -O -m compileall -d /usr/share "$pkgdir/usr/share"
+ }
++
++source+=("Prevent-linking-ImageProcessor.patch")
++sha512sums+=('f361fbf6ca84a99e17411716c0bfc9d283ea5ecc13517c70b89c2931cb2b0f54a423983383d0f3f25d8bb83813078c9d3aeb78178be77e80c7329046918c5c32')
