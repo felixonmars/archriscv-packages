@@ -1,17 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,13 +31,16 @@ makedepends=(
- )
- options=(!lto)
- source=(https://github.com/openjdk/jdk${_majorver}u/archive/refs/tags/jdk${_majorver}u${_minorver}-b${_updatever}.tar.gz
--        gcc11.patch)
-+        gcc11.patch
-+        java8-openjdk-add-riscv-support.patch::https://gitee.com/misaka00251/openjdk-1.8.0/raw/e4b9d135939e2263146905911ad100424101e305/add-riscv-support.patch)
- b2sums=('35bef818f7e9f6872356672e1bed50233fc4fa094c1a6eac30395d05cc8addb59b5eb0b985d3702d78939ab0a08195f87b2b2d9a7533058516e9b4477f7ae334'
--        '9679e4dfb6027a87376081489c09810812d6849573afac4ea96abe3a3e00ca5b6af7d0ffb010c43b93cfa913f9e97fbb9f11e19fcc86a89b4548442671c32da1')
-+        '9679e4dfb6027a87376081489c09810812d6849573afac4ea96abe3a3e00ca5b6af7d0ffb010c43b93cfa913f9e97fbb9f11e19fcc86a89b4548442671c32da1'
-+        '86cd7d1079944b29441227da00df2c4ee45ccf6c95a5c20eb9cc5e9d02e9fa6b6c8d26f69216b42d8e7832ad0f592a689464521765622f9355f4184ff87b6f06')
- 
+@@ -38,6 +38,7 @@
  case "${CARCH}" in
    'x86_64') _JARCH=amd64 ; _DOC_ARCH=x86_64 ;;
    'i686'  ) _JARCH=i386  ; _DOC_ARCH=x86    ;;
@@ -19,7 +8,7 @@
  esac
  
  _jdkname=openjdk8
-@@ -54,6 +57,10 @@ prepare() {
+@@ -54,6 +55,10 @@
  
    # Fix build with C++17 (Fedora)
    patch -Np1 -i "${srcdir}"/gcc11.patch
@@ -30,7 +19,7 @@
  }
  
  build() {
-@@ -79,7 +86,9 @@ build() {
+@@ -79,7 +84,9 @@
      --with-zlib=system \
      --with-extra-cflags="${CFLAGS}" \
      --with-extra-cxxflags="${CXXFLAGS}" \
@@ -41,7 +30,7 @@
  
    # These help to debug builds: LOG=trace HOTSPOT_BUILD_JOBS=1
    # Without 'DEBUG_BINARIES', i686 won't build: http://mail.openjdk.java.net/pipermail/core-libs-dev/2013-July/019203.html
-@@ -275,7 +284,7 @@ package_openjdk8-doc() {
+@@ -275,8 +282,11 @@
    pkgdesc='OpenJDK Java 8 documentation'
  
    install -d -m 755 "${pkgdir}/usr/share/doc/${pkgbase}/"
@@ -50,3 +39,7 @@
      "${pkgdir}/usr/share/doc/${pkgbase}/"
  }
  
++source+=(java8-openjdk-add-riscv-support.patch::https://gitee.com/misaka00251/openjdk-1.8.0/raw/e4b9d135939e2263146905911ad100424101e305/add-riscv-support.patch)
++b2sums+=('86cd7d1079944b29441227da00df2c4ee45ccf6c95a5c20eb9cc5e9d02e9fa6b6c8d26f69216b42d8e7832ad0f592a689464521765622f9355f4184ff87b6f06')
++
+ # vim: ts=2 sw=2 et:
