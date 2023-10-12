@@ -1,13 +1,29 @@
-diff --git PKGBUILD PKGBUILD
-index e80bd6a..2853927 100644
---- PKGBUILD
-+++ PKGBUILD
-@@ -28,7 +28,7 @@
- 
+Index: PKGBUILD
+===================================================================
+--- PKGBUILD    (revision 1431356)
++++ PKGBUILD    (working copy)
+@@ -15,12 +15,21 @@
+ depends=('libcrypto.so' 'libssl.so' 'zlib')
+ makedepends=('cargo' 'git')
+ install=nushell.install
+-source=("git+https://github.com/nushell/nushell.git#commit=$_commit")
+-sha256sums=('SKIP')
++source=("git+https://github.com/nushell/nushell.git#commit=$_commit"
++        "https://github.com/simd-lite/value-trait/archive/v0.5.1.tar.gz"
++       "allow-non-simd.patch")
++sha256sums=('SKIP'
++            '9582eac8fad7344540bf8ec74c4352b8d055d314548de0cd4d4b0917b2fa1ab4'
++            '24de0228b8d4eeb890771884e2a6868a489f5fd099cd80bfc3a307cbe08fc096')
+
  prepare() {
++  # Backport from https://github.com/simd-lite/value-trait/pull/33
++  patch -Np1 -d "value-trait-0.5.1" < "allow-non-simd.patch"
++
    cd "$pkgname"
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  sed -i "/patch.crates-io/a value-trait = { path = '../value-trait-0.5.1', features = ['allow-non-simd'] }" Cargo.toml
++  cargo update -p value-trait
 +  cargo fetch --locked
  }
- 
- build() {
+
+ pkgver() {
