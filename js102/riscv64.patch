@@ -1,17 +1,13 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,8 +31,10 @@ options=(!lto)
- _relver=${pkgver}esr
- source=(
-   https://archive.mozilla.org/pub/firefox/releases/$_relver/source/firefox-$_relver.source.tar.xz{,.asc}
-+  tests-skip-some-tests-on-rv64.patch
- )
- b2sums=('b19db1b35e6c652e2cd44ec5219bd5c42aacd55987962dbcaf50b5ec54d2ac5066290264f938ba3d45ef111779b9f27b06736ae7df11fa62478ab2179acfe723'
-+        'SKIP'
-         'SKIP')
- validpgpkeys=(
-   14F26682D0916CDD81E37B6D61B7B526D98F0353  # Mozilla Software Releases <release@mozilla.com>
-@@ -45,6 +47,8 @@ prepare() {
+@@ -41,10 +41,15 @@ validpgpkeys=(
+ # Make sure the duplication between bin and lib is found
+ COMPRESSZST+=(--long)
+ 
++source+=(tests-skip-some-tests-on-rv64.patch)
++b2sums+=(986ec94fe2612f3fc234ad0db478f6ce0e95952fcce694b449f842233d56f657ea3c647d56331b6422670767fd3b23e1f98f25a6fc76fbd85767d8dabb358952)
++
+ prepare() {
    mkdir mozbuild
    cd firefox-$pkgver
  
@@ -20,7 +16,7 @@
    cat >../mozconfig <<END
  ac_add_options --enable-application=js
  mk_add_options MOZ_OBJDIR=${PWD@Q}/obj
-@@ -54,12 +58,13 @@ ac_add_options --enable-release
+@@ -54,12 +59,13 @@ ac_add_options --enable-release
  ac_add_options --enable-hardening
  ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
@@ -35,7 +31,7 @@
  
  # System libraries
  ac_add_options --with-system-zlib
-@@ -82,40 +87,7 @@ build() {
+@@ -82,40 +88,7 @@ build() {
  
    # Do 3-tier PGO
    echo "Building instrumented JS..."
