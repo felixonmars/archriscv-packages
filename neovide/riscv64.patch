@@ -1,40 +1,52 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,16 +17,33 @@ makedepends=(cargo
-              cmake
-              gtk3
-              python
--             sdl2)
-+             sdl2
+@@ -15,23 +15,31 @@ depends=(fontconfig
+          libfreetype.so
+          libglvnd
+          neovim
+-         sndio)
++         sndio
++         libz.so
++         libexpat.so
++         libpng16.so
++         libjpeg.so)
+ makedepends=(cargo
+-             cmake)
++             cmake
++             python
 +             git
 +             gn
 +             ninja
 +             clang)
  optdepends=('vulkan-intel: vulkan support for intel')
+ optdepends=('libxkbcommon-x11: run on X11 (not needed for wayland)')
  _archive=("$pkgname-$pkgver")
--source=("$url/archive/$pkgver/$_archive.tar.gz")
--sha256sums=('4926c7fe1033a6f529bac649921c66bf98a03d70d4f0f7a7f7cdd1c74bb33533')
-+source=("$url/archive/$pkgver/$_archive.tar.gz"
-+        "git+https://github.com/rust-skia/rust-skia.git#tag=0.62.0"
-+        "skia_native_build.patch")
-+sha256sums=('4926c7fe1033a6f529bac649921c66bf98a03d70d4f0f7a7f7cdd1c74bb33533'
-+            'SKIP'
-+            '7ec3b586aa492bc4e7417e55f46519e4d3dd40da51d758905b00f8c0913be387')
+ source=("$url/archive/$pkgver/$_archive.tar.gz")
+ sha256sums=('62e973a5407a6bfc731ce78e0495d2ed10930d33b22fe94cfe23acccbf789ae9')
 +options=(!lto)
  
  prepare() {
-+	cd rust-skia
-+	git submodule update --init --recursive
-+	git apply ../skia_native_build.patch
-+	cp /usr/bin/ninja skia-bindings/depot_tools/
-+	cd ..
-+
  	cd "$_archive"
- 	sed -i -e '/^incremental/a opt-level = 3' Cargo.toml
+-	sed -r -i \
+-		-e '/^incremental/a opt-level = 3' \
+-		-e '/wayland/s/\]/, "embed-icudtl"]/g' \
+-		-e '/wayland/a no-default-features = true' \
+-		Cargo.toml
 -	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+	echo -e "\n[patch.crates-io]\nskia-bindings = { path = '../rust-skia/skia-bindings' }\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
++	sed -i -e '/^incremental/a opt-level = 3' Cargo.toml
++	echo -e "\n[patch.crates-io]\nskia-bindings = { git = 'https://github.com/hack3ric/rust-skia', branch = 'archrv-0.62.0' }\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
 +	cargo update -p skia-bindings -p ring
 +	cargo fetch --locked
  }
  
  build() {
+@@ -42,6 +50,9 @@ build() {
+ 	export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+ 	CFLAGS+=' -ffat-lto-objects'
+ 	export SKIA_USE_SYSTEM_LIBRARIES=true
++	export FORCE_SKIA_BUILD=true
++	export SKIA_GN_COMMAND=gn
++	export SKIA_NINJA_COMMAND=ninja
+ 	cargo build --frozen --release --features embed-fonts
+ }
+ 
