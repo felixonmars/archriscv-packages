@@ -1,35 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -36,15 +36,29 @@ makedepends=(
-   zeromq
- )
- provides=(libopenshot.so)
--source=($url/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
--sha512sums=('8891077af28a4db6bc3a7cd078ce5570a8f62e0795c13b0fff795eba60c3e977ece70247033ee4017c9785592355b7421655246a5d6807a5790bd18927739795')
--b2sums=('5bc371481ddf69b5de909963cb83d1128066280e1259ae8b23f7ef5450f3da00ef1137dcefe2978e10d1a51931529f104aebdf0601be4b066c7ed371ea43439e')
-+source=($url/archive/v$pkgver/$pkgname-$pkgver.tar.gz
-+        $pkgname-fix-stabilize-video-test.patch::https://github.com/OpenShot/libopenshot/pull/929.patch
-+        $pkgname-fix-get-samples-per-frame.patch::https://github.com/OpenShot/libopenshot/pull/930.patch)
-+sha512sums=('8891077af28a4db6bc3a7cd078ce5570a8f62e0795c13b0fff795eba60c3e977ece70247033ee4017c9785592355b7421655246a5d6807a5790bd18927739795'
-+            '4beec0ef33a320c7f46aa5b9483079115d73ee08cd642226c9169091484f45ff0fada6399732db8a22141eb128c574485f8a1a62c203089dd4080e234764ce82'
-+            'fcc2dd85247a8380bbcd45cb2409271630ef64d265d886f7489b2d2694d7c385adf9315b5f5e8f2cced7d0f2cd3558a334b7a169beb0dc7d26dec99cb71d80b5')
-+b2sums=('5bc371481ddf69b5de909963cb83d1128066280e1259ae8b23f7ef5450f3da00ef1137dcefe2978e10d1a51931529f104aebdf0601be4b066c7ed371ea43439e'
-+        'd683ee5a48af1356616931c87b0c19cb3858468e62c72b2a0a35428c6f75b4883ef40a2c3f0dadc935decd7414c4a35271e97a410a635eab01d33903a394b87c'
-+        'e306779bb456f218c8112078a8eb877520a2b2dc44fb2d8126b298272c0a898453dc79869d88d17a9079004befac9b810b32602f08a8355841fc1873567a82c3')
-+
-+prepare() {
-+  cd $pkgname-$pkgver
-+  patch -Np1 -i ../$pkgname-fix-stabilize-video-test.patch
-+  patch -Np1 -i ../$pkgname-fix-get-samples-per-frame.patch
-+}
+@@ -41,7 +41,16 @@ source=($url/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
+ sha512sums=('8891077af28a4db6bc3a7cd078ce5570a8f62e0795c13b0fff795eba60c3e977ece70247033ee4017c9785592355b7421655246a5d6807a5790bd18927739795')
+ b2sums=('5bc371481ddf69b5de909963cb83d1128066280e1259ae8b23f7ef5450f3da00ef1137dcefe2978e10d1a51931529f104aebdf0601be4b066c7ed371ea43439e')
  
- build() {
-   local python_version=$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-   local cmake_options=(
-     -B build
-     -D CMAKE_BUILD_TYPE=None
-+    -D CMAKE_C_FLAGS="-fopenmp $CMAKE_C_FLAGS"
-+    -D DCMAKE_CXX_FLAGS="-fopenmp $CMAKE_CXX_FLAGS"
-     -D CMAKE_INSTALL_PREFIX=/usr
-     -D ENABLE_RUBY=OFF
-     -D MAGICKCORE_HDRI_ENABLE=1
++source+=($pkgname-fix-stabilize-video-test.patch::https://github.com/OpenShot/libopenshot/pull/929.patch
++         $pkgname-fix-get-samples-per-frame.patch::https://github.com/OpenShot/libopenshot/pull/930.patch)
++sha512sums+=('4beec0ef33a320c7f46aa5b9483079115d73ee08cd642226c9169091484f45ff0fada6399732db8a22141eb128c574485f8a1a62c203089dd4080e234764ce82'
++             'fcc2dd85247a8380bbcd45cb2409271630ef64d265d886f7489b2d2694d7c385adf9315b5f5e8f2cced7d0f2cd3558a334b7a169beb0dc7d26dec99cb71d80b5')
++b2sums+=('d683ee5a48af1356616931c87b0c19cb3858468e62c72b2a0a35428c6f75b4883ef40a2c3f0dadc935decd7414c4a35271e97a410a635eab01d33903a394b87c'
++         'e306779bb456f218c8112078a8eb877520a2b2dc44fb2d8126b298272c0a898453dc79869d88d17a9079004befac9b810b32602f08a8355841fc1873567a82c3')
++
+ prepare() {
++  patch -Np1 -d $pkgname-$pkgver < $pkgname-fix-stabilize-video-test.patch
++  patch -Np1 -d $pkgname-$pkgver < $pkgname-fix-get-samples-per-frame.patch
+ # protobuf 23 requiers C++17
+   sed -e 's|CMAKE_CXX_STANDARD 14|CMAKE_CXX_STANDARD 17|' -i $pkgname-$pkgver/CMakeLists.txt
+ }
