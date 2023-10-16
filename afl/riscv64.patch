@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,10 +14,10 @@ optdepends=('gcc: gcc instrumentation support'
+             'clang14: clang instrumentation support'
+             'llvm14: experimental clang-fast instrumentation support'
+             'gnuplot: graph plotting support')
+-makedepends=('clang14' 'llvm14' 'gcc' 'wget' 'python' 'lib32-glibc')
++makedepends=('clang14' 'llvm14' 'gcc' 'wget' 'python')
+ provides=('american-fuzzy-lop')
+ replaces=('american-fuzzy-lop')
+-options=('!emptydirs' '!strip')
++options=('!emptydirs' '!strip' '!lto')
+ source=(https://github.com/google/AFL/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz
+         llvm13.patch
+         llvm14.patch
+@@ -48,6 +48,7 @@ prepare() {
+ 
+ build() {
+   cd AFL-${pkgver}
++  export AFL_NO_X86=1
+   make PREFIX=/usr
+   make -C llvm_mode PREFIX=/usr \
+     LLVM_CONFIG=llvm-config-14 CC=/usr/lib/llvm14/bin/clang
