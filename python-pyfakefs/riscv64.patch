@@ -1,0 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 51e5586..55824d5 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,7 +13,9 @@
+   python-setuptools
+ )
+ checkdepends=(
+-  python-tox
++  python-pandas
++  python-xlrd
++  python-openpyxl
+ )
+ _tag=af725484895e770e3a9761061f14ce64aae62005
+ source=(git+https://github.com/jmcgeheeiv/pyfakefs.git#tag=${_tag})
+@@ -39,8 +41,9 @@
+ check() {
+   cd  pyfakefs
+ 
+-  local python_version=$(python -c 'import sys; print("".join(map(str, sys.version_info[:2])))')
+-  tox -e "py${python_version}"
++  python -m pyfakefs.tests.all_tests
++  python -m pyfakefs.tests.all_tests_without_extra_packages
++  python -m pytest pyfakefs/pytest_tests/pytest_plugin_test.py
+ }
+ 
+ package() {
