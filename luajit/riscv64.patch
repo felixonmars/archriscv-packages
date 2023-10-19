@@ -1,15 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,7 +7,7 @@
+@@ -7,9 +7,9 @@
  
  pkgname=luajit
  # LuaJIT has a "rolling release" where you should follow git HEAD
 -_commit=656ecbcf8f669feb94e0d0ec4b4f59190bcd2e48
 +_commit=172b660f2c0e75d64e85cd9b0df2ae14f1bde8eb
  # The patch version is the timestamp of the above git commit, obtain via `git show -s --format=%ct`
- _ct=1696795921
+-_ct=1696795921
++_ct=1696917266
  pkgver="2.1.${_ct}"
-@@ -17,27 +17,31 @@ arch=('x86_64')
+ pkgrel=1
+ pkgdesc='Just-in-time compiler and drop-in replacement for Lua 5.1'
+@@ -17,27 +17,27 @@ arch=('x86_64')
  url='https://luajit.org/'
  license=('MIT')
  depends=('gcc-libs')
@@ -17,39 +20,30 @@
 -md5sums=('08c98a8980af6621c65e1fbb0282332e')
 -sha256sums=('6f94e1e29c764ce8bc84c972bb424073b3ea5014c0fa99b7ca20902edfcbba20')
 -b2sums=('4d172a4be79e462c230ce7c9a0681f282983dc8db76dabcc1d24de637ae3adb3de4cda73d44dd6ab8ef540cc9c8c6719fedc94112e6f2ea8a3faedca0f1ac9ee')
-+makedepends=('git')
-+source=("git+https://github.com/infiWang/LuaJIT.git#commit=$_commit")
-+md5sums=('SKIP')
-+sha256sums=('SKIP')
-+b2sums=('SKIP')
++source=("LuaJIT-${_commit}.tar.gz::https://github.com/infiWang/LuaJIT/archive/${_commit}.tar.gz")
++md5sums=('c266a9825e331aeca3e8aa5066ac61d7')
++sha256sums=('d817caaac15f89b80f52e0f03cd95fea004a84f4c47d7b8b279d83d9caa1e9b4')
++b2sums=('ffa3956aab87a2f8325f4da634dbdf1fdb45d6e4c4d801200a385a87cd8b471f19f5bbecb324c6604af550281244391614ea2e5744ca1b67a761ee3276698e42')
  
  build() {
 -  cd "luajit-2.0-${_commit::7}"
-+  cd "LuaJIT"
++  cd "LuaJIT-${_commit}"
  
    # Avoid early stripping
    make amalg PREFIX=/usr BUILDMODE=dynamic TARGET_STRIP=" @:"
  }
  
--check() {
+ check() {
 -  cd "luajit-2.0-${_commit::7}"
--
--  # Make sure that _ct was updated
--  test "${_ct}" == "$(cat .relver)"
--}
-+## FIXME
-+## This check won't work in git+source,
-+## as $pkgsrc is not a git repo
-+#check() {
-+#  cd "LuaJIT"
-+#
-+#  # Make sure that _ct was updated
-+#  test "${_ct}" == "$(cat .relver)"
-+#}
++  cd "LuaJIT-${_commit}"
+ 
+   # Make sure that _ct was updated
+   test "${_ct}" == "$(cat .relver)"
+ }
  
  package() {
 -  cd "luajit-2.0-${_commit::7}"
-+  cd "LuaJIT"
++  cd "LuaJIT-${_commit}"
  
    make install DESTDIR="$pkgdir" PREFIX=/usr
    install -Dm644 COPYRIGHT "$pkgdir/usr/share/licenses/$pkgname/COPYRIGHT"
