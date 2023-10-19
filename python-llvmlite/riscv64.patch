@@ -1,16 +1,16 @@
-diff --git PKGBUILD PKGBUILD
-index 50c73a3..7fbf334 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,7 +24,10 @@ build() {
+@@ -24,7 +24,12 @@ build() {
  
  check() {
      cd "${_name}-$pkgver"
 -    pytest -vv $_name/tests
 +    # Skip MCJIT related failures, as it's known to be broken on RISC-V
++    # Skip OrcLLJIT tests on non-x86 platforms
 +    pytest -vv $_name/tests --deselect llvmlite/tests/test_binding.py::TestMCJit \
 +                            --deselect llvmlite/tests/test_binding.py::TestGlobalConstructors \
-+                            --deselect llvmlite/tests/test_binding.py::TestObjectFile::test_add_object_file
++                            --deselect llvmlite/tests/test_binding.py::TestObjectFile::test_add_object_file \
++                            --deselect llvmlite/tests/test_binding.py::TestOrcLLJIT
  }
  
  package() {
