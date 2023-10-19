@@ -1,15 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,12 +12,17 @@ license=('MIT')
+@@ -12,12 +12,31 @@ license=('MIT')
  depends=('glibc' 'v2ray-domain-list-community' 'v2ray-geoip')
  makedepends=('go' 'git')
  backup=(etc/v2ray/config.json)
 -source=("git+https://github.com/v2fly/v2ray-core.git#commit=$_commit")
 -sha512sums=('SKIP')
 +source=("git+https://github.com/v2fly/v2ray-core.git#commit=$_commit"
-+        "$pkgname-InitializeServerConfig-sleep.patch::https://github.com/v2fly/v2ray-core/pull/1786.patch")
++        "$pkgname-InitializeServerConfig-sleep.patch::https://github.com/v2fly/v2ray-core/pull/1786.patch"
++        "v2ray-testTCPConn2-timeout.patch"
++        "v2ray-testVMessKCP.patch"
++        "v2ray-kcpTest.patch")
++
 +sha512sums=('SKIP'
-+            '36553288b92bbf7d1ae65cc9efec95f1ca695f73e17804a72270e96382c685dea1dcae69ecfd9603bf7af0cf730080ac59c61c4b91cb724191e985032d5a5a03')
++            '36553288b92bbf7d1ae65cc9efec95f1ca695f73e17804a72270e96382c685dea1dcae69ecfd9603bf7af0cf730080ac59c61c4b91cb724191e985032d5a5a03'
++            'd681916026c2a224097c715cf21bfa53b0d61f496de828a38c94170d1a115081917e42cf3848f94ca76bdd5491be97c56f84cb6996584f204561f8f10796ce78'
++            '247d22813eddccca5585efa0be3f6b3a4b00e5ca31f0ace3f8ad71015b688a4b41b7b65d639ca1632bb788849ff3e7c26cf6469fa39ffd0e728f23244d2714d6'
++            '1949b4082a7a710619b8d46c50b19f002f9dc68a77d1ccde368a7e8bac872292f14fb60d34088776fdfeef5eea800ca68a0f86e0a0454f096c1df9e73f67b76c')
  
  prepare() {
    cd v2ray-core
@@ -17,6 +24,13 @@
 +
 +  # wait enough time for v2ray to start
 +  patch -Np1 -i $srcdir/$pkgname-InitializeServerConfig-sleep.patch
++
++  # reported to upstream as https://github.com/v2fly/v2ray-core/issues/1830
++  patch -Np1 -i $srcdir/v2ray-testTCPConn2-timeout.patch
++
++  # reported to upstream as https://github.com/v2fly/v2ray-core/issues/2720
++  patch -Np1 -i $srcdir/v2ray-testVMessKCP.patch
++  patch -Np1 -i $srcdir/v2ray-kcpTest.patch
  }
  
  build() {
