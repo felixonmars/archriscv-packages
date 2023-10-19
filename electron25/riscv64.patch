@@ -1,16 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,7 +12,9 @@ _chromiumver=114.0.5735.134
+@@ -17,6 +17,8 @@ pkgname="electron${_major_ver}"
+ pkgdesc='Build cross platform desktop apps with web technologies'
  # shellcheck disable=SC2034
- pkgrel=1
- 
+ arch=('x86_64')
 +_build_profile=Release
- _major_ver=${pkgver%%.*}
 +_electron="electron$_major_ver"
- if [[ ${_use_suffix} != 0 ]]; then
-   pkgname="electron${_major_ver}"
- else
-@@ -33,7 +35,8 @@ depends=('c-ares' 'gtk3' 'libevent' 'nss' 'libffi')
+ # shellcheck disable=SC2034
+ url='https://electronjs.org/'
+ # shellcheck disable=SC2034
+@@ -27,7 +29,8 @@ depends=('c-ares' 'gtk3' 'libevent' 'nss' 'libffi')
  makedepends=('clang' 'git' 'gn' 'gperf' 'harfbuzz-icu' 'http-parser'
               'qt5-base' 'java-runtime-headless' 'libnotify' 'lld' 'llvm'
               'ninja' 'npm' 'pciutils' 'pipewire' 'python' 'python-httplib2'
@@ -20,7 +19,7 @@
  # shellcheck disable=SC2034
  optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'pipewire: WebRTC desktop sharing under Wayland'
-@@ -62,6 +65,19 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+@@ -49,6 +52,19 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          'add-some-typename-s-that-are-required-in-C-17.patch'
          'REVERT-disable-autoupgrading-debug-info.patch'
          'random-fixes-for-gcc13.patch'
@@ -40,7 +39,7 @@
         )
  # shellcheck disable=SC2034
  sha256sums=('SKIP'
-@@ -75,7 +91,20 @@ sha256sums=('SKIP'
+@@ -62,7 +78,20 @@ sha256sums=('SKIP'
              '893bc04c7fceba2f0a7195ed48551d55f066bbc530ec934c89c55768e6f3949c'
              '621ed210d75d0e846192c1571bb30db988721224a41572c27769c0288d361c11'
              '1b782b0f6d4f645e4e0daa8a4852d63f0c972aa0473319216ff04613a0592a69'
@@ -62,7 +61,7 @@
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -134,6 +163,10 @@ solutions = [
+@@ -117,6 +146,10 @@ solutions = [
    },
  ]
  EOF
@@ -73,7 +72,7 @@
  
    export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
    export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
-@@ -141,11 +174,34 @@ EOF
+@@ -124,11 +157,35 @@ EOF
    echo "Linking chromium from sources..."
    ln -s chromium-mirror src
  
@@ -92,6 +91,7 @@
 +  GOBIN=$(realpath depot_tools/.cipd_bin) go install "go.chromium.org/luci/auth/client/cmd/...@$luci_go_rev"
 +
 +  patch -Np0 -i $_electron-gclient-ignore-prebuilt-platform-specific-deps.patch
++
    depot_tools/gclient.py sync -D \
        --nohooks \
        --with_branch_heads \
@@ -105,10 +105,10 @@
 +  rm -rf src/third_party/jdk/current
 +  ln -s /usr/lib/jvm/java-17-openjdk src/third_party/jdk/current
 +
-   (
-     cd src/electron || exit
-     patch -Np1 -i ../../std-vector-non-const.patch
-@@ -192,6 +248,24 @@ EOF
+   pushd src/electron
+   patch -Np1 -i ../../std-vector-non-const.patch
+   popd
+@@ -174,6 +231,24 @@ EOF
    patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
    patch -Np1 -i "${srcdir}/default_app-icon.patch"  # Icon from .desktop file
  
@@ -133,7 +133,7 @@
    # Allow building against system libraries in official builds
    echo "Patching Chromium for using system libraries..."
    sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
-@@ -223,11 +297,19 @@ build() {
+@@ -205,11 +280,19 @@ build() {
    export AR=ar
    export NM=nm
  
@@ -153,7 +153,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -257,7 +339,6 @@ build() {
+@@ -239,7 +322,6 @@ build() {
      host_toolchain = "//build/toolchain/linux/unbundle:default"
      clang_base_path = "/usr"
      clang_use_chrome_plugins = false
@@ -161,7 +161,7 @@
      chrome_pgo_phase = 0
      treat_warnings_as_errors = false
      disable_fieldtrial_testing_config = true
-@@ -271,17 +352,18 @@ build() {
+@@ -253,17 +335,18 @@ build() {
      use_system_libffi = true
      icu_use_data_file = false
      is_component_ffmpeg = false
