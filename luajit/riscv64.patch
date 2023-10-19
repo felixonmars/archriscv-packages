@@ -1,24 +1,22 @@
-diff --git PKGBUILD PKGBUILD
-index 70afb4b7..141e9c88 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,7 +8,7 @@
+@@ -7,7 +7,7 @@
+ 
  pkgname=luajit
- # LuaJIT has abandoned versioned releases and now advises using git HEAD
- # https://github.com/LuaJIT/LuaJIT/issues/665#issuecomment-784452583
--_commit=505e2c03de35e2718eef0d2d3660712e06dadf1f
-+_commit=1f0967342d9ddd02d251241d1b3a4ba4a863ed18
- pkgver="2.1.0.beta3.r471.g${_commit::8}"
- pkgrel=1
- pkgdesc='Just-in-time compiler and drop-in replacement for Lua 5.1'
-@@ -16,19 +16,20 @@ arch=('x86_64')
+ # LuaJIT has a "rolling release" where you should follow git HEAD
+-_commit=656ecbcf8f669feb94e0d0ec4b4f59190bcd2e48
++_commit=172b660f2c0e75d64e85cd9b0df2ae14f1bde8eb
+ # The patch version is the timestamp of the above git commit, obtain via `git show -s --format=%ct`
+ _ct=1696795921
+ pkgver="2.1.${_ct}"
+@@ -17,27 +17,31 @@ arch=('x86_64')
  url='https://luajit.org/'
  license=('MIT')
  depends=('gcc-libs')
 -source=("LuaJIT-${_commit}.tar.gz::https://repo.or.cz/luajit-2.0.git/snapshot/${_commit}.tar.gz")
--md5sums=('0847dc535736846a9a1436e18d8c509d')
--sha256sums=('b89d081aac4189a06b736c667f47cc60e0cc4591933b7ed50db38cf58496386e')
--b2sums=('89bed923ff34d2de813dee17f130496ffeaa6bc5caf9252be1df7d35e87fa7398930f1fe35f95650694d344bc99d5b2c0c4abc4568f1dac318822a832d44c3a4')
+-md5sums=('08c98a8980af6621c65e1fbb0282332e')
+-sha256sums=('6f94e1e29c764ce8bc84c972bb424073b3ea5014c0fa99b7ca20902edfcbba20')
+-b2sums=('4d172a4be79e462c230ce7c9a0681f282983dc8db76dabcc1d24de637ae3adb3de4cda73d44dd6ab8ef540cc9c8c6719fedc94112e6f2ea8a3faedca0f1ac9ee')
 +makedepends=('git')
 +source=("git+https://github.com/infiWang/LuaJIT.git#commit=$_commit")
 +md5sums=('SKIP')
@@ -28,9 +26,26 @@ index 70afb4b7..141e9c88 100644
  build() {
 -  cd "luajit-2.0-${_commit::7}"
 +  cd "LuaJIT"
+ 
    # Avoid early stripping
    make amalg PREFIX=/usr BUILDMODE=dynamic TARGET_STRIP=" @:"
  }
+ 
+-check() {
+-  cd "luajit-2.0-${_commit::7}"
+-
+-  # Make sure that _ct was updated
+-  test "${_ct}" == "$(cat .relver)"
+-}
++## FIXME
++## This check won't work in git+source,
++## as $pkgsrc is not a git repo
++#check() {
++#  cd "LuaJIT"
++#
++#  # Make sure that _ct was updated
++#  test "${_ct}" == "$(cat .relver)"
++#}
  
  package() {
 -  cd "luajit-2.0-${_commit::7}"
