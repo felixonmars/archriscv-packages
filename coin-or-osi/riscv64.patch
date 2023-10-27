@@ -1,24 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -10,11 +10,19 @@ license=(EPL)
- groups=(coin-or)
- depends=(coin-or-coinutils)
- makedepends=(gcc-fortran)
--source=($pkgname-$pkgver.tar.gz::https://github.com/coin-or/Osi/archive/refs/tags/releases/$pkgver.tar.gz)
--sha256sums=('8b01a49190cb260d4ce95aa7e3948a56c0917b106f138ec0a8544fadca71cf6a')
-+source=($pkgname-$pkgver.tar.gz::https://github.com/coin-or/Osi/archive/refs/tags/releases/$pkgver.tar.gz
-+        https://raw.githubusercontent.com/coin-or/Osi/79167ab9a4487b5a1f88ec4fdfd4ed529a1c31ff/config.guess
-+        https://raw.githubusercontent.com/coin-or/Osi/79167ab9a4487b5a1f88ec4fdfd4ed529a1c31ff/config.sub)
-+sha256sums=('8b01a49190cb260d4ce95aa7e3948a56c0917b106f138ec0a8544fadca71cf6a'
-+            'af8a1922c9b3c240bf2119d4ec0965a0b5ec36b1016017ba66db44b3b53e9cea'
-+            'd611751fba98e807c9684d253bb02aa73d6825fe0e0b9ae3cbf258a59171c9b0')
-
+@@ -13,6 +13,12 @@ makedepends=(gcc-fortran)
+ source=($pkgname-$pkgver.tar.gz::https://github.com/coin-or/Osi/archive/refs/tags/releases/$pkgver.tar.gz)
+ sha256sums=('8b09802960d7d4fd9579b3e4320bfb36e7f8dca5e5094bf1f5edf1b7003f5562')
+ 
++prepare() {
++  cd Osi-releases-$pkgver
++  cp /usr/share/autoconf/build-aux/config.{guess,sub} ./
++  cp /usr/share/autoconf/build-aux/config.{guess,sub} ./Osi
++}
++
  build() {
    cd Osi-releases-$pkgver
-+  cp -f ${srcdir}/config.guess ./config.guess
-+  cp -f ${srcdir}/config.guess ./Osi/config.guess
-+  cp -f ${srcdir}/config.sub ./config.sub
-+  cp -f ${srcdir}/config.sub ./Osi/config.sub
    ./configure --prefix=/usr --enable-dependency-linking \
-               --with-coinutils-lib="$(pkg-config --libs coinutils)" \
-               --with-coinutils-incdir="/usr/include/coin/"
