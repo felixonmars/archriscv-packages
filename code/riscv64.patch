@@ -29,7 +29,7 @@
    # Change electron binary name to the target electron
    sed -e "s|name=electron|name=$_electron |" \
        -e '/PKGBUILD/d' \
-@@ -102,7 +108,30 @@ prepare() {
+@@ -102,7 +108,34 @@ prepare() {
  
  build() {
    cd $pkgname
@@ -48,7 +48,11 @@
 +  # Native node extensions caused segfault or strange behaviors. 
 +  # Confirmed for @vscode/spdlog and node-pty. Let's build all native extensions in debug mode just in case.
 +  # TODO: needs further investigation
-+  for _module in @vscode/spdlog @parcel/watcher keytar native-is-elevated native-keymap native-watchdog node-pty windows-foreground-love
++  # NOTICE to maintainer:
++  # This list should be manually updated with every package version bump,
++  # otherwise we risk creating broken package that doesn't work!
++  # To list all native node modules, run: shopt -s globstar && ls node_modules/**/*.node
++  for _module in @vscode/{spdlog,sqlite3,policy-watcher,windows-mutex,windows-process-tree,windows-registry} @parcel/watcher native-is-elevated native-keymap native-watchdog node-pty windows-foreground-love kerberos
 +  do
 +    pushd node_modules/$_module
 +    node-gyp rebuild --target=$_electron_ver --arch=$CARCH --dist-url=https://electronjs.org/headers --debug
