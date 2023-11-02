@@ -1,0 +1,29 @@
+From 3148f08bd0207a8bd50ff5c8b82d7a5b0871c3d1 Mon Sep 17 00:00:00 2001
+From: Alex Fan <alex.fan.q@gmail.com>
+Date: Mon, 28 Nov 2022 22:29:44 +1100
+Subject: [PATCH] llvmpipe: make unnamed global have internal linkage
+
+work around bug https://github.com/llvm/llvm-project/issues/54813
+Being unnamed makes it not useable from other module, therefore
+changing to internal linkage is safe
+
+Signed-off-by: Alex Fan <alex.fan.q@gmail.com>
+---
+ src/gallium/drivers/llvmpipe/lp_state_fs.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/gallium/drivers/llvmpipe/lp_state_fs.c b/src/gallium/drivers/llvmpipe/lp_state_fs.c
+index 2a5977134b0..5a396b44137 100644
+--- a/src/gallium/drivers/llvmpipe/lp_state_fs.c
++++ b/src/gallium/drivers/llvmpipe/lp_state_fs.c
+@@ -3306,6 +3306,7 @@ generate_fragment(struct llvmpipe_context *lp,
+       LLVMValueRef glob_sample_pos =
+          LLVMAddGlobal(gallivm->module,
+                        LLVMArrayType(flt_type, key->coverage_samples * 2), "");
++      LLVMSetLinkage(glob_sample_pos, LLVMInternalLinkage);
+       LLVMValueRef sample_pos_array;
+ 
+       if (key->multisample && key->coverage_samples == 4) {
+-- 
+2.41.0
+

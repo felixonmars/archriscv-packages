@@ -1,5 +1,3 @@
-diff --git PKGBUILD PKGBUILD
-index 84fbfdb..1cce446 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -8,9 +8,7 @@ pkgname=(
@@ -12,14 +10,20 @@ index 84fbfdb..1cce446 100644
    'vulkan-virtio'
    'libva-mesa-driver'
    'mesa-vdpau'
-@@ -105,12 +103,14 @@ prepare() {
- }
+@@ -98,6 +96,12 @@ prepare() {
+   # https://gitlab.freedesktop.org/mesa/mesa/-/issues/9889#note_2113953
+   patch -Np1 -i ../0001-radeonsi-prefix-function-with-si_-to-prevent-name-co.patch
  
- build() {
-+  # Disable draw-use-llvm
-+  # https://github.com/felixonmars/archriscv-packages/issues/1258
-   local meson_options=(
-     -D android-libbacktrace=disabled
++  # Add orcjit support
++  # https://github.com/YukariChiba/deepin-mesa/commit/58b0cd9c715f909e8821342dfbab111f7a03dc4c
++  patch -Np1 -i ../0002-add-llvm-orcjit.patch
++  patch -Np1 -i ../0003-add-orcjit-riscv.patch
++  patch -Np1 -i ../0004-llvmpipe-linkage.patch
++
+   # Include package release in version string so Chromium invalidates
+   # its GPU cache; otherwise it can cause pages to render incorrectly.
+   # https://bugs.launchpad.net/ubuntu/+source/chromium-browser/+bug/2020604
+@@ -110,7 +114,7 @@ build() {
      -D b_ndebug=true
      -D dri3=enabled
      -D egl=enabled
@@ -28,7 +32,7 @@ index 84fbfdb..1cce446 100644
      -D gallium-extra-hud=true
      -D gallium-nine=true
      -D gallium-omx=bellagio
-@@ -135,8 +135,9 @@ build() {
+@@ -135,8 +139,8 @@ build() {
      -D shared-glapi=enabled
      -D valgrind=enabled
      -D video-codecs=vc1dec,h264dec,h264enc,h265dec,h265enc
@@ -36,7 +40,20 @@ index 84fbfdb..1cce446 100644
 -    -D vulkan-layers=device-select,intel-nullhw,overlay
 +    -D vulkan-drivers=amd,virtio
 +    -D vulkan-layers=device-select,overlay
-+    -D draw-use-llvm=false
    )
  
    # Build only minimal debug info to reduce size
+@@ -409,3 +413,13 @@ package_mesa() {
+ 
+   install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
+ }
++
++source+=(0002-add-llvm-orcjit.patch
++         0003-add-orcjit-riscv.patch
++         0004-llvmpipe-linkage.patch)
++sha256sums+=('ab9af26c82661a9cc0a334c5874cfd69242bbe45ffdde65e4ffbee71cd3017c8'
++             'c6fc690ed2a4d7391e23db13fdde3b4c92d24cca0c85e7911b1e46377ce7edd3'
++             '24e955c349bbadf61fab1e3155234230928ff825ee4c5bcf6d2786ea032b596b')
++b2sums+=('156c82ddb7c74d58a0f4bd0253f18bdd338cdd172e693397b8c6561b49ab4bd79f197b67521a7c7f3b4617c7a58876eba9072eb439c4211a844849701b72bd68'
++         '0e621ac3d8ecfefe7017aabcbb8f3d927cd3fe66cf2da9ce70523888e539046260d0e9868bb0efcaf6648cc311310fb49c3a0ae854573752e0cb7aeb14920a33'
++         'd828f7a2a48540a8c26b4e37db7acece3fa598d4c27e24c3eb35bbc16ed2fb54dda9e93c1effb5d326f106f6893b6dc8bd77e1e65f3ee83ba805e20a87db4802')
