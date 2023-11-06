@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -30,10 +30,16 @@ pkgver() {
+   git describe --tags --match 'v*' | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
+ }
+ 
++makedepends+=(jq moreutils)
++source+=(ember-cli-lodash-subset-npm-2.0.1-634e163430.patch)
++sha512sums+=(1fdee3247a871361291bbc4890b81e56d4da93a857097faf42c8a896a2bb9c4f83442ae12cee17c1d380313fc6d1f73b5878527e8b03148dd6343c6f6d465b57)
++
+ prepare() {
+   cd vault
+   sed -i 's|/etc/vault.d/vault.hcl|/etc/vault.hcl|g' .release/linux/package/usr/lib/systemd/system/vault.service
+   sed -i 's|/etc/vault.d/vault.env|/etc/default/vault|g' .release/linux/package/usr/lib/systemd/system/vault.service
++  cd ui
++  jq ".resolutions.\"ember-cli-lodash-subset\" = \"patch:ember-cli-lodash-subset@npm%3A2.0.1#${srcdir}/ember-cli-lodash-subset-npm-2.0.1-634e163430.patch\"" package.json | sponge package.json
+ }
+ 
+ build() {
