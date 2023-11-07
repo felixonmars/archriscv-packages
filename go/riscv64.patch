@@ -1,15 +1,24 @@
 diff --git PKGBUILD PKGBUILD
-index cece4cc..d368d3c 100644
+index 766b9c6..73fd1d0 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,9 +29,14 @@
- sha256sums=('bfa36bf75e9a1e9cbbdb9abcf9d1707e479bd3a07880a8ae3564caee5711cb99'
+@@ -24,14 +24,22 @@ makedepends=(git go)
+ replaces=(go-pie)
+ provides=(go-pie)
+ options=(!strip staticlibs)
+-source=(https://go.dev/dl/go${pkgver}.src.tar.gz{,.asc})
++source=(https://go.dev/dl/go${pkgver}.src.tar.gz{,.asc}
++        go-riscv64-cachelinepad.patch)
+ validpgpkeys=('EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796')
+ sha256sums=('186f2b6f8c8b704e696821b09ab2041a5c1ee13dcbc3156a13adcf75931ee488'
++            'SKIP'
              'SKIP')
  
 +prepare() {
 +  cd $pkgname/src
 +  # Workaround for AUIPC+JALR optimized as deadcode
 +  sed -i 's/ && r\.Type()\.IsDirectCall()//' cmd/link/internal/ld/deadcode.go
++  patch -Np2 -i "$srcdir/go-riscv64-cachelinepad.patch"
 +}
 +
  build() {
@@ -19,7 +28,7 @@ index cece4cc..d368d3c 100644
    export GOROOT_FINAL=/usr/lib/go
    export GOROOT_BOOTSTRAP=/usr/lib/go
  
-@@ -50,7 +55,7 @@
+@@ -50,7 +58,7 @@ package() {
    cd "$pkgname"
  
    install -d "$pkgdir/usr/bin" "$pkgdir/usr/lib/go" "$pkgdir/usr/share/doc/go" \
