@@ -4,12 +4,12 @@
  optdepends=('bash-completion: Bash completions'
              'zsh-completions: ZSH completitons'
              'x11-ssh-askpass: SSH authentication')
--makedepends=('git' 'gulp' 'npm' 'python' 'yarn' 'nodejs-lts-hydrogen' 'desktop-file-utils')
-+makedepends=('git' 'gulp' 'npm' 'python' 'yarn' 'nodejs-lts-hydrogen' 'desktop-file-utils' 'zip')
+-makedepends=('gulp' 'npm' 'python' 'yarn' 'nodejs-lts-hydrogen' 'desktop-file-utils')
++makedepends=('gulp' 'npm' 'python' 'yarn' 'nodejs-lts-hydrogen' 'desktop-file-utils' 'zip')
  provides=('vscode')
- source=("$pkgname::git+$url.git#tag=$pkgver"
+ source=("https://github.com/microsoft/vscode/archive/refs/tags/$pkgver/$pkgname-$pkgver.tar.gz"
          'code.js'
-@@ -42,6 +42,9 @@ case "$CARCH" in
+@@ -44,6 +44,9 @@ case "$CARCH" in
    armv7h)
      _vscode_arch=arm
      ;;
@@ -19,9 +19,9 @@
    *)
      # Needed for mksrcinfo
      _vscode_arch=DUMMY
-@@ -51,6 +54,9 @@ esac
- prepare() {
-   cd $pkgname
+@@ -59,6 +62,9 @@ prepare() {
+     exit 1
+   fi
  
 +  # Add missing riscv definition
 +  sed -i "/BUILD_TARGETS = \[/a { platform: 'linux', arch: 'riscv64' }," build/gulpfile.vscode.js
@@ -29,10 +29,10 @@
    # Change electron binary name to the target electron
    sed -e "s|name=electron|name=$_electron |" \
        -e '/PKGBUILD/d' \
-@@ -102,7 +108,34 @@ prepare() {
+@@ -109,7 +115,34 @@ prepare() {
  
  build() {
-   cd $pkgname
+   cd vscode-$pkgver
 -  yarn install --arch=$_vscode_arch
 +  ELECTRON_SKIP_BINARY_DOWNLOAD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn install --arch=$_vscode_arch
 +
