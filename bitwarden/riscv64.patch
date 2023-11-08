@@ -26,7 +26,7 @@
 +            'fdc047aadc1cb947209d7ae999d8a7f5f10ae46bf71687080bc13bc3082cc5166bbbe88c8f506b78adb5d772f5366ec671b04a2f761e7d7f249ebe5726681e30'
 +            '4087cd10bbaad8c44917eba6a74ea26ad9d38a3c5f6ad920cb6804e4526e5e66f75c71eab60ba48997daf2f1e199b2a170c070d900cba599e4947eb48474da0c'
 +            'a7d87843bc31b94ebe47af10c7dbf0d7ed2b6507cc39f4140363d37d549eea940f4d9d5bb71b1a836751a37d20931faa80631aec511d5c1329803339c35a1b4c'
-+            '2d76b117eba66fad8053270e18b75790aab09ba73ef03d48bce493ae2ac2d14bf229a6da888bbcd541408175635b3a3c1528bb4622d5aaf32a6d4b285cec89f0'
++            '0caa1f3c0439275807f90f8a484651fa6008d0985dc3a515a60323016d9b65cbf3897bfc87e45c18c7f26468bc3eab4c67b2e010077ad202a2959b5529bd0f8c'
 +            '6dc694e0c37c126419838622560380a5e5195c49e687ee5398305bd3c0b237c0d335ff97cfa10c3a65b3683d81ad8c56e350f67b01f679d17b7347dbdb2f46bf'
 +            'SKIP')
  
@@ -36,7 +36,16 @@
  	cd bitwarden/apps/desktop
  
  	export npm_config_build_from_source=true
-@@ -43,6 +56,12 @@ prepare() {
+@@ -33,7 +46,7 @@ prepare() {
+ 	patch --strip=1 src/main/messaging.main.ts "$srcdir/messaging.main.ts.patch"
+ 
+ 	# Patch build to make it work with system electron
+-	export SYSTEM_ELECTRON_VERSION=$(electron$_electronversion -v | sed 's/v//g')
++	export SYSTEM_ELECTRON_VERSION=$(< "/usr/lib/electron$_electronversion/version")
+ 	export ELECTRONVERSION=$_electronversion
+ 	sed -i "s|@electronversion@|${ELECTRONVERSION}|" "$srcdir/bitwarden.sh"
+ 	# jq < package.json \
+@@ -43,29 +56,36 @@ prepare() {
  	cd ../../
  	patch --strip=1 apps/desktop/desktop_native/index.js "$srcdir/nativelib.patch"
  	npm ci
@@ -49,7 +58,11 @@
  }
  
  build() {
-@@ -53,19 +72,20 @@ build() {
+ 	cd bitwarden/apps/desktop
+ 	electronDist=/usr/lib/electron$_electronversion
+-	electronVer=$(electron$_electronversion --version | tail -c +2)
++	electronVer=$(< "$electronDist/version")
+ 	export npm_config_build_from_source=true
  	export npm_config_cache="$srcdir/npm_cache"
  	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
  	pushd desktop_native/
