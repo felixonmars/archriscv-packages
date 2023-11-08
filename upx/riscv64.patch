@@ -1,11 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,6 +35,8 @@ prepare() {
-   for x in doctest lzma-sdk ucl valgrind zlib; do
-     rm -frv vendor/$x && ln -s "$srcdir/upx-vendor-$x" vendor/$x
-   done
-+
-+  git cherry-pick -n 38a676f6f78e82ca0c2f08ef16446bc3e66cd453
+@@ -37,10 +37,12 @@ prepare() {
  }
  
  build() {
++  # disable self-pack test for RISC-V
++  # https://github.com/upx/upx/blob/d7142312c9d65e4daa0c7fe504af196cd96e88d7/CMakeLists.txt#L48-L49
+   make -C $pkgname \
+     CHECK_WHITESPACE=/bin/true \
+     CXXFLAGS_WERROR="" \
+-    UPX_CMAKE_CONFIG_FLAGS='-D UPX_CONFIG_DISABLE_GITREV=1 -D UPX_CONFIG_DISABLE_SANITIZE=1 -D UPX_CONFIG_DISABLE_WERROR=1' \
++    UPX_CMAKE_CONFIG_FLAGS='-D UPX_CONFIG_DISABLE_GITREV=1 -D UPX_CONFIG_DISABLE_SANITIZE=1 -D UPX_CONFIG_DISABLE_WERROR=1 -D UPX_CONFIG_DISABLE_SELF_PACK_TEST=1' \
+     UPX_LZMA_VERSION=0x465 \
+     UPX_LZMADIR="$srcdir"
+ }
