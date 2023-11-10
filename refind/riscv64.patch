@@ -5,14 +5,14 @@
  url="https://www.rodsbooks.com/refind/"
  makedepends=(bash dosfstools efibootmgr gnu-efi)
 -source=(https://sourceforge.net/projects/refind/files/$pkgver/$pkgname-src-$pkgver.tar.gz)
--sha512sums=('7966df5dd8dc66cc49a329ed722a567672da8e2fa3f2334d53db65357cea17cba5a4dc5459e358de1079a938da3c63dc626d096ce28b6bf1fa2964be7359dbd1')
--b2sums=('ab8dd27f82954ea6f9831f827550f27b5ca426b7783e918311ba7e178fc3509698a0107f61d0394a7893318528cb3e0c8491f4522de0a4aca6a40e0749f5a6f9')
+-sha512sums=('41c120c1afec37c508aa5c0ec09a6563c3047ef84932308c91701795b950431dfad17d25cf664039b490a302d475add98441b75f90ff71cadce41febedc68a9e')
+-b2sums=('02019ddb872ce44d2a2119902edebd633f925d49634e3bcc6bfb2c9dedb8ce213166909395a333d3a37e95c67720e31b1f5fcf25083801c17d645372aa54a06a')
 -_arch='x64'
 +source=(https://sourceforge.net/projects/refind/files/$pkgver/$pkgname-src-$pkgver.tar.gz
 +        add_riscv_support.patch)
-+sha512sums=('7966df5dd8dc66cc49a329ed722a567672da8e2fa3f2334d53db65357cea17cba5a4dc5459e358de1079a938da3c63dc626d096ce28b6bf1fa2964be7359dbd1'
++sha512sums=('41c120c1afec37c508aa5c0ec09a6563c3047ef84932308c91701795b950431dfad17d25cf664039b490a302d475add98441b75f90ff71cadce41febedc68a9e'
 +            '7ca4bcd8f88315a5caa2a665e33ca837c561ec614ebe2bfe6a772f078d01dc16ae363360175a7e24f62172617ec9d66580236e24d74cea925fd146a3536db37a')
-+b2sums=('ab8dd27f82954ea6f9831f827550f27b5ca426b7783e918311ba7e178fc3509698a0107f61d0394a7893318528cb3e0c8491f4522de0a4aca6a40e0749f5a6f9'
++b2sums=('02019ddb872ce44d2a2119902edebd633f925d49634e3bcc6bfb2c9dedb8ce213166909395a333d3a37e95c67720e31b1f5fcf25083801c17d645372aa54a06a'
 +        '9f3d0591e39047471476f636d01fb4443a4fc572488398e161b05340c11553dcae4f7a720d72a330478c10012906a8e01f44c038b43802ad480c7fbacea29f28')
 +_arch='riscv64'
  
@@ -22,3 +22,12 @@
    # remove the path prefix from the css reference, so that the css can live
    # in the same directory
    sed -e 's|../Styles/||g' -i docs/$pkgbase/*.html
+@@ -28,7 +32,7 @@ build() {
+   cd $pkgname-$pkgver
+   make
+   make gptsync
+-  make fs
++  make fs OMIT_SBAT=1
+ }
+ 
+ package_refind() {
