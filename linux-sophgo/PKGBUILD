@@ -18,16 +18,20 @@ source=(
   git+https://github.com/sophgo/linux-riscv.git#commit=$_commit
   config         # the main kernel config file
   riscv64.config-patch
+  riscv64-multi.config-patch
 )
 sha256sums=('SKIP'
-            '20e2f62eb004af3f47609b4ab3380d8e870d51eba0df5f318a565910eada3503'
-            'f7c634cb4ae105f20e86eb6a087b84efd9ca5e5b9a4a8cda7d311aed19404d3c')
+            '2fa6d3552c0c00b720ea6e7168e565a95a28bb2707dec7068a27c1ca522b995c'
+            'c9f6809336e557f8d5302aa179d6fee09e848eca7a4c3e7574ba518f956e4893'
+            '479062d0178a6aed45288c6c4907dcaf448c0bb12785d3a42a17641e301c370d')
 
 export KBUILD_BUILD_HOST=archlinux
 export KBUILD_BUILD_USER=$pkgbase
 export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
 
 prepare() {
+  cp -r $_srcname $_srcname-multi
+
   cd $_srcname
 
   echo "Setting version..."
@@ -57,11 +61,44 @@ prepare() {
 
   make -s kernelrelease > version
   echo "Prepared $pkgbase version $(<version)"
+
+  cd ../$_srcname-multi
+
+  echo "Setting version..."
+  scripts/setlocalversion --save-scmversion
+  echo "-$pkgrel" > localversion.10-pkgrel
+  echo "${pkgbase#linux}-multi" > localversion.20-pkgname
+
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    [[ $src = *.patch ]] || continue
+    echo "Applying patch $src..."
+    patch -Np1 < "../$src"
+  done
+
+  echo "Setting config..."
+  cp ../config .config
+  make olddefconfig
+  diff -u ../config .config || :
+
+  patch -Np0 < ../riscv64-multi.config-patch
+  mv .config .config.1
+  make mrproper
+  mv .config.1 .config
+  make olddefconfig
+
+  make -s kernelrelease > version
+  echo "Prepared $pkgbase version $(<version)"
 }
 
 build() {
   cd $_srcname
   make htmldocs all
+
+  cd ../$_srcname-multi
+  make all
 }
 
 _package() {
@@ -72,6 +109,36 @@ _package() {
   provides=(VIRTUALBOX-GUEST-MODULES WIREGUARD-MODULE KSMBD-MODULE)
 
   cd $_srcname
+  local kernver="$(<version)"
+  local modulesdir="$pkgdir/usr/lib/modules/$kernver"
+
+  echo "Installing boot image..."
+  # systemd expects to find the kernel here to allow hibernation
+  # https://github.com/systemd/systemd/commit/edda44605f06a41fb86b7ab8128dcf99161d2344
+  install -Dm644 "$(make -s image_name)" "$modulesdir/vmlinuz"
+
+  # Used by mkinitcpio to name the kernel
+  echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
+
+  echo "Installing modules..."
+  ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+    DEPMOD=/doesnt/exist modules_install  # Suppress depmod
+  
+  echo "Installing dtbs..."
+  make INSTALL_DTBS_PATH="$pkgdir/usr/share/dtbs/$kernver" dtbs_install
+
+  # remove build and source links
+  rm "$modulesdir"/{source,build}
+}
+
+_package-multi() {
+  pkgdesc="The $pkgdesc-multi kernel and modules"
+  depends=(coreutils kmod initramfs)
+  optdepends=('wireless-regdb: to set the correct wireless channels of your country'
+              'linux-firmware: firmware images needed for some devices')
+  provides=(VIRTUALBOX-GUEST-MODULES WIREGUARD-MODULE KSMBD-MODULE)
+
+  cd $_srcname-multi
   local kernver="$(<version)"
   local modulesdir="$pkgdir/usr/lib/modules/$kernver"
 
@@ -192,7 +259,7 @@ _package-docs() {
   ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
 }
 
-pkgname=("$pkgbase" "$pkgbase-headers" "$pkgbase-docs")
+pkgname=("$pkgbase" "$pkgbase-multi" "$pkgbase-headers" "$pkgbase-docs")
 for _p in "${pkgname[@]}"; do
   eval "package_$_p() {
     $(declare -f "_package${_p#$pkgbase}")
