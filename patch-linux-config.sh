@@ -19,6 +19,8 @@ configs=$(grep -v '^#' "$1" | sed -E 's/^CONFIG_//;s/\s+$//g' |
           print "-d "$1
         } else if ($2=="m") {
           print "-m "$1
+        } else {
+          print "--set-val "$1" "$2
         }
       }
       ')
