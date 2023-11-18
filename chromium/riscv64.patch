@@ -1,34 +1,8 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -63,7 +63,7 @@ declare -gA _system_libs=(
-   [libxml]=libxml2
-   [libxslt]=libxslt
-   [opus]=opus
--  [re2]=re2
-+  #[re2]=re2
-   [snappy]=snappy
-   [woff2]=woff2
-   [zlib]=minizip
-@@ -72,6 +72,16 @@ _unwanted_bundled_libs=(
-   $(printf "%s\n" ${!_system_libs[@]} | sed 's/^libjpeg$/&_turbo/')
- )
- depends+=(${_system_libs[@]})
-+source+=(swiftshader-use-llvm16.patch
-+         riscv-{angle,dav1d,libgav1,sandbox,base,v8}.patch)
-+sha256sums+=(
-+            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+            'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
-+            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+            '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
-+            '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
-+            'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
-+            '21505b7c6dc28b388da49a615cf70943293f081e573d66c1b77e5123625fdbd9')
- 
- # Google API keys (see https://www.chromium.org/developers/how-tos/api-keys)
- # Note: These are for Arch Linux use ONLY. For your own distribution, please
-@@ -118,6 +128,14 @@ prepare() {
-   patch -Np1 -i ../chromium-patches-*/chromium-118-LightweightDetector-include.patch
-   patch -Np1 -i ../chromium-patches-*/chromium-118-system-freetype.patch
+@@ -115,6 +115,13 @@ prepare() {
+   patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
+   patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
  
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +
@@ -36,12 +10,11 @@
 +  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox,base}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
-+  patch -Np1 -d v8 < ../riscv-v8.patch
 +
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -173,6 +191,10 @@ build() {
+@@ -170,6 +177,10 @@ build() {
      'enable_nacl=false'
      'enable_rust=false'
      "google_api_key=\"$_google_api_key\""
@@ -52,3 +25,17 @@
    )
  
    if [[ -n ${_system_libs[icu]+set} ]]; then
+@@ -277,4 +288,13 @@ package() {
+   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
+ }
+ 
++source+=(swiftshader-use-llvm16.patch
++         riscv-{angle,dav1d,libgav1,sandbox,base}.patch)
++sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
++             'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
++             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
++             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
++             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
++             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794')
++
+ # vim:set ts=2 sw=2 et:
