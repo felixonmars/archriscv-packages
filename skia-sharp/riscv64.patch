@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,6 +43,8 @@ pkgver() {
+   git describe --tags | sed 's/^v//; s/-preview.*//'
+ }
+ 
++makedepends+=(ninja gn)
++
+ prepare() {
+   cd SkiaSharp
+   for submodule in externals/{depot_tools,skia}; do
+@@ -75,9 +77,9 @@ build(){
+     extra_ldflags+="\"${ldflag}\","
+   done
+ 
+-  bin/gn gen out \
++  /usr/bin/gn gen out \
+     --args="target_os=\"linux\" \
+-            target_cpu=\"x64\" \
++            target_cpu=\"riscv64\" \
+             cc=\"clang\" \
+             cxx=\"clang++\" \
+             extra_cflags=[${extra_cflags}] \
+@@ -94,7 +96,7 @@ build(){
+             is_debug=false \
+             is_official_build=true \
+             linux_soname_version=\"${_major}.${_minor}.${_release}\""
+-  ninja -C out
++  /usr/bin/ninja -C out
+ }
+ 
+ package() {
