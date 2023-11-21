@@ -1,29 +1,16 @@
-diff --git PKGBUILD PKGBUILD
-index 0864895..57349a7 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,14 +9,22 @@ arch=('x86_64')
- url='https://github.com/mitmproxy/mitmproxy_rs'
- license=('MIT')
- depends=('python')
--makedepends=('maturin' 'python-installer' 'cargo')
-+makedepends=('maturin' 'python-installer' 'cargo' 'protobuf')
- options=(!lto)
- source=("https://github.com/mitmproxy/mitmproxy_rs/archive/$pkgver/$pkgname-$pkgver.tar.gz")
- sha512sums=('1ca6271fa875ed149f12f6ca5f34a308496b31a2a462db743d1d65b9895f9535f031e56d002cabf90e60c54e329a04596c6d8b5028d3bb564452676bbe75657e')
+@@ -15,6 +15,13 @@ source=("https://github.com/mitmproxy/mitmproxy_rs/archive/$pkgver/$pkgname-$pkg
+ sha256sums=('1eb33d77c1da48911f1bb365beb34ef2eb235683a737ebaeddcf055854d5d673')
+ b2sums=('4f1aa5c52bfc5f3104b7d7dcbebbccf030d0c489d4bc9b38170a494cfdec8ee8c704e2fc7df422cc50736db3cc0c9e26aee2dfdb4ca1247990bdbc0e938f0ed4')
  
 +prepare() {
 +  cd ${_pyname}-${pkgver}
-+  cargo fetch --locked
 +  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
 +  cargo update -p ring
++  cargo fetch --locked
 +}
 +
  build() {
    cd ${_pyname}-${pkgver}/mitmproxy-rs
--  maturin build --release --strip
-+  # set PROTOC: path to protoc executable file.
-+  PROTOC=/usr/bin/protoc maturin build --release --strip
- }
- 
- check() {
+   maturin build --release --strip
