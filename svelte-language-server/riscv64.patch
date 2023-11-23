@@ -1,21 +1,11 @@
-diff --git PKGBUILD PKGBUILD
-index a5c755e..ace7a38 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,11 +12,14 @@ depends=('nodejs')
- makedepends=('git' 'npm' 'pnpm')
- conflicts=("nodejs-$pkgname")
- replaces=("nodejs-$pkgname")
--source=("$_name::git+https://github.com/sveltejs/language-tools.git#tag=language-server-$pkgver")
--b2sums=('SKIP')
-+source=("$_name::git+https://github.com/sveltejs/language-tools.git#tag=language-server-$pkgver"
-+        "increase-test-timeout.patch")
-+b2sums=('SKIP'
-+        'cb734b0a19db5818f90a683b7f36d920ccd37d36c42715f97f69c7d6ed81116abcfa4baee764b45bad0bebbdcf0149d0e5c1912facc05aa6685acc9b44266a15')
+@@ -29,7 +29,7 @@ build() {
  
- prepare() {
-   cd $_name
-+  patch -Np1 -i ../increase-test-timeout.patch
-   pnpm install --frozen-lockfile
+ check() {
+   cd $_name/packages/language-server
+-  pnpm test
++  pnpm test -- --timeout 1000000
  }
  
+ package() {
