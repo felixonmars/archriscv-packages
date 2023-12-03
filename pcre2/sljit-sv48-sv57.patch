@@ -1,0 +1,313 @@
+diff --git a/src/sljit/sljitNativeRISCV_32.c b/src/sljit/sljitNativeRISCV_32.c
+index b38e692..2b744e7 100644
+--- a/src/sljit/sljitNativeRISCV_32.c
++++ b/src/sljit/sljitNativeRISCV_32.c
+@@ -24,11 +24,8 @@
+  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
+-static sljit_s32 load_immediate(struct sljit_compiler *compiler, sljit_s32 dst_r, sljit_sw imm, sljit_s32 tmp_r)
++static sljit_s32 load_immediate(struct sljit_compiler *compiler, sljit_s32 dst_r, sljit_sw imm)
+ {
+-	SLJIT_UNUSED_ARG(tmp_r);
+-	SLJIT_ASSERT(dst_r != tmp_r);
+-
+ 	if (imm <= SIMM_MAX && imm >= SIMM_MIN)
+ 		return push_inst(compiler, ADDI | RD(dst_r) | RS1(TMP_ZERO) | IMM_I(imm));
+ 
+diff --git a/src/sljit/sljitNativeRISCV_64.c b/src/sljit/sljitNativeRISCV_64.c
+index 32cec78..946fcac 100644
+--- a/src/sljit/sljitNativeRISCV_64.c
++++ b/src/sljit/sljitNativeRISCV_64.c
+@@ -24,106 +24,61 @@
+  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
+-static sljit_s32 load_immediate(struct sljit_compiler *compiler, sljit_s32 dst_r, sljit_sw imm, sljit_s32 tmp_r)
++static int trailing_zeros_64(sljit_uw x)
+ {
+-	sljit_sw high;
+-
+-	SLJIT_ASSERT(dst_r != tmp_r);
+-
+-	if (imm <= SIMM_MAX && imm >= SIMM_MIN)
+-		return push_inst(compiler, ADDI | RD(dst_r) | RS1(TMP_ZERO) | IMM_I(imm));
+-
+-	if (imm <= 0x7fffffffl && imm >= S32_MIN) {
+-		if (imm > S32_MAX) {
+-			SLJIT_ASSERT((imm & 0x800) != 0);
+-			FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)0x80000000u));
+-			return push_inst(compiler, XORI | RD(dst_r) | RS1(dst_r) | IMM_I(imm));
+-		}
+-
+-		if ((imm & 0x800) != 0)
+-			imm += 0x1000;
+-
+-		FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)(imm & ~0xfff)));
+-
+-		if ((imm & 0xfff) == 0)
+-			return SLJIT_SUCCESS;
+-
+-		return push_inst(compiler, ADDI | RD(dst_r) | RS1(dst_r) | IMM_I(imm));
++	/* See http://supertech.csail.mit.edu/papers/debruijn.pdf */
++	static const sljit_u8 debruijn64tab[64] = {
++		0,  1,  56, 2,  57, 49, 28, 3,  61, 58, 42, 50, 38, 29, 17, 4,
++		62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
++		63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
++		54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9,  13, 8,  7,  6,
++	};
++
++	static const sljit_uw debruijn64 = 0x03f79d71b4ca8b09ULL;
++	if (x == 0) {
++		return 64;
+ 	}
+ 
+-	/* Trailing zeroes could be used to produce shifted immediates. */
+-
+-	if (imm <= 0x7ffffffffffl && imm >= -0x80000000000l) {
+-		high = imm >> 12;
+-
+-		if (imm & 0x800)
+-			high = ~high;
+-
+-		if (high > S32_MAX) {
+-			SLJIT_ASSERT((high & 0x800) != 0);
+-			FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)0x80000000u));
+-			FAIL_IF(push_inst(compiler, XORI | RD(dst_r) | RS1(dst_r) | IMM_I(high)));
+-		} else {
+-			if ((high & 0x800) != 0)
+-				high += 0x1000;
+-
+-			FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)(high & ~0xfff)));
+-
+-			if ((high & 0xfff) != 0)
+-				FAIL_IF(push_inst(compiler, ADDI | RD(dst_r) | RS1(dst_r) | IMM_I(high)));
+-		}
+-
+-		FAIL_IF(push_inst(compiler, SLLI | RD(dst_r) | RS1(dst_r) | IMM_I(12)));
++	return (int)debruijn64tab[(x & -x) * debruijn64 >> (64 - 6)];
++}
+ 
+-		if ((imm & 0xfff) != 0)
+-			return push_inst(compiler, XORI | RD(dst_r) | RS1(dst_r) | IMM_I(imm));
++static sljit_s32 load_immediate_32(struct sljit_compiler *compiler, sljit_s32 dst_r, sljit_s32 imm)
++{
++	/* Add 0x800 to cancel out the signed extension of ADDIW. */
++	sljit_s32 hi20 = (imm + 0x800) >> 12 & 0xfffff;
++	sljit_s32 lo12 = imm & 0xfff;
++	sljit_s32 src_r = 0;
+ 
+-		return SLJIT_SUCCESS;
++	if (hi20 != 0) {
++		FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)(hi20 << 12)));
+ 	}
+-
+-	high = imm >> 32;
+-	imm = (sljit_s32)imm;
+-
+-	if ((imm & 0x80000000l) != 0)
+-		high = ~high;
+-
+-	if (high <= 0x7ffff && high >= -0x80000) {
+-		FAIL_IF(push_inst(compiler, LUI | RD(tmp_r) | (sljit_ins)(high << 12)));
+-		high = 0x1000;
+-	} else {
+-		if ((high & 0x800) != 0)
+-			high += 0x1000;
+-
+-		FAIL_IF(push_inst(compiler, LUI | RD(tmp_r) | (sljit_ins)(high & ~0xfff)));
+-		high &= 0xfff;
++	if (lo12 != 0 || hi20 == 0) {
++		src_r = hi20 != 0 ? dst_r : 0;
++		FAIL_IF(push_inst(compiler, ADDIW | RD(dst_r) | RS1(src_r) | IMM_I(lo12)));
+ 	}
++	return SLJIT_SUCCESS;
++}
+ 
+-	if (imm <= SIMM_MAX && imm >= SIMM_MIN) {
+-		FAIL_IF(push_inst(compiler, ADDI | RD(dst_r) | RS1(TMP_ZERO) | IMM_I(imm)));
+-		imm = 0;
+-	} else if (imm > S32_MAX) {
+-		SLJIT_ASSERT((imm & 0x800) != 0);
+-
+-		FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)0x80000000u));
+-		imm = 0x1000 | (imm & 0xfff);
+-	} else {
+-		if ((imm & 0x800) != 0)
+-			imm += 0x1000;
++static sljit_s32 load_immediate(struct sljit_compiler *compiler, sljit_s32 dst_r, sljit_sw imm)
++{
++	sljit_sw lo12, hi52;
++	sljit_s32 shift;
+ 
+-		FAIL_IF(push_inst(compiler, LUI | RD(dst_r) | (sljit_ins)(imm & ~0xfff)));
+-		imm &= 0xfff;
++	if (((imm << 32) >> 32) == imm) {
++		return load_immediate_32(compiler, dst_r, (sljit_s32)imm);
+ 	}
+ 
+-	if ((high & 0xfff) != 0)
+-		FAIL_IF(push_inst(compiler, ADDI | RD(tmp_r) | RS1(tmp_r) | IMM_I(high)));
+-
+-	if (imm & 0x1000)
+-		FAIL_IF(push_inst(compiler, XORI | RD(dst_r) | RS1(dst_r) | IMM_I(imm)));
+-	else if (imm != 0)
+-		FAIL_IF(push_inst(compiler, ADDI | RD(dst_r) | RS1(dst_r) | IMM_I(imm)));
+-
+-	FAIL_IF(push_inst(compiler, SLLI | RD(tmp_r) | RS1(tmp_r) | IMM_I((high & 0x1000) ? 20 : 32)));
+-	return push_inst(compiler, XOR | RD(dst_r) | RS1(dst_r) | RS2(tmp_r));
++	lo12 = (imm << 52) >> 52;
++	/* Add 0x800 to cancel out the signed extension of ADDI. */
++	hi52 = (imm + 0x800) >> 12;
++	shift = 12 + trailing_zeros_64((sljit_uw)hi52);
++	hi52 = ((hi52 >> (shift - 12)) << shift) >> shift;
++	load_immediate(compiler, dst_r, hi52);
++	FAIL_IF(push_inst(compiler, SLLI | RD(dst_r) | RS1(dst_r) | IMM_I(shift)));
++	if (lo12) {
++		FAIL_IF(push_inst(compiler, ADDI | RD(dst_r) | RS1(dst_r) | IMM_I(lo12)));
++	}
++	return SLJIT_SUCCESS;
+ }
+ 
+ static SLJIT_INLINE sljit_s32 emit_const(struct sljit_compiler *compiler, sljit_s32 dst, sljit_sw init_value, sljit_ins last_ins)
+diff --git a/src/sljit/sljitNativeRISCV_common.c b/src/sljit/sljitNativeRISCV_common.c
+index 58a48c6..5bf5b3e 100644
+--- a/src/sljit/sljitNativeRISCV_common.c
++++ b/src/sljit/sljitNativeRISCV_common.c
+@@ -79,6 +79,7 @@ static const sljit_u8 freg_map[SLJIT_NUMBER_OF_FLOAT_REGISTERS + 3] = {
+ 
+ #define ADD		(F7(0x0) | F3(0x0) | OPC(0x33))
+ #define ADDI		(F3(0x0) | OPC(0x13))
++#define ADDIW		(F3(0x0) | OPC(0x1b))
+ #define AND		(F7(0x0) | F3(0x7) | OPC(0x33))
+ #define ANDI		(F3(0x7) | OPC(0x13))
+ #define AUIPC		(OPC(0x17))
+@@ -628,7 +629,7 @@ SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_enter(struct sljit_compiler *compi
+ 		local_size -= STACK_MAX_DISTANCE;
+ 
+ 		if (local_size > STACK_MAX_DISTANCE)
+-			FAIL_IF(load_immediate(compiler, TMP_REG1, local_size, TMP_REG3));
++			FAIL_IF(load_immediate(compiler, TMP_REG1, local_size));
+ 		offset = STACK_MAX_DISTANCE - SSIZE_OF(sw);
+ 	}
+ 
+@@ -725,7 +726,7 @@ static sljit_s32 emit_stack_frame_release(struct sljit_compiler *compiler, sljit
+ 		local_size -= STACK_MAX_DISTANCE;
+ 
+ 		if (local_size > STACK_MAX_DISTANCE) {
+-			FAIL_IF(load_immediate(compiler, TMP_REG2, local_size, TMP_REG3));
++			FAIL_IF(load_immediate(compiler, TMP_REG2, local_size));
+ 			FAIL_IF(push_inst(compiler, ADD | RD(SLJIT_SP) | RS1(SLJIT_SP) | RS2(TMP_REG2)));
+ 		} else
+ 			FAIL_IF(push_inst(compiler, ADDI | RD(SLJIT_SP) | RS1(SLJIT_SP) | IMM_I(local_size)));
+@@ -966,11 +967,11 @@ static sljit_s32 getput_arg(struct sljit_compiler *compiler, sljit_s32 flags, sl
+ 		argw_hi = TO_ARGW_HI(argw);
+ 
+ 		if (next_arg && next_argw - argw <= SIMM_MAX && next_argw - argw >= SIMM_MIN && argw_hi != TO_ARGW_HI(next_argw)) {
+-			FAIL_IF(load_immediate(compiler, TMP_REG3, argw, tmp_r));
++			FAIL_IF(load_immediate(compiler, TMP_REG3, argw));
+ 			compiler->cache_argw = argw;
+ 			offset = 0;
+ 		} else {
+-			FAIL_IF(load_immediate(compiler, TMP_REG3, argw_hi, tmp_r));
++			FAIL_IF(load_immediate(compiler, TMP_REG3, argw_hi));
+ 			compiler->cache_argw = argw_hi;
+ 			offset = argw & 0xfff;
+ 			argw = argw_hi;
+@@ -1013,7 +1014,7 @@ static sljit_s32 emit_op_mem(struct sljit_compiler *compiler, sljit_s32 flags, s
+ 
+ 		argw = 0;
+ 	} else {
+-		FAIL_IF(load_immediate(compiler, tmp_r, TO_ARGW_HI(argw), TMP_REG3));
++		FAIL_IF(load_immediate(compiler, tmp_r, TO_ARGW_HI(argw)));
+ 
+ 		if (base != 0)
+ 			FAIL_IF(push_inst(compiler, ADD | RD(tmp_r) | RS1(tmp_r) | RS2(base)));
+@@ -1534,9 +1535,10 @@ static sljit_s32 emit_op(struct sljit_compiler *compiler, sljit_s32 op, sljit_s3
+ 		compiler->cache_argw = 0;
+ 	}
+ 
+-	if (dst == TMP_REG2) {
++	if (dst == 0) {
+ 		SLJIT_ASSERT(HAS_FLAGS(op));
+ 		flags |= UNUSED_DEST;
++		dst = TMP_REG2;
+ 	}
+ 	else if (FAST_IS_REG(dst)) {
+ 		dst_r = dst;
+@@ -1571,7 +1573,7 @@ static sljit_s32 emit_op(struct sljit_compiler *compiler, sljit_s32 op, sljit_s3
+ 	}
+ 	else if (src1 & SLJIT_IMM) {
+ 		if (src1w) {
+-			FAIL_IF(load_immediate(compiler, TMP_REG1, src1w, TMP_REG3));
++			FAIL_IF(load_immediate(compiler, TMP_REG1, src1w));
+ 			src1_r = TMP_REG1;
+ 		}
+ 		else
+@@ -1595,7 +1597,7 @@ static sljit_s32 emit_op(struct sljit_compiler *compiler, sljit_s32 op, sljit_s3
+ 	else if (src2 & SLJIT_IMM) {
+ 		if (!(flags & SRC2_IMM)) {
+ 			if (src2w) {
+-				FAIL_IF(load_immediate(compiler, sugg_src2_r, src2w, TMP_REG3));
++				FAIL_IF(load_immediate(compiler, sugg_src2_r, src2w));
+ 				src2_r = sugg_src2_r;
+ 			}
+ 			else {
+@@ -1827,7 +1829,7 @@ SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_op2u(struct sljit_compiler *compil
+ 	CHECK(check_sljit_emit_op2(compiler, op, 1, 0, 0, src1, src1w, src2, src2w));
+ 
+ 	SLJIT_SKIP_CHECKS(compiler);
+-	return sljit_emit_op2(compiler, op, TMP_REG2, 0, src1, src1w, src2, src2w);
++	return sljit_emit_op2(compiler, op, 0, 0, src1, src1w, src2, src2w);
+ }
+ 
+ SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_shift_into(struct sljit_compiler *compiler, sljit_s32 op,
+@@ -1875,7 +1877,7 @@ SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_shift_into(struct sljit_compiler *
+ 		FAIL_IF(emit_op_mem(compiler, inp_flags, TMP_REG1, src1, src1w));
+ 		src1 = TMP_REG1;
+ 	} else if (src1 & SLJIT_IMM) {
+-		FAIL_IF(load_immediate(compiler, TMP_REG1, src1w, TMP_REG3));
++		FAIL_IF(load_immediate(compiler, TMP_REG1, src1w));
+ 		src1 = TMP_REG1;
+ 	}
+ 
+@@ -2032,7 +2034,7 @@ static SLJIT_INLINE sljit_s32 sljit_emit_fop1_conv_f64_from_sw(struct sljit_comp
+ 			srcw = (sljit_s32)srcw;
+ #endif
+ 
+-		FAIL_IF(load_immediate(compiler, TMP_REG1, srcw, TMP_REG3));
++		FAIL_IF(load_immediate(compiler, TMP_REG1, srcw));
+ 		src = TMP_REG1;
+ 	}
+ 
+@@ -2422,7 +2424,7 @@ SLJIT_API_FUNC_ATTRIBUTE struct sljit_jump* sljit_emit_cmp(struct sljit_compiler
+ 
+ 	if (src1 & SLJIT_IMM) {
+ 		if (src1w != 0) {
+-			PTR_FAIL_IF(load_immediate(compiler, TMP_REG1, src1w, TMP_REG3));
++			PTR_FAIL_IF(load_immediate(compiler, TMP_REG1, src1w));
+ 			src1 = TMP_REG1;
+ 		}
+ 		else
+@@ -2431,7 +2433,7 @@ SLJIT_API_FUNC_ATTRIBUTE struct sljit_jump* sljit_emit_cmp(struct sljit_compiler
+ 
+ 	if (src2 & SLJIT_IMM) {
+ 		if (src2w != 0) {
+-			PTR_FAIL_IF(load_immediate(compiler, TMP_REG2, src2w, TMP_REG3));
++			PTR_FAIL_IF(load_immediate(compiler, TMP_REG2, src2w));
+ 			src2 = TMP_REG2;
+ 		}
+ 		else
+@@ -2676,10 +2678,10 @@ SLJIT_API_FUNC_ATTRIBUTE sljit_s32 sljit_emit_mem(struct sljit_compiler *compile
+ 		memw = 0;
+ 	} else if (memw > SIMM_MAX - SSIZE_OF(sw) || memw < SIMM_MIN) {
+ 		if (((memw + 0x800) & 0xfff) <= 0xfff - SSIZE_OF(sw)) {
+-			FAIL_IF(load_immediate(compiler, TMP_REG1, TO_ARGW_HI(memw), TMP_REG3));
++			FAIL_IF(load_immediate(compiler, TMP_REG1, TO_ARGW_HI(memw)));
+ 			memw &= 0xfff;
+ 		} else {
+-			FAIL_IF(load_immediate(compiler, TMP_REG1, memw, TMP_REG3));
++			FAIL_IF(load_immediate(compiler, TMP_REG1, memw));
+ 			memw = 0;
+ 		}
+ 
