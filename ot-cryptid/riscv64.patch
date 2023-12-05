@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -44,8 +44,16 @@ b2sums=('78f6f79e9cf366d68a86e18d2504e67e017e4e793d818d1c2311f15223bc9b87a976e4b
+         '34e81e067128285f0b30ff5398322be9e9ac1c7c4234c6d0311743f7d58f376b4b9de6b69a00dbf850da195d1aefa0f739918d97cffee3469b7059e27632c07e')
+ 
+ prepare() {
++  # need to override dependency workspace members
++  cat >>Cargo.toml <<"EOF"
++[patch."https://github.com/robbert-vdh/nih-plug.git"]
++nih_plug = { git = "https://github.com/aimixsaka/nih-plug.git", branch = "riscv_backport" }
++nih_plug_egui = { git = "https://github.com/aimixsaka/nih-plug.git", branch = "riscv_backport" }
++nih_plug_xtask = { git = "https://github.com/aimixsaka/nih-plug.git", branch = "riscv_backport" }
++EOF
++  cargo update nih_plug
+   # download dependencies
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  cargo fetch --locked
+ }
+ 
+ build() {
