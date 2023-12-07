@@ -1,22 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -25,14 +25,17 @@ prepare() {
+@@ -20,7 +20,7 @@ sha256sums=('7eaffd02528155f561742bd712f5454e68fb771b3eb55d63bf0520429ab717f1'
+ 
+ prepare() {
    cd rustls-ffi-${pkgver}
-   [ ! -e Cargo.lock ] # remove Cargo.lock from source= after next release
-   cp ../Cargo.lock .
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 +  cargo fetch --locked
    patch -Np1 -i ../shared-linking.patch
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
  }
  
- build() {
-   cd rustls-ffi-${pkgver}
-   RUSTC_BOOTSTRAP=1 cargo cbuild --release --frozen --prefix=/usr
--  patchelf --set-soname "librustls.so.${pkgver}" "target/$CARCH-unknown-linux-gnu/release/librustls.so"
-+  # see: https://github.com/felixonmars/archriscv-packages/issues/670
-+  patchelf --set-soname "librustls.so.${pkgver}" "target/$(rustc -vV | awk '/^host:/ { print $2 }')/release/librustls.so"
- }
- 
- package() {
