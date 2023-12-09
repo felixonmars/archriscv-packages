@@ -1,18 +1,36 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -64,16 +64,33 @@ makedepends=(cmake
-              pipewire
-              python-html5lib
-              qt6-tools
--             qt6-websockets)
-+             qt6-websockets
-+             clang)
- optdepends=('pipewire: WebRTC desktop sharing under Wayland')
- groups=(qt6)
- _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
- source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
- sha256sums=('d5dc9ff05a2c57adbf99cbf0c7cb6f19527f67216caf627b0cc160a1d253b780')
+@@ -75,18 +75,24 @@ sha256sums=('7a6ea228214bd66029ca90549b29021f30f7544abff997b7f831ceac2ce73691'
  
+ prepare() {
+   patch -d $_pkgfn/src/3rdparty/chromium -p1 < libxml-2.12.patch
++  for _patch in angle crashpad libgav1 sandbox base dav1d libyuv; do
++    patch -d $_pkgfn/src/3rdparty/chromium -Np1 < riscv-$_patch.patch
++  done
+ }
+ 
+ build() {
+   cmake -B build -S $_pkgfn -G Ninja \
+     -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
+     -DCMAKE_TOOLCHAIN_FILE=/usr/lib/cmake/Qt6/qt.toolchain.cmake \
++    -DCMAKE_C_COMPILER=/usr/bin/clang \
++    -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+     -DQT_FEATURE_webengine_system_ffmpeg=ON \
+     -DQT_FEATURE_webengine_system_icu=ON \
+     -DQT_FEATURE_webengine_system_libevent=ON \
+     -DQT_FEATURE_webengine_proprietary_codecs=ON \
+     -DQT_FEATURE_webengine_kerberos=ON \
+     -DQT_FEATURE_webengine_webrtc_pipewire=ON
++  ninja -C build -t targets | grep '^runGn' | cut -d ':' -f 1 | xargs ninja -C build
+   cmake --build build
+ }
+ 
+@@ -95,3 +101,14 @@ package() {
+ 
+   install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
+ }
++
++makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}" clang)
 +source+=(riscv-{angle,crashpad,libgav1,sandbox,base,dav1d,libyuv}.patch)
 +sha256sums+=('fb0738fc32f228cef59e5516dbb4acd8818f1e2ba9db2cfbc21cf72a4ace8c3f'
 +             '70f8bcd3dd68c13d1e074415952c0b7e3e3b6058c97d39ba7a78dc17daa30547'
@@ -21,17 +39,4 @@
 +             'da17695cc437eb3f2a71719772d29ee9d0b6f80152536b061208ab29253fca7c'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
 +             'd71a8dd17e3acb8f76032a35a6e633ddb12304194f36b6fc7bc24b4f0867f0bf')
-+prepare() {
-+  for _patch in angle crashpad libgav1 sandbox base dav1d libyuv; do
-+    patch -d $_pkgfn/src/3rdparty/chromium -Np1 < riscv-$_patch.patch
-+  done
-+}
 +
- build() {
-   cmake -B build -S $_pkgfn -G Ninja \
-     -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
-+    -DCMAKE_C_COMPILER=/usr/bin/clang \
-+    -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
-     -DCMAKE_TOOLCHAIN_FILE=/usr/lib/cmake/Qt6/qt.toolchain.cmake \
-     -DQT_FEATURE_webengine_system_ffmpeg=ON \
-     -DQT_FEATURE_webengine_system_icu=ON \
