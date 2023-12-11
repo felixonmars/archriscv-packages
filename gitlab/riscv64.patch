@@ -1,55 +1,39 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -43,6 +43,7 @@ backup=("etc/webapps/$pkgname/database.yml"
-         "etc/logrotate.d/$pkgname")
- options=(!buildflags !debug)
- source=("git+$url.git#tag=v$pkgver"
-+        "git+https://github.com/tmm1/rbtrace.git#tag=v0.4.14"
-         "${url%-foss}/-/commit/b899702f585290b6a64c4762bf2bf2dffbd114c5.patch"
-          https://github.com/grpc/grpc/pull/33408/commits/ffd057b399c1f68d43a68b960dd9bdf7a29fdd09.patch
-          bump-pg_query-to-4.2.3-for-glibc-2.38.patch
-@@ -62,8 +63,9 @@ conflicts=(gitlab-workhorse)
- replaces=(gitlab-workhorse)
- install=gitlab.install
- sha256sums=('SKIP'
-+            'SKIP'
-             'e30ba2112a7fe30c8b4644d4f08373987dcdd51c595d07bf03445a9bd093fae5'
--            '51b1048cfa90fc9cc58193092837e85d8a81d6e73d52d48608d1e091f114c3f0'
-+            '07987dc5f50358846a8c37b5b673a9b9ba823ee46254b4bb7f35c2e8fc7e1d33'
-             'bc69454ce7ce7537085af0628b39c1b238dc533fb119b6cbb139ae71b80dc98b'
-             'e6f9c11f7cccc1b7c689af5cd10aa8fdda46c484e5764964da91c9ee4b080fed'
-             '8cc4d933743906b4213b8ea8d8c5a62535e27e4073f73581a5dad40078dde000'
-@@ -83,6 +85,14 @@ _datadir=/var/lib/gitlab # directory with gitlab data and it also $HOME for 'git
+@@ -80,7 +80,17 @@ _etcdir=/etc/webapps/gitlab
+ _datadir=/var/lib/gitlab # directory with gitlab data and it also $HOME for 'gitlab' user
  _logdir=/var/log/gitlab
  
++source+=("git+https://github.com/tmm1/rbtrace.git#tag=v0.4.14")
++sha256sums+=('SKIP')
++
  prepare() {
 +	# patch extconf.rb with sys("autoreconf -fi") to update config.guess and config.sub in extension msgpack of gem rbtrace
 +	# fix problem "config.guess: unable to guess system type"
 +	cd rbtrace/ext
 +	sed -Ei "/^([[:space:]]*)Dir.chdir\(dir\) do/a \sys(\"autoreconf -fi\")" extconf.rb
 +	cd ../
-+	gem-2.7 build rbtrace.gemspec
++	gem build rbtrace.gemspec
 +	cd ../
-+
  	cd gitlab-foss
- 	# Revert downgrade of gprc gem from v1.55.0 to v1.42.0 as the newer version is needed to build with gcc 13
- 	# The issue the revert addresses is patched later in build()
-@@ -119,7 +129,17 @@ build() {
- 	# Gems will be installed into vendor/bundle
- 	bundle-2.7 config build.gpgme --use-system-libraries # See https://bugs.archlinux.org/task/63654
- 	bundle-2.7 config force_ruby_platform true # some native gems are not available for newer ruby
--	BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle-2.7 install --jobs=$(nproc) --no-cache --deployment --without development test aws kerberos
-+
+ 
+ 	# GitLab tries to read its revision information from a file.
+@@ -118,8 +128,17 @@ build() {
+ 	bundle config --local force_ruby_platform true # some native gems are not available for newer ruby
+ 	bundle config --local deployment true
+ 	bundle config --local without 'development test aws kerberos'
 +	# Fetch all gems into vendor/cache and replace rbtrace with patched version(and modify Gemfile.checksum)
 +	# to avoid sudo when bundle cache, change GEM_HOME
 +	export GEM_HOME=$HOME/.gem
-+	bundle-2.7 cache --no-install --path vendor/cache/
++	bundle config --local cache_path vendor/cache/
++	bundle cache --no-install
 +	rm vendor/cache/rbtrace-0.4.14.gem
 +	cp ../rbtrace/rbtrace-0.4.14.gem vendor/cache/
 +	rbtrace_checksum=$(sha256sum vendor/cache/rbtrace-0.4.14.gem)
 +	sed -Ei "s/(\\{\"name\":\"rbtrace\".*\"checksum\":\")([[:alnum:]]*)(\"\\},)/\\1${rbtrace_checksum:0:64}\\3/" Gemfile.checksum
-+
-+	BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle-2.7 install --local --jobs=$(nproc) --no-cache --deployment --without development test aws kerberos
+ 	# Disable make jobserver due to a race in prometheus-client-mmap
+-	MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle install --jobs=$(nproc) --no-cache
++	MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle install --local --jobs=$(nproc) --no-cache
  
- 	# https://github.com/grpc/grpc/issues/33283
- 	patch -Np1 -i "${srcdir}"/ffd057b399c1f68d43a68b960dd9bdf7a29fdd09.patch -d vendor/bundle/ruby/2.7.0/gems/grpc-1.55.0
+ 	export CGO_CPPFLAGS="${CPPFLAGS}"
+ 	export CGO_CFLAGS="${CFLAGS}"
