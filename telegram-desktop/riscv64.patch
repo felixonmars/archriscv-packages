@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 2bd0375..fc2969d 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,8 +16,15 @@ makedepends=('cmake' 'git' 'ninja' 'python' 'range-v3' 'tl-expected' 'microsoft-
+              'gobject-introspection' 'boost' 'fmt' 'mm-common' 'perl-xml-parser' 'libsigc++-3.0')
+ optdepends=('webkit2gtk: embedded browser features'
+             'xdg-desktop-portal: desktop integration')
+-source=("https://github.com/telegramdesktop/tdesktop/releases/download/v${pkgver}/tdesktop-${pkgver}-full.tar.gz")
+-sha512sums=('af890d693ec24ff96b48a1c3eab29e199c2a324db35ead33afc733ac8dedefa67574d3540dd87f0e19eb91435c699d839ced579b1485028fab737c1c02eaeff6')
++source=("https://github.com/telegramdesktop/tdesktop/releases/download/v${pkgver}/tdesktop-${pkgver}-full.tar.gz"
++        tdesktop-scudo-rv-fix.patch)
++sha512sums=('af890d693ec24ff96b48a1c3eab29e199c2a324db35ead33afc733ac8dedefa67574d3540dd87f0e19eb91435c699d839ced579b1485028fab737c1c02eaeff6'
++            'bedfd923f64e66c7562afc6e346d32602d2a3f4190b0b2135940cbaf1014dcb993201bc4cecad56a1add576b32dba14d73cee2f019448182fbf7e7ce5223be0d')
++
++prepare() {
++    cd tdesktop-$pkgver-full
++    patch -p1 -i ../tdesktop-scudo-rv-fix.patch
++}
+ 
+ build() {
+     CXXFLAGS+=' -ffat-lto-objects'
