@@ -1,21 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
 @@ -34,7 +34,7 @@ build() {
+ 	cd "$srcdir/$pkgname-$pkgver"
  
- 	# mark stack as non-executable: http://bugs.archlinux.org/task/12434
  	./Configure --prefix=/usr --openssldir=/etc/ssl --libdir=lib \
--		shared enable-ktls enable-ec_nistp_64_gcc_128 linux-x86_64 \
-+		shared enable-ktls enable-ec_nistp_64_gcc_128 linux64-riscv64 \
- 		"-Wa,--noexecstack ${CPPFLAGS} ${CFLAGS} ${LDFLAGS}"
+-		shared enable-ktls enable-ec_nistp_64_gcc_128 linux-${CARCH}
++		shared enable-ktls enable-ec_nistp_64_gcc_128 linux64-riscv64
  
  	make depend
-@@ -48,7 +48,8 @@ check() {
+ 	make
+@@ -47,7 +47,8 @@ check() {
  	# revert this patch for make test
- 	patch -p0 -R -i "$srcdir/ca-dir.patch"
+ 	patch -Rp1 -i "$srcdir/ca-dir.patch"
  
 -	make HARNESS_JOBS=$(nproc) test
 +	# https://github.com/openssl/openssl/issues/12242
 +	make HARNESS_JOBS=$(nproc) TESTS=-test_afalg test
  
- 	patch -p0 -i "$srcdir/ca-dir.patch"
- 	# re-run make to re-generate CA.pl from th patched .in file.
+ 	patch -Np1 -i "$srcdir/ca-dir.patch"
+ 	# re-run make to re-generate CA.pl from the patched .in file.
