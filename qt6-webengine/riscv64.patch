@@ -1,31 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -75,18 +75,24 @@ sha256sums=('7a6ea228214bd66029ca90549b29021f30f7544abff997b7f831ceac2ce73691'
+@@ -76,6 +76,10 @@ sha256sums=('7a6ea228214bd66029ca90549b29021f30f7544abff997b7f831ceac2ce73691'
+             '547e092f6a20ebd15e486b31111145bc94b8709ec230da89c591963001378845')
  
  prepare() {
-   patch -d $_pkgfn/src/3rdparty/chromium -p1 < libxml-2.12.patch
 +  for _patch in angle crashpad libgav1 sandbox base dav1d libyuv; do
 +    patch -d $_pkgfn/src/3rdparty/chromium -Np1 < riscv-$_patch.patch
 +  done
++
+   patch -d $_pkgfn/src/3rdparty/chromium -p1 < libxml-2.12.patch
+   patch -d $_pkgfn/src/3rdparty/chromium -p1 < icu-74.patch # Fix build with ICU 74 - patch from Alpine
  }
- 
- build() {
-   cmake -B build -S $_pkgfn -G Ninja \
-     -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
-     -DCMAKE_TOOLCHAIN_FILE=/usr/lib/cmake/Qt6/qt.toolchain.cmake \
-+    -DCMAKE_C_COMPILER=/usr/bin/clang \
-+    -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
-     -DQT_FEATURE_webengine_system_ffmpeg=ON \
-     -DQT_FEATURE_webengine_system_icu=ON \
+@@ -89,7 +93,10 @@ build() {
      -DQT_FEATURE_webengine_system_libevent=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
-     -DQT_FEATURE_webengine_webrtc_pipewire=ON
+-    -DQT_FEATURE_webengine_webrtc_pipewire=ON
++    -DQT_FEATURE_webengine_webrtc_pipewire=ON \
++    -DCMAKE_C_COMPILER=/usr/bin/clang \
++    -DCMAKE_CXX_COMPILER=/usr/bin/clang++
 +  ninja -C build -t targets | grep '^runGn' | cut -d ':' -f 1 | xargs ninja -C build
    cmake --build build
  }
  
-@@ -95,3 +101,14 @@ package() {
+@@ -98,3 +105,14 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
