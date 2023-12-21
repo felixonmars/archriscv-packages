@@ -1,41 +1,35 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -115,6 +115,13 @@ prepare() {
-   patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
+@@ -122,6 +122,16 @@ prepare() {
    patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
+   #patch -Np1 -i ../chromium-patches-*/chromium-120-std-nullptr_t.patch
  
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +
 +  # riscv64
-+  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox,base}.patch; do
++  # Current ffmpeg patch effectively disables RVV.
++  # We should drop it and pick 5054185 from chromium gerrit once clang is upgraded to 17,
++  # which added support for '.option arch'
++  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox,base,ffmpeg}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
 +
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -170,6 +177,10 @@ build() {
-     'enable_nacl=false'
-     'enable_rust=false'
-     "google_api_key=\"$_google_api_key\""
-+    'use_thin_lto=false'
-+    'is_clang=true'
-+    'use_lld=false'
-+    'enable_swiftshader=true'
-   )
- 
-   if [[ -n ${_system_libs[icu]+set} ]]; then
-@@ -277,4 +288,13 @@ package() {
+@@ -284,4 +294,15 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
++makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}")
 +source+=(swiftshader-use-llvm16.patch
-+         riscv-{angle,dav1d,libgav1,sandbox,base}.patch)
++         riscv-{angle,dav1d,libgav1,sandbox,base,ffmpeg}.patch)
 +sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +             'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
 +             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
 +             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
-+             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794')
++             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
++             'ef796ea3e4e5b4cbc2da3895f96a711b291542b24054087ed2ebf9cf1bcbcfa9')
 +
  # vim:set ts=2 sw=2 et:
