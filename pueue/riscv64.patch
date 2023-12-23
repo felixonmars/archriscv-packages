@@ -1,12 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,7 +15,9 @@ sha256sums=('cd5c6500e65960f6a102db5d0f0544f49eec8f74b2cc0df16ded8e2525a545f6')
+@@ -10,12 +10,15 @@ url="https://github.com/nukesor/pueue"
+ license=('MIT')
+ depends=('gcc-libs')
+ makedepends=('cargo')
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+-sha256sums=('5d880731b7911dcc01c84ad547d703d4d438a95a64396d3610829d0c05bb1e37')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
++        "fix-ring.patch::https://patch-diff.githubusercontent.com/raw/Nukesor/pueue/pull/484.diff")
++sha256sums=('5d880731b7911dcc01c84ad547d703d4d438a95a64396d3610829d0c05bb1e37'
++            'SKIP')
  
  prepare() {
    cd "$pkgname-$pkgver"
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
++  patch -Np1 -i ../fix-ring.patch
 +  cargo fetch --locked
    mkdir -p utils/completions/
  }
