@@ -1,34 +1,16 @@
-diff --git PKGBUILD PKGBUILD
-index ad41270..7e5be1f 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -5,6 +5,8 @@ pkgname=ghidra
- pkgver=10.4
+@@ -6,6 +6,8 @@ pkgver=11.0
  _d2j=2.1
  _yajsw=13.09
+ _jserif=2.1
 +_protobuf=21.8
 +_protobuf_cpp=3.$_protobuf
  pkgrel=1
  pkgdesc='Software reverse engineering framework'
  url='https://ghidra-sre.org/'
-@@ -18,16 +20,26 @@ source=(https://github.com/NationalSecurityAgency/ghidra/archive/Ghidra_${pkgver
-         "git+https://github.com/NationalSecurityAgency/ghidra-data#tag=Ghidra_${pkgver}"
-         https://github.com/pxb1988/dex2jar/releases/download/v${_d2j}/dex2jar-${_d2j}.zip
-         https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/android4me/AXMLPrinter2.jar
--        https://sourceforge.net/projects/yajsw/files/yajsw/yajsw-stable-${_yajsw}/yajsw-stable-${_yajsw}.zip)
-+        https://sourceforge.net/projects/yajsw/files/yajsw/yajsw-stable-${_yajsw}/yajsw-stable-${_yajsw}.zip
-+        https://github.com/protocolbuffers/protobuf/releases/download/v${_protobuf}/protobuf-cpp-${_protobuf_cpp}.tar.gz
-+        add-riscv64-build.patch)
- noextract=(AXMLPrinter2.jar
-            yajsw-beta-${_yajsw}.zip)
- sha512sums=('e7327b652ddb9dcb9025ef6db46d60e853bcc155cb493cf5dfd941a2c468e55a1be7d8aa5c4b2199a39e09653e69eba0a80347596f32de0440edf75cbea17cbc'
-             'SKIP'
-             '44b4a51043ef608158e16f70d9a448ae0a37896da19bd9837e1124e197b7b41a7c37f074386b0cc03edd4f385066bf5ef04c553f6dec0b0cc2a11ecbf299b16f'
-             'c1168ec913f1fbb0675915d4fd865ec9a8e8573f6c8aedcb6e68166f61f11aeaececc7548d54d78134843c0102c57d6350973f6d3027d0ffdae52a5c57a7f601'
--            'd8682b57ce7577374a17113e1ace77393397e405e6450e3f7637ed1f0f42bc7170b378f775a4ba3c458b202ef35f95b35317cce45659b8a3b25aaa59e8393aa4')
-+            'd8682b57ce7577374a17113e1ace77393397e405e6450e3f7637ed1f0f42bc7170b378f775a4ba3c458b202ef35f95b35317cce45659b8a3b25aaa59e8393aa4'
-+            'ef4939dcd7d10a602f95cb8d6fdb5d31c53bd39f18678572f97d443be01093e05a69b6756e8431a27200ad30decf2a007274a5b90ecaecbb5d8e341008bba175'
-+            '94356e3ee0fe147fb753babf39a80c4ee3db43a6ebb3bcf755d8026bfd28f651f42dbb43777716a26d392b9cf41e15385f078dd4f6a7c18e1f69c861c75f82ba')
+@@ -33,6 +35,12 @@ sha512sums=('9c6ad91a71ea49ce90bff422f45d2ad076898d618614b7aded6dfabf8660ccf05fc
+             '04d1f895f87a8f0a653ee5c2b18ed0b6d158f1b7de4e16de2e50ed5a3087b1e83ca01f6c4c8c53d1788942e29d2f41528c910f224c41e27098cb5c2838a8ddf3')
  
  prepare() {
 +  # prepare for protobuf
@@ -40,7 +22,7 @@ index ad41270..7e5be1f 100644
    export PATH="/usr/lib/jvm/java-17-openjdk/bin:${PATH}"
    cd ghidra-Ghidra_${pkgver}_build
  
-@@ -45,14 +57,24 @@ prepare() {
+@@ -50,14 +58,24 @@ prepare() {
  
    # Ignore lack of licensing for YAJSW zip, packed FID datasets, and the native binaries
    sed -i '/FileTree tree/a\\t\texclude "yajsw-stable-**.zip"\n\t\texclude "src/main/fidb/**.fidb"\n\t\texclude "os/linux64/**"' gradle/support/ip.gradle
@@ -66,7 +48,7 @@ index ad41270..7e5be1f 100644
    gradle sleighCompile
    gradle buildGhidra
  }
-@@ -64,7 +86,7 @@ package() {
+@@ -69,7 +87,7 @@ package() {
    install -d "${pkgdir}"/{opt,usr/bin}
    _appver=$(grep -oP '(?<=^application.version=).*$' Ghidra/application.properties)
    _relname=$(grep -oP '(?<=^application.release.name=).*$' Ghidra/application.properties)
@@ -75,3 +57,13 @@ index ad41270..7e5be1f 100644
  
    # Simplify some directory and binary names
    mv "${pkgdir}"/opt/ghidra{_*,}
+@@ -77,4 +95,9 @@ package() {
+   ln -s /opt/ghidra/support/analyzeHeadless "${pkgdir}"/usr/bin/ghidra-analyzeHeadless
+ }
+ 
++source+=(https://github.com/protocolbuffers/protobuf/releases/download/v${_protobuf}/protobuf-cpp-${_protobuf_cpp}.tar.gz
++         add-riscv64-build.patch)
++sha512sums+=('ef4939dcd7d10a602f95cb8d6fdb5d31c53bd39f18678572f97d443be01093e05a69b6756e8431a27200ad30decf2a007274a5b90ecaecbb5d8e341008bba175'
++             '94356e3ee0fe147fb753babf39a80c4ee3db43a6ebb3bcf755d8026bfd28f651f42dbb43777716a26d392b9cf41e15385f078dd4f6a7c18e1f69c861c75f82ba')
++
+ # vim: ts=2 sw=2 et:
