@@ -1,63 +1,32 @@
-diff --git PKGBUILD PKGBUILD
-index d2b3b0b..e924c84 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -78,6 +78,9 @@ source=(
-   'github.com-taocpp-PEGTL::git+https://github.com/taocpp/PEGTL'
-   'github.com-gulrak-filesystem::git+https://github.com/gulrak/filesystem'
-   'github.com-lv2-porting-project-JUCE::git+https://github.com/lv2-porting-project/JUCE#branch=lv2'
-+  "$pkgname-juce-riscv.patch1::https://github.com/surge-synthesizer/JUCE/pull/3.patch"
-+  "$pkgname-juce-riscv.patch2::https://github.com/surge-synthesizer/JUCE/pull/5.patch"
-+  "$pkgname-surge-riscv.patch::https://github.com/surge-synthesizer/surge/pull/7252.patch"
- )
- b2sums=('SKIP'
-         '6e71b56ffde699319def99e03637d9c3fb6197a6e0637b9f44b52a9207a8e06c8d482c05cdd711ec2c5901f403381dda70e786bca6b56cce14dc449325f24761'
-@@ -99,7 +102,10 @@ b2sums=('SKIP'
-         'SKIP'
-         'SKIP'
-         'SKIP'
--        'SKIP')
-+        'SKIP'
-+        'f906d74f07cdc748a9a20cc1336083100c73252d210f6f1879cfe0719a01d5d6dce281efa39e3d273890197404467b5afc8d39254ec8acb1477fe7974ee42f4c'
-+        'e93d479bf3b3cce4b9cf593cf82e0b651b0234a9f803469514a23f99b89e93f6ca04525691610f0da1ab2fe4ba0b76825fd89987699361a348076c7b3752ff22'
-+        'df7c51542af8827c438d37c5ceb28939fd1853b9eb40ce30e00da0eb0e3a6362a02edb6d4d96c092aaea96f0a8e589651d0181e6325ebca984c43be1da7ac703')
- 
- pkgver() {
-   cd "$pkgbase"
-@@ -174,6 +180,16 @@ prepare() {
- 
-   # FTBFS due to GCC13
-   git cherry-pick --no-commit d2fba1c6ff02cbdfa9db2ce06508745c247629b5
-+
-+  cd "$srcdir/$pkgname"
-+  git apply -C 1 "$srcdir/$pkgname-surge-riscv.patch"
-+
-+  cd "$srcdir/$pkgname/libs/JUCE"
-+  patch -Np1 -i "$srcdir/$pkgname-juce-riscv.patch2"
-+
-+  cd "$srcdir/github.com-lv2-porting-project-JUCE"
-+  patch -Np1 -i "$srcdir/$pkgname-juce-riscv.patch1"
-+  patch -Np1 -i "$srcdir/$pkgname-juce-riscv.patch2"
+@@ -105,6 +105,8 @@ pkgver() {
+   git describe --tags | sed 's/^release_xt_//'
  }
  
- build() {
-@@ -188,7 +204,8 @@ build() {
-     -DCMAKE_INSTALL_LIBDIR='/usr/lib' \
-     -DCMAKE_BUILD_TYPE=Release \
++source+=("$pkgbase-fix-immintrin.h::https://github.com/surge-synthesizer/JUCE/pull/5.diff")
++b2sums+=('607aac6ab7afea065036546c42eb4a7448b68eb8310643574b67cbc0c4612bbe6fe643ed2dc564865b6ee7c5b741b798da6a4ee90d3a6b332f882be2be77c400')
+ prepare() {
+   cd "$pkgbase"
+ 
+@@ -160,6 +162,10 @@ prepare() {
+   git -c protocol.file.allow=always submodule update
+   popd
+ 
++  pushd libs/JUCE
++  patch -Np1 -i "$srcdir/$pkgbase-fix-immintrin.h"
++  popd
++
+   # first shot at improving reproducibility:
+   # https://github.com/surge-synthesizer/surge/issues/2389
+   patch -p1 -i "$srcdir/improve-reproducibility.patch"
+@@ -186,7 +192,8 @@ build() {
+     -D CMAKE_INSTALL_LIBDIR='/usr/lib' \
+     -D CMAKE_BUILD_TYPE=Release \
      -W no-dev \
--    -DSURGE_BUILD_TESTRUNNER=OFF
-+    -DSURGE_BUILD_TESTRUNNER=OFF \
-+    -DSURGE_SKIP_LUA=ON
+-    -D SURGE_BUILD_TESTRUNNER=OFF
++    -D SURGE_BUILD_TESTRUNNER=OFF \
++    -D SURGE_SKIP_LUA=ON
  
    cmake --build build
- 
-@@ -202,7 +219,8 @@ build() {
-     -W no-dev \
-     -DSURGE_BUILD_TESTRUNNER=OFF \
-     -DJUCE_SUPPORTS_LV2=True \
--    -DSURGE_JUCE_PATH="$srcdir/github.com-lv2-porting-project-JUCE"
-+    -DSURGE_JUCE_PATH="$srcdir/github.com-lv2-porting-project-JUCE" \
-+    -DSURGE_SKIP_LUA=ON
- 
-   cmake --build build-lv2 --target surge-xt_LV2 surge-fx_LV2 --parallel
  }
