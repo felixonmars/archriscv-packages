@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index 153d0c3..5c60abc 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,15 +20,18 @@
+ source=("https://github.com/draios/sysdig/archive/$pkgver/$pkgbase-$pkgver.tar.gz"
+         "falcosecurity-libs-$_falcover.tar.gz::https://github.com/falcosecurity/libs/archive/$_falcover.tar.gz"
+         "bashcomp-location.patch"
+-        "falcosecurity-libs-nodownload.patch")
++        "falcosecurity-libs-nodownload.patch"
++        "falcosecurity-libs-riscv64-kmod.patch::https://github.com/falcosecurity/libs/pull/1181.diff")
+ sha256sums=('840a9099b66984c6ba71bb750b9440fb51c508d06e97e20d152c4f9a5e50d757'
+             '2be42a27be3ffe6bd7e53eaa5d8358cab05a0dca821819c6e9059e51b9786219'
+             '3b659326176c314eee9115adac39a249dc4b9530511b344ea6a2b23236bb8386'
+-            '3392204c265ef46c2a1378fc2acbb74b2b440585de4c9127a007f97ce10f0cfa')
++            '3392204c265ef46c2a1378fc2acbb74b2b440585de4c9127a007f97ce10f0cfa'
++            '06cc12f02c9058b79ba253513bb92b3eed961791500e0f8c80223985a80112a0')
+ 
+ prepare() {
+   cd "$srcdir/libs-$_falcover"
+   echo 'target_link_libraries(sinsp INTERFACE zstd)' >> userspace/libsinsp/CMakeLists.txt
++  patch -p1 -i "$srcdir"/falcosecurity-libs-riscv64-kmod.patch
+ 
+   cd "$srcdir/$pkgbase-$pkgver"
+   patch -p1 -i "$srcdir"/bashcomp-location.patch
