@@ -1,41 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,14 +7,14 @@ groups=('dlang' 'dlang-ldc')
- pkgver=1.35.0
- _pkgcommit=9c1ae1efbbebcf21b73e7b710d508d0d5ca04454
- _dversion=2.105.2
--_clangversion=16 # related to where ldc2 looks for compiler-rt sanitizers
-+_clangversion=14 # related to where ldc2 looks for compiler-rt sanitizers
- epoch=3
- pkgrel=1
- pkgdesc="A D Compiler based on the LLVM Compiler Infrastructure including D runtime and libphobos2"
- arch=('x86_64')
- url="https://github.com/ldc-developers/ldc"
- license=('BSD')
--makedepends=('git' 'cmake' 'llvm' 'ldc' 'ninja')
-+makedepends=('git' 'cmake' 'llvm14' 'ldc' 'ninja')
- # Disable lto as linking the ldc2 binary fails
- options=(!lto)
- 
-@@ -42,6 +42,7 @@ build() {
- 
-     mkdir -p build && cd build
- 
-+    CXXFLAGS+=" -latomic"
-     cmake -GNinja \
-     -DCMAKE_INSTALL_PREFIX=/usr \
-     -DCMAKE_BUILD_TYPE=Release \
-@@ -50,7 +51,8 @@ build() {
+@@ -50,7 +50,8 @@ build() {
      -DBUILD_SHARED_LIBS=BOTH \
      -DBUILD_LTO_LIBS=ON \
      -DLDC_WITH_LLD=OFF \
 -    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=gold --flto=thin" \
-+    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -L=-latomic" \
++    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false" \
 +    -DLD_FLAGS="-Wl,--no-as-needed -latomic -Wl,--as-needed" \
      -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"," \
      ..
      ninja
-@@ -58,11 +60,12 @@ build() {
+@@ -58,6 +59,7 @@ build() {
  
  check() {
      cd "$srcdir/ldc/build"
@@ -43,13 +18,7 @@
      ninja all-test-runners
  }
  
- package_ldc() {
--    depends=('liblphobos' 'llvm-libs' 'gcc' 'compiler-rt')
-+    depends=('liblphobos' 'llvm14-libs' 'gcc' 'compiler-rt14')
-     backup=('etc/ldc2.conf')
-     provides=("d-compiler=$_dversion")
- 
-@@ -102,3 +105,6 @@ package_liblphobos() {
+@@ -102,3 +104,6 @@ package_liblphobos() {
      # licenses
      install -D -m644 "$srcdir/ldc/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
