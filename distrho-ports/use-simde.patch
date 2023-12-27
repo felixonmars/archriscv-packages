@@ -1,0 +1,42 @@
+diff --git a/ports-legacy/pitchedDelay/source/dsp/BandLimit.cpp b/ports-legacy/pitchedDelay/source/dsp/BandLimit.cpp
+index 7d8759be..663799f0 100644
+--- a/ports-legacy/pitchedDelay/source/dsp/BandLimit.cpp
++++ b/ports-legacy/pitchedDelay/source/dsp/BandLimit.cpp
+@@ -2,7 +2,7 @@
+ #if defined(__x86_64__) || defined(__i386__)
+ #include <emmintrin.h>
+ #include <mmintrin.h>
+-#else
++#elseif defined(__aarch64__) || defined(__arm__)
+ #include <arm_neon.h>
+ typedef float32x4_t __m128;
+ #define _mm_load_ps  vld1q_f32
+@@ -10,6 +10,9 @@ typedef float32x4_t __m128;
+ #define _mm_add_ps vaddq_f32
+ #define _mm_sub_ps vsubq_f32
+ #define _mm_mul_ps vmulq_f32
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/sse2.h>
+ #endif
+ 
+ CAllPassFilterPair::CAllPassFilterPair(double coeff_A, double coeff_B)
+diff --git a/ports/vitalium/source/synthesis/framework/poly_values.h b/ports/vitalium/source/synthesis/framework/poly_values.h
+index fd90a8f9..4581e220 100644
+--- a/ports/vitalium/source/synthesis/framework/poly_values.h
++++ b/ports/vitalium/source/synthesis/framework/poly_values.h
+@@ -31,10 +31,12 @@
+     #define NEON_ARM32 1
+   #endif
+ #else
+-  static_assert(false, "No SIMD Intrinsics found which are necessary for compilation");
++  #define VITAL_SSE2 1
++  #define SIMDE_ENABLE_NATIVE_ALIASES 1
++  #include <simde/x86/sse2.h>
+ #endif
+ 
+-#if VITAL_SSE2
++#if VITAL_SSE2 && __SSE2__
+   #include <immintrin.h>
+ #elif VITAL_NEON
+   #include <arm_neon.h>
