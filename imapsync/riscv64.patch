@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,15 +16,23 @@ makedepends=(cpanminus perl-par-packer)
+ checkdepends=(inetutils lsb-release time procps-ng
+   perl-{test-deep,test-fatal,test-mock-guard,test-mockobject,test-pod,test-requires,test-warn}
+ )
+-source=("https://github.com/imapsync/imapsync/archive/refs/tags/${pkgname}-${pkgver}.tar.gz")
+-b2sums=('1fbb52e014e18ed8970e56031b64aa3429d6383bc71b0d47e08528b300dfda4591ba279e6c752bdf3a609ae6873bddb61cdcc8ead53750112fc1969e101e1a99')
++source=("https://github.com/imapsync/imapsync/archive/refs/tags/${pkgname}-${pkgver}.tar.gz"
++        "fix-test.patch")
++b2sums=('1fbb52e014e18ed8970e56031b64aa3429d6383bc71b0d47e08528b300dfda4591ba279e6c752bdf3a609ae6873bddb61cdcc8ead53750112fc1969e101e1a99'
++        '4609ab497be43161f2e441f21ab31da2da057446087c45f17c91f7a0b1bc7b4606ef3b77220eb8be1c1032f3c787911fbb9c3ba14eedfa16545668f5ee71e0bc')
++
++prepare() {
++  cd ${pkgname}-${pkgname}-${pkgver}
++  patch -Np1 -i ../fix-test.patch
++}
+
+ build() {
+   make -C ${pkgname}-${pkgname}-${pkgver}
+ }
+
+ check() {
+-  make -C ${pkgname}-${pkgname}-${pkgver} test
++  cd ${pkgname}-${pkgname}-${pkgver}
++  perl imapsync --tests
+ }
+
+ package() {
