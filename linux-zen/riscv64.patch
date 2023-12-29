@@ -1,8 +1,8 @@
 diff --git PKGBUILD PKGBUILD
-index 8beb049..0ac5943 100644
+index 10bc56b..c682e2e 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,6 +31,7 @@
+@@ -31,6 +31,7 @@ source=(
    https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
    config  # the main kernel config file
@@ -10,24 +10,24 @@ index 8beb049..0ac5943 100644
  )
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -42,12 +43,14 @@
+@@ -42,12 +43,14 @@ sha256sums=('5036c434e11e4b36d8da3f489851f7f829cf785fa7f7887468537a9ea4572416'
              'SKIP'
-             '6dc7f3f67e42241a5b4cb64beb0a059916105e5a20254be4c4bd784971ff168b'
+             '754939cecb0938e147c7973ebce505b6aacd3e21572345f9aced312177df3ebf'
              'SKIP'
--            '5e0ec3d7a1b87f8a4f1a4171f637483a4cd1760a324938c7921be4c115b7e3d6')
-+            '5e0ec3d7a1b87f8a4f1a4171f637483a4cd1760a324938c7921be4c115b7e3d6'
-+            '97066f5c5b428f266320c68a5ccaf17ceea2ca31ca13e1757530d5e0dca4fb5c')
- b2sums=('cd0d70316592fface23a6eddb9d0f8b0c67593f5466388043ebd68613be4eabc3e7c712ce758fa63dd11603101d9d91e22b3552b436bbd1c76f8e19208d7bf22'
+-            '51a51ccec610ee033009c9fdeb9bd2795cf209605e7c67da2855abc0951ed90f')
++            '51a51ccec610ee033009c9fdeb9bd2795cf209605e7c67da2855abc0951ed90f'
++            '1f5d9db3af1128dd7b1246e11b0ff0a4b449eb6c2c7026e60df8f6a940342877')
+ b2sums=('d6f58bfae29239f985c1aa329b19c2fdea1c08c79e819e60f85359e9ef00e97a7f72d74662df7d9def75ff85a3b4bdf36dc9ded578ee472e9b4efa7bf50fcd33'
          'SKIP'
-         '042bca3bc915bbc509961ff71569dbdef7ea2fb06776b15a299481c696d11ccc15883210ac42ec3be11160e4fea3b7e29fe772ac31a92bf680e19ff93e27f935'
+         'b43bea249615fd8ebce9303fa9c889d4e4fd3310b0949c66aaa4ba026bd4b3bed871ef452536aaf891e33a5cf0b427d96da04146e8aa8e2e61f36afc203efcab'
          'SKIP'
--        '81fea61f29cbe9c1995f397481dcfff7936f8955558dde952680d2a497da7ee2d4935f09cc3b23dc2a566cccb40874973bb720313e7bc60516334ef45b1f659a')
-+        '81fea61f29cbe9c1995f397481dcfff7936f8955558dde952680d2a497da7ee2d4935f09cc3b23dc2a566cccb40874973bb720313e7bc60516334ef45b1f659a'
-+        'd08006c33ae0c50b7a748ea48eb612f884c95796021679d033a9f4cdc46a53b1ceb9cd8d52fc3210baf9bf253660f6aa298aa1e6a9d0770d26131bb49a80ed8d')
+-        'ca1c5495d27fee6b54f5165ff2e3e30ffdc2a388f9404894fed7b38a3643e84edd550d9fceb1bae91595c289070a9d6b4fd53a24796ce2820f6c842d40a1ce2d')
++        'ca1c5495d27fee6b54f5165ff2e3e30ffdc2a388f9404894fed7b38a3643e84edd550d9fceb1bae91595c289070a9d6b4fd53a24796ce2820f6c842d40a1ce2d'
++        'e6556ab89c6425c00be5f4fe811c5a8f574cb6ffd992b03fea60606e5a8dfc09628870d2a2b0851c21d75aec36edbd77b8381b4d7e9e42e2608863cf5cff2e01')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -75,6 +78,12 @@
+@@ -75,6 +78,12 @@ prepare() {
    make olddefconfig
    diff -u ../config .config || :
  
@@ -40,7 +40,7 @@ index 8beb049..0ac5943 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -121,6 +130,9 @@
+@@ -121,6 +130,9 @@ _package() {
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -50,7 +50,7 @@ index 8beb049..0ac5943 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -136,19 +148,16 @@
+@@ -136,19 +148,16 @@ _package-headers() {
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -73,7 +73,7 @@ index 8beb049..0ac5943 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -170,7 +179,7 @@
+@@ -170,7 +179,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
