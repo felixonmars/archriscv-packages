@@ -1,51 +1,43 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,7 +12,9 @@ _chromiumver=112.0.5615.204
+@@ -32,8 +32,9 @@ depends=('c-ares' 'gtk3' 'libevent' 'nss' 'libffi')
  # shellcheck disable=SC2034
- pkgrel=1
- 
-+_build_profile=Release
- _major_ver=${pkgver%%.*}
-+_electron="electron$_major_ver"
- if [[ ${_use_suffix} != 0 ]]; then
-   pkgname="electron${_major_ver}"
- else
-@@ -33,7 +35,8 @@ depends=('c-ares' 'gtk3' 'libevent' 'nss' 'libffi')
  makedepends=('clang' 'git' 'gn' 'gperf' 'harfbuzz-icu' 'http-parser'
               'qt5-base' 'java-runtime-headless' 'libnotify' 'lld' 'llvm'
-              'ninja' 'npm' 'pciutils' 'pipewire' 'python' 'python-httplib2'
+-             'ninja' 'npm' 'pciutils' 'pipewire' 'python' 'python-httplib2'
 -             'python-requests' 'python-pyparsing' 'python-six' 'wget' 'yarn')
++             'ninja' 'nodejs-lts-iron' 'npm' 'pciutils' 'pipewire' 'python' 'python-httplib2'
 +             'python-requests' 'python-pyparsing' 'python-six' 'wget' 'yarn'
-+             'go' 'p7zip' 'bazel' 'jdk17-openjdk' 'llvm')
++             'go' 'p7zip' 'jdk17-openjdk')
  # shellcheck disable=SC2034
  optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'pipewire: WebRTC desktop sharing under Wayland'
-@@ -76,6 +79,19 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
-         'iwyu-add-cstdint-for-int-types-in-s2cellid.patch'
-         'random-fixes-for-gcc13.patch'
+@@ -78,6 +79,19 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          'more-fixes-for-gcc13.patch'
+         'libxml2-2.12.patch'
+         'icu-74.patch'
 +        'REVERT-problematic-signal-handling-workaround.patch'
-+        "$_electron-support-riscv64-in-electron_runtime_api_delegate.cc.patch"
-+        "$_electron-extensions-common-api-runtime.json-support-riscv64.patch"
-+        "$_electron-riscv-angle.patch"
-+        "$_electron-riscv-sandbox.patch"
-+        "$_electron-riscv-crashpad.patch"
-+        "$_electron-riscv-dav1d.patch"
-+        "$_electron-riscv-base.patch"
-+        "$_electron-swiftshader-use-system-llvm.patch"
-+        "$_electron-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch"
-+        "$_electron-gclient-ignore-prebuilt-platform-specific-deps.patch"
-+        "$_electron-deps-parser.py"
-+        "$_electron-partition_alloc.gni-add-missing-riscv64-definition.patch"
++        "$pkgname-support-riscv64-in-electron_runtime_api_delegate.cc.patch"
++        "$pkgname-extensions-common-api-runtime.json-support-riscv64.patch"
++        "$pkgname-riscv-angle.patch"
++        "$pkgname-riscv-sandbox.patch"
++        "$pkgname-riscv-crashpad.patch"
++        "$pkgname-riscv-dav1d.patch"
++        "$pkgname-riscv-base.patch"
++        "$pkgname-swiftshader-use-system-llvm.patch"
++        "$pkgname-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch"
++        "$pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch"
++        "$pkgname-deps-parser.py"
++        "$pkgname-partition_alloc.gni-add-missing-riscv64-definition.patch"
         )
  # shellcheck disable=SC2034
  sha256sums=('SKIP'
-@@ -104,7 +120,20 @@ sha256sums=('SKIP'
-             '5dfbfd073f78c887bbffca2b644116571cc9b1196867e44e8fc0cbb40afcf1bc'
-             'd97dc00f66fa5868584e4b6d5ef817911eab2dc8022a37c75a00d063f4dac483'
+@@ -108,7 +122,20 @@ sha256sums=('SKIP'
              '3fb0636e9560760d99e7c9606b1c9b59eef9d91ed3419cc95b43302759f249be'
--            '9d1f69f668e12fc14b4ccbcf88cb5a3acf666df06dafa8834f037bd8110ca17f')
-+            '9d1f69f668e12fc14b4ccbcf88cb5a3acf666df06dafa8834f037bd8110ca17f'
+             '9d1f69f668e12fc14b4ccbcf88cb5a3acf666df06dafa8834f037bd8110ca17f'
+             'bfae9e773edfd0ddbc617777fdd4c0609cba2b048be7afe40f97768e4eb6117e'
+-            '547e092f6a20ebd15e486b31111145bc94b8709ec230da89c591963001378845')
++            '547e092f6a20ebd15e486b31111145bc94b8709ec230da89c591963001378845'
 +            '87d2c69292ac55ea1784f812c30acdbc341d4333d790fab3439a6b60393bb6c9'
 +            'b2bee22e96fceb794bfe16a670251959ee9ca7c87ed5048c9eb6cebd6e3b4bc3'
 +            '840947515347933da383408711696150cf8020b35d7abe1265b87084dfe1f3df'
@@ -62,12 +54,12 @@
  
  # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
  # Keys are the names in the above script; values are the dependencies in Arch
-@@ -162,17 +191,44 @@ solutions = [
+@@ -166,17 +193,45 @@ solutions = [
  ]
  EOF
  
 +  # Pin depot_tools
-+  local _depot_tools_rev="$(python "$_electron-deps-parser.py" depot_tools chromium-mirror/DEPS)"
++  local _depot_tools_rev="$(python "$pkgname-deps-parser.py" depot_tools chromium-mirror/DEPS)"
 +  git -C depot_tools checkout $_depot_tools_rev
 +
    export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
@@ -81,23 +73,24 @@
 +  export PATH="$PATH:$HOME/bin"
 +
 +  # Install the build tools
-+  local infra_rev=$(python "$_electron-deps-parser.py" infra src/DEPS)
++  local infra_rev=$(python "$pkgname-deps-parser.py" infra src/DEPS)
 +  curl "https://chromium.googlesource.com/infra/infra/+/$infra_rev/DEPS?format=text" | base64 -d > DEPS_infra
-+  local luci_go_rev=$(python "$_electron-deps-parser.py" luci_go DEPS_infra)
++  local luci_go_rev=$(python "$pkgname-deps-parser.py" luci_go DEPS_infra)
 +  go install "go.chromium.org/luci/cipd/client/cmd/...@$luci_go_rev"
 +
 +  # Fix .cipd-bin problem
 +  mkdir -p depot_tools/.cipd_bin
 +  GOBIN=$(realpath depot_tools/.cipd_bin) go install "go.chromium.org/luci/auth/client/cmd/...@$luci_go_rev"
 +
-+  patch -Np0 -i $_electron-gclient-ignore-prebuilt-platform-specific-deps.patch
++  patch -Np0 -i $pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch
++
    depot_tools/gclient.py sync -D \
        --nohooks \
        --with_branch_heads \
        --with_tags
  
 +  # Install esbuild (version needs to be locked, not feasible to add it to make dependencies)
-+  local esbuild_ver=$(python "$_electron-deps-parser.py" esbuild src/DEPS)
++  local esbuild_ver=$(python "$pkgname-deps-parser.py" esbuild src/DEPS)
 +  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v$esbuild_ver"
 +
 +  # Replace the bundled x86_64 JDK with system JDK17
@@ -107,31 +100,40 @@
    (
      cd src/electron || exit
      patch -Np1 -i ../../std-vector-non-const.patch
-@@ -232,6 +288,23 @@ EOF
-   patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
-   patch -Np1 -i "${srcdir}/default_app-icon.patch"  # Icon from .desktop file
+@@ -242,6 +297,23 @@ EOF
+   # Fix build with ICU 74
+   patch -Np1 -i ../icu-74.patch
  
-+  patch -Rp1 -i ../REVERT-problematic-signal-handling-workaround.patch
++  # Chromium Bug fixes
++  patch -R -p1 -i "${srcdir}/REVERT-problematic-signal-handling-workaround.patch"
 +
 +  # RISC-V Patches
-+  patch -Np1 -d third_party/crashpad/crashpad < "${srcdir}/$_electron-riscv-crashpad.patch"
-+  patch -Np1 -i ../$_electron-riscv-base.patch
-+  patch -Np1 -i ../$_electron-riscv-angle.patch
-+  patch -Np1 -i ../$_electron-riscv-sandbox.patch
-+  patch -Np1 -i ../$_electron-riscv-dav1d.patch
-+  patch -Np0 -i ../$_electron-support-riscv64-in-electron_runtime_api_delegate.cc.patch
-+  patch -Np0 -i ../$_electron-extensions-common-api-runtime.json-support-riscv64.patch
-+  patch -Np1 -i ../$_electron-partition_alloc.gni-add-missing-riscv64-definition.patch
++  patch -Np1 -d third_party/crashpad/crashpad < "${srcdir}/$pkgname-riscv-crashpad.patch"
++  patch -Np1 -i ../$pkgname-riscv-angle.patch
++  patch -Np1 -i ../$pkgname-riscv-sandbox.patch
++  patch -Np1 -i ../$pkgname-riscv-dav1d.patch
++  patch -Np1 -i ../$pkgname-riscv-base.patch
++  patch -Np1 -d electron < ../$pkgname-support-riscv64-in-electron_runtime_api_delegate.cc.patch
++  patch -Np0 -i ../$pkgname-extensions-common-api-runtime.json-support-riscv64.patch
++  patch -Np1 -i ../$pkgname-partition_alloc.gni-add-missing-riscv64-definition.patch
 +
 +  # Build failes with the bundled LLVM 10.
-+  patch -Np1 -i ../$_electron-swiftshader-use-system-llvm.patch
-+  patch -Np1 -i ../$_electron-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
-+
++  patch -Np1 -i ../$pkgname-swiftshader-use-system-llvm.patch
++  patch -Np1 -i ../$pkgname-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
 +
    # Allow building against system libraries in official builds
    echo "Patching Chromium for using system libraries..."
    sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
-@@ -268,6 +341,10 @@ build() {
+@@ -273,11 +345,19 @@ build() {
+   export AR=ar
+   export NM=nm
+ 
++  # Disable RVV because the build of libyuv at this commit is broken on riscv.
++  CFLAGS+=' -D LIBYUV_DISABLE_RVV'
++  CXXFLAGS+=' -D LIBYUV_DISABLE_RVV'
++
+   # Facilitate deterministic builds (taken from build/config/compiler/BUILD.gn)
+   CFLAGS+='   -Wno-builtin-macro-redefined'
    CXXFLAGS+=' -Wno-builtin-macro-redefined'
    CPPFLAGS+=' -D__DATE__=  -D__TIME__=  -D__TIMESTAMP__='
  
@@ -142,7 +144,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -297,7 +374,6 @@ build() {
+@@ -307,7 +387,6 @@ build() {
      host_toolchain = "//build/toolchain/linux/unbundle:default"
      clang_base_path = "/usr"
      clang_use_chrome_plugins = false
@@ -150,27 +152,11 @@
      chrome_pgo_phase = 0
      treat_warnings_as_errors = false
      disable_fieldtrial_testing_config = true
-@@ -311,17 +387,18 @@ build() {
+@@ -321,6 +400,7 @@ build() {
      use_system_libffi = true
      icu_use_data_file = false
      is_component_ffmpeg = false
 +    symbol_level = 1
    '
--  gn gen out/Release \
--      --args="import(\"//electron/build/args/release.gn\") ${GN_EXTRA_ARGS}"
--  ninja -C out/Release electron
--  ninja -C out/Release electron_dist_zip
-+  gn gen out/$_build_profile \
-+      --args="import(\"//electron/build/args/${_build_profile,,}.gn\") ${GN_EXTRA_ARGS}"
-+  ninja -C out/$_build_profile electron
-+  ninja -C out/$_build_profile electron_dist_zip
-   # ninja -C out/Release third_party/electron_node:headers
- }
- 
- package() {
-   install -dm755 "${pkgdir:?}/usr/lib/${pkgname}"
--  bsdtar -xf src/out/Release/dist.zip -C "${pkgdir}/usr/lib/${pkgname}"
-+  bsdtar -xf src/out/$_build_profile/dist.zip -C "${pkgdir}/usr/lib/${pkgname}"
- 
-   chmod u+s "${pkgdir}/usr/lib/${pkgname}/chrome-sandbox"
- 
+   gn gen out/Release \
+       --args="import(\"//electron/build/args/release.gn\") ${GN_EXTRA_ARGS}"
