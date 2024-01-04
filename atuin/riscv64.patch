@@ -1,13 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,7 +18,9 @@ options=('!lto')
+@@ -18,6 +18,8 @@ options=('!lto')
  
  prepare() {
    cd "$pkgname-$pkgver"
--  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 +  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }\n" >> Cargo.toml
 +  cargo update -p ring@0.16.20
-+  cargo fetch --locked
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
    mkdir completions/
  }
- 
