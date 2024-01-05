@@ -1,0 +1,139 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -40,7 +40,10 @@ makedepends=(clang
+              python-six
+              qt5-base
+              wget
+-             yarn)
++             yarn
++             nodejs-lts-iron
++             go
++             p7zip)
+ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+             'pipewire: WebRTC desktop sharing under Wayland'
+             'qt5-base: enable Qt5 with --enable-features=AllowQt'
+@@ -59,7 +62,18 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+         jinja-python-3.10.patch
+         libxml2-2.12.patch
+         std-vector-non-const.patch
+-        use-system-libraries-in-node.patch)
++        use-system-libraries-in-node.patch
++        'REVERT-problematic-signal-handling-workaround.patch'
++        "$pkgname-support-riscv64-in-electron_runtime_api_delegate.cc.patch"
++        "$pkgname-extensions-common-api-runtime.json-support-riscv64.patch"
++        "$pkgname-riscv-sandbox.patch"
++        "$pkgname-riscv-crashpad.patch"
++        "$pkgname-riscv-dav1d.patch"
++        "$pkgname-riscv-base.patch"
++        "$pkgname-swiftshader-use-system-llvm.patch"
++        "$pkgname-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch"
++        "$pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch"
++        "$pkgname-deps-parser.py")
+ sha256sums=('SKIP'
+             'SKIP'
+             'SKIP'
+@@ -72,7 +86,18 @@ sha256sums=('SKIP'
+             '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
+             '1808df5ba4d1e2f9efa07ac6b510bec866fa6d60e44505d82aea3f6072105a71'
+             '893bc04c7fceba2f0a7195ed48551d55f066bbc530ec934c89c55768e6f3949c'
+-            'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f')
++            'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
++            '87d2c69292ac55ea1784f812c30acdbc341d4333d790fab3439a6b60393bb6c9'
++            '93b2d190448ed94b089eb6c577dba2b81e07d377c8195f76cba6995305d9ed14'
++            '840947515347933da383408711696150cf8020b35d7abe1265b87084dfe1f3df'
++            'a89ab6edda8dcc6349bd357ccb0d5bcd8e2b92a2c5891437e14008da3f2e7f88'
++            '85644fd6b1a64e7cf76f690f1427010cdf773938987f7e1a93b2977873707a4f'
++            '32811636eecd187dd386bbdd0fa1216728d6010f96fae8f1714dded04a95a5f4'
++            'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
++            'd901e905a9b4303e6334bf39475bcbcdf22959796954de66507857108d53570f'
++            'cf80c0d70f8933a4495c71d7be681c1457a69d26e95d2ad41da4bb02b7cbee4c'
++            'b28b64181c46549e94e8c26d5401b0036991c18c60040c444a262484addd0d0d'
++            '4b04b17c997b0f22b4d9ea1940809fbc29dea230c14643cf97a65a4e154bcb3a')
+ 
+ 
+ # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
+@@ -128,6 +153,10 @@ solutions = [
+   },
+ ]
+ EOF
++ 
++  # Pin depot_tools
++  local _depot_tools_rev="$(python "$pkgname-deps-parser.py" depot_tools chromium-mirror/DEPS)"
++  git -C depot_tools checkout $_depot_tools_rev
+ 
+   export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+   export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
+@@ -135,11 +164,31 @@ EOF
+   echo "Linking chromium from sources..."
+   ln -sfn chromium-mirror src
+ 
++  echo "Building build tools that doesn't have prebuilt binaries for riscv64..."
++  export GOBIN="$HOME/bin"
++  export PATH="$PATH:$HOME/bin"
++
++  # Install the build tools
++  local infra_rev=$(python "$pkgname-deps-parser.py" infra src/DEPS)
++  curl "https://chromium.googlesource.com/infra/infra/+/$infra_rev/DEPS?format=text" | base64 -d > DEPS_infra
++  local luci_go_rev=$(python "$pkgname-deps-parser.py" luci_go DEPS_infra)
++  go install "go.chromium.org/luci/cipd/client/cmd/...@$luci_go_rev"
++
++  # Fix .cipd-bin problem
++  mkdir -p depot_tools/.cipd_bin
++  GOBIN=$(realpath depot_tools/.cipd_bin) go install "go.chromium.org/luci/auth/client/cmd/...@$luci_go_rev"
++
++  patch -Np0 -i $pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch
++
+   depot_tools/gclient.py sync -D \
+       --nohooks \
+       --with_branch_heads \
+       --with_tags
+ 
++  # Install esbuild (version needs to be locked, not feasible to add it to make dependencies)
++  local esbuild_ver=$(python "$pkgname-deps-parser.py" esbuild src/DEPS)
++  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v$esbuild_ver"
++
+   echo "Running hooks..."
+   # depot_tools/gclient.py runhooks
+   src/build/landmines.py
+@@ -195,6 +244,21 @@ EOF
+   patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
+   patch -Np1 -i "${srcdir}/default_app-icon.patch"  # Icon from .desktop file
+ 
++  # Chromium Bug fixes
++  patch -R -p1 -i "${srcdir}/REVERT-problematic-signal-handling-workaround.patch"
++
++  # RISC-V Patches
++  patch -Np1 -d third_party/crashpad/crashpad < "${srcdir}/$pkgname-riscv-crashpad.patch"
++  patch -Np1 -i ../$pkgname-riscv-sandbox.patch
++  patch -Np1 -i ../$pkgname-riscv-dav1d.patch
++  patch -Np1 -i ../$pkgname-riscv-base.patch
++  patch -Np1 -d electron < ../$pkgname-support-riscv64-in-electron_runtime_api_delegate.cc.patch
++  patch -Np0 -i ../$pkgname-extensions-common-api-runtime.json-support-riscv64.patch
++
++  # Build failes with the bundled LLVM 10.
++  patch -Np1 -i ../$pkgname-swiftshader-use-system-llvm.patch
++  patch -Np1 -i ../$pkgname-swiftshader-LLVMJIT-AddressSanitizerPass-dead-code-remove.patch
++
+   # Allow building against system libraries in official builds
+   echo "Patching Chromium for using system libraries..."
+   sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
+@@ -229,7 +293,7 @@ build() {
+     'host_toolchain="//build/toolchain/linux/unbundle:default"'
+     'clang_base_path="/usr"'
+     'clang_use_chrome_plugins=false'
+-    'symbol_level=0' # sufficient for backtraces on x86(_64)
++    'symbol_level=1'
+     'chrome_pgo_phase=0' # needs newer clang to read the bundled PGO profile
+     'treat_warnings_as_errors=false'
+     'disable_fieldtrial_testing_config=true'
+@@ -260,6 +324,10 @@ build() {
+   CFLAGS+='   -Wno-unknown-warning-option'
+   CXXFLAGS+=' -Wno-unknown-warning-option'
+ 
++  # Remove flags that are causing weird bugs on riscv64
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++  CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++
+   # Let Chromium set its own symbol level
+   CFLAGS=${CFLAGS/-g }
+   CXXFLAGS=${CXXFLAGS/-g }
