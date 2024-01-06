@@ -1,23 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,12 +14,17 @@ checkdepends=('cargo-nextest')
+@@ -14,11 +14,16 @@ checkdepends=('cargo-nextest')
  conflicts=('lychee-link-checker' 'lychee-rs')
  replaces=('lychee-link-checker' 'lychee-rs')
  options=('!lto')
 -source=("$pkgname-$pkgver.tar.gz::https://github.com/lycheeverse/lychee/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
--b2sums=('0d57e1f47cf45f3926b1b3972bda6e3cac7934bc24d1b6a2061af4d407e18f95dda7c72ad3a031543f1e093fd53725c6b08354d37ed4d64904d27c40d1b49646')
+-b2sums=('c83ed96c228e71ad09c7d01c9ba72729ee8cc55c3aabdb12cd81a8923b7796b921f41b0acd75115391f3e92d91bd59ca1dea136d2dcefd050cc379f8397b19fc')
 +source=("$pkgname-$pkgver.tar.gz::https://github.com/lycheeverse/lychee/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
-+        "$pkgname-fix-flaky-test.patch::https://github.com/lycheeverse/lychee/pull/1079.patch")
-+b2sums=('0d57e1f47cf45f3926b1b3972bda6e3cac7934bc24d1b6a2061af4d407e18f95dda7c72ad3a031543f1e093fd53725c6b08354d37ed4d64904d27c40d1b49646'
-+        'ec21122e8995df656aca2b90d4950d87c26ff304191243ebfc2710221ebdcf8ff0831e74c50455bde07003b8c3f28d075880c945842f0983b46e3050aa262536')
++        "$pkgname-fix-cookie-jar-test.patch::https://github.com/lycheeverse/lychee/pull/1336.diff")
++b2sums=('c83ed96c228e71ad09c7d01c9ba72729ee8cc55c3aabdb12cd81a8923b7796b921f41b0acd75115391f3e92d91bd59ca1dea136d2dcefd050cc379f8397b19fc'
++        'ce0c643facf4a6e0a4d5927f60dc08f72f8b446e5f9699103502778c85c2d5717fee34526cfbfb9ba367ffd7872d56b3def3d7f38a0c914f10139949232c5808')
  
  prepare() {
    cd $pkgname-$pkgver
--  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  patch -Np1 -i ../$pkgname-fix-flaky-test.patch
++  patch -Np1 -i ../$pkgname-fix-cookie-jar-test.patch
 +  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
-+  cargo fetch --locked
++  cargo update -p ring@0.16.20
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
  }
  
- build() {
