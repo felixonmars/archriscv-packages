@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,17 +18,26 @@ depends=(gcc-libs
+@@ -18,16 +18,25 @@ depends=(gcc-libs
           neovim
           sndio)
  makedepends=(cargo
@@ -15,20 +15,18 @@
              'libxkbcommon-x11: run on X11 (not needed for wayland)')
  _archive=("$pkgname-$pkgver")
  source=("$url/archive/$pkgver/$_archive.tar.gz")
- sha256sums=('8770dd6977605f9bafa990a60cf8f2ebeba7df16417dab2e8c5583d279ec86ef')
+ sha256sums=('95df61d51635a981697a6c4b3e63a9feb29bb90bfc69940c02c73273a61cfd10')
 +options=(!lto)
  
  prepare() {
  	cd "$_archive"
  	sed -r -i -e '/^incremental/a opt-level = 3' Cargo.toml
--	cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 +	echo -e "\n[patch.crates-io]\nskia-bindings = { git = 'https://github.com/aimixsaka/rust-skia', branch = 'riscv-skia-bindings-0.68.0' }" >> Cargo.toml
 +
 +	cargo update -p skia-bindings
-+	cargo fetch --locked
+ 	cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
  }
  
- build() {
 @@ -39,6 +48,9 @@ build() {
  	export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
  	CFLAGS+=' -ffat-lto-objects'
