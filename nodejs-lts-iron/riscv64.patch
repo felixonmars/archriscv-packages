@@ -1,0 +1,33 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,7 +11,7 @@ license=(MIT)
+ # maybe revert back to openssl-1.1 or internal openssl
+ # https://github.com/nodejs/node/issues/47852
+ depends=(openssl zlib icu libuv c-ares brotli libnghttp2) # http-parser v8)
+-makedepends=(python procps-ng)
++makedepends=(python procps-ng clang)
+ optdepends=('npm: nodejs package manager')
+ options=(!lto)
+ provides=("nodejs=$pkgver")
+@@ -20,7 +20,13 @@ source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz)
+ # https://nodejs.org/download/release/latest-iron/SHASUMS256.txt.asc
+ sha256sums=('32eb256eebd8cacd5574e6631e54b42be7ec8ebe25ad47a8ca685403bad15535')
+ 
++_set_compilation_env() {
++  export CC=/usr/bin/clang
++  export CXX=/usr/bin/clang++
++}
++
+ build() {
++  _set_compilation_env
+   cd node-v${pkgver}
+ 
+   ./configure \
+@@ -46,6 +52,7 @@ check() {
+ }
+ 
+ package() {
++  _set_compilation_env
+   cd node-v${pkgver}
+   make DESTDIR="${pkgdir}" install
+   install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
