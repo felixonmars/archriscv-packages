@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,12 +17,18 @@ url='https://nodejs.org/'
+ license=('MIT')
+ options=(!lto)
+ depends=('icu' 'libuv' 'libnghttp2' 'libnghttp3' 'libngtcp2' 'openssl' 'zlib' 'brotli' 'c-ares') # 'http-parser' 'v8')
+-makedepends=('git' 'python' 'procps-ng')
++makedepends=('git' 'python' 'procps-ng' 'clang')
+ optdepends=('npm: nodejs package manager')
+ source=("git+https://github.com/nodejs/node.git#commit=$_commit")
+ sha512sums=('SKIP')
+ 
++_set_compilation_env() {
++  export CC=/usr/bin/clang
++  export CXX=/usr/bin/clang++
++}
++
+ build() {
++  _set_compilation_env
+   cd node
+ 
+   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
+@@ -53,6 +59,7 @@ check() {
+ }
+ 
+ package() {
++  _set_compilation_env
+   cd node
+   make DESTDIR="$pkgdir" install
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
