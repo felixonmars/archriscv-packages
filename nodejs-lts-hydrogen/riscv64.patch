@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,6 +29,14 @@ validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesbor
+@@ -29,7 +29,21 @@ validpgpkeys=(C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8  # Myles Borins <mylesbor
                74F12602B6F1C4E913FAA37AD3A89613643B6201  # Danielle Adams <adamzdanielle@gmail.com>
                61FC681DFB92A079F1685E77973F295594EC4689) # Juan José Arboleda <soyjuanarbol@gmail.com>
  
@@ -12,6 +12,21 @@
 +  patch -Np1 -i "${srcdir}/nodejs18-fix-vite.patch"
 +}
 +
++_set_compilation_env() {
++  export CFLAGS=${CFLAGS/-O2}
++  export CXXFLAGS=${CXXFLAGS/-O2}
++}
++
  build() {
++  _set_compilation_env
    cd node-v${pkgver}
  
+   ./configure \
+@@ -85,6 +99,7 @@ check() {
+ }
+ 
+ package() {
++  _set_compilation_env
+   cd node-v${pkgver}
+   make DESTDIR="${pkgdir}" install
+   install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
