@@ -1,5 +1,6 @@
---- mesa-23.2.1/src/gallium/auxiliary/draw/draw_context.c
-+++ mesa-23.2.1-new/src/gallium/auxiliary/draw/draw_context.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/draw/draw_context.c mesa-23.3.3/src/gallium/auxiliary/draw/draw_context.c
+--- mesa-23.3.3.orig/src/gallium/auxiliary/draw/draw_context.c	2024-01-20 22:31:03.141115934 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/draw/draw_context.c	2024-01-20 22:34:02.584793052 -0500
 @@ -77,7 +77,11 @@
  
  #ifdef DRAW_LLVM_AVAILABLE
@@ -12,23 +13,24 @@
     }
  #endif
  
---- mesa-23.2.1/src/gallium/auxiliary/draw/draw_llvm.c
-+++ mesa-23.2.1-new/src/gallium/auxiliary/draw/draw_llvm.c
-@@ -384,8 +384,13 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/draw/draw_llvm.c mesa-23.3.3/src/gallium/auxiliary/draw/draw_llvm.c
+--- mesa-23.3.3.orig/src/gallium/auxiliary/draw/draw_llvm.c	2024-01-20 22:31:03.144449274 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/draw/draw_llvm.c	2024-01-20 22:34:02.588126392 -0500
+@@ -381,8 +381,13 @@
  /**
   * Create per-context LLVM info.
   */
 +#if GALLIVM_USE_ORCJIT == 1
- struct draw_llvm *
++struct draw_llvm *
 +draw_llvm_create(struct draw_context *draw, LLVMOrcThreadSafeContextRef context)
 +#else
-+struct draw_llvm *
+ struct draw_llvm *
  draw_llvm_create(struct draw_context *draw, LLVMContextRef context)
 +#endif
  {
     struct draw_llvm *llvm;
  
-@@ -398,6 +403,16 @@
+@@ -395,6 +400,16 @@
  
     llvm->draw = draw;
  
@@ -45,7 +47,7 @@
     llvm->context = context;
     if (!llvm->context) {
        llvm->context = LLVMContextCreate();
-@@ -410,6 +425,7 @@
+@@ -407,6 +422,7 @@
     }
     if (!llvm->context)
        goto fail;
@@ -53,24 +55,24 @@
  
     llvm->nr_variants = 0;
     list_inithead(&llvm->vs_variants_list.list);
-@@ -437,9 +453,16 @@
+@@ -434,9 +450,16 @@
  void
  draw_llvm_destroy(struct draw_llvm *llvm)
  {
 +#if GALLIVM_USE_ORCJIT == 1
-    if (llvm->context_owned)
++   if (llvm->context_owned)
 +      LLVMOrcDisposeThreadSafeContext(llvm->_ts_context);
 +   llvm->_ts_context = NULL;
 +   llvm->context = NULL;
 +#else
-+   if (llvm->context_owned)
+    if (llvm->context_owned)
        LLVMContextDispose(llvm->context);
     llvm->context = NULL;
 +#endif
  
     /* XXX free other draw_llvm data? */
     FREE(llvm);
-@@ -513,7 +536,11 @@
+@@ -510,7 +533,11 @@
        if (!cached.data_size)
           needs_caching = true;
     }
@@ -82,21 +84,21 @@
  
     create_vs_jit_types(variant);
  
-@@ -532,8 +559,13 @@
+@@ -529,8 +556,13 @@
  
     gallivm_compile_module(variant->gallivm);
  
 +#if GALLIVM_USE_ORCJIT == 1
-    variant->jit_func = (draw_jit_vert_func)
++   variant->jit_func = (draw_jit_vert_func)
 +         gallivm_jit_function(variant->gallivm, variant->function_name);
 +#else
-+   variant->jit_func = (draw_jit_vert_func)
+    variant->jit_func = (draw_jit_vert_func)
           gallivm_jit_function(variant->gallivm, variant->function);
 +#endif
  
     if (needs_caching)
        llvm->draw->disk_cache_insert_shader(llvm->draw->disk_cache_cookie,
-@@ -1633,6 +1665,10 @@
+@@ -1630,6 +1662,10 @@
  
     variant_func = LLVMAddFunction(gallivm->module, func_name, func_type);
     variant->function = variant_func;
@@ -107,7 +109,7 @@
  
     LLVMSetFunctionCallConv(variant_func, LLVMCCallConv);
     for (i = 0; i < num_arg_types; ++i)
-@@ -2244,6 +2280,11 @@
+@@ -2241,6 +2277,11 @@
     variant->shader->variants_cached--;
     list_del(&variant->list_item_global.list);
     llvm->nr_variants--;
@@ -119,7 +121,7 @@
     FREE(variant);
  }
  
-@@ -2353,6 +2394,10 @@
+@@ -2350,6 +2391,10 @@
     variant_func = LLVMAddFunction(gallivm->module, func_name, func_type);
  
     variant->function = variant_func;
@@ -130,7 +132,7 @@
  
     LLVMSetFunctionCallConv(variant_func, LLVMCCallConv);
  
-@@ -2518,7 +2563,11 @@
+@@ -2515,7 +2560,11 @@
        if (!cached.data_size)
           needs_caching = true;
     }
@@ -142,21 +144,21 @@
  
     create_gs_jit_types(variant);
  
-@@ -2529,8 +2578,13 @@
+@@ -2526,8 +2575,13 @@
  
     gallivm_compile_module(variant->gallivm);
  
 +#if GALLIVM_USE_ORCJIT == 1
-    variant->jit_func = (draw_gs_jit_func)
++   variant->jit_func = (draw_gs_jit_func)
 +         gallivm_jit_function(variant->gallivm, variant->function_name);
 +#else
-+   variant->jit_func = (draw_gs_jit_func)
+    variant->jit_func = (draw_gs_jit_func)
           gallivm_jit_function(variant->gallivm, variant->function);
 +#endif
  
     if (needs_caching)
        llvm->draw->disk_cache_insert_shader(llvm->draw->disk_cache_cookie,
-@@ -2563,6 +2617,10 @@
+@@ -2560,6 +2614,10 @@
     variant->shader->variants_cached--;
     list_del(&variant->list_item_global.list);
     llvm->nr_gs_variants--;
@@ -167,7 +169,7 @@
     FREE(variant);
  }
  
-@@ -2936,6 +2994,10 @@
+@@ -2933,6 +2991,10 @@
     variant_coro = LLVMAddFunction(gallivm->module, func_name_coro, coro_func_type);
  
     variant->function = variant_func;
@@ -178,7 +180,7 @@
     LLVMSetFunctionCallConv(variant_func, LLVMCCallConv);
  
     LLVMSetFunctionCallConv(variant_coro, LLVMCCallConv);
-@@ -3171,8 +3233,11 @@
+@@ -3168,8 +3230,11 @@
        if (!cached.data_size)
           needs_caching = true;
     }
@@ -191,18 +193,18 @@
  
     create_tcs_jit_types(variant);
  
-@@ -3183,10 +3248,18 @@
+@@ -3180,10 +3245,18 @@
  
     draw_tcs_llvm_generate(llvm, variant);
  
 +#if GALLIVM_USE_ORCJIT == 1
 +   lp_build_coro_add_malloc_hooks(variant->gallivm);
 +
-    gallivm_compile_module(variant->gallivm);
++   gallivm_compile_module(variant->gallivm);
 +   variant->jit_func = (draw_tcs_jit_func)
 +      gallivm_jit_function(variant->gallivm, variant->function_name);
 +#else
-+   gallivm_compile_module(variant->gallivm);
+    gallivm_compile_module(variant->gallivm);
  
     variant->jit_func = (draw_tcs_jit_func)
        gallivm_jit_function(variant->gallivm, variant->function);
@@ -210,7 +212,7 @@
  
     if (needs_caching)
        llvm->draw->disk_cache_insert_shader(llvm->draw->disk_cache_cookie,
-@@ -3219,6 +3292,10 @@
+@@ -3216,6 +3289,10 @@
     variant->shader->variants_cached--;
     list_del(&variant->list_item_global.list);
     llvm->nr_tcs_variants--;
@@ -221,7 +223,7 @@
     FREE(variant);
  }
  
-@@ -3501,6 +3578,10 @@
+@@ -3498,6 +3575,10 @@
     variant_func = LLVMAddFunction(gallivm->module, func_name, func_type);
  
     variant->function = variant_func;
@@ -232,7 +234,7 @@
     LLVMSetFunctionCallConv(variant_func, LLVMCCallConv);
  
     for (i = 0; i < ARRAY_SIZE(arg_types); ++i)
-@@ -3691,7 +3772,11 @@
+@@ -3688,7 +3769,11 @@
        if (!cached.data_size)
           needs_caching = true;
     }
@@ -244,21 +246,21 @@
  
     create_tes_jit_types(variant);
  
-@@ -3707,8 +3792,13 @@
+@@ -3704,8 +3789,13 @@
  
     gallivm_compile_module(variant->gallivm);
  
 +#if GALLIVM_USE_ORCJIT == 1
-    variant->jit_func = (draw_tes_jit_func)
++   variant->jit_func = (draw_tes_jit_func)
 +      gallivm_jit_function(variant->gallivm, variant->function_name);
 +#else
-+   variant->jit_func = (draw_tes_jit_func)
+    variant->jit_func = (draw_tes_jit_func)
        gallivm_jit_function(variant->gallivm, variant->function);
 +#endif
  
     if (needs_caching)
        llvm->draw->disk_cache_insert_shader(llvm->draw->disk_cache_cookie,
-@@ -3741,6 +3831,10 @@
+@@ -3738,6 +3828,10 @@
     variant->shader->variants_cached--;
     list_del(&variant->list_item_global.list);
     llvm->nr_tes_variants--;
@@ -269,22 +271,22 @@
     FREE(variant);
  }
  
---- mesa-23.2.1/src/gallium/auxiliary/draw/draw_llvm.h
-+++ mesa-23.2.1-new/src/gallium/auxiliary/draw/draw_llvm.h
-@@ -42,7 +42,12 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/draw/draw_llvm.h mesa-23.3.3/src/gallium/auxiliary/draw/draw_llvm.h
+--- mesa-23.3.3.orig/src/gallium/auxiliary/draw/draw_llvm.h	2024-01-20 22:31:03.144449274 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/draw/draw_llvm.h	2024-01-20 22:34:02.591459731 -0500
+@@ -42,6 +42,11 @@
  #include "pipe/p_context.h"
  #include "util/list.h"
  
 +#define GALLIVM_USE_ORCJIT 1
- 
++
 +#if GALLIVM_USE_ORCJIT == 1
 +#include <llvm-c/Orc.h>
 +#endif
-+
+ 
  struct draw_llvm;
  struct llvm_vertex_shader;
- struct llvm_geometry_shader;
-@@ -401,6 +406,9 @@
+@@ -398,6 +403,9 @@
     LLVMTypeRef vertex_header_ptr_type;
  
     LLVMValueRef function;
@@ -294,7 +296,7 @@
     draw_jit_vert_func jit_func;
  
     struct llvm_vertex_shader *shader;
-@@ -434,6 +442,9 @@
+@@ -431,6 +439,9 @@
     LLVMValueRef io_ptr;
     LLVMValueRef num_prims;
     LLVMValueRef function;
@@ -304,7 +306,7 @@
     draw_gs_jit_func jit_func;
  
     struct llvm_geometry_shader *shader;
-@@ -460,6 +471,9 @@
+@@ -457,6 +468,9 @@
     /* LLVMValueRef io_ptr; */
     LLVMValueRef num_prims;
     LLVMValueRef function;
@@ -314,7 +316,7 @@
     draw_tcs_jit_func jit_func;
  
     struct llvm_tess_ctrl_shader *shader;
-@@ -490,6 +504,9 @@
+@@ -487,6 +501,9 @@
     LLVMValueRef io_ptr;
     LLVMValueRef num_prims;
     LLVMValueRef function;
@@ -324,7 +326,7 @@
     draw_tes_jit_func jit_func;
  
     struct llvm_tess_eval_shader *shader;
-@@ -542,6 +559,9 @@
+@@ -539,6 +556,9 @@
     struct draw_context *draw;
  
     LLVMContextRef context;
@@ -334,23 +336,24 @@
     bool context_owned;
  
     struct draw_vs_jit_context vs_jit_context;
-@@ -587,8 +607,13 @@
+@@ -584,8 +604,13 @@
     return (struct llvm_tess_eval_shader *)tes;
  }
  
 +#if GALLIVM_USE_ORCJIT == 1
- struct draw_llvm *
--draw_llvm_create(struct draw_context *draw, LLVMContextRef llvm_context);
++struct draw_llvm *
 +draw_llvm_create(struct draw_context *draw, LLVMOrcThreadSafeContextRef context);
 +#else
-+struct draw_llvm *
+ struct draw_llvm *
+-draw_llvm_create(struct draw_context *draw, LLVMContextRef llvm_context);
 +draw_llvm_create(struct draw_context *draw, LLVMContextRef context);
 +#endif
  
  void
  draw_llvm_destroy(struct draw_llvm *llvm);
---- mesa-23.2.1/src/gallium/auxiliary/gallivm/lp_bld_coro.c
-+++ mesa-23.2.1-new/src/gallium/auxiliary/gallivm/lp_bld_coro.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_coro.c mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_coro.c
+--- mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_coro.c	2024-01-20 22:31:03.167782652 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_coro.c	2024-01-20 22:34:02.591459731 -0500
 @@ -156,12 +156,14 @@
  
  void lp_build_coro_add_malloc_hooks(struct gallivm_state *gallivm)
@@ -368,8 +371,9 @@
  }
  
  void lp_build_coro_declare_malloc_hooks(struct gallivm_state *gallivm)
---- mesa-23.2.1/src/gallium/auxiliary/gallivm/lp_bld_init.c
-+++ mesa-23.2.1-new/src/gallium/auxiliary/gallivm/lp_bld_init.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_init.c mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_init.c
+--- mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_init.c	2024-01-20 22:31:03.171115992 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_init.c	2024-01-20 22:34:02.591459731 -0500
 @@ -515,6 +515,11 @@
     FREE(gallivm);
  }
@@ -391,8 +395,9 @@
  
     lp_init_clock_hook(gallivm);
     LLVMAddGlobalMapping(gallivm->engine, gallivm->get_time_hook, os_time_get_nano);
---- mesa-23.2.1/src/gallium/auxiliary/gallivm/lp_bld_init.h
-+++ mesa-23.2.1-new/src/gallium/auxiliary/gallivm/lp_bld_init.h
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_init.h mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_init.h
+--- mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_init.h	2024-01-20 22:31:03.171115992 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_init.h	2024-01-20 22:34:02.594793071 -0500
 @@ -29,11 +29,16 @@
  #ifndef LP_BLD_INIT_H
  #define LP_BLD_INIT_H
@@ -447,11 +452,11 @@
  
 -
 +#if GALLIVM_USE_ORCJIT == 1
- struct gallivm_state *
++struct gallivm_state *
 +gallivm_create(const char *name, LLVMOrcThreadSafeContextRef context,
 +               struct lp_cached_code *cache);
 +#else
-+struct gallivm_state *
+ struct gallivm_state *
  gallivm_create(const char *name, LLVMContextRef context,
                 struct lp_cached_code *cache);
 +#endif
@@ -473,19 +478,20 @@
  gallivm_compile_module(struct gallivm_state *gallivm);
  
 +#if GALLIVM_USE_ORCJIT == 1
- func_pointer
- gallivm_jit_function(struct gallivm_state *gallivm,
-+                     const char *func_name);
-+#else
 +func_pointer
 +gallivm_jit_function(struct gallivm_state *gallivm,
++                     const char *func_name);
++#else
+ func_pointer
+ gallivm_jit_function(struct gallivm_state *gallivm,
                       LLVMValueRef func);
 +#endif
  
  unsigned gallivm_get_perf_flags(void);
  
---- /dev/null
-+++ mesa-23.2.1-new/src/gallium/auxiliary/gallivm/lp_bld_init_orc.cpp
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_init_orc.cpp mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_init_orc.cpp
+--- mesa-23.3.3.orig/src/gallium/auxiliary/gallivm/lp_bld_init_orc.cpp	1969-12-31 19:00:00.000000000 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/gallivm/lp_bld_init_orc.cpp	2024-01-20 22:34:02.594793071 -0500
 @@ -0,0 +1,905 @@
 +#include "util/detect.h"
 +#include "util/u_cpu_detect.h"
@@ -1392,9 +1398,10 @@
 +   M->setOverrideStackAlignment(align);
 +#endif
 +}
---- mesa-23.2.1/src/gallium/auxiliary/meson.build
-+++ mesa-23.2.1-new/src/gallium/auxiliary/meson.build
-@@ -343,7 +343,7 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/auxiliary/meson.build mesa-23.3.3/src/gallium/auxiliary/meson.build
+--- mesa-23.3.3.orig/src/gallium/auxiliary/meson.build	2024-01-20 22:31:03.137782595 -0500
++++ mesa-23.3.3/src/gallium/auxiliary/meson.build	2024-01-20 22:34:02.598126411 -0500
+@@ -347,7 +347,7 @@
      'gallivm/lp_bld_gather.c',
      'gallivm/lp_bld_gather.h',
      'gallivm/lp_bld.h',
@@ -1403,8 +1410,9 @@
      'gallivm/lp_bld_init.h',
      'gallivm/lp_bld_intr.c',
      'gallivm/lp_bld_intr.h',
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_context.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_context.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_context.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_context.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_context.c	2024-01-20 22:31:03.414449791 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_context.c	2024-01-20 22:34:02.598126411 -0500
 @@ -49,6 +49,10 @@
  #include "lp_screen.h"
  #include "lp_fence.h"
@@ -1429,7 +1437,7 @@
     llvmpipe->context = NULL;
  
     align_free(llvmpipe);
-@@ -259,14 +267,24 @@
+@@ -259,15 +267,25 @@
  #ifdef USE_GLOBAL_LLVM_CONTEXT
     llvmpipe->context = LLVMGetGlobalContext();
  #else
@@ -1451,12 +1459,14 @@
 +#else
 +#if LLVM_VERSION_MAJOR >= 15
     LLVMContextSetOpaquePointers(llvmpipe->context, false);
-+#endif
  #endif
++#endif
  
     /*
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_context.h
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_context.h
+     * Create drawing context and plug our rendering stage into it.
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_context.h mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_context.h
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_context.h	2024-01-20 22:31:03.414449791 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_context.h	2024-01-20 22:34:02.598126411 -0500
 @@ -190,7 +190,11 @@
     unsigned render_cond_offset;
  
@@ -1469,9 +1479,10 @@
  
     int max_global_buffers;
     struct pipe_resource **global_buffers;
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_screen.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_screen.c
-@@ -942,7 +942,11 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_screen.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_screen.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_screen.c	2024-01-20 22:31:03.421116471 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_screen.c	2024-01-20 22:34:02.601459751 -0500
+@@ -951,7 +951,11 @@
  lp_disk_cache_create(struct llvmpipe_screen *screen)
  {
     struct mesa_sha1 ctx;
@@ -1483,9 +1494,10 @@
     unsigned char sha1[20];
     char cache_id[20 * 2 + 1];
     _mesa_sha1_init(&ctx);
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_cs.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_cs.c
-@@ -404,6 +404,10 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_cs.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_cs.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_cs.c	2024-01-20 22:31:03.424449810 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_cs.c	2024-01-20 22:34:02.601459751 -0500
+@@ -398,6 +398,10 @@
     lp_build_coro_add_presplit(coro);
  
     variant->function = function;
@@ -1496,7 +1508,7 @@
  
     for (i = 0; i < CS_ARG_MAX - !is_mesh; ++i) {
        if (LLVMGetTypeKind(arg_types[i]) == LLVMPointerTypeKind) {
-@@ -957,6 +961,10 @@
+@@ -1048,6 +1052,10 @@
     lp->nr_cs_variants--;
     lp->nr_cs_instrs -= variant->nr_instrs;
  
@@ -1507,7 +1519,7 @@
     FREE(variant);
  }
  
-@@ -1222,12 +1230,23 @@
+@@ -1306,12 +1314,23 @@
  
     generate_compute(lp, shader, variant);
  
@@ -1516,13 +1528,13 @@
 +   lp_build_coro_add_malloc_hooks(variant->gallivm);
 +   variant->nr_instrs += lp_build_count_ir_module(variant->gallivm->module);
 +
-    gallivm_compile_module(variant->gallivm);
- 
++   gallivm_compile_module(variant->gallivm);
++
 +   variant->jit_function = (lp_jit_cs_func)
 +      gallivm_jit_function(variant->gallivm, variant->function_name);
 +#else
-+   gallivm_compile_module(variant->gallivm);
-+
+    gallivm_compile_module(variant->gallivm);
+ 
     variant->nr_instrs += lp_build_count_ir_module(variant->gallivm->module);
  
     variant->jit_function = (lp_jit_cs_func)
@@ -1531,8 +1543,9 @@
  
     if (needs_caching) {
        lp_disk_cache_insert_shader(screen, &cached, ir_sha1_cache_key);
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_cs.h
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_cs.h
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_cs.h mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_cs.h
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_cs.h	2024-01-20 22:31:03.424449810 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_cs.h	2024-01-20 22:34:02.601459751 -0500
 @@ -91,6 +91,9 @@
     LLVMTypeRef jit_vertex_header_ptr_type;
     LLVMTypeRef jit_prim_type;
@@ -1543,9 +1556,10 @@
     lp_jit_cs_func jit_function;
  
     /* Total number of LLVM instructions generated */
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_fs.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_fs.c
-@@ -3217,6 +3217,10 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_fs.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_fs.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_fs.c	2024-01-20 22:31:03.427783150 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_fs.c	2024-01-20 22:34:02.608126430 -0500
+@@ -3206,6 +3206,10 @@
     LLVMSetFunctionCallConv(function, LLVMCCallConv);
  
     variant->function[partial_mask] = function;
@@ -1556,7 +1570,7 @@
  
     /* XXX: need to propagate noalias down into color param now we are
      * passing a pointer-to-pointer?
-@@ -3926,20 +3930,37 @@
+@@ -3912,20 +3916,37 @@
      * Compile everything
      */
  
@@ -1564,9 +1578,9 @@
 +/* module has been moved into ORCJIT after gallivm_compile_module */
 +   variant->nr_instrs += lp_build_count_ir_module(variant->gallivm->module);
 +
-    gallivm_compile_module(variant->gallivm);
-+#else
 +   gallivm_compile_module(variant->gallivm);
++#else
+    gallivm_compile_module(variant->gallivm);
  
     variant->nr_instrs += lp_build_count_ir_module(variant->gallivm->module);
 +#endif
@@ -1574,10 +1588,10 @@
     if (variant->function[RAST_EDGE_TEST]) {
        variant->jit_function[RAST_EDGE_TEST] = (lp_jit_frag_func)
 +#if GALLIVM_USE_ORCJIT == 1
-             gallivm_jit_function(variant->gallivm,
++            gallivm_jit_function(variant->gallivm,
 +                                 variant->function_name[RAST_EDGE_TEST]);
 +#else
-+            gallivm_jit_function(variant->gallivm,
+             gallivm_jit_function(variant->gallivm,
                                   variant->function[RAST_EDGE_TEST]);
 +#endif
     }
@@ -1585,16 +1599,16 @@
     if (variant->function[RAST_WHOLE]) {
        variant->jit_function[RAST_WHOLE] = (lp_jit_frag_func)
 +#if GALLIVM_USE_ORCJIT == 1
-          gallivm_jit_function(variant->gallivm,
++         gallivm_jit_function(variant->gallivm,
 +                              variant->function_name[RAST_WHOLE]);
 +#else
-+         gallivm_jit_function(variant->gallivm,
+          gallivm_jit_function(variant->gallivm,
                                variant->function[RAST_WHOLE]);
 +#endif
     } else if (!variant->jit_function[RAST_WHOLE]) {
        variant->jit_function[RAST_WHOLE] = (lp_jit_frag_func)
           variant->jit_function[RAST_EDGE_TEST];
-@@ -3948,7 +3969,11 @@
+@@ -3934,7 +3955,11 @@
     if (linear_pipeline) {
        if (variant->linear_function) {
           variant->jit_linear_llvm = (lp_jit_linear_llvm_func)
@@ -1606,7 +1620,7 @@
        }
  
        /*
-@@ -4136,6 +4161,14 @@
+@@ -4110,6 +4135,14 @@
  {
     gallivm_destroy(variant->gallivm);
     lp_fs_reference(lp, &variant->shader, NULL);
@@ -1621,9 +1635,10 @@
     FREE(variant);
  }
  
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_fs.h
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_fs.h
-@@ -169,6 +169,9 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_fs.h mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_fs.h
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_fs.h	2024-01-20 22:31:03.427783150 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_fs.h	2024-01-20 22:34:02.608126430 -0500
+@@ -168,6 +168,9 @@
     LLVMTypeRef jit_linear_textures_type;
  
     LLVMValueRef function[2]; // [RAST_WHOLE], [RAST_EDGE_TEST]
@@ -1633,7 +1648,7 @@
  
     lp_jit_frag_func jit_function[2]; // [RAST_WHOLE], [RAST_EDGE_TEST]
  
-@@ -178,6 +181,9 @@
+@@ -177,6 +180,9 @@
     /* Functions within the linear path:
      */
     LLVMValueRef linear_function;
@@ -1643,9 +1658,10 @@
     lp_jit_linear_llvm_func jit_linear_llvm;
  
     /* Bitmask to say what cbufs are unswizzled */
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c
-@@ -298,6 +298,10 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c	2024-01-20 22:31:03.427783150 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_fs_linear_llvm.c	2024-01-20 22:34:02.608126430 -0500
+@@ -289,6 +289,10 @@
     LLVMSetFunctionCallConv(function, LLVMCCallConv);
  
     variant->linear_function = function;
@@ -1656,9 +1672,10 @@
  
     /* XXX: need to propagate noalias down into color param now we are
      * passing a pointer-to-pointer?
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_setup.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_setup.c
-@@ -687,6 +687,10 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_setup.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_setup.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_setup.c	2024-01-20 22:31:03.427783150 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_setup.c	2024-01-20 22:34:02.611459770 -0500
+@@ -688,6 +688,10 @@
                         arg_types, ARRAY_SIZE(arg_types), 0);
  
     variant->function = LLVMAddFunction(gallivm->module, func_name, func_type);
@@ -1669,22 +1686,23 @@
     if (!variant->function)
        goto fail;
  
-@@ -730,8 +734,13 @@
+@@ -731,8 +735,13 @@
  
     gallivm_compile_module(gallivm);
  
 +#if GALLIVM_USE_ORCJIT == 1
-    variant->jit_function = (lp_jit_setup_triangle)
++   variant->jit_function = (lp_jit_setup_triangle)
 +      gallivm_jit_function(gallivm, variant->function_name);
 +#else
-+   variant->jit_function = (lp_jit_setup_triangle)
+    variant->jit_function = (lp_jit_setup_triangle)
        gallivm_jit_function(gallivm, variant->function);
 +#endif
     if (!variant->jit_function)
        goto fail;
  
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_state_setup.h
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_state_setup.h
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_setup.h mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_setup.h
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_state_setup.h	2024-01-20 22:31:03.431116490 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_state_setup.h	2024-01-20 22:34:02.611459770 -0500
 @@ -66,6 +66,9 @@
      * assembly.
      */
@@ -1695,8 +1713,9 @@
  
     /* The actual generated setup function:
      */
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_test_arit.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_test_arit.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_arit.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_arit.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_arit.c	2024-01-20 22:31:03.431116490 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_arit.c	2024-01-20 22:34:02.611459770 -0500
 @@ -417,7 +417,11 @@
  {
     char test_name[128];
@@ -1750,8 +1769,9 @@
  
     align_free(in);
     align_free(out);
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_test_blend.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_test_blend.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_blend.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_blend.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_blend.c	2024-01-20 22:31:03.431116490 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_blend.c	2024-01-20 22:34:02.614793110 -0500
 @@ -131,16 +131,24 @@
  }
  
@@ -1846,8 +1866,9 @@
  
     return success;
  }
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_test_conv.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_test_conv.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_conv.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_conv.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_conv.c	2024-01-20 22:31:03.431116490 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_conv.c	2024-01-20 22:34:02.614793110 -0500
 @@ -96,16 +96,24 @@
  }
  
@@ -1942,8 +1963,9 @@
  
     return success;
  }
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_test_format.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_test_format.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_format.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_format.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_format.c	2024-01-20 22:31:03.431116490 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_format.c	2024-01-20 22:34:02.614793110 -0500
 @@ -79,9 +79,9 @@
  add_fetch_rgba_test(struct gallivm_state *gallivm, unsigned verbose,
                      const struct util_format_description *desc,
@@ -2081,8 +2103,9 @@
  
     if (fp)
        write_tsv_row(fp, desc, success);
---- /dev/null
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_test_lookup_multiple.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_lookup_multiple.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_lookup_multiple.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_lookup_multiple.c	1969-12-31 19:00:00.000000000 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_lookup_multiple.c	2024-01-20 22:34:02.618126449 -0500
 @@ -0,0 +1,172 @@
 +/**************************************************************************
 + *
@@ -2256,8 +2279,9 @@
 +   printf("no test_single()");
 +   return true;
 +}
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_test_printf.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_test_printf.c
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_printf.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_printf.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_test_printf.c	2024-01-20 22:31:03.431116490 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_test_printf.c	2024-01-20 22:34:02.618126449 -0500
 @@ -57,12 +57,18 @@
  typedef void (*test_printf_t)(int i);
  
@@ -2334,21 +2358,24 @@
  
     return success;
  }
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/lp_texture_handle.c
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/lp_texture_handle.c
-@@ -200,11 +200,19 @@
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_texture_handle.c mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_texture_handle.c
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/lp_texture_handle.c	2024-01-20 22:31:03.434449830 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/lp_texture_handle.c	2024-01-20 22:38:54.748686123 -0500
+@@ -200,12 +200,21 @@
     util_dynarray_fini(&ctx->sampler_matrix.gallivms);
  }
  
 +#if GALLIVM_USE_ORCJIT == 1
- static void *
++static void *
 +compile_function(struct llvmpipe_context *ctx, struct gallivm_state *gallivm, LLVMValueRef function_ref, const char *function,
++                 bool needs_caching,
 +                 uint8_t cache_key[SHA1_DIGEST_LENGTH])
 +{
 +   gallivm_verify_function(gallivm, function_ref);
 +#else
-+static void *
+ static void *
  compile_function(struct llvmpipe_context *ctx, struct gallivm_state *gallivm, LLVMValueRef function,
+                  bool needs_caching,
                   uint8_t cache_key[SHA1_DIGEST_LENGTH])
  {
     gallivm_verify_function(gallivm, function);
@@ -2356,44 +2383,45 @@
     gallivm_compile_module(gallivm);
  
     void *function_ptr = func_to_pointer(gallivm_jit_function(gallivm, function));
-@@ -333,7 +341,11 @@
+@@ -336,7 +345,11 @@
  
     free(image_soa);
  
 +#if GALLIVM_USE_ORCJIT == 1
-+   return compile_function(ctx, gallivm, function, "image", cache_key);
++   return compile_function(ctx, gallivm, function, "image", needs_caching, cache_key);
 +#else
-    return compile_function(ctx, gallivm, function, cache_key);
+    return compile_function(ctx, gallivm, function, needs_caching, cache_key);
 +#endif
  }
  
  static void *
-@@ -471,7 +483,11 @@
+@@ -484,7 +497,11 @@
  
     free(sampler_soa);
  
 +#if GALLIVM_USE_ORCJIT == 1
-+   return compile_function(ctx, gallivm, function, "sample", cache_key);
++   return compile_function(ctx, gallivm, function, "sample", needs_caching, cache_key);
 +#else
-    return compile_function(ctx, gallivm, function, cache_key);
+    return compile_function(ctx, gallivm, function, needs_caching, cache_key);
 +#endif
  }
  
  static void *
-@@ -551,7 +567,11 @@
+@@ -565,7 +582,11 @@
  
     free(sampler_soa);
  
 +#if GALLIVM_USE_ORCJIT == 1
-+   return compile_function(ctx, gallivm, function, "size", cache_key);
++   return compile_function(ctx, gallivm, function, "size", needs_caching, cache_key);
 +#else
-    return compile_function(ctx, gallivm, function, cache_key);
+    return compile_function(ctx, gallivm, function, needs_caching, cache_key);
 +#endif
  }
  
  static void
---- mesa-23.2.1/src/gallium/drivers/llvmpipe/meson.build
-+++ mesa-23.2.1-new/src/gallium/drivers/llvmpipe/meson.build
+diff '--color=auto' -Naur mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/meson.build mesa-23.3.3/src/gallium/drivers/llvmpipe/meson.build
+--- mesa-23.3.3.orig/src/gallium/drivers/llvmpipe/meson.build	2024-01-20 22:31:03.434449830 -0500
++++ mesa-23.3.3/src/gallium/drivers/llvmpipe/meson.build	2024-01-20 22:34:02.621459789 -0500
 @@ -132,7 +132,7 @@
  
  if with_tests and with_gallium_softpipe and draw_with_llvm
