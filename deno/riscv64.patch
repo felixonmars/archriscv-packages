@@ -1,13 +1,38 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,13 +11,26 @@ url="https://deno.land"
+@@ -11,13 +11,49 @@ url="https://deno.land"
  license=('MIT')
  options=('!lto')
  depends=('gcc-libs')
 -makedepends=('git' 'python' 'rust' 'nodejs' 'cmake' 'protobuf')
+-source=("git+https://github.com/denoland/deno.git#commit=$_commit")
+-sha512sums=('SKIP')
 +makedepends=('git' 'python' 'rust' 'nodejs' 'gn' 'ninja' 'clang' 'lld' 'cmake' 'protobuf')
- source=("git+https://github.com/denoland/deno.git#commit=$_commit")
- sha512sums=('SKIP')
++source=("git+https://github.com/denoland/deno.git#commit=$_commit"
++        "git+https://github.com/denoland/rusty_v8.git#commit=ff2a50ccdf7d5f7091e2bfbdedf0927101e2844c"  # 0.83.1
++        "riscv-v8.patch")
++sha512sums=('SKIP'
++            'SKIP'
++            '6dbd86917c815e04f84f30a49afc75f7fad01c97b2d5e40731f11f87eb2d7a5c73bdada824f19f7150bc2921a10cd452306f3ef7e8205ba894f0738f33acec71')
++
++prepare() {
++  cd rusty_v8
++  git config -f .gitmodules submodule.v8.shallow true
++  git submodule update --init --recursive
++  patch -Np1 -i ../riscv-v8.patch
++
++  cd ../deno
++
++  # 0.8.0 -> (at least) 0.8.1
++  # which contains https://github.com/simd-lite/value-trait/commit/136603dcc6c6313b437cc42410aa4c85c709ea58
++  cargo update -p value-trait
++
++  # 0.13.4 -> (at least) 0.13.8
++  # https://github.com/simd-lite/simd-json/commit/f46dc2ab7ca5eab0d531cb7ad7ae11bcac8c2d06
++  cargo update -p simd-json
++
++  echo -e "\n[patch.crates-io]\nv8 = { path = '../rusty_v8' }" >> Cargo.toml
++}
  
  build() {
    cd $pkgname
