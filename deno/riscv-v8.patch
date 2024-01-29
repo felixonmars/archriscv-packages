@@ -1,0 +1,69 @@
+From 86e54fe85fba80a75805d52031c16e83cba03671 Mon Sep 17 00:00:00 2001
+From: Lu Yahan <yahan@iscas.ac.cn>
+Date: Mon, 04 Dec 2023 10:19:55 +0800
+Subject: [PATCH] [riscv][builtins][masm] Use CallBuiltin/TailCallBuiltin where possible
+
+Port commit 063210c08c0dcbff02e3fc59f4afd430b8108432
+Port commit 12203e0c46b507dc138047c0fe22ce254bfced91
+
+Bug: v8:14496
+
+Change-Id: I7cabcbc444b21ff8352cf0aea3dbb55177c398d5
+Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/5081171
+Auto-Submit: Yahan Lu <yahan@iscas.ac.cn>
+Reviewed-by: Ji Qiu <qiuji@iscas.ac.cn>
+Commit-Queue: Yahan Lu <yahan@iscas.ac.cn>
+Cr-Commit-Position: refs/heads/main@{#91322}
+---
+
+diff --git a/src/codegen/riscv/macro-assembler-riscv.cc b/src/codegen/riscv/macro-assembler-riscv.cc
+index 6799a12..59666bf9 100644
+--- a/v8/src/codegen/riscv/macro-assembler-riscv.cc
++++ b/v8/src/codegen/riscv/macro-assembler-riscv.cc
+@@ -401,7 +401,7 @@
+   Pop(slot_address_parameter);
+   Pop(object_parameter);
+ 
+-  CallBuiltin(Builtins::GetEphemeronKeyBarrierStub(fp_mode));
++  CallBuiltin(Builtins::EphemeronKeyBarrier(fp_mode));
+   MaybeRestoreRegisters(registers);
+ }
+ 
+@@ -6696,7 +6696,7 @@
+   __ StoreReturnAddressAndCall(function_address);
+   __ bind(&done_api_call);
+ 
+-  Label promote_scheduled_exception;
++  Label propagate_exception;
+   Label delete_allocated_handles;
+   Label leave_exit_frame;
+ 
+@@ -6739,11 +6739,10 @@
+   {
+     ASM_CODE_COMMENT_STRING(masm,
+                             "Check if the function scheduled an exception.");
+-    __ LoadRoot(scratch2, RootIndex::kTheHoleValue);
+-    __ LoadWord(scratch, __ ExternalReferenceAsOperand(
+-                             ER::scheduled_exception_address(isolate), no_reg));
+-    __ Branch(&promote_scheduled_exception, ne, scratch2, Operand(scratch),
+-              Label::Distance::kNear);
++    __ LoadRoot(scratch, RootIndex::kTheHoleValue);
++    __ LoadWord(scratch2, __ ExternalReferenceAsOperand(
++                              ER::exception_address(isolate), no_reg));
++    __ Branch(&propagate_exception, ne, scratch, Operand(scratch2));
+   }
+   {
+     ASM_CODE_COMMENT_STRING(masm, "Convert return value");
+@@ -6770,9 +6769,9 @@
+     __ Branch(&done_api_call);
+   }
+ 
+-  __ RecordComment("Re-throw by promoting a scheduled exception.");
+-  __ bind(&promote_scheduled_exception);
+-  __ TailCallRuntime(Runtime::kPromoteScheduledException);
++  __ RecordComment("An exception was thrown. Propagate it.");
++  __ bind(&propagate_exception);
++  __ TailCallRuntime(Runtime::kPropagateException);
+ 
+   {
+     ASM_CODE_COMMENT_STRING(
