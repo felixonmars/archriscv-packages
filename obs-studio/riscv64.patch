@@ -1,14 +1,18 @@
-diff --git PKGBUILD PKGBUILD
-index 0f86db8..d138aa2 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -25,10 +25,14 @@ sha256sums=('c23dd463862b1a8f40365d84fd52105d7eafc3614fb3d470b695ba28a6e4da06'
+@@ -21,15 +21,18 @@ optdepends=('libfdk-aac: FDK AAC codec support'
+             'v4l2loopback-dkms: virtual camera support')
+ source=($pkgname-$pkgver.tar.gz::https://github.com/obsproject/obs-studio/archive/$pkgver.tar.gz
+         fix_python_binary_loading.patch
+-        ignore_unused_submodules.patch)
++        ignore_unused_submodules.patch
++        "libcaption-branch-optimize.patch::https://github.com/obsproject/obs-studio/pull/9184.patch")
+ sha256sums=('be12c3ad0a85713750d8325e4b1db75086223402d7080d0e3c2833d7c5e83c27'
              'bdfbd062f080bc925588aec1989bb1df34bf779cc2fc08ac27236679cf612abd'
-             '60b0ee1f78df632e1a8c13cb0a7a5772b2a4b092c4a2a78f23464a7d239557c3')
+-            '60b0ee1f78df632e1a8c13cb0a7a5772b2a4b092c4a2a78f23464a7d239557c3')
++            '60b0ee1f78df632e1a8c13cb0a7a5772b2a4b092c4a2a78f23464a7d239557c3'
++            'f4de2aa52afd013fb9c1e6b1248245269a5e78a06ddf8ce166038a7dff097760')
  
-+source+=("libcaption-branch-optimize.patch::https://github.com/obsproject/obs-studio/pull/9184.patch")
-+sha256sums+=('f4de2aa52afd013fb9c1e6b1248245269a5e78a06ddf8ce166038a7dff097760')
-+
  prepare() {
    cd $pkgname-$pkgver
    patch -Np1 < "$srcdir"/fix_python_binary_loading.patch
@@ -17,11 +21,11 @@ index 0f86db8..d138aa2 100644
  }
  
  build() {
-@@ -42,6 +46,7 @@ build() {
+@@ -43,6 +46,7 @@ build() {
      -DENABLE_JACK=ON \
      -DENABLE_LIBFDK=ON \
-     -DENABLE_WEBRTC=OFF \
+     -DENABLE_WEBRTC=ON \
 +    -DENABLE_QSV11=OFF \
      -DOBS_VERSION_OVERRIDE="$pkgver-$pkgrel" \
+     -DCALM_DEPRECATION=ON \
      -Wno-dev
-   cmake --build build
