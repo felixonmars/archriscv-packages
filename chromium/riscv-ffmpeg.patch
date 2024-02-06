@@ -9114,22 +9114,32 @@
 +#endif /* AVUTIL_FFVERSION_H */
 --- a/third_party/ffmpeg/ffmpeg_generated.gni
 +++ b/third_party/ffmpeg/ffmpeg_generated.gni
-@@ -650,3 +650,44 @@
+@@ -637,3 +637,64 @@
    ]
  }
  
 +if (use_linux_config && current_cpu == "riscv64") {
 +  ffmpeg_c_sources += [
 +    "libavcodec/riscv/aacpsdsp_init.c",
++    "libavcodec/riscv/ac3dsp_init.c",
 +    "libavcodec/riscv/alacdsp_init.c",
 +    "libavcodec/riscv/audiodsp_init.c",
-+    "libavcodec/riscv/bswapdsp_init.c",
++    "libavcodec/riscv/exrdsp_init.c",
++    "libavcodec/riscv/flacdsp_init.c",
 +    "libavcodec/riscv/fmtconvert_init.c",
++    "libavcodec/riscv/g722dsp_init.c",
 +    "libavcodec/riscv/h264_chroma_init_riscv.c",
++    "libavcodec/riscv/huffyuvdsp_init.c",
 +    "libavcodec/riscv/idctdsp_init.c",
++    "libavcodec/riscv/jpeg2000dsp_init.c",
++    "libavcodec/riscv/llauddsp_init.c",
++    "libavcodec/riscv/llviddsp_init.c",
 +    "libavcodec/riscv/opusdsp_init.c",
 +    "libavcodec/riscv/pixblockdsp_init.c",
++    "libavcodec/riscv/sbrdsp_init.c",
++    "libavcodec/riscv/utvideodsp_init.c",
 +    "libavcodec/riscv/vorbisdsp_init.c",
++    "libavcodec/riscv/bswapdsp_init.c",
 +    "libavutil/riscv/cpu.c",
 +    "libavutil/riscv/fixed_dsp_init.c",
 +    "libavutil/riscv/float_dsp_init.c",
@@ -9141,17 +9151,27 @@
 +  ]
 +  ffmpeg_gas_sources += [
 +    "libavcodec/riscv/aacpsdsp_rvv.S",
++    "libavcodec/riscv/ac3dsp_rvb.S",
 +    "libavcodec/riscv/alacdsp_rvv.S",
 +    "libavcodec/riscv/audiodsp_rvf.S",
 +    "libavcodec/riscv/audiodsp_rvv.S",
 +    "libavcodec/riscv/bswapdsp_rvb.S",
 +    "libavcodec/riscv/bswapdsp_rvv.S",
++    "libavcodec/riscv/exrdsp_rvv.S",
++    "libavcodec/riscv/flacdsp_rvv.S",
 +    "libavcodec/riscv/fmtconvert_rvv.S",
++    "libavcodec/riscv/g722dsp_rvv.S",
 +    "libavcodec/riscv/h264_mc_chroma.S",
++    "libavcodec/riscv/huffyuvdsp_rvv.S",
 +    "libavcodec/riscv/idctdsp_rvv.S",
++    "libavcodec/riscv/jpeg2000dsp_rvv.S",
++    "libavcodec/riscv/llauddsp_rvv.S",
++    "libavcodec/riscv/llviddsp_rvv.S",
 +    "libavcodec/riscv/opusdsp_rvv.S",
 +    "libavcodec/riscv/pixblockdsp_rvi.S",
 +    "libavcodec/riscv/pixblockdsp_rvv.S",
++    "libavcodec/riscv/sbrdsp_rvv.S",
++    "libavcodec/riscv/utvideodsp_rvv.S",
 +    "libavcodec/riscv/vorbisdsp_rvv.S",
 +    "libavutil/riscv/asm.S",
 +    "libavutil/riscv/fixed_dsp_rvv.S",
@@ -9159,49 +9179,9 @@
 +    "libswscale/riscv/rgb2rgb_rvv.S",
 +  ]
 +}
---- a/third_party/ffmpeg/ffmpeg_generated.gni
-+++ b/third_party/ffmpeg/ffmpeg_generated.gni
-@@ -672,22 +672,8 @@
-     "libavutil/riscv/timer.h",
-   ]
-   ffmpeg_gas_sources += [
--    "libavcodec/riscv/aacpsdsp_rvv.S",
--    "libavcodec/riscv/alacdsp_rvv.S",
-     "libavcodec/riscv/audiodsp_rvf.S",
--    "libavcodec/riscv/audiodsp_rvv.S",
--    "libavcodec/riscv/bswapdsp_rvb.S",
--    "libavcodec/riscv/bswapdsp_rvv.S",
--    "libavcodec/riscv/fmtconvert_rvv.S",
--    "libavcodec/riscv/h264_mc_chroma.S",
--    "libavcodec/riscv/idctdsp_rvv.S",
--    "libavcodec/riscv/opusdsp_rvv.S",
-     "libavcodec/riscv/pixblockdsp_rvi.S",
--    "libavcodec/riscv/pixblockdsp_rvv.S",
--    "libavcodec/riscv/vorbisdsp_rvv.S",
-     "libavutil/riscv/asm.S",
--    "libavutil/riscv/fixed_dsp_rvv.S",
--    "libavutil/riscv/float_dsp_rvv.S",
--    "libswscale/riscv/rgb2rgb_rvv.S",
-   ]
- }
---- a/third_party/ffmpeg/libavcodec/riscv/bswapdsp_init.c
-+++ b/third_party/ffmpeg/libavcodec/riscv/bswapdsp_init.c
-@@ -33,10 +33,6 @@
-     int flags = av_get_cpu_flags();
- 
-     if (flags & AV_CPU_FLAG_RVB_ADDR) {
--#if (__riscv_xlen >= 64)
--        if (flags & AV_CPU_FLAG_RVB_BASIC)
--            c->bswap_buf = ff_bswap32_buf_rvb;
--#endif
- #if HAVE_RVV
-         if (flags & AV_CPU_FLAG_RVV_I32)
-             c->bswap16_buf = ff_bswap16_buf_rvv;
-diff --git a/chromium/scripts/build_ffmpeg.py b/chromium/scripts/build_ffmpeg.py
-index 19d0a0f..584dbf0 100755
 --- a/third_party/ffmpeg/chromium/scripts/build_ffmpeg.py
 +++ b/third_party/ffmpeg/chromium/scripts/build_ffmpeg.py
-@@ -40,7 +40,7 @@ BRANDINGS = [
+@@ -43,7 +43,7 @@
  ARCH_MAP = {
      'android': ['ia32', 'x64', 'arm-neon', 'arm64'],
      'linux': [
@@ -9210,7 +9190,7 @@ index 19d0a0f..584dbf0 100755
      ],
      'mac': ['x64', 'arm64'],
      'win': ['ia32', 'x64', 'arm64'],
-@@ -142,6 +142,8 @@ def DetermineHostOsAndArch():
+@@ -145,6 +145,8 @@
      host_arch = 'mips64el'
    elif platform.machine().startswith('arm'):
      host_arch = 'arm'
@@ -9219,7 +9199,7 @@ index 19d0a0f..584dbf0 100755
    else:
      return None
  
-@@ -911,6 +913,10 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch, parallel_jobs,
+@@ -921,6 +923,10 @@
              '--extra-cflags=--target=mips64el-linux-gnuabi64',
              '--extra-ldflags=--target=mips64el-linux-gnuabi64',
          ])
@@ -9230,7 +9210,7 @@ index 19d0a0f..584dbf0 100755
      else:
        print(
            'Error: Unknown target arch %r for target OS %r!' % (target_arch,
-@@ -924,7 +930,7 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch, parallel_jobs,
+@@ -934,7 +940,7 @@
          '--disable-inline-asm',
      ])
  
@@ -9239,11 +9219,9 @@ index 19d0a0f..584dbf0 100755
      configure_flags['Common'].extend([
          '--enable-pic',
          '--cc=clang',
-diff --git a/chromium/scripts/copy_config.sh b/chromium/scripts/copy_config.sh
-index a18048c..0d08021 100755
 --- a/third_party/ffmpeg/chromium/scripts/copy_config.sh
 +++ b/third_party/ffmpeg/chromium/scripts/copy_config.sh
-@@ -10,7 +10,7 @@ for os in android linux linux-noasm mac win; do
+@@ -10,7 +10,7 @@
      # Copy config files for various architectures:
      #   - ia32/x64 have config.asm, config.h
      #   - arm/arm-neon have config.h
@@ -9252,11 +9230,9 @@ index a18048c..0d08021 100755
        # Don't waste time on non-existent configs, if no config.h then skip.
        [ ! -e "build.$arch.$os/$target/config.h" ] && continue
        for f in config.h config_components.h config.asm libavutil/avconfig.h libavutil/ffversion.h libavcodec/bsf_list.c libavcodec/codec_list.c libavcodec/parser_list.c libavformat/demuxer_list.c libavformat/muxer_list.c libavformat/protocol_list.c; do
-diff --git a/chromium/scripts/generate_gn.py b/chromium/scripts/generate_gn.py
-index c7869a7..051c124 100755
 --- a/third_party/ffmpeg/chromium/scripts/generate_gn.py
 +++ b/third_party/ffmpeg/chromium/scripts/generate_gn.py
-@@ -78,7 +78,7 @@ _Attrs = ('ARCHITECTURE', 'TARGET', 'PLATFORM')
+@@ -82,7 +82,7 @@
  Attr = collections.namedtuple('Attr', _Attrs)(*_Attrs)
  SUPPORT_MATRIX = {
      Attr.ARCHITECTURE:
@@ -9265,11 +9241,9 @@ index c7869a7..051c124 100755
      Attr.TARGET:
          set(['Chromium', 'Chrome', 'ChromeOS']),
      Attr.PLATFORM:
-diff --git a/chromium/scripts/generate_gn_unittest.py b/chromium/scripts/generate_gn_unittest.py
-index 77245a2..e40ab2b 100755
 --- a/third_party/ffmpeg/chromium/scripts/generate_gn_unittest.py
 +++ b/third_party/ffmpeg/chromium/scripts/generate_gn_unittest.py
-@@ -329,6 +329,10 @@ class SourceSetUnittest(unittest.TestCase):
+@@ -329,6 +329,10 @@
      f = SourceSet(
          set(['common', 'arm-neon', 'chrome', 'chromeos']),
          set([SourceListCondition('arm-neon', 'ChromeOS', 'linux')]))
@@ -9280,7 +9254,7 @@ index 77245a2..e40ab2b 100755
  
      expected = set()
      expected.add(
-@@ -340,7 +344,8 @@ class SourceSetUnittest(unittest.TestCase):
+@@ -340,7 +344,8 @@
                  SourceListCondition('x64', 'Chromium', 'linux'),
                  SourceListCondition('x64', 'Chrome', 'linux'),
                  SourceListCondition('arm', 'Chromium', 'linux'),
@@ -9290,7 +9264,7 @@ index 77245a2..e40ab2b 100755
              ])))
      expected.add(
          SourceSet(
-@@ -368,7 +373,7 @@ class SourceSetUnittest(unittest.TestCase):
+@@ -368,7 +373,7 @@
              set(['arm-neon', 'chromeos']),
              set([SourceListCondition('arm-neon', 'ChromeOS', 'linux')])))
  
@@ -9299,7 +9273,7 @@ index 77245a2..e40ab2b 100755
      self.assertEqualSourceSets(expected, set(source_sets))
  
    def testReduceConditions(self):
-@@ -381,6 +386,7 @@ class SourceSetUnittest(unittest.TestCase):
+@@ -381,6 +386,7 @@
              SourceListCondition('arm', 'Chromium', 'linux'),
              SourceListCondition('arm64', 'Chromium', 'linux'),
              SourceListCondition('arm-neon', 'Chromium', 'linux'),

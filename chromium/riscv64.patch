@@ -1,35 +1,41 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -122,6 +122,16 @@ prepare() {
+@@ -135,6 +135,18 @@ prepare() {
+   patch -Np1 -i ../chromium-patches-*/chromium-117-material-color-include.patch
    patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
-   #patch -Np1 -i ../chromium-patches-*/chromium-120-std-nullptr_t.patch
  
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
++  patch -Np1 -i ../fix-rust-target.patch
++  patch -Np1 -i ../Debian-fix-rust-linking.patch
 +
 +  # riscv64
-+  # Current ffmpeg patch effectively disables RVV.
++  # Current ffmpeg patch effectively disables RVV and RVB.
 +  # We should drop it and pick 5054185 from chromium gerrit once clang is upgraded to 17,
 +  # which added support for '.option arch'
-+  for rvpatch in riscv-{angle,dav1d,libgav1,sandbox,base,ffmpeg}.patch; do
++  for rvpatch in riscv-{dav1d,libgav1,sandbox,ffmpeg,ffmpeg-disable-rvv-rvb,v8}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
 +
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -284,4 +294,15 @@ package() {
+@@ -331,4 +343,19 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}")
 +source+=(swiftshader-use-llvm16.patch
-+         riscv-{angle,dav1d,libgav1,sandbox,base,ffmpeg}.patch)
++         fix-rust-target.patch
++         riscv-{dav1d,libgav1,sandbox,ffmpeg,ffmpeg-disable-rvv-rvb,v8}.patch
++         Debian-fix-rust-linking.patch)
 +sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+             'd092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
++             'fb6a8d99f1eba27a546c391c66f9cacf182076255a2adafb9ebc716130ccbe2b'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
 +             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
 +             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
-+             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
-+             'ef796ea3e4e5b4cbc2da3895f96a711b291542b24054087ed2ebf9cf1bcbcfa9')
++             'a0b38ccff6b06b2cabb6b4bf766782b8ac18755f8a2046150acc9d94ecdbd5be'
++             '07c7c042a847d52c1ce94dadab6ae292153c33d6069243acf86c2f22cdcd1c33'
++             '38718110bd0c913f68600e9b20dccba9457e1c597bbb6b8e5e3bd1d1e9762bae'
++             '98b0fbe1318897954cb8891cafed65e985613c69192e65984ba6785579b29f80')
 +
  # vim:set ts=2 sw=2 et:
