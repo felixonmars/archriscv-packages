@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,7 +11,7 @@ license=(MIT)
+@@ -11,16 +11,28 @@ license=(MIT)
  # maybe revert back to openssl-1.1 or internal openssl
  # https://github.com/nodejs/node/issues/47852
  depends=(openssl zlib icu libuv c-ares brotli libnghttp2) # http-parser v8)
@@ -9,21 +9,30 @@
  optdepends=('npm: nodejs package manager')
  options=(!lto)
  provides=("nodejs=$pkgver")
-@@ -20,7 +20,13 @@ source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz)
+ conflicts=(nodejs)
+-source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz)
++source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz
++        nodejs-51495.diff::https://github.com/nodejs/node/pull/51495.diff)
  # https://nodejs.org/download/release/latest-iron/SHASUMS256.txt.asc
- sha256sums=('32eb256eebd8cacd5574e6631e54b42be7ec8ebe25ad47a8ca685403bad15535')
- 
+-sha256sums=('31807ebeeeb049c53f1765e4a95aed69476a4b696dd100cb539ab668d7950b40')
++sha256sums=('31807ebeeeb049c53f1765e4a95aed69476a4b696dd100cb539ab668d7950b40'
++            '33e47be086c60f8937fb027f3f07582ac2e40b22bec03427f140244d415c1289')
++
 +_set_compilation_env() {
 +  export CC=/usr/bin/clang
 +  export CXX=/usr/bin/clang++
 +}
 +
++prepare() {
++  patch -Np1 -d node-v$pkgver < nodejs-51495.diff
++}
+ 
  build() {
 +  _set_compilation_env
    cd node-v${pkgver}
  
    ./configure \
-@@ -46,6 +52,7 @@ check() {
+@@ -46,6 +58,7 @@ check() {
  }
  
  package() {
