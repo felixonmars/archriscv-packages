@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index b6e2d67..5093e6d 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,13 +43,16 @@
+ }
+ 
+ build() {
+-  export CGO_ENABLED=0
++  export CGO_ENABLED=1
+   export BUILD_HOST=archlinux
+   export BUILD_USER=${pkgbase}
+-  export EXTRA_LDFLAGS="-linkmode external -extldflags \"${LDFLAGS}\""
+   export GOPATH="${srcdir}" GOROOT_FINAL="/usr/bin"
+   cd "${srcdir}/src/github.com/syncthing/${pkgbase}"
+-  export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
++  export CGO_CPPFLAGS="${CPPFLAGS}"
++  export CGO_CFLAGS="${CFLAGS}"
++  export CGO_CXXFLAGS="${CXXFLAGS}"
++  export CGO_LDFLAGS="${LDFLAGS}"
++  export GOFLAGS="-buildmode=pie -trimpath -ldflags=-linkmode=external -mod=readonly -modcacherw"
+   go run build.go -no-upgrade -version v${pkgver} build
+   go run build.go -no-upgrade -version v${pkgver} build strelaysrv
+   go run build.go -no-upgrade -version v${pkgver} build stdiscosrv
