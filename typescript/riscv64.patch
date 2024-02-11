@@ -1,0 +1,35 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,11 +12,30 @@ url=http://www.typescriptlang.org
+ license=('Apache')
+ depends=('nodejs')
+ makedepends=('git' 'npm' 'rsync')
+-source=("git+https://github.com/microsoft/$_name.git#tag=v$pkgver")
+-b2sums=('SKIP')
++source=("git+https://github.com/microsoft/$_name.git#tag=v$pkgver"
++        "remove-dprint.patch"
++        "increase-timeout.patch"
++        "remove-typescript.d.ts-baseline-check.patch")
++b2sums=('SKIP'
++        '5bfb527f07c4cc573b80887df8e9220f890e697f2c6d0b22675018d963e2e48d97a00a50590151463ddb7267a2c53b00145f27ec6e9e04567819e06a9d0dfa0a'
++        '216abfce117ae52b4dbc49bd94eac6096c1606a1b50fab90af94f6611acad8e33e4ef497c6f8002af078caa9297ac84a2c4291b620836b4007b02f4add28bc98'
++        '38dc4bfd4a53613eb6406b4966d39a7c26f49fdb3eee626739773a0f16bd177e0ba735e70a34b8fb4bfbdd745392a0ac09429d2e21086e04bd28ba6cbaa080ef')
+ 
+ prepare() {
+   cd $_name
++
++  # Remove dprint from dependencies and disable formatting when building code
++  # dprint itself requires prebuilt binary available, and some of its plugins uses prebuilts as well
++  # Building dprint from source from NPM package is upstreamed to https://github.com/dprint/dprint/pull/820
++  patch -Np1 -i ../remove-dprint.patch
++
++  # Increase test timeout from 40s to 4000s
++  patch -Np1 -i ../increase-timeout.patch
++
++  # Disable baseline check for typescript.d.ts
++  # This should not affect functionality since the diffs are solely code format variations
++  patch -Np1 -i ../remove-typescript.d.ts-baseline-check.patch
++
+   npm ci
+ }
+ 
