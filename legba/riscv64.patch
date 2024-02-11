@@ -1,0 +1,16 @@
+diff --git PKGBUILD PKGBUILD
+index ee9e3fa..deda68c 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,7 +24,10 @@ b2sums=('ddf7ef92616148c609f6e7aa9aeca5df0ca2f2898bbd22343086d22be09c862081dc562
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
+-  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
++  # add riscv64 support: https://github.com/veeso/pavao/pull/12
++  sed -i 's|\[patch.crates-io\]|[patch.crates-io]\npavao = { git = "https://github.com/veeso/pavao.git", rev = "9d2bd6a" }|' Cargo.toml
++  cargo update -p pavao
++  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ }
+ 
+ build() {
