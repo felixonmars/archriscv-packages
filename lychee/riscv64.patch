@@ -1,21 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,11 +14,16 @@ checkdepends=('cargo-nextest')
- conflicts=('lychee-link-checker' 'lychee-rs')
- replaces=('lychee-link-checker' 'lychee-rs')
- options=('!lto')
--source=("$pkgname-$pkgver.tar.gz::https://github.com/lycheeverse/lychee/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
--b2sums=('c83ed96c228e71ad09c7d01c9ba72729ee8cc55c3aabdb12cd81a8923b7796b921f41b0acd75115391f3e92d91bd59ca1dea136d2dcefd050cc379f8397b19fc')
-+source=("$pkgname-$pkgver.tar.gz::https://github.com/lycheeverse/lychee/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
-+        "$pkgname-fix-cookie-jar-test.patch::https://github.com/lycheeverse/lychee/pull/1336.diff")
-+b2sums=('c83ed96c228e71ad09c7d01c9ba72729ee8cc55c3aabdb12cd81a8923b7796b921f41b0acd75115391f3e92d91bd59ca1dea136d2dcefd050cc379f8397b19fc'
-+        'ce0c643facf4a6e0a4d5927f60dc08f72f8b446e5f9699103502778c85c2d5717fee34526cfbfb9ba367ffd7872d56b3def3d7f38a0c914f10139949232c5808')
- 
- prepare() {
-   cd $pkgname-$pkgver
-+  patch -Np1 -i ../$pkgname-fix-cookie-jar-test.patch
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring@0.16.20
-   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+@@ -31,6 +31,7 @@ build() {
  }
  
+ check() {
++  export OPENSSL_NO_VENDOR=1
+   cd $pkgname-$pkgver
+   cargo nextest run --all-targets --all-features --filter-expr '!test(test_exclude_example_domains)' --test-threads 1
+   cargo nextest run --filter-expr 'test(test_exclude_example_domains)' --test-threads 1
