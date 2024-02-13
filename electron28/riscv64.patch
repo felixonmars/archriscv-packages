@@ -1,0 +1,146 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -45,7 +45,9 @@ makedepends=(clang
+              python-six
+              qt5-base
+              wget
+-             yarn)
++             yarn
++             nodejs-lts-iron
++             go)
+ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+             'pipewire: WebRTC desktop sharing under Wayland'
+             'qt5-base: enable Qt5 with --enable-features=AllowQt'
+@@ -53,7 +55,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+             'trash-cli: file deletion support (trash-put)'
+             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
+ options=('!lto') # Electron adds its own flags for ThinLTO
+-source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
++source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
+         'git+https://chromium.googlesource.com/chromium/tools/depot_tools.git#branch=main'
+         "chromium-mirror::git+https://github.com/chromium/chromium.git#tag=$_chromiumver"
+         https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+@@ -64,7 +66,10 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+         drop-flags-unsupported-by-clang16.patch
+         jinja-python-3.10.patch
+         libxml2-2.12.patch
+-        use-system-libraries-in-node.patch)
++        use-system-libraries-in-node.patch
++        git+https://chromium.googlesource.com/infra/luci/luci-go
++        "$pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch"
++        "$pkgname-deps-parser.py")
+ sha256sums=('SKIP'
+             'SKIP'
+             'SKIP'
+@@ -76,7 +81,10 @@ sha256sums=('SKIP'
+             '8d1cdf3ddd8ff98f302c90c13953f39cd804b3479b13b69b8ef138ac57c83556'
+             '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
+             '1808df5ba4d1e2f9efa07ac6b510bec866fa6d60e44505d82aea3f6072105a71'
+-            'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f')
++            'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
++            'SKIP'
++            '960e7698155ced8faa2343b6748e8eea53ff0085db83a2803bdc64cbc388ad0c'
++            '91543ac83ad9af88c2b57cf40c1b2de4f3bea9ba61cdbe53912373471c62d825')
+ 
+ 
+ # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
+@@ -122,7 +130,7 @@ cat >.gclient <<EOF
+ solutions = [
+   {
+     "name": "src/electron",
+-    "url": "file://${srcdir}/electron@v$pkgver",
++    "url": "file://${srcdir}/electron@makepkg",
+     "deps_file": "DEPS",
+     "managed": False,
+     "custom_deps": {
+@@ -133,17 +141,45 @@ solutions = [
+ ]
+ EOF
+ 
++  # Pin depot_tools
++  local _depot_tools_rev="$(python "$pkgname-deps-parser.py" depot_tools chromium-mirror/DEPS)"
++  git -C depot_tools checkout $_depot_tools_rev
++
+   export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+   export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
+ 
+   echo "Linking chromium from sources..."
+   ln -sfn chromium-mirror src
+ 
++  export GOBIN="$srcdir/bin"
++  export PATH="$PATH:$GOBIN"
++
++  # Install cipd
++  pushd luci-go
++  local infra_rev=$(python "../$pkgname-deps-parser.py" infra ../src/DEPS)
++  curl "https://chromium.googlesource.com/infra/infra/+/$infra_rev/DEPS?format=text" | base64 -d > DEPS_infra
++  local luci_go_rev=$(python "../$pkgname-deps-parser.py" luci_go DEPS_infra)
++  git checkout $luci_go_rev
++  go mod edit -replace=github.com/danjacques/gofslock=github.com/kxxt/gofslock@e196ad6
++  go mod tidy
++  go install ./cipd/client/cmd/...
++  # Fix .cipd-bin problem
++  mkdir -p ../depot_tools/.cipd_bin
++  GOBIN=$(realpath ../depot_tools/.cipd_bin) go install ./auth/client/cmd/...
++  popd
++
++  patch -Np0 -i $pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch
++
++
+   depot_tools/gclient.py sync -D \
+       --nohooks \
+       --with_branch_heads \
+       --with_tags
+ 
++  # Install esbuild (version needs to be locked, not feasible to add it to make dependencies)
++  local esbuild_ver=$(python "$pkgname-deps-parser.py" esbuild src/third_party/devtools-frontend/src/DEPS)
++  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v$esbuild_ver"
++
+   echo "Running hooks..."
+   # depot_tools/gclient.py runhooks
+   src/build/landmines.py
+@@ -169,6 +205,11 @@ EOF
+ 
+   echo "Applying local patches..."
+ 
++  # Disable RVV (Remove once clang > 17)
++  find third_party/ffmpeg/chromium/config/*/linux/riscv64 -name '*.h' -exec sed -i 's/#define HAVE_RVV .*/#define HAVE_RVV 0/' {} \;
++  sed -i '/_rvv/d' third_party/ffmpeg/ffmpeg_generated.gni
++  sed -i '/h264_mc_chroma\.S/d' third_party/ffmpeg/ffmpeg_generated.gni
++
+   # Upstream fixes
+ 
+   # Fix build with libxml2 2.12
+@@ -181,7 +222,8 @@ EOF
+   patch -Np1 -i ../drop-flags-unsupported-by-clang16.patch
+ 
+   # Fixes for building with libstdc++ instead of libc++
+-  patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
++  # patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
++  # The above patch is no longer needed because riscv fork fixes it.
+   patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
+ 
+   # Link to system tools required by the build
+@@ -260,6 +302,10 @@ build() {
+   CFLAGS+='   -Wno-unknown-warning-option'
+   CXXFLAGS+=' -Wno-unknown-warning-option'
+ 
++  # Remove flags that are causing weird bugs on riscv64
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++  CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++
+   # Let Chromium set its own symbol level
+   CFLAGS=${CFLAGS/-g }
+   CXXFLAGS=${CXXFLAGS/-g }
+@@ -278,6 +324,11 @@ build() {
+   # https://crbug.com/957519#c122
+   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
+ 
++  # unspported on riscv for now.
++  # https://github.com/felixonmars/archriscv-packages/pull/3526
++  # Let's remove it here as well because some machines might have old devtools installed.
++  LDFLAGS=${LDFLAGS/-Wl,-z,pack-relative-relocs}
++
+   export CHROMIUM_BUILDTOOLS_PATH="${PWD}/buildtools"
+   gn gen out/Release \
+       --args="import(\"//electron/build/args/release.gn\") ${_flags[*]}"
