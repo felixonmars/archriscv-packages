@@ -1,0 +1,789 @@
+diff --git a/lld/ELF/Arch/RISCV.cpp b/lld/ELF/Arch/RISCV.cpp
+index 8e556b905b1c..9e15c66d1453 100644
+--- a/lld/ELF/Arch/RISCV.cpp
++++ b/lld/ELF/Arch/RISCV.cpp
+@@ -43,6 +43,7 @@ public:
+                      const uint8_t *loc) const override;
+   void relocate(uint8_t *loc, const Relocation &rel,
+                 uint64_t val) const override;
++  void relocateAlloc(InputSectionBase &sec, uint8_t *buf) const override;
+   bool relaxOnce(int pass) const override;
+ };
+ 
+@@ -300,6 +301,9 @@ RelExpr RISCV::getRelExpr(const RelType type, const Symbol &s,
+   case R_RISCV_TPREL_ADD:
+   case R_RISCV_RELAX:
+     return config->relax ? R_RELAX_HINT : R_NONE;
++  case R_RISCV_SET_ULEB128:
++  case R_RISCV_SUB_ULEB128:
++    return R_RISCV_LEB128;
+   default:
+     error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
+           ") against symbol " + toString(s));
+@@ -493,6 +497,46 @@ void RISCV::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
+   }
+ }
+ 
++void RISCV::relocateAlloc(InputSectionBase &sec, uint8_t *buf) const {
++  uint64_t secAddr = sec.getOutputSection()->addr;
++  if (auto *s = dyn_cast<InputSection>(&sec))
++    secAddr += s->outSecOff;
++  else if (auto *ehIn = dyn_cast<EhInputSection>(&sec))
++    secAddr += ehIn->getParent()->outSecOff;
++  for (size_t i = 0, size = sec.relocs().size(); i != size; ++i) {
++    const Relocation &rel = sec.relocs()[i];
++    uint8_t *loc = buf + rel.offset;
++    const uint64_t val =
++        sec.getRelocTargetVA(sec.file, rel.type, rel.addend,
++                             secAddr + rel.offset, *rel.sym, rel.expr);
++
++    switch (rel.expr) {
++    case R_RELAX_HINT:
++      break;
++    case R_RISCV_LEB128:
++      if (i + 1 < size) {
++        const Relocation &rel1 = sec.relocs()[i + 1];
++        if (rel.type == R_RISCV_SET_ULEB128 &&
++            rel1.type == R_RISCV_SUB_ULEB128 && rel.offset == rel1.offset) {
++          auto val = rel.sym->getVA(rel.addend) - rel1.sym->getVA(rel1.addend);
++          if (overwriteULEB128(loc, val) >= 0x80)
++            errorOrWarn(sec.getLocation(rel.offset) + ": ULEB128 value " +
++                        Twine(val) + " exceeds available space; references '" +
++                        lld::toString(*rel.sym) + "'");
++          ++i;
++          continue;
++        }
++      }
++      errorOrWarn(sec.getLocation(rel.offset) +
++                  ": R_RISCV_SET_ULEB128 not paired with R_RISCV_SUB_SET128");
++      return;
++    default:
++      relocate(loc, rel, val);
++      break;
++    }
++  }
++}
++
+ namespace {
+ struct SymbolAnchor {
+   uint64_t offset;
+diff --git a/lld/ELF/InputSection.cpp b/lld/ELF/InputSection.cpp
+index 3057cedb4bdc..3304d690a86a 100644
+--- a/lld/ELF/InputSection.cpp
++++ b/lld/ELF/InputSection.cpp
+@@ -634,6 +634,7 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
+   case R_RELAX_TLS_LD_TO_LE_ABS:
+   case R_RELAX_GOT_PC_NOPIC:
+   case R_RISCV_ADD:
++  case R_RISCV_LEB128:
+     return sym.getVA(a);
+   case R_ADDEND:
+     return a;
+@@ -831,6 +832,7 @@ template <class ELFT, class RelTy>
+ void InputSection::relocateNonAlloc(uint8_t *buf, ArrayRef<RelTy> rels) {
+   const unsigned bits = sizeof(typename ELFT::uint) * 8;
+   const TargetInfo &target = *elf::target;
++  const auto emachine = config->emachine;
+   const bool isDebug = isDebugSection(*this);
+   const bool isDebugLocOrRanges =
+       isDebug && (name == ".debug_loc" || name == ".debug_ranges");
+@@ -842,14 +844,15 @@ void InputSection::relocateNonAlloc(uint8_t *buf, ArrayRef<RelTy> rels) {
+       break;
+     }
+ 
+-  for (const RelTy &rel : rels) {
++  for (size_t i = 0, relsSize = rels.size(); i != relsSize; ++i) {
++    const RelTy &rel = rels[i];
+     RelType type = rel.getType(config->isMips64EL);
+ 
+     // GCC 8.0 or earlier have a bug that they emit R_386_GOTPC relocations
+     // against _GLOBAL_OFFSET_TABLE_ for .debug_info. The bug has been fixed
+     // in 2017 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82630), but we
+     // need to keep this bug-compatible code for a while.
+-    if (config->emachine == EM_386 && type == R_386_GOTPC)
++    if (emachine == EM_386 && type == R_386_GOTPC)
+       continue;
+ 
+     uint64_t offset = rel.r_offset;
+@@ -862,6 +865,30 @@ void InputSection::relocateNonAlloc(uint8_t *buf, ArrayRef<RelTy> rels) {
+     RelExpr expr = target.getRelExpr(type, sym, bufLoc);
+     if (expr == R_NONE)
+       continue;
++    auto *ds = dyn_cast<Defined>(&sym);
++
++    if (emachine == EM_RISCV && type == R_RISCV_SET_ULEB128) {
++      if (++i < relsSize &&
++          rels[i].getType(/*isMips64EL=*/false) == R_RISCV_SUB_ULEB128 &&
++          rels[i].r_offset == offset) {
++        uint64_t val;
++        if (!ds && tombstone) {
++          val = *tombstone;
++        } else {
++          val = sym.getVA(addend) -
++                (getFile<ELFT>()->getRelocTargetSym(rels[i]).getVA(0) +
++                 getAddend<ELFT>(rels[i]));
++        }
++        if (overwriteULEB128(bufLoc, val) >= 0x80)
++          errorOrWarn(getLocation(offset) + ": ULEB128 value " + Twine(val) +
++                      " exceeds available space; references '" +
++                      lld::toString(sym) + "'");
++        continue;
++      }
++      errorOrWarn(getLocation(offset) +
++                  ": R_RISCV_SET_ULEB128 not paired with R_RISCV_SUB_SET128");
++      return;
++    }
+ 
+     if (tombstone ||
+         (isDebug && (type == target.symbolicRel || expr == R_DTPREL))) {
+@@ -893,7 +920,6 @@ void InputSection::relocateNonAlloc(uint8_t *buf, ArrayRef<RelTy> rels) {
+       //
+       // TODO To reduce disruption, we use 0 instead of -1 as the tombstone
+       // value. Enable -1 in a future release.
+-      auto *ds = dyn_cast<Defined>(&sym);
+       if (!sym.getOutputSection() || (ds && ds->folded && !isDebugLine)) {
+         // If -z dead-reloc-in-nonalloc= is specified, respect it.
+         const uint64_t value = tombstone ? SignExtend64<bits>(*tombstone)
+diff --git a/lld/ELF/Relocations.cpp b/lld/ELF/Relocations.cpp
+index 6f2280b678b4..ff0bd818d035 100644
+--- a/lld/ELF/Relocations.cpp
++++ b/lld/ELF/Relocations.cpp
+@@ -964,8 +964,8 @@ bool RelocationScanner::isStaticLinkTimeConstant(RelExpr e, RelType type,
+   if (!config->isPic)
+     return true;
+ 
+-  // The size of a non preemptible symbol is a constant.
+-  if (e == R_SIZE)
++  // Constant when referencing a non-preemptible symbol.
++  if (e == R_SIZE || e == R_RISCV_LEB128)
+     return true;
+ 
+   // For the target and the relocation, we want to know if they are
+diff --git a/lld/ELF/Relocations.h b/lld/ELF/Relocations.h
+index 29e3edeca6be..eb4572a5d3db 100644
+--- a/lld/ELF/Relocations.h
++++ b/lld/ELF/Relocations.h
+@@ -101,6 +101,7 @@ enum RelExpr {
+   R_PPC64_TOCBASE,
+   R_PPC64_RELAX_GOT_PC,
+   R_RISCV_ADD,
++  R_RISCV_LEB128,
+   R_RISCV_PC_INDIRECT,
+ };
+ 
+diff --git a/lld/ELF/Target.h b/lld/ELF/Target.h
+index e6a78169058a..494411087832 100644
+--- a/lld/ELF/Target.h
++++ b/lld/ELF/Target.h
+@@ -282,6 +282,16 @@ inline void write32(void *p, uint32_t v) {
+ inline void write64(void *p, uint64_t v) {
+   llvm::support::endian::write64(p, v, config->endianness);
+ }
++
++// Overwrite a ULEB128 value and keep the original length.
++inline uint64_t overwriteULEB128(uint8_t *bufLoc, uint64_t val) {
++  while (*bufLoc & 0x80) {
++    *bufLoc++ = 0x80 | (val & 0x7f);
++    val >>= 7;
++  }
++  *bufLoc = val;
++  return val;
++}
+ } // namespace elf
+ } // namespace lld
+ 
+diff --git a/lld/test/ELF/riscv-reloc-leb128.s b/lld/test/ELF/riscv-reloc-leb128.s
+new file mode 100644
+index 000000000000..0bdc1eb18269
+--- /dev/null
++++ b/lld/test/ELF/riscv-reloc-leb128.s
+@@ -0,0 +1,187 @@
++# REQUIRES: riscv
++# RUN: rm -rf %t && split-file %s %t && cd %t
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax a.s -o a.o
++# RUN: llvm-readobj -r -x .gcc_except_table -x .debug_rnglists -x .debug_loclists a.o | FileCheck %s --check-prefix=REL
++# RUN: ld.lld -shared --gc-sections --noinhibit-exec a.o -o a.so
++# RUN: llvm-readelf -x .gcc_except_table -x .debug_rnglists -x .debug_loclists a.so | FileCheck %s
++
++# REL:      .rela.debug_rnglists {
++# REL-NEXT:   0x0 R_RISCV_SET_ULEB128 w1 0x82
++# REL-NEXT:   0x0 R_RISCV_SUB_ULEB128 w2 0xFFFFFFFFFFFFFFFF
++# REL-NEXT:   0x1 R_RISCV_SET_ULEB128 w2 0x78
++# REL-NEXT:   0x1 R_RISCV_SUB_ULEB128 w1 0x0
++# REL-NEXT:   0x3 R_RISCV_SET_ULEB128 w1 0x89
++# REL-NEXT:   0x3 R_RISCV_SUB_ULEB128 w2 0x0
++# REL-NEXT:   0x5 R_RISCV_SET_ULEB128 w2 0x3FF8
++# REL-NEXT:   0x5 R_RISCV_SUB_ULEB128 w1 0x0
++# REL-NEXT:   0x8 R_RISCV_SET_ULEB128 w1 0x4009
++# REL-NEXT:   0x8 R_RISCV_SUB_ULEB128 w2 0x0
++# REL-NEXT:   0xB R_RISCV_SET_ULEB128 w2 0x1FFFF8
++# REL-NEXT:   0xB R_RISCV_SUB_ULEB128 w1 0x0
++# REL-NEXT:   0xF R_RISCV_SET_ULEB128 w1 0x200009
++# REL-NEXT:   0xF R_RISCV_SUB_ULEB128 w2 0x0
++# REL-NEXT: }
++# REL:      .rela.debug_loclists {
++# REL-NEXT:   0x0 R_RISCV_SET_ULEB128 w2 0x3
++# REL-NEXT:   0x0 R_RISCV_SUB_ULEB128 w1 0x4
++# REL-NEXT:   0x1 R_RISCV_SET_ULEB128 x2 0x0
++# REL-NEXT:   0x1 R_RISCV_SUB_ULEB128 x1 0x0
++# REL-NEXT: }
++
++# REL:        Hex dump of section '.gcc_except_table':
++# REL-NEXT:   0x00000000 7b800181 01808001 81800180 80800181 {
++# REL-NEXT:   0x00000010 808001                              .
++# REL:        Hex dump of section '.debug_rnglists':
++# REL-NEXT:   0x00000000 7b800181 01808001 81800180 80800181 {
++# REL-NEXT:   0x00000010 808001                              .
++# REL:        Hex dump of section '.debug_loclists':
++# REL-NEXT:   0x00000000 0008                                  .
++
++# CHECK:      Hex dump of section '.gcc_except_table':
++# CHECK-NEXT: 0x[[#%x,]] 7ffc0085 01fcff00 858001fc ffff0085 .
++# CHECK-NEXT: 0x[[#%x,]] 808001                              .
++# CHECK:      Hex dump of section '.debug_rnglists':
++# CHECK-NEXT: 0x00000000 7ffc0085 01fcff00 858001fc ffff0085 .
++# CHECK-NEXT: 0x00000010 808001                              .
++# CHECK:      Hex dump of section '.debug_loclists':
++# CHECK-NEXT: 0x00000000 0300                                .
++
++# RUN: ld.lld -shared --gc-sections -z dead-reloc-in-nonalloc=.debug_loclists=0x7f a.o -o a127.so
++# RUN: llvm-readelf -x .debug_loclists a127.so | FileCheck %s --check-prefix=CHECK127
++# CHECK127:      Hex dump of section '.debug_loclists':
++# CHECK127-NEXT: 0x00000000 037f                                .
++
++# RUN: not ld.lld -shared --gc-sections -z dead-reloc-in-nonalloc=.debug_loclists=0x80 a.o 2>&1 | FileCheck %s --check-prefix=CHECK128
++# CHECK128: error: a.o:(.debug_loclists+0x1): ULEB128 value 128 exceeds available space; references 'x2'
++
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax sub.s -o sub.o
++# RUN: not ld.lld -shared sub.o 2>&1 | FileCheck %s --check-prefix=SUB
++# SUB: error: sub.o:(.debug_rnglists+0x8): has non-ABS relocation R_RISCV_SUB_ULEB128 against symbol 'w2'
++
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax unpaired1.s -o unpaired1.o
++# RUN: not ld.lld -shared --threads=1 unpaired1.o 2>&1 | FileCheck %s --check-prefix=UNPAIRED
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax unpaired2.s -o unpaired2.o
++# RUN: not ld.lld -shared --threads=1 unpaired2.o 2>&1 | FileCheck %s --check-prefix=UNPAIRED
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax unpaired3.s -o unpaired3.o
++# RUN: not ld.lld -shared --threads=1 unpaired3.o 2>&1 | FileCheck %s --check-prefix=UNPAIRED
++# UNPAIRED: error: {{.*}}.o:(.alloc+0x8): R_RISCV_SET_ULEB128 not paired with R_RISCV_SUB_SET128
++# UNPAIRED: error: {{.*}}.o:(.debug_rnglists+0x8): R_RISCV_SET_ULEB128 not paired with R_RISCV_SUB_SET128
++
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax overflow.s -o overflow.o
++# RUN: not ld.lld -shared --threads=1 overflow.o 2>&1 | FileCheck %s --check-prefix=OVERFLOW
++# OVERFLOW: error: overflow.o:(.alloc+0x8): ULEB128 value 128 exceeds available space; references 'w2'
++# OVERFLOW: error: overflow.o:(.debug_rnglists+0x8): ULEB128 value 128 exceeds available space; references 'w2'
++
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax preemptable.s -o preemptable.o
++# RUN: not ld.lld -shared --threads=1 preemptable.o 2>&1 | FileCheck %s --check-prefix=PREEMPTABLE --implicit-check-not=error:
++# PREEMPTABLE: error: relocation R_RISCV_SET_ULEB128 cannot be used against symbol 'w2'; recompile with -fPIC
++# PREEMPTABLE: error: relocation R_RISCV_SUB_ULEB128 cannot be used against symbol 'w1'; recompile with -fPIC
++
++#--- a.s
++.cfi_startproc
++.cfi_lsda 0x1b,.LLSDA0
++.cfi_endproc
++
++.section .text.w,"axR"
++w1:
++  call foo    # 4 bytes after relaxation
++w2:
++
++.section .text.x,"ax"
++x1:
++  call foo    # 4 bytes after relaxation
++x2:
++
++.section .gcc_except_table,"a"
++.LLSDA0:
++.reloc ., R_RISCV_SET_ULEB128, w1+130
++.reloc ., R_RISCV_SUB_ULEB128, w2-1  # non-zero addend for SUB
++.byte 0x7b
++.uleb128 w2-w1+120                   # initial value: 0x0180
++.uleb128 w1-w2+137                   # initial value: 0x0181
++.uleb128 w2-w1+16376                 # initial value: 0x018080
++.uleb128 w1-w2+16393                 # initial value: 0x018081
++.uleb128 w2-w1+2097144               # initial value: 0x01808080
++.uleb128 w1-w2+2097161               # initial value: 0x01808081
++
++.section .debug_rnglists
++.reloc ., R_RISCV_SET_ULEB128, w1+130
++.reloc ., R_RISCV_SUB_ULEB128, w2-1  # non-zero addend for SUB
++.byte 0x7b
++.uleb128 w2-w1+120                   # initial value: 0x0180
++.uleb128 w1-w2+137                   # initial value: 0x0181
++.uleb128 w2-w1+16376                 # initial value: 0x018080
++.uleb128 w1-w2+16393                 # initial value: 0x018081
++.uleb128 w2-w1+2097144               # initial value: 0x01808080
++.uleb128 w1-w2+2097161               # initial value: 0x01808081
++
++.section .debug_loclists
++.reloc ., R_RISCV_SET_ULEB128, w2+3
++.reloc ., R_RISCV_SUB_ULEB128, w1+4  # SUB with a non-zero addend
++.byte 0
++.uleb128 x2-x1                       # references discarded symbols
++
++#--- sub.s
++w1: call foo; w2:
++.section .debug_rnglists
++.quad 0;
++.reloc ., R_RISCV_SUB_ULEB128, w2+120
++.byte 0x7f
++
++#--- unpaired1.s
++w1: call foo; w2:
++.section .alloc,"a"
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+120
++.byte 0x7f
++.section .debug_rnglists
++.quad 0;
++.reloc ., R_RISCV_SET_ULEB128, w2+120
++.byte 0x7f
++
++#--- unpaired2.s
++w1: call foo; w2:
++.section .alloc,"a"
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+120
++.reloc .+1, R_RISCV_SUB_ULEB128, w1
++.byte 0x7f
++.section .debug_rnglists
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+120
++.reloc .+1, R_RISCV_SUB_ULEB128, w1
++.byte 0x7f
++
++#--- unpaired3.s
++w1: call foo; w2:
++.section .alloc,"a"
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+120
++.reloc ., R_RISCV_SUB64, w1
++.byte 0x7f
++.section .debug_rnglists
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+120
++.reloc ., R_RISCV_SUB64, w1
++.byte 0x7f
++
++#--- overflow.s
++w1: call foo; w2:
++.section .alloc,"a"
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+124
++.reloc ., R_RISCV_SUB_ULEB128, w1
++.byte 0x7f
++.section .debug_rnglists
++.quad 0
++.reloc ., R_RISCV_SET_ULEB128, w2+124
++.reloc ., R_RISCV_SUB_ULEB128, w1
++.byte 0x7f
++
++#--- preemptable.s
++.globl w1, w2
++w1: call foo; w2:
++.section .alloc,"a"
++.uleb128 w2-w1
++.section .debug_rnglists
++.uleb128 w2-w1
+diff --git a/llvm/include/llvm/BinaryFormat/ELFRelocs/RISCV.def b/llvm/include/llvm/BinaryFormat/ELFRelocs/RISCV.def
+index 9a126df01531..c7fd6490041c 100644
+--- a/llvm/include/llvm/BinaryFormat/ELFRelocs/RISCV.def
++++ b/llvm/include/llvm/BinaryFormat/ELFRelocs/RISCV.def
+@@ -55,3 +55,5 @@ ELF_RELOC(R_RISCV_SET32,             56)
+ ELF_RELOC(R_RISCV_32_PCREL,          57)
+ ELF_RELOC(R_RISCV_IRELATIVE,         58)
+ ELF_RELOC(R_RISCV_PLT32,             59)
++ELF_RELOC(R_RISCV_SET_ULEB128,       60)
++ELF_RELOC(R_RISCV_SUB_ULEB128,       61)
+diff --git a/llvm/include/llvm/MC/MCAsmBackend.h b/llvm/include/llvm/MC/MCAsmBackend.h
+index 354f9d8e993f..88cd075eb9ac 100644
+--- a/llvm/include/llvm/MC/MCAsmBackend.h
++++ b/llvm/include/llvm/MC/MCAsmBackend.h
+@@ -21,6 +21,7 @@ class MCAlignFragment;
+ class MCDwarfCallFrameFragment;
+ class MCDwarfLineAddrFragment;
+ class MCFragment;
++class MCLEBFragment;
+ class MCRelaxableFragment;
+ class MCSymbol;
+ class MCAsmLayout;
+@@ -181,6 +182,13 @@ public:
+     return false;
+   }
+ 
++  // Defined by linker relaxation targets to possibly emit LEB128 relocations
++  // and set Value at the relocated location.
++  virtual bool relaxLEB128(MCLEBFragment &LF, MCAsmLayout &Layout,
++                           int64_t &Value) const {
++    return false;
++  }
++
+   /// @}
+ 
+   /// Returns the minimum size of a nop in bytes on this target. The assembler
+diff --git a/llvm/include/llvm/MC/MCFixup.h b/llvm/include/llvm/MC/MCFixup.h
+index 069ca058310f..7f48a90cb1ec 100644
+--- a/llvm/include/llvm/MC/MCFixup.h
++++ b/llvm/include/llvm/MC/MCFixup.h
+@@ -25,6 +25,7 @@ enum MCFixupKind {
+   FK_Data_4,      ///< A four-byte fixup.
+   FK_Data_8,      ///< A eight-byte fixup.
+   FK_Data_6b,     ///< A six-bits fixup.
++  FK_Data_leb128, ///< A leb128 fixup.
+   FK_PCRel_1,     ///< A one-byte pc relative fixup.
+   FK_PCRel_2,     ///< A two-byte pc relative fixup.
+   FK_PCRel_4,     ///< A four-byte pc relative fixup.
+diff --git a/llvm/include/llvm/MC/MCFragment.h b/llvm/include/llvm/MC/MCFragment.h
+index b6329b131624..22e06962af9c 100644
+--- a/llvm/include/llvm/MC/MCFragment.h
++++ b/llvm/include/llvm/MC/MCFragment.h
+@@ -424,7 +424,7 @@ public:
+   }
+ };
+ 
+-class MCLEBFragment : public MCFragment {
++class MCLEBFragment final : public MCEncodedFragmentWithFixups<10, 1> {
+   /// True if this is a sleb128, false if uleb128.
+   bool IsSigned;
+ 
+@@ -434,18 +434,17 @@ class MCLEBFragment : public MCFragment {
+   SmallString<8> Contents;
+ 
+ public:
+-  MCLEBFragment(const MCExpr &Value_, bool IsSigned_, MCSection *Sec = nullptr)
+-      : MCFragment(FT_LEB, false, Sec), IsSigned(IsSigned_), Value(&Value_) {
++  MCLEBFragment(const MCExpr &Value, bool IsSigned, MCSection *Sec = nullptr)
++      : MCEncodedFragmentWithFixups<10, 1>(FT_LEB, false, Sec),
++        IsSigned(IsSigned), Value(&Value) {
+     Contents.push_back(0);
+   }
+ 
+   const MCExpr &getValue() const { return *Value; }
++  void setValue(const MCExpr *Expr) { Value = Expr; }
+ 
+   bool isSigned() const { return IsSigned; }
+ 
+-  SmallString<8> &getContents() { return Contents; }
+-  const SmallString<8> &getContents() const { return Contents; }
+-
+   /// @}
+ 
+   static bool classof(const MCFragment *F) {
+diff --git a/llvm/lib/MC/MCAsmBackend.cpp b/llvm/lib/MC/MCAsmBackend.cpp
+index c4e505146d44..1841f66980a1 100644
+--- a/llvm/lib/MC/MCAsmBackend.cpp
++++ b/llvm/lib/MC/MCAsmBackend.cpp
+@@ -85,6 +85,7 @@ const MCFixupKindInfo &MCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
+       {"FK_Data_4", 0, 32, 0},
+       {"FK_Data_8", 0, 64, 0},
+       {"FK_Data_6b", 0, 6, 0},
++      {"FK_Data_leb128", 0, 0, 0},
+       {"FK_PCRel_1", 0, 8, MCFixupKindInfo::FKF_IsPCRel},
+       {"FK_PCRel_2", 0, 16, MCFixupKindInfo::FKF_IsPCRel},
+       {"FK_PCRel_4", 0, 32, MCFixupKindInfo::FKF_IsPCRel},
+diff --git a/llvm/lib/MC/MCAssembler.cpp b/llvm/lib/MC/MCAssembler.cpp
+index a33d7ea9ebfe..ad993bc03598 100644
+--- a/llvm/lib/MC/MCAssembler.cpp
++++ b/llvm/lib/MC/MCAssembler.cpp
+@@ -912,6 +912,12 @@ void MCAssembler::layout(MCAsmLayout &Layout) {
+         Contents = DF.getContents();
+         break;
+       }
++      case MCFragment::FT_LEB: {
++        auto &LF = cast<MCLEBFragment>(Frag);
++        Fixups = LF.getFixups();
++        Contents = LF.getContents();
++        break;
++      }
+       case MCFragment::FT_PseudoProbe: {
+         MCPseudoProbeAddrFragment &PF = cast<MCPseudoProbeAddrFragment>(Frag);
+         Fixups = PF.getFixups();
+@@ -1008,12 +1014,27 @@ bool MCAssembler::relaxInstruction(MCAsmLayout &Layout,
+ }
+ 
+ bool MCAssembler::relaxLEB(MCAsmLayout &Layout, MCLEBFragment &LF) {
+-  uint64_t OldSize = LF.getContents().size();
++  const unsigned OldSize = static_cast<unsigned>(LF.getContents().size());
++  unsigned PadTo = OldSize;
+   int64_t Value;
+-  bool Abs = LF.getValue().evaluateKnownAbsolute(Value, Layout);
+-  if (!Abs)
+-    report_fatal_error("sleb128 and uleb128 expressions must be absolute");
+-  SmallString<8> &Data = LF.getContents();
++  SmallVectorImpl<char> &Data = LF.getContents();
++  LF.getFixups().clear();
++  // Use evaluateKnownAbsolute for Mach-O as a hack: .subsections_via_symbols
++  // requires that .uleb128 A-B is foldable where A and B reside in different
++  // fragments. This is used by __gcc_except_table.
++  bool Abs = getSubsectionsViaSymbols()
++                 ? LF.getValue().evaluateKnownAbsolute(Value, Layout)
++                 : LF.getValue().evaluateAsAbsolute(Value, Layout);
++  if (!Abs) {
++    if (!getBackend().relaxLEB128(LF, Layout, Value)) {
++      getContext().reportError(LF.getValue().getLoc(),
++                               Twine(LF.isSigned() ? ".s" : ".u") +
++                                   "leb128 expression is not absolute");
++      LF.setValue(MCConstantExpr::create(0, Context));
++    }
++    uint8_t Tmp[10]; // maximum size: ceil(64/7)
++    PadTo = std::max(PadTo, encodeULEB128(uint64_t(Value), Tmp));
++  }
+   Data.clear();
+   raw_svector_ostream OSE(Data);
+   // The compiler can generate EH table assembly that is impossible to assemble
+@@ -1021,9 +1042,9 @@ bool MCAssembler::relaxLEB(MCAsmLayout &Layout, MCLEBFragment &LF) {
+   // to a later alignment fragment. To accommodate such tables, relaxation can
+   // only increase an LEB fragment size here, not decrease it. See PR35809.
+   if (LF.isSigned())
+-    encodeSLEB128(Value, OSE, OldSize);
++    encodeSLEB128(Value, OSE, PadTo);
+   else
+-    encodeULEB128(Value, OSE, OldSize);
++    encodeULEB128(Value, OSE, PadTo);
+   return OldSize != LF.getContents().size();
+ }
+ 
+diff --git a/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.cpp b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.cpp
+index 8ec2ae918335..93a0f8a1098f 100644
+--- a/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.cpp
++++ b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.cpp
+@@ -19,6 +19,7 @@
+ #include "llvm/MC/MCObjectWriter.h"
+ #include "llvm/MC/MCSymbol.h"
+ #include "llvm/MC/MCValue.h"
++#include "llvm/Support/CommandLine.h"
+ #include "llvm/Support/Endian.h"
+ #include "llvm/Support/EndianStream.h"
+ #include "llvm/Support/ErrorHandling.h"
+@@ -27,6 +28,15 @@
+ 
+ using namespace llvm;
+ 
++static cl::opt<bool> RelaxBranches("riscv-asm-relax-branches", cl::init(true),
++                                   cl::Hidden);
++// Temporary workaround for old linkers that do not support ULEB128 relocations,
++// which are abused by DWARF v5 DW_LLE_offset_pair/DW_RLE_offset_pair
++// implemented in Clang/LLVM.
++static cl::opt<bool> ULEB128Reloc(
++    "riscv-uleb128-reloc", cl::init(true), cl::Hidden,
++    cl::desc("Emit R_RISCV_SET_ULEB128/E_RISCV_SUB_ULEB128 if appropriate"));
++
+ std::optional<MCFixupKind> RISCVAsmBackend::getFixupKind(StringRef Name) const {
+   if (STI.getTargetTriple().isOSBinFormatELF()) {
+     unsigned Type;
+@@ -125,6 +135,7 @@ bool RISCVAsmBackend::shouldForceRelocation(const MCAssembler &Asm,
+   case FK_Data_2:
+   case FK_Data_4:
+   case FK_Data_8:
++  case FK_Data_leb128:
+     if (Target.isAbsolute())
+       return false;
+     break;
+@@ -143,6 +154,9 @@ bool RISCVAsmBackend::fixupNeedsRelaxationAdvanced(const MCFixup &Fixup,
+                                                    const MCRelaxableFragment *DF,
+                                                    const MCAsmLayout &Layout,
+                                                    const bool WasForced) const {
++  if (!RelaxBranches)
++    return false;
++
+   int64_t Offset = int64_t(Value);
+   unsigned Kind = Fixup.getTargetKind();
+ 
+@@ -328,6 +342,18 @@ bool RISCVAsmBackend::relaxDwarfCFA(MCDwarfCallFrameFragment &DF,
+   return true;
+ }
+ 
++bool RISCVAsmBackend::relaxLEB128(MCLEBFragment &LF, MCAsmLayout &Layout,
++                                  int64_t &Value) const {
++  if (LF.isSigned())
++    return false;
++  const MCExpr &Expr = LF.getValue();
++  if (ULEB128Reloc) {
++    LF.getFixups().push_back(
++        MCFixup::create(0, &Expr, FK_Data_leb128, Expr.getLoc()));
++  }
++  return Expr.evaluateKnownAbsolute(Value, Layout);
++}
++
+ // Given a compressed control flow instruction this function returns
+ // the expanded instruction.
+ unsigned RISCVAsmBackend::getRelaxedOpcode(unsigned Op) const {
+@@ -414,6 +440,7 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
+   case FK_Data_4:
+   case FK_Data_8:
+   case FK_Data_6b:
++  case FK_Data_leb128:
+     return Value;
+   case RISCV::fixup_riscv_set_6b:
+     return Value & 0x03;
+@@ -475,6 +502,8 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
+     return UpperImm | ((LowerImm << 20) << 32);
+   }
+   case RISCV::fixup_riscv_rvc_jump: {
++    if (!isInt<12>(Value))
++      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+     // Need to produce offset[11|4|9:8|10|6|7|3:1|5] from the 11-bit Value.
+     unsigned Bit11  = (Value >> 11) & 0x1;
+     unsigned Bit4   = (Value >> 4) & 0x1;
+@@ -489,6 +518,8 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
+     return Value;
+   }
+   case RISCV::fixup_riscv_rvc_branch: {
++    if (!isInt<9>(Value))
++      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+     // Need to produce offset[8|4:3], [reg 3 bit], offset[7:6|2:1|5]
+     unsigned Bit8   = (Value >> 8) & 0x1;
+     unsigned Bit7_6 = (Value >> 6) & 0x3;
+diff --git a/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.h b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.h
+index b5670b6214c2..cc9374583240 100644
+--- a/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.h
++++ b/llvm/lib/Target/RISCV/MCTargetDesc/RISCVAsmBackend.h
+@@ -95,6 +95,8 @@ public:
+                           bool &WasRelaxed) const override;
+   bool relaxDwarfCFA(MCDwarfCallFrameFragment &DF, MCAsmLayout &Layout,
+                      bool &WasRelaxed) const override;
++  bool relaxLEB128(MCLEBFragment &LF, MCAsmLayout &Layout,
++                   int64_t &Value) const override;
+ 
+   bool writeNopData(raw_ostream &OS, uint64_t Count,
+                     const MCSubtargetInfo *STI) const override;
+diff --git a/llvm/test/MC/RISCV/leb128.s b/llvm/test/MC/RISCV/leb128.s
+new file mode 100644
+index 000000000000..429eac697182
+--- /dev/null
++++ b/llvm/test/MC/RISCV/leb128.s
+@@ -0,0 +1,81 @@
++# RUN: llvm-mc -filetype=obj -triple=riscv32 -mattr=-relax %s -o %t
++# RUN: llvm-readobj -r -x .alloc_w %t| FileCheck %s
++# RUN: llvm-mc -filetype=obj -triple=riscv32 -mattr=+relax %s -o %t.relax
++# RUN: llvm-readobj -r -x .alloc_w %t.relax | FileCheck %s --check-prefixes=CHECK,RELAX
++
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=-relax %s -o %t
++# RUN: llvm-readobj -r -x .alloc_w %t | FileCheck %s
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax %s -o %t.relax
++# RUN: llvm-readobj -r -x .alloc_w %t.relax | FileCheck %s --check-prefixes=CHECK,RELAX
++
++## Test temporary workaround for suppressting relocations for actually-non-foldable
++## DWARF v5 DW_LLE_offset_pair/DW_RLE_offset_pair.
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=-relax -riscv-uleb128-reloc=0 %s -o %t0
++# RUN: llvm-readobj -r -x .alloc_w %t0 | FileCheck %s --check-prefix=CHECK0
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax -riscv-uleb128-reloc=0 %s -o %t0.relax
++# RUN: llvm-readobj -r -x .alloc_w %t0.relax | FileCheck %s --check-prefixes=CHECK0,RELAX0
++
++# RUN: not llvm-mc -filetype=obj -triple=riscv64 -mattr=-relax --defsym ERR=1 %s -o /dev/null 2>&1 | \
++# RUN:   FileCheck %s --check-prefix=ERR
++# RUN: not llvm-mc -filetype=obj -triple=riscv64 -mattr=+relax --defsym ERR=1 %s -o /dev/null 2>&1 | \
++# RUN:   FileCheck %s --check-prefix=ERR
++
++# CHECK0:      Relocations [
++# CHECK0-NEXT:   .rela.alloc_w {
++# CHECK0-NEXT:     0x2 R_RISCV_CALL_PLT foo 0x0
++# RELAX0-NEXT:     0x2 R_RISCV_RELAX - 0x0
++# CHECK0-NEXT:   }
++# CHECK0-NEXT: ]
++
++# CHECK:      Relocations [
++# CHECK-NEXT:   .rela.alloc_w {
++# CHECK-NEXT:     0x0 R_RISCV_SET_ULEB128 w1 0x0
++# CHECK-NEXT:     0x0 R_RISCV_SUB_ULEB128 w 0x0
++# RELAX-NEXT:     0x1 R_RISCV_SET_ULEB128 w2 0x0
++# RELAX-NEXT:     0x1 R_RISCV_SUB_ULEB128 w1 0x0
++# CHECK-NEXT:     0x2 R_RISCV_CALL_PLT foo 0x0
++# RELAX-NEXT:     0x2 R_RISCV_RELAX - 0x0
++# RELAX-NEXT:     0xA R_RISCV_SET_ULEB128 w2 0x0
++# RELAX-NEXT:     0xA R_RISCV_SUB_ULEB128 w1 0x0
++# RELAX-NEXT:     0xB R_RISCV_SET_ULEB128 w2 0x78
++# RELAX-NEXT:     0xB R_RISCV_SUB_ULEB128 w1 0x0
++# RELAX-NEXT:     0xD R_RISCV_SET_ULEB128 w1 0x0
++# RELAX-NEXT:     0xD R_RISCV_SUB_ULEB128 w2 0x0
++# CHECK-NEXT:   }
++# CHECK-NEXT: ]
++
++## R_RISCV_SET_ULEB128 relocated locations contain values not accounting for linker relaxation.
++# CHECK:      Hex dump of section '.alloc_w':
++# CHECK-NEXT: 0x00000000 02089700 0000e780 00000880 01f8ffff ................
++# CHECK-NEXT: 0x00000010 ffffffff ffff01                     .......
++
++.section .alloc_w,"ax",@progbits; w:
++.uleb128 w1-w       # w1 is later defined in the same section
++.uleb128 w2-w1      # w1 and w2 are separated by a linker relaxable instruction
++w1:
++  call foo
++w2:
++.uleb128 w2-w1      # 0x08
++.uleb128 w2-w1+120  # 0x0180
++.uleb128 -(w2-w1)   # 0x01fffffffffffffffff8
++
++.ifdef ERR
++# ERR: :[[#@LINE+1]]:16: error: .uleb128 expression is not absolute
++.uleb128 extern-w   # extern is undefined
++# ERR: :[[#@LINE+1]]:11: error: .uleb128 expression is not absolute
++.uleb128 w-extern
++# ERR: :[[#@LINE+1]]:11: error: .uleb128 expression is not absolute
++.uleb128 x-w        # x is later defined in another section
++
++.section .alloc_x,"aw",@progbits; x:
++# ERR: :[[#@LINE+1]]:11: error: .uleb128 expression is not absolute
++.uleb128 y-x
++.section .alloc_y,"aw",@progbits; y:
++# ERR: :[[#@LINE+1]]:11: error: .uleb128 expression is not absolute
++.uleb128 x-y
++
++# ERR: :[[#@LINE+1]]:10: error: .uleb128 expression is not absolute
++.uleb128 extern
++# ERR: :[[#@LINE+1]]:10: error: .uleb128 expression is not absolute
++.uleb128 y
++.endif
+diff --git a/llvm/test/MC/RISCV/long-jump-disable-relax.s b/llvm/test/MC/RISCV/long-jump-disable-relax.s
+new file mode 100644
+index 000000000000..815c2dfcec07
+--- /dev/null
++++ b/llvm/test/MC/RISCV/long-jump-disable-relax.s
+@@ -0,0 +1,47 @@
++## Test that long branches are not relaxed with -riscv-asm-relax-branches=0
++# RUN: split-file %s %t
++# RUN: llvm-mc -filetype=obj -triple=riscv64 -mattr=+c \
++# RUN:       -riscv-asm-relax-branches=0 %t/pass.s \
++# RUN:     | llvm-objdump -dr -M no-aliases - \
++# RUN:     | FileCheck %t/pass.s
++# RUN: not llvm-mc -filetype=obj -triple=riscv64 -mattr=+c -o /dev/null \
++# RUN:       -riscv-asm-relax-branches=0 %t/fail.s 2>&1 \
++# RUN:     | FileCheck %t/fail.s
++
++#--- pass.s
++  .text
++test_undefined:
++## Branches to undefined symbols should not be relaxed
++# CHECK:      bne a0, a1, {{.*}}
++# CHECK-NEXT: R_RISCV_BRANCH foo
++   bne a0, a1, foo
++# CHECK:      c.beqz a0, {{.*}}
++# CHECK-NEXT: R_RISCV_RVC_BRANCH foo
++   c.beqz a0, foo
++# CHECK:      c.j {{.*}}
++# CHECK-NEXT: R_RISCV_RVC_JUMP foo
++   c.j foo
++
++## Branches to defined in-range symbols should work normally
++test_defined_in_range:
++# CHECK:      bne a0, a1, {{.*}} <bar>
++  bne a0, a1, bar
++# CHECK:      c.beqz a0, {{.*}} <bar>
++   c.beqz a0, bar
++# CHECK:      c.j {{.*}} <bar>
++   c.j bar
++bar:
++
++#--- fail.s
++  .text
++## Branches to defined out-of-range symbols should report an error
++test_defined_out_of_range:
++  bne a0, a1, 1f # CHECK: :[[#@LINE]]:3: error: fixup value out of range
++  .skip (1 << 12)
++1:
++  c.beqz a0, 1f # CHECK: :[[#@LINE]]:3: error: fixup value out of range
++  .skip (1 << 8)
++1:
++  c.j 1f # CHECK: :[[#@LINE]]:3: error: fixup value out of range
++  .skip (1 << 11)
++1:
