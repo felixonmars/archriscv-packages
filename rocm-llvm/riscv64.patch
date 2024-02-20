@@ -1,9 +1,28 @@
-diff --git PKGBUILD PKGBUILD
-index bf564a6..2010a52 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -28,7 +28,7 @@
-         -DCMAKE_INSTALL_PREFIX='/opt/rocm/llvm'
+@@ -11,15 +11,18 @@ license=('Apache-2.0 WITH LLVM-exception')
+ makedepends=('cmake' 'python' 'ninja')
+ _git='https://github.com/ROCm/llvm-project'
+ source=("${pkgname}-${pkgver}.tar.gz::$_git/archive/rocm-$pkgver.tar.gz"
+-        "${pkgname}-fix-segfault.patch")
++        "${pkgname}-fix-segfault.patch"
++        "${pkgname}-riscv-uleb128.patch")
+ sha256sums=('c673708d413d60ca8606ee75c77e9871b6953c59029c987b92f2f6e85f683626'
+-            '4d3f198c5422e9987f442c20963223c39b1548ffa00b6c9db81af5070278ce03')
++            '4d3f198c5422e9987f442c20963223c39b1548ffa00b6c9db81af5070278ce03'
++            'a4dc17071cfc8248f33c74dca14df715710b375e8e1aefc46c4e505334f4bf9b')
+ options=(staticlibs !lto)
+ _dirname="$(basename "$_git")-$(basename "${source[0]}" .tar.gz)"
+ 
+ prepare() {
+     cd "$_dirname"
+     patch -Np1 -i ../"${pkgname}-fix-segfault.patch"
++    patch -Np1 -i ../"${pkgname}-riscv-uleb128.patch"
+ }
+ 
+ build() {
+@@ -35,7 +38,7 @@ build() {
+         -DCMAKE_INSTALL_PREFIX='/opt/rocm/lib/llvm'
          -DLLVM_HOST_TRIPLE=$CHOST
          -DLLVM_ENABLE_PROJECTS='llvm;clang;compiler-rt;lld'
 -        -DLLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;X86'
