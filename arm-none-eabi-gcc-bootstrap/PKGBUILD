@@ -1,0 +1,64 @@
+# Maintainer: Anatol Pomozov <anatol.pomozov@gmail.com>
+# Contributor: Martin Schmölzer <mschmoelzer@gmail.com>
+
+_target=arm-none-eabi
+pkgname=$_target-gcc-bootstrap
+pkgver=12.2.0
+pkgrel=1
+pkgdesc='The GNU Compiler Collection - cross compiler for ARM EABI (bare-metal) target - bootstrap compiler'
+arch=(riscv64)
+url='https://gcc.gnu.org/'
+license=(GPL LGPL FDL)
+depends=($_target-binutils zlib libmpc libisl zstd)
+makedepends=(gmp mpfr)
+provides=($_target-gcc)
+conflicts=($_target-gcc)
+options=(!emptydirs !strip !lto)
+source=(https://ftp.gnu.org/gnu/gcc/gcc-$pkgver/gcc-$pkgver.tar.xz{,.sig})
+sha256sums=('e549cf9cf3594a00e27b6589d4322d70e0720cdd213f39beb4181e06926230ff'
+            'SKIP')
+validpgpkeys=(33C235A34C46AA3FFB293709A328C3A2C3C45C06  # Jakub Jelinek <jakub@redhat.com>
+              D3A93CAD751C2AF4F8C7AD516C35B99309B5FA62  # Jakub Jelinek <jakub@redhat.com>
+              13975A70E63C361C73AE69EF6EEB81F8981C74C7) # Richard Guenther <richard.guenther@gmail.com>
+
+_basedir=gcc-$pkgver
+
+prepare() {
+  cd $_basedir
+
+  echo $pkgver > gcc/BASE-VER
+
+  mkdir "$srcdir"/build-{gcc,gcc-nano}
+}
+
+build() {
+  # Credits @allanmcrae
+  # https://github.com/allanmcrae/toolchain/blob/f18604d70c5933c31b51a320978711e4e6791cf1/gcc/PKGBUILD
+  # TODO: properly deal with the build issues resulting from this
+  CFLAGS=${CFLAGS/-Werror=format-security/}
+  CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
+
+  cd "$srcdir"/build-gcc
+
+  "$srcdir"/$_basedir/configure \
+    --target=$_target \
+    --prefix=/usr \
+    --with-sysroot=/usr/$_target \
+    --libexecdir=/usr/lib \
+    --disable-nls \
+    --enable-languages=c \
+    --with-system-zlib \
+    --disable-multilib \
+    --disable-threads --without-hearders \
+    --disable-shared --with-newlib
+
+  make all-gcc all-target-libgcc
+}
+
+package() {
+  cd "$srcdir"/build-gcc
+
+  make install-strip-gcc install-strip-target-libgcc DESTDIR="$pkgdir"
+  # Remove files that conflict with host gcc package
+  rm -r "$pkgdir"/usr/{include,share}
+}
