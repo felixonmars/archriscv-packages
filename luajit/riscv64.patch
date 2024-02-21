@@ -1,49 +1,31 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,9 +7,9 @@
+@@ -7,9 +7,11 @@
  
  pkgname=luajit
  # LuaJIT has a "rolling release" where you should follow git HEAD
--_commit=e826d0c101d750fac8334d71e221c50d8dbe236c
-+_commit=4da850743b197a7e864ab811ec3dce7204040a7b
+-_commit=ff204d0350575cf710f6f4af982db146cb454e1a
++# note to riscv: choose commit close to (but newer than) Arch upstream from `riscv` branch of infiWang/LuaJIT
++# make sure the selected commit contains necessary changes to RISC-V and update $_ct below
++_commit=5938da937b13790dc3705ee5823405f0ff8c31ed
  # The patch version is the timestamp of the above git commit, obtain via `git show -s --format=%ct`
--_ct=1697887905
-+_ct=1698135991
+-_ct=1702233742
++_ct=1702376626
  pkgver="2.1.${_ct}"
  pkgrel=1
  pkgdesc='Just-in-time compiler and drop-in replacement for Lua 5.1'
-@@ -17,27 +17,27 @@ arch=('x86_64')
+@@ -17,10 +19,10 @@ arch=('x86_64')
  url='https://luajit.org/'
  license=('MIT')
  depends=('gcc-libs')
--source=("LuaJIT-${_commit}.tar.gz::https://repo.or.cz/luajit-2.0.git/snapshot/${_commit}.tar.gz")
--md5sums=('c4530f5b223752e8da4f25f8503a195f')
--sha256sums=('76e9aa90717cf6ba5c8991fa31b03a7c30a2b29ad48f04907199ea53b7078fbe')
--b2sums=('9096c3b787728697d5b07a1e7c1f1b120952b48129bfd46e8e8f4db15f3c31c3d9d002f17db4a00fa5ffceb5024309cfdd335ccae17fa8d30b3ea46e16672f4c')
+-source=("LuaJIT-${_commit}.tar.gz::https://github.com/LuaJIT/LuaJIT/archive/${_commit}.tar.gz")
+-md5sums=('97486356d223510a6e3c31a20bcd32ed')
+-sha256sums=('3ec37f78ab3b1afd4c3af0fde743c332da3da32eadc8500489c1cc2e4f0ec7eb')
+-b2sums=('6ba03fa107baadf0ac980d515debd638b1a166014ee46c6fa95865a12678a831fbae04d14ccb737723a69874af2b0637bbaa516973830ca4c7e5311aa3f91b76')
 +source=("LuaJIT-${_commit}.tar.gz::https://github.com/infiWang/LuaJIT/archive/${_commit}.tar.gz")
-+md5sums=('e92ce6c7b86c452a1be3f014ac57c685')
-+sha256sums=('24369db7e0be21ff9f70a43ef3ef4622fdc45883c526cb717f7b7281ea66c065')
-+b2sums=('31ffed44719ff45b6bab028e1cd26cc7a977feec68585e1bfaeb9fa5cfeca15eaa80576881cb40bd0453b8f344a5e3a2613a2e0a0be9f7247e717ff83a1510ac')
++md5sums=('aec4671279cacf32c09dab2fe9ff9aa1')
++sha256sums=('0de7c45601a9052c4a37963f343c6963c84871be48be8893c9bace2c959b699e')
++b2sums=('9f210fe44b7966051a3317dedf15f54252978eb953c297558dba265aa7852f6d715f26f46693271b726211da4ab49ad60b2b7c55315a9ac3372fac00fb34bf44')
  
  build() {
--  cd "luajit-2.0-${_commit::7}"
-+  cd "LuaJIT-${_commit}"
- 
-   # Avoid early stripping
-   make amalg PREFIX=/usr BUILDMODE=dynamic TARGET_STRIP=" @:"
- }
- 
- check() {
--  cd "luajit-2.0-${_commit::7}"
-+  cd "LuaJIT-${_commit}"
- 
-   # Make sure that _ct was updated
-   test "${_ct}" == "$(cat .relver)"
- }
- 
- package() {
--  cd "luajit-2.0-${_commit::7}"
-+  cd "LuaJIT-${_commit}"
- 
-   make install DESTDIR="$pkgdir" PREFIX=/usr
-   install -Dm644 COPYRIGHT "$pkgdir/usr/share/licenses/$pkgname/COPYRIGHT"
+   cd "LuaJIT-${_commit}"
