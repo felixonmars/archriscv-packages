@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index 63d3050..52b4f12 100644
+index 58d7a73..8b77801 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -31,6 +31,7 @@
@@ -12,18 +12,18 @@ index 63d3050..52b4f12 100644
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
 @@ -42,12 +43,14 @@
              'SKIP'
-             '1a2162ec671c508f9891cdb20e2a483238e2cce023e849fdedb8ae3dd58c114c'
+             'c7a8e85778cb0f1df815531a7f86094f70a8035f5756dcb881f2156d7e328d72'
              'SKIP'
--            'faaa3867e72bb7755844585dc26773c34ce5a0f3f0bdbe89fa20943d2bf7bedc')
-+            'faaa3867e72bb7755844585dc26773c34ce5a0f3f0bdbe89fa20943d2bf7bedc'
-+            '7506239c3fc67fc8d8d9a80ab966cc62f807aee1db7b7692e8956d93f4b85048')
- b2sums=('cecdbd19905e43e485ab73b352ced18b37f2a138c97a6956cadcda5d3d271001117dc1cf896b166ff019fc7f405f9539e2ed0d6112b0890efb04d182adf4fd0e'
+-            'd0e840aa2ae6d9552e741b195b8bb3c1830cc227e8e2a601419f9530c65ff3ba')
++            'd0e840aa2ae6d9552e741b195b8bb3c1830cc227e8e2a601419f9530c65ff3ba'
++            '52294a82d93d1462f73dff8beee93aa1325df78bea5b89ade3e727f72dde6ced')
+ b2sums=('51d6e2304e7a9188a0fec5714276589cb46948157c76a2f4ed3f5e0bf634d94a89ea75251229a86e018767a3367328c16b610d631c78d82663dcd1d904b73385'
          'SKIP'
-         'a9c86a40cdd55a375a233805d412395de2855a21f8658a22a295f0176d4d97b56e504c3496ad0a7f71d27fa2eaf82594db23a18cfe3af875d29c678275cd1732'
+         '1bc6c87ec30f1dfb6cb8c9a92328b2b4ae192590fa5998b8aff3645496638ce38c681794496319e81e99727a3c68efd35808dfe720e6a3d991c991c42d8a5a27'
          'SKIP'
--        '341802515628e7c43a1cd5294df19ab8811bdbc75fd7f454dec159022aa35a3a90706f57495868be65f8841507064bc855fc2bebc4b99df6bf4af1111932387c')
-+        '341802515628e7c43a1cd5294df19ab8811bdbc75fd7f454dec159022aa35a3a90706f57495868be65f8841507064bc855fc2bebc4b99df6bf4af1111932387c'
-+        'eba54845372a9dff24c28e4e59ce53ab2e206b6a20c7c50e7cec0cefc0ad941532ba4edf196d959aa8fadafbfdee63c4d29e45132e49fd83f97ab7a72f135c64')
+-        '6a247b934eb2c177ea1d7f62d5e882c9820cfb9988a2d7a14d9efba44fd2182d800e681325ed07a21277f208f3678a9ff91f5b9252af2da39528311fe550d772')
++        '6a247b934eb2c177ea1d7f62d5e882c9820cfb9988a2d7a14d9efba44fd2182d800e681325ed07a21277f208f3678a9ff91f5b9252af2da39528311fe550d772'
++        'f5abe41f080b24920df5fb415d5efa323c057311fa42c3231d7408cbae9ecf258108bf79da6bb4fbb83d43999a9b5237a1b466f739e46c91b525584d56a96640')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
@@ -40,7 +40,7 @@ index 63d3050..52b4f12 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -121,6 +130,9 @@
+@@ -122,6 +131,9 @@
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -50,9 +50,9 @@ index 63d3050..52b4f12 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -136,19 +148,16 @@
+@@ -137,19 +149,16 @@
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
-     localversion.* version vmlinux
+     localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
 -  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
 +  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
@@ -73,7 +73,7 @@ index 63d3050..52b4f12 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -170,7 +179,7 @@
+@@ -171,7 +180,7 @@
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
