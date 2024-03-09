@@ -10,12 +10,12 @@
  options=(!lto)
  provides=("nodejs=$pkgver")
  conflicts=(nodejs)
--source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz)
-+source=(${url}/dist/v${pkgver}/node-v${pkgver}.tar.xz
+-source=(https://nodejs.org/dist/v${pkgver}/node-v${pkgver}.tar.xz)
++source=(https://nodejs.org/dist/v${pkgver}/node-v${pkgver}.tar.xz
 +        nodejs-51495.diff::https://github.com/nodejs/node/pull/51495.diff)
  # https://nodejs.org/download/release/latest-iron/SHASUMS256.txt.asc
--sha256sums=('31807ebeeeb049c53f1765e4a95aed69476a4b696dd100cb539ab668d7950b40')
-+sha256sums=('31807ebeeeb049c53f1765e4a95aed69476a4b696dd100cb539ab668d7950b40'
+-sha256sums=('77813edbf3f7f16d2d35d3353443dee4e61d5ee84d9e3138c7538a3c0ca5209e')
++sha256sums=('77813edbf3f7f16d2d35d3353443dee4e61d5ee84d9e3138c7538a3c0ca5209e'
 +            '33e47be086c60f8937fb027f3f07582ac2e40b22bec03427f140244d415c1289')
 +
 +_set_compilation_env() {
@@ -31,12 +31,12 @@
 +  _set_compilation_env
    cd node-v${pkgver}
  
-   ./configure \
-@@ -46,6 +58,7 @@ check() {
+   # this uses malloc_usable_size, which is incompatible with fortification level 3
+@@ -50,6 +62,7 @@ check() {
  }
  
  package() {
 +  _set_compilation_env
    cd node-v${pkgver}
-   make DESTDIR="${pkgdir}" install
-   install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
+ 
+   # this uses malloc_usable_size, which is incompatible with fortification level 3
