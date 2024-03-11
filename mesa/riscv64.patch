@@ -1,29 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index bc2252e..201ff5e 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,9 +8,7 @@ pkgname=(
+@@ -8,7 +8,6 @@ pkgname=(
    'vulkan-mesa-layers'
    'opencl-clover-mesa'
    'opencl-rusticl-mesa'
 -  'vulkan-intel'
    'vulkan-radeon'
--  'vulkan-swrast'
+   'vulkan-swrast'
    'vulkan-virtio'
-   'libva-mesa-driver'
-   'mesa-vdpau'
-@@ -91,6 +89,12 @@ validpgpkeys=('8703B6700E7EE06D7A39B8D6EDAE37B02CEB490D'  # Emil Velikov <emil.l
- prepare() {
-   cd mesa-$pkgver
+@@ -103,6 +102,11 @@ prepare() {
+   # https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/27834
+   patch -Np1 -i ../vulkan-dispatch-table-add-an-uncompacted-version.patch
  
 +  # Add orcjit support
-+  # https://github.com/YukariChiba/deepin-mesa/commit/58b0cd9c715f909e8821342dfbab111f7a03dc4c
++  # https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/26018
 +  patch -Np1 -i ../0002-add-llvm-orcjit.patch
-+  patch -Np1 -i ../0003-add-orcjit-riscv.patch
 +  patch -Np1 -i ../0004-llvmpipe-linkage.patch
 +
    # Include package release in version string so Chromium invalidates
    # its GPU cache; otherwise it can cause pages to render incorrectly.
    # https://bugs.launchpad.net/ubuntu/+source/chromium-browser/+bug/2020604
-@@ -103,7 +107,7 @@ build() {
+@@ -115,7 +119,7 @@ build() {
      -D b_ndebug=true
      -D dri3=enabled
      -D egl=enabled
@@ -32,28 +31,33 @@
      -D gallium-extra-hud=true
      -D gallium-nine=true
      -D gallium-omx=bellagio
-@@ -128,8 +132,8 @@ build() {
+@@ -132,6 +136,7 @@ build() {
+     -D intel-clc=enabled
+     -D libunwind=enabled
+     -D llvm=enabled
++    -D llvm-orcjit=true
+     -D lmsensors=enabled
+     -D microsoft-clc=disabled
+     -D osmesa=true
+@@ -140,8 +145,8 @@ build() {
      -D shared-glapi=enabled
      -D valgrind=enabled
-     -D video-codecs=vc1dec,h264dec,h264enc,h265dec,h265enc
+     -D video-codecs=all
 -    -D vulkan-drivers=amd,intel,intel_hasvk,swrast,virtio
 -    -D vulkan-layers=device-select,intel-nullhw,overlay
-+    -D vulkan-drivers=amd,virtio
++    -D vulkan-drivers=amd,swrast,virtio
 +    -D vulkan-layers=device-select,overlay
    )
  
    # Build only minimal debug info to reduce size
-@@ -402,3 +406,13 @@ package_mesa() {
+@@ -414,3 +419,10 @@ package_mesa() {
  
    install -m644 -Dt "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE
  }
 +
 +source+=(0002-add-llvm-orcjit.patch
-+         0003-add-orcjit-riscv.patch
 +         0004-llvmpipe-linkage.patch)
-+sha256sums+=('30b781d8d72ec72803926a82867b1c8de14245fb79ddd392de85c4d9c35b540d'
-+             'c6fc690ed2a4d7391e23db13fdde3b4c92d24cca0c85e7911b1e46377ce7edd3'
-+             '24e955c349bbadf61fab1e3155234230928ff825ee4c5bcf6d2786ea032b596b')
-+b2sums+=('4785d05e396fa59457806978ede61427a765cc26fd83b6375b0328c70be66cc12df2ee1a14b1c5f86e2fec02b6c149eb5da020459ec1055cd7543b7a7ec320d5'
-+         '0e621ac3d8ecfefe7017aabcbb8f3d927cd3fe66cf2da9ce70523888e539046260d0e9868bb0efcaf6648cc311310fb49c3a0ae854573752e0cb7aeb14920a33'
-+         'd828f7a2a48540a8c26b4e37db7acece3fa598d4c27e24c3eb35bbc16ed2fb54dda9e93c1effb5d326f106f6893b6dc8bd77e1e65f3ee83ba805e20a87db4802')
++sha256sums+=('21e92d5a85748418137ef3d81c1ae0c5b426e28c325f24e46fc46f239b831ae6'
++             '748bbfd1daa7935d6d9dc51f8dca65275af47c64e94cf451afcb90c887997f8d')
++b2sums+=('7a41b5fd100ae77af47e609258f79f6e8bfa81f23d4268f7d032fc64f09ab3678c75046d23247a77eec610e17fcd7039de248adaa1513972c33ea65cffed9f52'
++         'cb90168e04497aa23e433219856a6d877f6042b1d4f5fdbceb28b4d717e2630346efbe60551c71ed15befae3cc3b438dbbfb706baa22b674a63add805ab68e05')
