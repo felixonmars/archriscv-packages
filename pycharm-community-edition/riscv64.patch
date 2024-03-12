@@ -1,0 +1,127 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,21 +32,46 @@ makedepends=(
+   git
+   "java-environment-openjdk=${_jdkver}"
+   python-setuptools
++  cargo
++  cmake
++  libx11 # header only
+ )
+ source=(
+   "git+https://github.com/JetBrains/intellij-community.git#tag=pycharm/${_build}"
+   idea-android::"git+https://github.com/JetBrains/android.git#tag=pycharm/${_build}"
+   pycharm.desktop
+   pycharm.sh
+-  # enable-no-jdr.patch
++  enable-no-jdr.patch
++  intellij-riscv64.patch
++  # Who knows which commit Jetbrain is using? The following commit works anyway.
++  git+https://github.com/JetBrains/pty4j.git#commit=673a524230c1a46782211e77b1750877b3aa71f7
+ )
+ sha256sums=('SKIP'
+             'SKIP'
+             '70ae8df10243db2dbc454c0d8e273235707ecb1821a9e8a2e70669a1739fc1af'
+-            '447714bf41a215b38f8c31418e09bf65145bb3d9427d6966772c9b2b8ae16f1d')
++            '447714bf41a215b38f8c31418e09bf65145bb3d9427d6966772c9b2b8ae16f1d'
++            'b7858737346fb08423ee7fd177f9e59180d2173d988dd8622b84d58426fcb3a7'
++            '002ebbcef2d9bfc734e025d2dde5e44fdf3d1de1b1a2f41ccddcd50f8cd6ff0e'
++            'SKIP')
++case "$CARCH" in
++  x86_64)
++      _arch=amd64
++      _alt_arch=x86-64
++      _suffix=""
++      ;;
++  *)
++      _arch="$CARCH"
++      _alt_arch="$CARCH"
++      _suffix="-$CARCH"
++      ;;
++esac
+ 
+ prepare() {
+   cd intellij-community
++  patch -Np0 -i ../intellij-riscv64.patch
++  pushd native/restarter
++  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++  popd
+ 
+   echo ${_build} > build.txt
+   mv "${srcdir}"/idea-android android
+@@ -60,23 +85,54 @@ prepare() {
+   # Fix pycharm python/installer.cmd & python/plugin.cmd
+   # sed 's|intellij.pycharm.community.build|"$(cd "$(dirname "$0")"; pwd)/../" intellij.pycharm.community.build|' -i python/installers.cmd
+   #sed 's|intellij.pycharm.community.build|"$(cd "$(dirname "$0")"; pwd)/../" intellij.pycharm.community.build|' -i python/plugin.cmd
+-  #patch -Np1 < "${srcdir}/enable-no-jdr.patch"
++  patch -Np1 < "${srcdir}/enable-no-jdr.patch"
+   # https://youtrack.jetbrains.com/issue/IDEA-343872/Community-build-performanceTesting-plugin-raises-exceptions
+   git cherry-pick -n -m1 "c2d297177eb31f7fbbc13fdbfb9c8fce48e51014"
+ 
+ }
+ 
+ build() {
++  pushd pty4j/native
++  # That Makefile is a mess and only intended for cross. Let's build manually
++  _cc="gcc $CFLAGS $CPPFLAGS -I.  -D_REENTRANT -D_GNU_SOURCE -fPIC"
++  $_cc -c -o exec_pty.o exec_pty.c
++  $_cc -c -o openpty.o openpty.c
++  $_cc -c -o pfind.o pfind.c
++  gcc $LDFLAGS $CFLAGS -g -shared -Wl,-soname,libpty.so -o libpty.so *.o
++  popd
++
+   cd intellij-community
+ 
++  mkdir -p bin/linux/$_arch
++
++  pushd native/restarter
++  cargo build --frozen --release
++  popd
++  export CC=gcc
++  pushd native/fsNotifier/linux
++  ./make.sh
++  cp fsnotifier ../../../bin/linux/$_arch
++  popd
++
++  pushd native/LinuxGlobalMenu
++  cmake .
++  make
++  cp libdbm.so ../../bin/linux/$_arch
++  popd
++
++  pushd platform/sqlite
++  OS=linux ARCH=$CARCH ./make.sh
++  popd
++
+   export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
+   export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
+   export MAVEN_REPOSITORY=/build/.m2/repository
+ 
+-  ./python/installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux
++  ./python/installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux \
++    -Dintellij.build.target.arch=${_arch} -Dintellij.build.linux_tar_gz_without_jre=true
+   #./python/plugin.cmd -Dintellij.build.target.os=linux
+ 
+-  tar -xf out/pycharm-ce/artifacts/pycharmPC-${_build}.tar.gz -C "${srcdir}"
++  tar -xf out/pycharm-ce/artifacts/pycharmPC-${_build}-no-jbr${_suffix}.tar.gz -C "${srcdir}"
+ 
+   # Issues with cython and 3.11 -> https://youtrack.jetbrains.com/issues/PY?q=cython%203.11
+   # cd ../pycharm-community-${pkgver}
+@@ -90,11 +146,16 @@ package() {
+   sed -i 's/lcd/on/' bin/*.vmoptions
+ 
+   install -dm 755 "${pkgdir}"/usr/share/{licenses,pixmaps,pycharm}
+-  cp -dr --no-preserve='ownership' bin lib plugins jbr "${pkgdir}"/usr/share/pycharm/
++  cp -dr --no-preserve='ownership' bin lib plugins "${pkgdir}"/usr/share/pycharm/
+   cp -dr --no-preserve='ownership' license "${pkgdir}"/usr/share/licenses/pycharm/
+   ln -s /usr/share/pycharm/bin/pycharm.png "${pkgdir}"/usr/share/pixmaps/
+   install -Dm 644 ../pycharm.desktop -t "${pkgdir}"/usr/share/applications/
+   install -Dm 755 ../pycharm.sh "${pkgdir}"/usr/bin/pycharm
++
++  # riscv64 missing parts
++  install -Dm 755 ../pty4j/native/libpty.so -t "${pkgdir}"/usr/share/pycharm/lib/pty4j/linux/${_alt_arch}
++  install -Dm 755 ../intellij-community/platform/sqlite/target/sqlite/linux-${CARCH}/libsqliteij.so \
++     -t "${pkgdir}"/usr/share/pycharm/lib/native/linux-${CARCH}/
+ }
+ 
+ # vim: ts=2 sw=2 et:
