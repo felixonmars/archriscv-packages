@@ -1,118 +1,75 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -45,7 +45,9 @@ makedepends=(clang
+@@ -51,6 +51,7 @@ makedepends=(clang
+              python-requests
               python-six
+              rust
++             go
               qt5-base
               wget
--             yarn)
-+             yarn
-+             nodejs-lts-iron
-+             go)
- optdepends=('kde-cli-tools: file deletion support (kioclient5)'
-             'pipewire: WebRTC desktop sharing under Wayland'
-             'qt5-base: enable Qt5 with --enable-features=AllowQt'
-@@ -53,7 +55,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+              yarn)
+@@ -61,7 +62,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'trash-cli: file deletion support (trash-put)'
              'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
  options=('!lto') # Electron adds its own flags for ThinLTO
 -source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
 +source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
-         'git+https://chromium.googlesource.com/chromium/tools/depot_tools.git#branch=main'
-         "chromium-mirror::git+https://github.com/chromium/chromium.git#tag=$_chromiumver"
          https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
-@@ -64,7 +66,10 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
-         drop-flags-unsupported-by-clang16.patch
+         # Chromium
+         drop-flag-unsupported-by-clang17.patch
+@@ -74,6 +75,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          jinja-python-3.10.patch
          libxml2-2.12.patch
--        use-system-libraries-in-node.patch)
-+        use-system-libraries-in-node.patch
-+        git+https://chromium.googlesource.com/infra/luci/luci-go
-+        "$pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch"
-+        "$pkgname-deps-parser.py")
+         use-system-libraries-in-node.patch
++        Debian-fix-rust-linking.patch
+         makepkg-source-roller.py
+         # BEGIN managed sources
+         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=120.0.6099.291
+@@ -231,7 +233,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
  sha256sums=('SKIP'
-             'SKIP'
-             'SKIP'
-@@ -76,7 +81,10 @@ sha256sums=('SKIP'
-             '8d1cdf3ddd8ff98f302c90c13953f39cd804b3479b13b69b8ef138ac57c83556'
+             'ffee1082fbe3d0c9e79dacb8405d5a0e1aa94d6745089a30b093f647354894d2'
+             '3bd35dab1ded5d9e1befa10d5c6c4555fe0a76d909fb724ac57d0bf10cb666c1'
+-            'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
++            '8e128dec0d9416029ea8124e14963c9e0caf897bf60d347a070e393edebdff1c'
+             'dd2d248831dd4944d385ebf008426e66efe61d6fdf66f8932c963a12167947b4'
+             'b0ac3422a6ab04859b40d4d7c0fd5f703c893c9ec145c9894c468fbc0a4d457c'
+             '4484200d90b76830b69eea3a471c103999a3ce86bb2c29e6c14c945bf4102bae'
+@@ -239,6 +241,7 @@ sha256sums=('SKIP'
              '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
              '1808df5ba4d1e2f9efa07ac6b510bec866fa6d60e44505d82aea3f6072105a71'
--            'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f')
-+            'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
-+            'SKIP'
-+            '960e7698155ced8faa2343b6748e8eea53ff0085db83a2803bdc64cbc388ad0c'
-+            '91543ac83ad9af88c2b57cf40c1b2de4f3bea9ba61cdbe53912373471c62d825')
- 
- 
- # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
-@@ -122,7 +130,7 @@ cat >.gclient <<EOF
- solutions = [
-   {
-     "name": "src/electron",
--    "url": "file://${srcdir}/electron@v$pkgver",
-+    "url": "file://${srcdir}/electron@makepkg",
-     "deps_file": "DEPS",
-     "managed": False,
-     "custom_deps": {
-@@ -133,17 +141,45 @@ solutions = [
- ]
- EOF
- 
-+  # Pin depot_tools
-+  local _depot_tools_rev="$(python "$pkgname-deps-parser.py" depot_tools chromium-mirror/DEPS)"
-+  git -C depot_tools checkout $_depot_tools_rev
-+
+             'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
++            '98b0fbe1318897954cb8891cafed65e985613c69192e65984ba6785579b29f80'
+             '3ae82375ba212c31fd4ba6f1fa4e2445eeca8eb8c952176131ad57c0258db224'
+             'SKIP'
+             'SKIP'
+@@ -437,12 +440,16 @@ prepare() {
+   cp -r chromium-mirror_third_party_depot_tools depot_tools
    export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
    export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
++  # Use a known commit that supports riscv64: https://chromium.googlesource.com/chromium/tools/depot_tools/+/1fd8a6fa56c58778e3709239106457787657a9c6
++  git -C depot_tools checkout --detach 1fd8a6fa56c58778e3709239106457787657a9c6
  
-   echo "Linking chromium from sources..."
-   ln -sfn chromium-mirror src
+   echo "Putting together electron sources"
+   # Generate gclient gn args file and prepare-electron-source-tree.sh
+   python makepkg-source-roller.py generate electron/DEPS $pkgname
++  sed -i '/esbuild/d' prepare-electron-source-tree.sh
+   rbash prepare-electron-source-tree.sh "$CARCH"
+   mv electron src/electron
++  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v0.14.13"
  
-+  export GOBIN="$srcdir/bin"
-+  export PATH="$PATH:$GOBIN"
-+
-+  # Install cipd
-+  pushd luci-go
-+  local infra_rev=$(python "../$pkgname-deps-parser.py" infra ../src/DEPS)
-+  curl "https://chromium.googlesource.com/infra/infra/+/$infra_rev/DEPS?format=text" | base64 -d > DEPS_infra
-+  local luci_go_rev=$(python "../$pkgname-deps-parser.py" luci_go DEPS_infra)
-+  git checkout $luci_go_rev
-+  go mod edit -replace=github.com/danjacques/gofslock=github.com/kxxt/gofslock@e196ad6
-+  go mod tidy
-+  go install ./cipd/client/cmd/...
-+  # Fix .cipd-bin problem
-+  mkdir -p ../depot_tools/.cipd_bin
-+  GOBIN=$(realpath ../depot_tools/.cipd_bin) go install ./auth/client/cmd/...
-+  popd
-+
-+  patch -Np0 -i $pkgname-gclient-ignore-prebuilt-platform-specific-deps.patch
-+
-+
-   depot_tools/gclient.py sync -D \
-       --nohooks \
-       --with_branch_heads \
-       --with_tags
- 
-+  # Install esbuild (version needs to be locked, not feasible to add it to make dependencies)
-+  local esbuild_ver=$(python "$pkgname-deps-parser.py" esbuild src/third_party/devtools-frontend/src/DEPS)
-+  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v$esbuild_ver"
-+
    echo "Running hooks..."
    # depot_tools/gclient.py runhooks
-   src/build/landmines.py
-@@ -169,6 +205,11 @@ EOF
+@@ -469,6 +476,8 @@ prepare() {
  
    echo "Applying local patches..."
  
-+  # Disable RVV (Remove once clang > 17)
-+  find third_party/ffmpeg/chromium/config/*/linux/riscv64 -name '*.h' -exec sed -i 's/#define HAVE_RVV .*/#define HAVE_RVV 0/' {} \;
-+  sed -i '/_rvv/d' third_party/ffmpeg/ffmpeg_generated.gni
-+  sed -i '/h264_mc_chroma\.S/d' third_party/ffmpeg/ffmpeg_generated.gni
++  patch -Np1 -i ../Debian-fix-rust-linking.patch
 +
-   # Upstream fixes
+   ## Upstream fixes
  
    # Fix build with libxml2 2.12
-@@ -181,7 +222,8 @@ EOF
-   patch -Np1 -i ../drop-flags-unsupported-by-clang16.patch
+@@ -484,7 +493,8 @@ prepare() {
+   patch -Np1 -i ../compiler-rt-adjust-paths.patch
  
    # Fixes for building with libstdc++ instead of libc++
 -  patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
@@ -121,7 +78,7 @@
    patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
  
    # Link to system tools required by the build
-@@ -260,6 +302,10 @@ build() {
+@@ -580,6 +590,10 @@ build() {
    CFLAGS+='   -Wno-unknown-warning-option'
    CXXFLAGS+=' -Wno-unknown-warning-option'
  
@@ -132,15 +89,34 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -278,6 +324,11 @@ build() {
-   # https://crbug.com/957519#c122
-   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
- 
-+  # unspported on riscv for now.
-+  # https://github.com/felixonmars/archriscv-packages/pull/3526
-+  # Let's remove it here as well because some machines might have old devtools installed.
-+  LDFLAGS=${LDFLAGS/-Wl,-z,pack-relative-relocs}
-+
-   export CHROMIUM_BUILDTOOLS_PATH="${PWD}/buildtools"
-   gn gen out/Release \
-       --args="import(\"//electron/build/args/release.gn\") ${_flags[*]}"
+diff --git compiler-rt-adjust-paths.patch compiler-rt-adjust-paths.patch
+index 0469220..8ee7f55 100644
+--- compiler-rt-adjust-paths.patch
++++ compiler-rt-adjust-paths.patch
+@@ -1,8 +1,6 @@
+-diff --git a/build/config/clang/BUILD.gn b/build/config/clang/BUILD.gn
+-index d4de2e0cca0..57359c32121 100644
+---- a/build/config/clang/BUILD.gn
+-+++ b/build/config/clang/BUILD.gn
+-@@ -130,12 +130,15 @@ template("clang_lib") {
++--- a/build/config/clang/BUILD.gn	2024-03-09 04:32:07.577338262 +0100
+++++ b/build/config/clang/BUILD.gn	2024-03-09 04:55:29.376410067 +0100
++@@ -124,14 +124,18 @@
+        } else if (is_linux || is_chromeos) {
+          if (current_cpu == "x64") {
+            _dir = "x86_64-unknown-linux-gnu"
+@@ -15,10 +13,13 @@ index d4de2e0cca0..57359c32121 100644
+          } else if (current_cpu == "arm64") {
+            _dir = "aarch64-unknown-linux-gnu"
+ +          _suffix = "-aarch64"
++         } else if (current_cpu == "riscv64") {
++           _dir = "riscv64-unknown-linux-gnu"
+++          _suffix = "-riscv64"
+          } else {
+            assert(false)  # Unhandled cpu type
+          }
+-@@ -166,6 +169,11 @@ template("clang_lib") {
++@@ -162,6 +166,11 @@
+          assert(false)  # Unhandled target platform
+        }
+  
