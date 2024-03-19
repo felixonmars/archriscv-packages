@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,9 +12,16 @@ license=('MIT')
+ makedepends=('cmake' 'ninja' 'python')
+ options=('!lto')
+ source=("$pkgname-$pkgver.tar.gz::https://github.com/WebAssembly/binaryen/archive/version_${pkgver}.tar.gz"
+-        "binaryen.sh")
++        "binaryen.sh"
++        "disable-uninitialized-warning-riscv64.patch::https://github.com/WebAssembly/binaryen/pull/6410.diff")
+ sha384sums=('1a7c09b16441b8cc1fc93fbd4c51ee7fe7d47a8a9c9ef000cd64aee5062fd10c84dbe8920a94797e034b68068eec8464'
+-            '8ccff587d33aa2f8e66cc167ab887087993cea0899921d2e7cc69372c8b659770a4f4a00e9da61c75394af002c8c7660')
++            '8ccff587d33aa2f8e66cc167ab887087993cea0899921d2e7cc69372c8b659770a4f4a00e9da61c75394af002c8c7660'
++            '386723cb7fb0c1c13db5166d02522a41bafebc39e244b29d2dc33d41311eb470fb1241a416551852e37c7a01ec4210ee')
++
++prepare() {
++    cd binaryen-version_$pkgver
++    patch -Np1 -i ../disable-uninitialized-warning-riscv64.patch
++}
+ 
+ build() {
+     cd binaryen-version_$pkgver
