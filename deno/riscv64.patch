@@ -1,25 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,13 +11,49 @@ url="https://deno.land"
- license=('MIT')
+@@ -12,8 +12,35 @@ license=('MIT')
  options=('!lto')
  depends=('gcc-libs')
--makedepends=('git' 'python' 'rust' 'nodejs' 'cmake' 'protobuf')
+ makedepends=('git' 'python' 'rust' 'nodejs' 'gn' 'ninja' 'clang' 'lld' 'cmake' 'protobuf')
 -source=("git+https://github.com/denoland/deno.git#commit=$_commit")
 -sha512sums=('SKIP')
-+makedepends=('git' 'python' 'rust' 'nodejs' 'gn' 'ninja' 'clang' 'lld' 'cmake' 'protobuf')
 +source=("git+https://github.com/denoland/deno.git#commit=$_commit"
-+        "git+https://github.com/denoland/rusty_v8.git#commit=ff2a50ccdf7d5f7091e2bfbdedf0927101e2844c"  # 0.83.1
-+        "riscv-v8.patch")
++        "git+https://github.com/denoland/rusty_v8.git#commit=2825ced8bea16732ff280f71e1b487fd5159a644"  # 0.85.0
++        "add-rvb-flags.patch"
++        "arch-add-riscv64.patch")
 +sha512sums=('SKIP'
 +            'SKIP'
-+            '6dbd86917c815e04f84f30a49afc75f7fad01c97b2d5e40731f11f87eb2d7a5c73bdada824f19f7150bc2921a10cd452306f3ef7e8205ba894f0738f33acec71')
++            '262a2976faf3dc94fd0183c0b47e52e241bfaffaf16e2a1a54d079993c8cdacce5e9bd979aff41f9de3a7243444fa24cd6e9ea3ee69867bf4236d498203e15e0'
++            '07aba81e9ad488c60388afd1584a28323c7186268d3ea727117d6b04d5c4658a72b8cfab497ee71052cbdab7e7f4696f543861bac8c58a494146b495c8954261')
 +
 +prepare() {
 +  cd rusty_v8
 +  git config -f .gitmodules submodule.v8.shallow true
 +  git submodule update --init --recursive
-+  patch -Np1 -i ../riscv-v8.patch
++  patch -Np1 -i ../add-rvb-flags.patch
 +
 +  cd ../deno
 +
@@ -32,24 +32,9 @@
 +  cargo update -p simd-json
 +
 +  echo -e "\n[patch.crates-io]\nv8 = { path = '../rusty_v8' }" >> Cargo.toml
++
++  patch -Np1 -i ../arch-add-riscv64.patch
 +}
  
  build() {
    cd $pkgname
- 
-+  local _extra_gn_args=(
-+    'custom_toolchain="//build/toolchain/linux/unbundle:default"'
-+    'host_toolchain="//build/toolchain/linux/unbundle:default"'
-+  )
-+
-+  export CC=clang CXX=clang++ AR=ar NM=nm
-+  export CFLAGS="${CFLAGS//-fstack-clash-protection/}" CXXFLAGS="${CXXFLAGS//-fstack-clash-protection/}"
-+  export V8_FROM_SOURCE=1
-+  export CLANG_BASE_PATH=/usr
-+  export GN=/usr/bin/gn NINJA=/usr/bin/ninja
-+  export EXTRA_GN_ARGS="${_extra_gn_args[@]}"
-+  export NO_PRINT_GN_ARGS=1
-+
-   # this uses malloc_usable_size, which is incompatible with fortification level 3
-   export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-   export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
