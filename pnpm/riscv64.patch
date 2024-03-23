@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,14 +11,23 @@ url=https://pnpm.io
+ license=('MIT')
+ depends=('node-gyp')
+ makedepends=('git' 'pnpm')
+-source=("git+https://github.com/$pkgname/$pkgname.git#tag=v$pkgver?signed")
+-b2sums=('SKIP')
++source=("git+https://github.com/$pkgname/$pkgname.git#tag=v$pkgver?signed"
++        "loosen-engine-restriction.patch"
++        "add-pnpm-linux-riscv64.patch")
++b2sums=('SKIP'
++        '610617968a22fb6f29d2ddc4743cf1ac019d19331c6cbb7a3ba344d38d262b6097164a41842a5f5af616b85c8c074abf4fe7aeedaf18c6a16651cfa0230358e6'
++        'ed9b2d1f81bac9606487339796de750dc047227a1b5be0471906663bb9f30ebca443015a671e7fb1b6e366dee9ec6f5c77bca3fe90dd12b76c6a6daac869c43b')
+ validpgpkeys=('7B74D1299568B586BA9962B5649E4D4AF74E7DEC') # Zoltan Kochan <z@kochan.io>
+ 
+ build() {
+   cd $pkgname/$pkgname
+   git cherry-pick --no-commit 7f0aae82db3628581bc704a394ef025ab258ab28
+ 
++  cd ..
++  patch -Np1 -i ../loosen-engine-restriction.patch
++  patch -Np1 -i ../add-pnpm-linux-riscv64.patch
++  cd $pkgname
++
+   pnpm install --frozen-lockfile
+   pnpm run compile
+ }
