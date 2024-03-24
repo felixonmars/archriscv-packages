@@ -1,10 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -80,7 +80,17 @@ _etcdir=/etc/webapps/gitlab
+@@ -82,7 +82,18 @@ _etcdir=/etc/webapps/gitlab
  _datadir=/var/lib/gitlab # directory with gitlab data and it also $HOME for 'gitlab' user
  _logdir=/var/log/gitlab
  
-+source+=("git+https://github.com/tmm1/rbtrace.git#tag=v0.4.14")
++_rbtrace_version=0.5.1
++source+=("git+https://github.com/tmm1/rbtrace.git#tag=v${_rbtrace_version}")
 +sha256sums+=('SKIP')
 +
  prepare() {
@@ -18,7 +19,7 @@
  	cd gitlab-foss
  
  	# GitLab tries to read its revision information from a file.
-@@ -118,8 +128,17 @@ build() {
+@@ -124,8 +135,17 @@ build() {
  	bundle config --local force_ruby_platform true # some native gems are not available for newer ruby
  	bundle config --local deployment true
  	bundle config --local without 'development test aws kerberos'
@@ -27,9 +28,9 @@
 +	export GEM_HOME=$HOME/.gem
 +	bundle config --local cache_path vendor/cache/
 +	bundle cache --no-install
-+	rm vendor/cache/rbtrace-0.4.14.gem
-+	cp ../rbtrace/rbtrace-0.4.14.gem vendor/cache/
-+	rbtrace_checksum=$(sha256sum vendor/cache/rbtrace-0.4.14.gem)
++	rm vendor/cache/rbtrace-${_rbtrace_version}.gem
++	cp ../rbtrace/rbtrace-${_rbtrace_version}.gem vendor/cache/
++	rbtrace_checksum=$(sha256sum vendor/cache/rbtrace-${_rbtrace_version}.gem)
 +	sed -Ei "s/(\\{\"name\":\"rbtrace\".*\"checksum\":\")([[:alnum:]]*)(\"\\},)/\\1${rbtrace_checksum:0:64}\\3/" Gemfile.checksum
  	# Disable make jobserver due to a race in prometheus-client-mmap
 -	MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle install --jobs=$(nproc) --no-cache
