@@ -1,30 +1,24 @@
-diff --git PKGBUILD PKGBUILD
-index c6ee34d5..9dabd7fc 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,13 +7,19 @@ pkgrel=1
- pkgdesc="Load another kernel from the currently executing Linux kernel"
+@@ -8,15 +8,19 @@ pkgdesc="Load another kernel from the currently executing Linux kernel"
  arch=('x86_64')
  url="https://kernel.org/pub/linux/utils/kernel/kexec/"
--source=("git+https://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}")
-+source=("git+https://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}"
+ source=("git+https://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}"
+-         'binutils-2.41.patch')
++        'binutils-2.41.patch'
 +        "add-riscv64-support.patch::https://marc.info/?l=kexec&m=166636009110699&q=mbox")
-+sha256sums=('SKIP'
-+            '08ceecae20e0096cccb4912cf0db81ce2b537a2a12f1c637b8161806084a1e99')
++ 
  makedepends=('git')
  depends=('zlib' 'xz')
- license=('GPL2')
+ license=('GPL-2.0-or-later')
+ b2sums=('a11aaef9190cc2f4470a35085fcfc61609c356c42ded1b5269501f91bbde234401da5151f03d3fcfe9f39c8d02ff67d65549f2cdd5f2cbc551863a7d34788321'
+-        '57b9830fc3e522d04b8d0db091502d2b101103a68af7c3c1099ea18d8b8d8b7f4a5ccbafebda38e7c7dce43172658dff8a786a5ae4452ad40b57e0161015550e')
++        '57b9830fc3e522d04b8d0db091502d2b101103a68af7c3c1099ea18d8b8d8b7f4a5ccbafebda38e7c7dce43172658dff8a786a5ae4452ad40b57e0161015550e'
++        'd93625d1a1725e7c8029cadeb8b47a97fb334d5dd07557f8135c0d7a076a0074e1297bdcffd28426ba38b955be5c9938e664eadae7835b92f120d575beaa1cb6')
  
  prepare() {
    cd $pkgname
-+
 +  patch -Np1 -i $srcdir/add-riscv64-support.patch
-+
    ./bootstrap
+   patch -Np1 -i $srcdir/binutils-2.41.patch
  }
- 
-@@ -30,4 +36,3 @@ package() {
-   install -D -m644 kexec/kexec.8 "$pkgdir"/usr/share/man/man8/kexec.8
- }
- 
--md5sums=('SKIP')
