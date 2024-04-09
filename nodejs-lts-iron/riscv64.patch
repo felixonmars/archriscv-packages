@@ -1,38 +1,28 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,16 +11,28 @@ license=(MIT)
- # maybe revert back to openssl-1.1 or internal openssl
- # https://github.com/nodejs/node/issues/47852
- depends=(openssl zlib icu libuv c-ares brotli libnghttp2) # http-parser v8)
--makedepends=(python procps-ng)
-+makedepends=(python procps-ng clang)
- optdepends=('npm: nodejs package manager')
- options=(!lto)
- provides=("nodejs=$pkgver")
- conflicts=(nodejs)
--source=(https://nodejs.org/dist/v${pkgver}/node-v${pkgver}.tar.xz)
-+source=(https://nodejs.org/dist/v${pkgver}/node-v${pkgver}.tar.xz
-+        nodejs-51495.diff::https://github.com/nodejs/node/pull/51495.diff)
+@@ -20,7 +20,15 @@ source=(https://nodejs.org/dist/v${pkgver}/node-v${pkgver}.tar.xz)
  # https://nodejs.org/download/release/latest-iron/SHASUMS256.txt.asc
--sha256sums=('77813edbf3f7f16d2d35d3353443dee4e61d5ee84d9e3138c7538a3c0ca5209e')
-+sha256sums=('77813edbf3f7f16d2d35d3353443dee4e61d5ee84d9e3138c7538a3c0ca5209e'
-+            '33e47be086c60f8937fb027f3f07582ac2e40b22bec03427f140244d415c1289')
+ sha256sums=('6840d490ba4d1d51655e0fbe1209956a15db405510d7ea166bad98a8c9d37a4e')
+ 
++makedepends+=(clang)
 +
 +_set_compilation_env() {
 +  export CC=/usr/bin/clang
 +  export CXX=/usr/bin/clang++
 +}
 +
-+prepare() {
-+  patch -Np1 -d node-v$pkgver < nodejs-51495.diff
-+}
- 
  build() {
 +  _set_compilation_env
    cd node-v${pkgver}
  
    # this uses malloc_usable_size, which is incompatible with fortification level 3
-@@ -50,6 +62,7 @@ check() {
+@@ -45,11 +53,13 @@ build() {
+ }
+ 
+ check() {
++  _set_compilation_env
+   cd node-v${pkgver}
+   make test-only || :
  }
  
  package() {
