@@ -1,24 +1,34 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -50,7 +50,8 @@ build() {
+@@ -14,7 +14,7 @@ pkgdesc="A D Compiler based on the LLVM Compiler Infrastructure including D runt
+ arch=('x86_64')
+ url="https://github.com/ldc-developers/ldc"
+ license=('BSD')
+-makedepends=('git' 'cmake' 'llvm' 'lld' 'ldc' 'ninja')
++makedepends=('git' 'cmake' 'llvm' 'llvm16-libs' 'lld' 'ldc' 'ninja')
+ # Disable lto as linking the ldc2 binary fails
+ options=(!lto)
+ 
+@@ -35,6 +35,8 @@ prepare() {
+ 
+     # Set version used for path construction in getRelativeClangCompilerRTLibPath()
+     sed -i "s/ldc::llvm_version_base/\"$_clangversion\"/" driver/linker-gcc.cpp
++
++    patch -Np1 -d runtime/phobos -i "$srcdir/disable-static-NaN-tests.patch"
+ }
+ 
+ build() {
+@@ -50,7 +52,8 @@ build() {
      -DBUILD_SHARED_LIBS=BOTH \
      -DBUILD_LTO_LIBS=ON \
      -DLDC_WITH_LLD=OFF \
--    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=gold --flto=thin" \
+-    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=lld --flto=thin" \
 +    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false" \
 +    -DLD_FLAGS="-Wl,--no-as-needed -latomic -Wl,--as-needed" \
      -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"," \
      ..
      ninja
-@@ -58,6 +59,7 @@ build() {
- 
- check() {
-     cd "$srcdir/ldc/build"
-+    patch -Np1 -d ../runtime/phobos -i "$srcdir/disable-static-NaN-tests.patch"
-     ninja all-test-runners
- }
- 
-@@ -102,3 +104,6 @@ package_liblphobos() {
+@@ -102,3 +105,6 @@ package_liblphobos() {
      # licenses
      install -D -m644 "$srcdir/ldc/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
