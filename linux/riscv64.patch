@@ -1,33 +1,34 @@
 diff --git PKGBUILD PKGBUILD
-index 97697c1..657e525 100644
+index cdf0810..5900dc9 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,6 +35,7 @@
-   https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
+@@ -36,6 +36,7 @@ source=(
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
    config  # the main kernel config file
+   docutils.patch  # fix the docs build
 +  riscv64.config-patch
  )
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -46,12 +47,14 @@
+@@ -48,13 +49,15 @@ sha256sums=('138923e5d73748b4bdbe9b5a0b8f36dfac9fcc16753a9222928dc6c963effa89'
+             '4ad162664e08e57ed8abf44827ecc2fce2eeb38b34988483a9183065a229534e'
              'SKIP'
-             '2d5fa7f4177ba1c40575d57282438ff28cdfc3729e0689eddf650616c8a93b65'
-             'SKIP'
--            'ad11e6d5b3ae88d5b52c8bf4b7d6f700ac23200fb870091290cb25b744b914dc')
-+            'ad11e6d5b3ae88d5b52c8bf4b7d6f700ac23200fb870091290cb25b744b914dc'
-+            'b63f5b5705caa8d1f716a797a8e3486845de7bfb59c3b6afeaf62b9b1984450a')
- b2sums=('f057c2512040600fbf0df67cf9c7200aee0c06b82b3cf749be8c5685844d2662a585ce17685c7af880c0d9dbbbd81302e5a1fa41c3dbd39869123121a0e82dc2'
+             '2fc20cbd7c4f7f3eeeba73b8e354cecb8757050d2c774992959f93ccde16d667'
+-            '9cb73cacbb3633f207d0c30e738cae9965adcd0b0eb5ecd60563fed1394c0f38')
++            '9cb73cacbb3633f207d0c30e738cae9965adcd0b0eb5ecd60563fed1394c0f38'
++            '8a59aa3b260934340925401db0a848c7150a11d85cb3e8e38cd4b816da238c89')
+ b2sums=('795c67356a7992cc73a85a733471d0379156f7ba68eedd68d4aa099eb07b4eea4626239ae15cdcc409819c833beb1ec2dc4032b203363db52ab1cb8bc31ac4ea'
          'SKIP'
-         'a6f2e7fed48d7c8427097314637d0c25a8ab35ca1bec7fc23156af26609667115d9584190a13b45e03389145205b1bfca78cdaeea6443975d70b65f9d7ec5ea7'
+         'c4b429ed4508893913c8bd709e8f62496283ba78e5d5bf4d84b734be6d106bd0888341161615af8303f48fb93ce46efda425ff3e56b0e3013c2af4ab95c9428f'
          'SKIP'
--        '47b48c2ad671e5a2e2f11f8b0c3f52c50118a9a88513245f07125a7481c4e19bb02053c99f5eece7c2672a63c545936cce56e301635244bf2af6e5ccf87edb24')
-+        '47b48c2ad671e5a2e2f11f8b0c3f52c50118a9a88513245f07125a7481c4e19bb02053c99f5eece7c2672a63c545936cce56e301635244bf2af6e5ccf87edb24'
-+        'fb95f35bbb156ebe8e367c7ec6af45e0e79121ee386cf7ba4702a31da023c1195644a67f7325ce7de67a16cfa651fe23e448c381ae0550af108065a9cf2a0676')
+         '09628a4dbe1b5cd34fe5e53394c7e44558a7f2c133530f52ae2b6e022f3303d6f8f28f939b13e175a2b4532f7511de26240d26d7dca0543ceaae905d6decb768'
+-        '0bb42a22c110f06a45e59a9adc194184a51ff97e5584d6ffabca0aa37e1e65ccaf44f43dc744eaa3861d6f6b00e299d4662bcf0c0d94478af9352b4c4f6b0ffd')
++        '0bb42a22c110f06a45e59a9adc194184a51ff97e5584d6ffabca0aa37e1e65ccaf44f43dc744eaa3861d6f6b00e299d4662bcf0c0d94478af9352b4c4f6b0ffd'
++        'fb63c9a5f8f89a310bbc002cf33b29708ae4ede9142deefe94d28d94229d02a9919786d0cc3eb5a5083a32a127efd692fa1f5b2ef9a35f96ca02cfd2c501866f')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -79,6 +82,12 @@
+@@ -82,6 +85,12 @@ prepare() {
    make olddefconfig
    diff -u ../config .config || :
  
@@ -40,7 +41,7 @@ index 97697c1..657e525 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -126,6 +135,9 @@
+@@ -129,6 +138,9 @@ _package() {
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -50,7 +51,7 @@ index 97697c1..657e525 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -141,19 +153,16 @@
+@@ -144,19 +156,16 @@ _package-headers() {
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -73,7 +74,7 @@ index 97697c1..657e525 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -175,7 +184,7 @@
+@@ -178,7 +187,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
