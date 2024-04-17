@@ -1,24 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -34,19 +34,24 @@ source=(
-   https://download.linuxsampler.org/packages/$pkgname-$pkgver.tar.bz2
-   $pkgname-2.2.0-libdir.patch
-   $pkgname-2.2.0-libgig_package.patch
-+  0000-fix-riscv-atomic.patch
- )
- sha512sums=('5a59e3443ee6d3056fc274386ae222e7db72a8c6e316a1c39c5d631bae86ec6a61745b20e594cf569c10f5a6bd6eb0d09b3956cce67072175ff60a770a4b7e5b'
-             'fd552a6efff47ddd0114f7d394d699ba2df624c5a9dfd3b88f754f38b4aa7c9e04523b79b179e1f4d8f73cb142158134d74a11eb8718f8a22ace2a0d5b2f0c86'
--            '84c5e2a322783e33e83aa319466c5e49f32d4b5175f63515df7857ddcdb9d2a3a11afde376b77d1f18c474ab341d42d2d1e018ab2525971b680fe36abbd221d1')
-+            '84c5e2a322783e33e83aa319466c5e49f32d4b5175f63515df7857ddcdb9d2a3a11afde376b77d1f18c474ab341d42d2d1e018ab2525971b680fe36abbd221d1'
-+            'fb477be65873735cc066ed5389a6e43222691ab775bceeb1565f825aa1cf66c1dcfb2fd7bb0feff81dd1c0d2adf1535759cf062ddbd59c048bfd0b3c27831534')
- b2sums=('5f9e7bf2f6c0bfe8131cc04d79b3df5c08c16c7332315e5ff39c16aa3565f88bc3a58b63db4162c8e2f4430ae1a091c928cecba2385fc181f6c7b46a72c4ae88'
-         '98df780dfe7bf1a0379e7b4a15390aab411b1a5b8ef5c9c9fe04cdcd963ed572eeeaa00eb184017b61248bc396f58cfca571a748d6d17caf5030a447a05ebbf0'
--        '599ff6db7c87c4c4ee2306f62c6bec2a612d3c556c371a660430d09c93cda7b0b951f78e742d679407215fabb60939619fc9edcbf3813bf1665a9ee5fe0ddf95')
-+        '599ff6db7c87c4c4ee2306f62c6bec2a612d3c556c371a660430d09c93cda7b0b951f78e742d679407215fabb60939619fc9edcbf3813bf1665a9ee5fe0ddf95'
-+        'bfce471e5c0415975033f5c1d66eb25b217c4e5a57e88cc3b4ac1fa0d6ba5431861bea092da00b59b7e251c18caca3f83ee9b954aa7bf21db6ebf61e6cea99fc')
- 
- prepare(){
-   # install shared object in global namespace
+@@ -47,6 +47,8 @@ prepare(){
    patch -Np1 -d $pkgname-$pkgver -i ../$pkgname-2.2.0-libdir.patch
    # fix generation of instruments in package()
    patch -Np1 -d $pkgname-$pkgver -i ../$pkgname-2.2.0-libgig_package.patch
@@ -27,3 +9,11 @@
  
    # extract custom license exception
    sed -n '11,15p' $pkgname-$pkgver/README > LinuxSampler-Non-Commercial.txt
+@@ -79,3 +81,7 @@ package() {
+   mv -v "$pkgdir/usr/share/man/man1/lscp.1" "$pkgdir/usr/share/man/man1/lscp-$pkgname.1"
+ }
+ # vim:set ts=2 sw=2 et:
++
++source+=(0000-fix-riscv-atomic.patch)
++sha512sums+=('fb477be65873735cc066ed5389a6e43222691ab775bceeb1565f825aa1cf66c1dcfb2fd7bb0feff81dd1c0d2adf1535759cf062ddbd59c048bfd0b3c27831534')
++b2sums+=('bfce471e5c0415975033f5c1d66eb25b217c4e5a57e88cc3b4ac1fa0d6ba5431861bea092da00b59b7e251c18caca3f83ee9b954aa7bf21db6ebf61e6cea99fc')
