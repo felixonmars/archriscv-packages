@@ -1,19 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -71,6 +71,12 @@ _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
+@@ -71,6 +71,14 @@ _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
  source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
- sha256sums=('d61d87b2d2ccf8487e248bd8777d208ba3acd65bd60d6bb7d87dbaafa3850396')
+ sha256sums=('1a5ba443635dc1f439ab802ac6d761b8def5ebb24e5219bb7289288e72c147de')
  
 +prepare() {
-+  for _patch in angle crashpad libgav1 sandbox base dav1d libyuv; do
-+    patch -d $_pkgfn/src/3rdparty/chromium -Np1 < riscv-$_patch.patch
++  cd $_pkgfn
++  for _patch in angle libgav1 sandbox base dav1d; do
++    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
 +  done
++  patch -d src/3rdparty/chromium/v8 -Np1 < ../riscv-v8.patch
 +}
 +
  build() {
-   # this uses malloc_usable_size, which is incompatible with fortification level 3
-   export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-@@ -84,7 +90,10 @@ build() {
+   cmake -B build -S $_pkgfn -G Ninja \
+     -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
+@@ -80,7 +88,10 @@ build() {
      -DQT_FEATURE_webengine_system_libevent=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
@@ -25,18 +27,16 @@
    cmake --build build
  }
  
-@@ -97,3 +106,14 @@ package() {
+@@ -89,3 +100,12 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
 +
 +makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}" clang)
-+source+=(riscv-{angle,crashpad,libgav1,sandbox,base,dav1d,libyuv}.patch)
-+sha256sums+=('fb0738fc32f228cef59e5516dbb4acd8818f1e2ba9db2cfbc21cf72a4ace8c3f'
-+             '70f8bcd3dd68c13d1e074415952c0b7e3e3b6058c97d39ba7a78dc17daa30547'
++source+=(riscv-{angle,libgav1,sandbox,base,dav1d,v8}.patch)
++sha256sums+=('d092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
 +             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
-+             '3fc1c003675dfc336f5a61eadb2009d558d5ceef0113c46c1d38f39506835304'
-+             'da17695cc437eb3f2a71719772d29ee9d0b6f80152536b061208ab29253fca7c'
++             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
++             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+             'd71a8dd17e3acb8f76032a35a6e633ddb12304194f36b6fc7bc24b4f0867f0bf')
-+
++             '668e63bc4a388db24fc2ed519d29d6bf73c6f97e768d651adcd72378e93291f5')
