@@ -16,15 +16,17 @@
    libffi
    lld
    llvm
-@@ -42,6 +40,7 @@ makedepends=(
-   python
-   rust
-   wasi-libc
-+  git
- )
- checkdepends=(
-   gdb
-@@ -89,9 +88,8 @@ link-shared = true
+@@ -80,6 +78,9 @@ prepare() {
+   # Use our wasm-ld
+   patch -Np1 -i ../0004-compiler-Use-wasm-ld-for-wasm-targets.patch
+ 
++  # Backport https://github.com/rust-lang/rust/pull/123612 to fix cross-language LTO issues
++  patch -Np1 -i ../riscv-target-abi-fix.patch
++
+   cat >config.toml <<END
+ profile = "user"
+ change-id = 118703
+@@ -89,9 +90,8 @@ link-shared = true
  
  [build]
  target = [
@@ -36,7 +38,7 @@
    "wasm32-unknown-unknown",
    "wasm32-wasi",
  ]
-@@ -144,22 +142,18 @@ deny-warnings = false
+@@ -144,22 +144,18 @@ deny-warnings = false
  [dist]
  compression-formats = ["gz"]
  
@@ -63,7 +65,7 @@
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -198,15 +192,12 @@ build() {
+@@ -198,15 +194,12 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -81,7 +83,7 @@
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -235,22 +226,6 @@ package_rust() {
+@@ -235,22 +228,6 @@ package_rust() {
    cp -a dest-rust/* "$pkgdir"
  }
  
@@ -104,3 +106,10 @@
  package_rust-musl() {
    pkgdesc="Musl target for Rust"
    depends=(rust)
+@@ -285,3 +262,6 @@ package_rust-src() {
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++source+=(riscv-target-abi-fix.patch)
++b2sums+=('37bb6aaaba5b25ea2d6eb17c1e0928caa13055dc105c41186ea3556e35df2332b81bd939a16172b6c18b9b0e3f7c16944f8922c2e5307f3dab8e52ec9c310d60')
