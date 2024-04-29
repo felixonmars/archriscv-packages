@@ -1,0 +1,43 @@
+diff --git a/zict/lmdb.py b/zict/lmdb.py
+index c7648e1..020ae8d 100644
+--- a/zict/lmdb.py
++++ b/zict/lmdb.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import pathlib
+ import sys
++import platform
+ from collections.abc import Iterable, Iterator
+ from typing import (  # TODO import from collections.abc (needs Python >=3.9)
+     ItemsView,
+@@ -28,7 +29,8 @@ class LMDB(ZictBase[str, bytes]):
+     ----------
+     directory: str
+     map_size: int
+-        On Linux and MacOS, maximum size of the database file on disk.
++        Defaults to 128 GiB on aarch64 and riscv64, 1 TiB on other 64 bit systems like
++        x86-64 and 1 GiB on 32 bit ones.
+         Defaults to 1 TiB on 64 bit systems and 1 GiB on 32 bit ones.
+ 
+         On Windows, preallocated total size of the database file on disk. Defaults to
+@@ -52,10 +54,17 @@ class LMDB(ZictBase[str, bytes]):
+ 
+         super().__init__()
+         if map_size is None:
+-            if sys.platform != "win32":
+-                map_size = min(2**40, sys.maxsize // 4)
+-            else:
++            machine = platform.machine()
++            if sys.platform == "win32":
+                 map_size = 10 * 2**20
++            elif machine in ["x86_64", "x64"]:
++                map_size = 2**40
++            elif machine in ["i386", "i686", "x86"]:
++                map_size = 2**30
++            elif machine.startswith("aarch64") or machine.startswith("armv8") or machine.startswith("riscv64"):
++                map_size = 2**37
++            else:
++                map_size = min(2**40, sys.maxsize // 4)
+ 
+         self.db = lmdb.open(
+             str(directory),
