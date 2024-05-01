@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,8 +14,15 @@ depends=('cblas' 'lapack' 'python')
+ optdepends=('blas-openblas: faster linear algebra')
+ makedepends=('python-build' 'python-installer' 'meson-python' 'cmake' 'gcc-fortran' 'cython')
+ checkdepends=('python-pytest' 'python-hypothesis')
+-source=("https://github.com/numpy/numpy/releases/download/v$pkgver/numpy-$pkgver.tar.gz")
+-sha512sums=('f7121ab4099fa0686f9c095d456baa4a5869d651d7b7a06385f885f329cf08f11024b5df5e7b4ee705970062a8102ec4f709512eabbfd5c9fccce4ef83b9c208')
++source=("https://github.com/numpy/numpy/releases/download/v$pkgver/numpy-$pkgver.tar.gz"
++        "$pkgname-unbound-meson-python-version.patch::https://github.com/numpy/numpy/pull/26301.diff")
++sha512sums=('f7121ab4099fa0686f9c095d456baa4a5869d651d7b7a06385f885f329cf08f11024b5df5e7b4ee705970062a8102ec4f709512eabbfd5c9fccce4ef83b9c208'
++            '453af415239b5a864f35f3420fc6377397b011b0a32276b483a88886a639c0c5200192f666bbdd4b66a8f80a55f680e45236dcfcd4bb3928c65b0136524f6281')
++
++prepare() {
++  cd numpy-$pkgver
++  patch -Np1 -i "$srcdir/$pkgname-unbound-meson-python-version.patch"
++}
+ 
+ build() {
+   cd numpy-$pkgver
