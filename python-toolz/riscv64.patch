@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,9 +16,17 @@ makedepends=(
+   python-wheel
+ )
+ checkdepends=(python-pytest)
+-source=(https://files.pythonhosted.org/packages/source/${_name::1}/$_name/$_name-$pkgver.tar.gz)
+-sha512sums=('c514934d1a8069cd70e4d8b9ca32cd2c96e85b1dabb45bbbe4b0644581eb7e7f9f6a6d9230483f1872695edf25ff77ad7643cffb3041a012ed64424097a23e9e')
+-b2sums=('41b2002147cd453c2a8300c7ec247e06dfc8fba69a772df4a8f5c35349e991453bbbd0d7ed0162391d9314873bf0e169d20c86b875e4d4eca01aaadc76edea61')
++source=(https://files.pythonhosted.org/packages/source/${_name::1}/$_name/$_name-$pkgver.tar.gz
++        $pkgname-fix-test-inspect-wrapped-property.patch::https://github.com/pytoolz/toolz/pull/578.diff)
++sha512sums=('c514934d1a8069cd70e4d8b9ca32cd2c96e85b1dabb45bbbe4b0644581eb7e7f9f6a6d9230483f1872695edf25ff77ad7643cffb3041a012ed64424097a23e9e'
++            'b82a0fa4cd635ae3526131464ff59c3749256b50c1edf532dd54f8005ada511606e2223e55425c93896e8288cdd2ff611a4dbdf2119d610c8dcf085a7ba5a2cc')
++b2sums=('41b2002147cd453c2a8300c7ec247e06dfc8fba69a772df4a8f5c35349e991453bbbd0d7ed0162391d9314873bf0e169d20c86b875e4d4eca01aaadc76edea61'
++        '7cb0bf682b230f9a3b2d6536dcfe9aaefebe08f1346771897c0927ac106a16b294fb1ec6798a0aa192380af8f7cfde372f61a90fb2cb5032e3e96decfb2c68c3')
++
++prepare() {
++  cd $_name-$pkgver
++  patch -Np1 -i $srcdir/$pkgname-fix-test-inspect-wrapped-property.patch
++}
+ 
+ build() {
+   cd $_name-$pkgver
