@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,6 +13,15 @@ makedepends=('cargo' 'cargo-about' 'git')
+ source=("$pkgname-$pkgver::git+https://github.com/kxxt/tracexec.git#tag=v$pkgver")
+ b2sums=('8625c4ebaaf346585342bbab8c99917112b3f2de1caf884730efc552c3e3af77774b119b687e5ceef136ad0890bec2e1b4657c7c97c596438b17355826f08215')
+ 
++case "$CARCH" in
++  riscv64)
++    _feature_flags="--no-default-features"
++    ;;
++  *)
++    _feature_flags="--all-features"
++    ;;
++esac
++
+ prepare() {
+   cd "$pkgname-$pkgver"
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+@@ -21,13 +30,13 @@ prepare() {
+ build() {
+   cd "$pkgname-$pkgver"
+   # --bins: needed for test
+-  cargo build --bins --frozen --release --all-features
++  cargo build --bins --frozen --release $_feature_flags
+   cargo about generate -o THIRD_PARTY_LICENSES.HTML about.hbs
+ }
+ 
+ check() {
+   cd "$pkgname-$pkgver"
+-  RUST_TEST_THREADS=1 cargo test --frozen --release --all-features
++  RUST_TEST_THREADS=1 cargo test --frozen --release $_feature_flags
+ }
+ 
+ package() {
