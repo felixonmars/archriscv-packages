@@ -8,37 +8,33 @@
    'vulkan-nouveau'
    'vulkan-radeon'
    'vulkan-swrast'
-@@ -119,6 +118,11 @@ prepare() {
-   # Proposed crash fix from https://gitlab.freedesktop.org/mesa/mesa/-/issues/10613#note_2290167
-   patch -Np1 -i ../radeon_bo_can_reclaim_slab.diff
- 
-+  # Add orcjit support
-+  # https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/26018
-+  patch -Np1 -i ../0002-add-llvm-orcjit.patch
-+  patch -Np1 -i ../0004-llvmpipe-linkage.patch
-+
-   # Include package release in version string so Chromium invalidates
+@@ -127,13 +126,17 @@ prepare() {
    # its GPU cache; otherwise it can cause pages to render incorrectly.
    # https://bugs.launchpad.net/ubuntu/+source/chromium-browser/+bug/2020604
-@@ -131,7 +135,7 @@ build() {
+   echo "$pkgver-arch$epoch.$pkgrel" >VERSION
++
++  # Add orcjit support
++  # https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/26018
++  patch -Np1 -i ../add-llvm-orcjit.patch
+ }
+ 
+ build() {
+   local meson_options=(
+     -D android-libbacktrace=disabled
      -D b_ndebug=true
-     -D dri3=enabled
-     -D egl=enabled
 -    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,svga,swrast,i915,iris,crocus,zink,d3d12
 +    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,svga,swrast,zink,d3d12
      -D gallium-extra-hud=true
      -D gallium-nine=true
      -D gallium-omx=bellagio
-@@ -149,6 +153,7 @@ build() {
-     -D intel-xe-kmd=enabled
-     -D libunwind=enabled
-     -D llvm=enabled
+@@ -144,13 +147,14 @@ build() {
+     -D glx=dri
+     -D intel-clc=enabled
+     -D libunwind=disabled
 +    -D llvm-orcjit=true
-     -D lmsensors=enabled
      -D microsoft-clc=disabled
      -D osmesa=true
-@@ -156,8 +161,8 @@ build() {
-     -D shared-glapi=enabled
+     -D platforms=x11,wayland
      -D valgrind=enabled
      -D video-codecs=all
 -    -D vulkan-drivers=amd,intel,intel_hasvk,swrast,virtio,nouveau-experimental
@@ -48,15 +44,11 @@
    )
  
    # Build only minimal debug info to reduce size
-@@ -454,4 +459,11 @@ package_mesa() {
-   install -Dm644 mesa-$pkgver/docs/license.rst -t "$pkgdir/usr/share/licenses/$pkgname"
+@@ -501,3 +505,7 @@ package_mesa() {
  }
  
-+source+=(0002-add-llvm-orcjit.patch
-+         0004-llvmpipe-linkage.patch)
-+sha256sums+=('56396e2186532ebafee9128610f027809a7ac11b5a303aa57d50c93afe64b4d9'
-+             '765ce1a5b160ebf6579dc4bcbcf27801b05b9f0d1419251bcd5181bbde6f19a1')
-+b2sums+=('f7383819f3a96ebe3ef6586dc8b53428341ad6bc6a82c5eaa9c95cae67a43523378f842f8b19607da2712a9ffdc30660a73d348a77f52c26d438e07d52822ab1'
-+         'eccd452b553895c041199991b23a9aa7244a0651d089f230dd0393f9e4bb8515e7b30f94eeea4dc5526ea287f3a62e1a82cd86dc282664eeec6de2fe04598aee')
-+
  # vim:set sw=2 sts=-1 et:
++
++source+=(add-llvm-orcjit.patch)
++sha256sums+=('50179d3a76ea0d40c968e0f2f0a48500103d3e626436bfc66d7d97ec09738c84')
++b2sums+=('3d955c5dc5da34b218b337ee536b1a9923c50f8a894f75df5d8474ef3f227bffb6a1fa644aacc00fe433dd06bbeb372f2b6bc4eb51598bb708910cc45047c12b')
