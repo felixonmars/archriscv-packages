@@ -1,33 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,7 +22,16 @@ optdepends=('npm: nodejs package manager')
- source=("git+https://github.com/nodejs/node.git#commit=$_commit")
- sha512sums=('c863de81eb5d45d0e271d8828c52395216bbfc9ac736c90d561234b5724454b95dd759cd96ff5435e43c2debd356f966c14cf8b68a81421601d21b611e2e1f80')
+@@ -18,10 +18,17 @@ options=(!lto)
+ depends=('icu' 'libuv' 'libnghttp2' 'libnghttp3' 'libngtcp2' 'openssl' 'zlib' 'brotli' 'c-ares') # 'http-parser' 'v8')
+ makedepends=('git' 'python' 'procps-ng')
+ optdepends=('npm: nodejs package manager')
+-source=("git+https://github.com/nodejs/node.git#tag=v$pkgver?signed")
+-sha512sums=('9603c736e5f0fb976507413ecec5d3ab5b62fb7eec53635a7a376c2c9b41cc89ab3830a61b6b0f923aa7c62dff7b29a7150000d7db85c43c7e286a42c8beb408')
++source=("git+https://github.com/nodejs/node.git#tag=v$pkgver?signed"
++        "fix-trap-handler.patch")
++sha512sums=('9603c736e5f0fb976507413ecec5d3ab5b62fb7eec53635a7a376c2c9b41cc89ab3830a61b6b0f923aa7c62dff7b29a7150000d7db85c43c7e286a42c8beb408'
++            'f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c')
+ validpgpkeys=('8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600') # Michaël Zasso (Targos) <targos@protonmail.com>
  
-+makedepends+=(clang)
-+
-+_set_compilation_env() {
-+  # https://bugs.chromium.org/p/v8/issues/detail?id=14547
-+  export CC=/usr/bin/clang
-+  export CXX=/usr/bin/clang++
++prepare() {
++  cd node
++  patch -Np1 -i ../fix-trap-handler.patch
 +}
 +
  build() {
-+  _set_compilation_env
    cd node
  
-   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
-@@ -48,11 +57,13 @@ build() {
- }
- 
- check() {
-+  _set_compilation_env
-   cd node
-   make test || :
- }
- 
- package() {
-+  _set_compilation_env
-   cd node
-   make DESTDIR="$pkgdir" install
-   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
