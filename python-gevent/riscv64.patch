@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,11 +12,18 @@ url="http://www.gevent.org/"
+ depends=('c-ares' 'libev' 'python-greenlet' 'python-setuptools' 'python-zope-event' 'python-zope-interface')
+ makedepends=('cython')
+ checkdepends=('lsof' 'python-perf' 'python-objgraph' 'python-dnspython' 'python-requests')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/gevent/gevent/archive/$pkgver.tar.gz")
+-sha512sums=('bfcaf437ba4d6565bd5904dc0d45df035fe9b4bd572f8bf509d1ec9994ae812317bdea9e948b57f47435752bffebb7cc925dbf060db5d56c5c05b29cbd061639')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/gevent/gevent/archive/$pkgver.tar.gz"
++        workaround-cython-bug.patch)
++sha512sums=('bfcaf437ba4d6565bd5904dc0d45df035fe9b4bd572f8bf509d1ec9994ae812317bdea9e948b57f47435752bffebb7cc925dbf060db5d56c5c05b29cbd061639'
++            '66224a311fe69170854dc8876ff54621ee51ea258397afb2520e3844cbd91e70dc3571f74a7e7b9dc0b40826c196a785383f9a71e6b97a69b45d7ebe68863931')
+ 
+ export GEVENTSETUP_EMBED=0
+ 
++
++prepare() {
++  patch -d gevent-$pkgver -Np1 <workaround-cython-bug.patch
++}
++
+ build() {
+   cd gevent-$pkgver
+   python setup.py build
