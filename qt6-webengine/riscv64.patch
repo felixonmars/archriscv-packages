@@ -1,21 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -71,6 +71,14 @@ _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
- source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
- sha256sums=('1a5ba443635dc1f439ab802ac6d761b8def5ebb24e5219bb7289288e72c147de')
+@@ -83,6 +83,10 @@ prepare() {
  
-+prepare() {
-+  cd $_pkgfn
+ # Fix build with ninja 1.12 - Gentoo patch
+   patch -Np1 -i ../qtwebengine-6.7.0-ninja1.12.patch
 +  for _patch in angle libgav1 sandbox base dav1d; do
 +    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
 +  done
 +  patch -d src/3rdparty/chromium/v8 -Np1 < ../riscv-v8.patch
-+}
-+
+ }
+ 
  build() {
-   cmake -B build -S $_pkgfn -G Ninja \
-     -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
-@@ -80,7 +88,10 @@ build() {
+@@ -94,7 +98,10 @@ build() {
      -DQT_FEATURE_webengine_system_libevent=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
@@ -27,7 +23,7 @@
    cmake --build build
  }
  
-@@ -89,3 +100,12 @@ package() {
+@@ -103,3 +110,12 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
