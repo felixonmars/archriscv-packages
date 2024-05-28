@@ -1,0 +1,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,7 +31,10 @@ build() {
+   for lib in GSL FFTW GLPK DSDP; do
+     eval "export $'CVXOPT_BUILD_$lib'=1"
+   done
++  # override SUITESPARSE_INC_DIR (default is /usr/include for arch riscv64)
++  # https://github.com/cvxopt/cvxopt/blob/4183030a8ff93a9850b8e44b9508e3ab78f17eb4/setup.py#L59-L71
+   SETUPTOOLS_SCM_PRETEND_VERSION=$pkgver \
++  CVXOPT_SUITESPARSE_INC_DIR=/usr/include/suitesparse \
+   python -m build --wheel --no-isolation
+ }
+ 
