@@ -1,14 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -51,6 +51,7 @@ makedepends=(clang
-              python-requests
+@@ -52,6 +52,7 @@ makedepends=(clang
               python-six
+              python-setuptools
               rust
 +             go
               qt5-base
               wget
               yarn)
-@@ -61,7 +62,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+@@ -62,7 +63,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'trash-cli: file deletion support (trash-put)'
              'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
  options=('!lto') # Electron adds its own flags for ThinLTO
@@ -17,7 +17,7 @@
          https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
          # Chromium
          drop-flag-unsupported-by-clang17.patch
-@@ -74,6 +75,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+@@ -75,6 +76,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          jinja-python-3.10.patch
          libxml2-2.12.patch
          use-system-libraries-in-node.patch
@@ -25,16 +25,16 @@
          makepkg-source-roller.py
          # BEGIN managed sources
          chromium-mirror::git+https://github.com/chromium/chromium.git#tag=120.0.6099.291
-@@ -231,7 +233,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
- sha256sums=('6bbf9f35a03f60153091e195adc4d8729e9d290d220d6e347f42c2343684a2f0'
+@@ -232,7 +234,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+ sha256sums=('fd9395f4ac1482437612c79c6efccc71abd1f29bc4fbebd027c09eaa94ad5d39'
              'ffee1082fbe3d0c9e79dacb8405d5a0e1aa94d6745089a30b093f647354894d2'
              '3bd35dab1ded5d9e1befa10d5c6c4555fe0a76d909fb724ac57d0bf10cb666c1'
 -            'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
 +            '8e128dec0d9416029ea8124e14963c9e0caf897bf60d347a070e393edebdff1c'
              'dd2d248831dd4944d385ebf008426e66efe61d6fdf66f8932c963a12167947b4'
-             'b0ac3422a6ab04859b40d4d7c0fd5f703c893c9ec145c9894c468fbc0a4d457c'
+             '13fcf26193f4417fd5dfbc82a3f24e5c7a1cce82f729f6a73f1b1d3a7b580b34'
              '4484200d90b76830b69eea3a471c103999a3ce86bb2c29e6c14c945bf4102bae'
-@@ -239,6 +241,7 @@ sha256sums=('6bbf9f35a03f60153091e195adc4d8729e9d290d220d6e347f42c2343684a2f0'
+@@ -240,6 +242,7 @@ sha256sums=('fd9395f4ac1482437612c79c6efccc71abd1f29bc4fbebd027c09eaa94ad5d39'
              '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
              '1808df5ba4d1e2f9efa07ac6b510bec866fa6d60e44505d82aea3f6072105a71'
              'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
@@ -42,12 +42,18 @@
              '3ae82375ba212c31fd4ba6f1fa4e2445eeca8eb8c952176131ad57c0258db224'
              '69ed3ac42b71f327c921971e1bef8a04f561f549ad89b4023e6742e4718c6df2'
              '0b7a546ee6913c49519c10c293ac530ff381641a8a465fa2e184d6dbe0fb784d'
-@@ -437,12 +440,16 @@ prepare() {
+@@ -439,12 +442,22 @@ prepare() {
    cp -r chromium-mirror_third_party_depot_tools depot_tools
    export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
-   export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
-+  # Use a known commit that supports riscv64: https://chromium.googlesource.com/chromium/tools/depot_tools/+/1fd8a6fa56c58778e3709239106457787657a9c6
-+  git -C depot_tools checkout --detach 1fd8a6fa56c58778e3709239106457787657a9c6
+   #export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
++  # Use a known commit that supports riscv64
++  git -C depot_tools checkout --detach 2a18f6d3245450d8c96c843a6584aaea561ef873
++  # Python 3.12 breaks gsutils
++  # Bundled wheels are not available for riscv64
++  sed -i '/wheel: </,$d' depot_tools/.vpython3
++  sed -i '/wheel: </,$d' depot_tools/gsutil.vpython3
++  # Manually install required wheels
++  vpython3 -m pip install httplib2==0.13.1 six==1.10.0 requests==2.31.0
  
    echo "Putting together electron sources"
    # Generate gclient gn args file and prepare-electron-source-tree.sh
@@ -59,7 +65,7 @@
  
    echo "Running hooks..."
    # depot_tools/gclient.py runhooks
-@@ -469,6 +476,8 @@ prepare() {
+@@ -475,6 +488,8 @@ prepare() {
  
    echo "Applying local patches..."
  
@@ -68,7 +74,7 @@
    ## Upstream fixes
  
    # Fix build with libxml2 2.12
-@@ -484,7 +493,8 @@ prepare() {
+@@ -490,7 +505,8 @@ prepare() {
    patch -Np1 -i ../compiler-rt-adjust-paths.patch
  
    # Fixes for building with libstdc++ instead of libc++
@@ -78,7 +84,7 @@
    patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
  
    # Link to system tools required by the build
-@@ -580,6 +590,10 @@ build() {
+@@ -590,6 +606,10 @@ build() {
    CFLAGS+='   -Wno-unknown-warning-option'
    CXXFLAGS+=' -Wno-unknown-warning-option'
  
@@ -89,7 +95,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -627,3 +641,4 @@ package() {
+@@ -637,3 +657,4 @@ package() {
    install -Dm644 src/electron/default_app/icon.png \
            "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
  }
