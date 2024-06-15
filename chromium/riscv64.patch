@@ -1,36 +1,38 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -118,6 +118,16 @@ prepare() {
+@@ -119,6 +119,17 @@ prepare() {
    # Fixes for building with libstdc++ instead of libc++
    patch -Np1 -i ../chromium-patches-*/chromium-117-material-color-include.patch
  
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
-+  patch -Np1 -i ../fix-rust-target.patch
 +  patch -Np1 -i ../Debian-fix-rust-linking.patch
 +
 +  # riscv64
-+  for rvpatch in riscv-{dav1d,ffmpeg,sandbox}.patch; do
++  for rvpatch in riscv-{dav1d,sandbox,fix-rust-target}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
++  patch -Np1 -d v8 < ../riscv-v8-fix-perf-regression.patch
++  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg.patch
 +
 +
    # Link to system tools required by the build
    mkdir -p third_party/node/linux/node-linux-x64/bin
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -317,4 +327,16 @@ package() {
+@@ -318,4 +329,17 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}")
 +source+=(swiftshader-use-llvm16.patch
-+         fix-rust-target.patch::https://github.com/chromium/chromium/commit/0071a45a353dcca16d14cab373f84f6f3f086700.diff
-+         riscv-{dav1d,ffmpeg,sandbox}.patch
++         riscv-fix-rust-target.patch::https://github.com/riscv-forks/electron/raw/v31.0.1-riscv/patches/chromium/0005-Fix-Rust-target-triple-for-riscv64.patch
++         riscv-{dav1d,ffmpeg,sandbox,v8-fix-perf-regression}.patch
 +         Debian-fix-rust-linking.patch)
 +sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+             '3f6f5ccc0759250078b0fb12b43f35f21120c15b47781458d21e906977c7aa76'
++             '9248bb9d12487fd763bc45524c5fc676580660a320a50436d200ab93afc844bd'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+             '64caf780e56fa68a648880f0c247ec6834589fe400d47e265194d4e2620fca17'
-+             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
++             '64333a3c3f5230d58066c2ca1daacccab311066485cd905d1c387b1bc2ba3dbf'
++             '1713cfc3c73d7f33fd7a9daba9b642869632468bc1068b727827a6b5320a7f88'
++             'e03f824676649821de5c3362264b8f7028e8d6c3cc4ad3d6e9da531c398c2dd7'
 +             '98b0fbe1318897954cb8891cafed65e985613c69192e65984ba6785579b29f80')
 +
  # vim:set ts=2 sw=2 et:
