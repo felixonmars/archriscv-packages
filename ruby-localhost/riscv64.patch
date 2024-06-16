@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index fc65a366..3c1a1749 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,13 +12,16 @@ depends=(ruby)
+ makedepends=(git ruby-covered ruby-sus ruby-sus-fixtures-async)
+ checkdepends=(ruby-bake-modernize ruby-bake-test ruby-bake-test-external ruby-async-io ruby-async-process)
+ options=(!emptydirs)
+-source=(git+https://github.com/socketry/localhost.git#commit=$_commit)
+-sha256sums=('SKIP')
++source=(git+https://github.com/socketry/localhost.git#commit=$_commit
++        "fix-test-timeout.patch")
++sha256sums=('SKIP'
++            '93c326c92c649d322d8890bcf4d3ff9f31d505f2de3b2f7bd3d88cd88f9754f4')
+ 
+ prepare() {
+   cd localhost
+   sed -r -e 's|~>|>=|g' -e '/signing_key/d' -i localhost.gemspec
+   sed -i '/bake-gem/d;/utopia-project/d' gems.rb
++  patch -Np1 -i "../fix-test-timeout.patch"
+ }
+ 
+ build() {
