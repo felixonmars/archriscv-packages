@@ -17,27 +17,7 @@
    libffi
    lld
    llvm
-@@ -65,7 +62,8 @@ b2sums=('3f43a1c50e268afbe76755ae24bccb3db9ff4dd8bbb8130c75d486c4c0e40f0253c4d4c
-         'ef56a70741bae70a95695b4d05d1a6395f545e671c9d016c7180732f69a09b828ff5e16964ef16f9ebec55dd778a1b50927275cd4c21a7b78ae4959946a0657c'
-         'd20861a8a8e16d4bb0143f00d4beb42e2c52eeb2c1894e9f9c04e3d74ecd750d9bdacf15bb39fd0ade4487b9d3d14da24cf5f25ceab112f096fddcd329320a15'
-         '64391cf17e7d801fb263e9d637928c3a2f6aa11aca6afbf115be4e38e9afce42371ed4884929cf11d6c74c2aa497fb26abbba1812d4f31f44dcda38e4978a33f'
--        '23f399d5ea776df5dba1ec42a96020a7ae3b18f5a83121d90ca0256a90027529135bac751373a31480860c0dbad30598833a7da43d1e7f25ce5b6d5d945ce550')
-+        '23f399d5ea776df5dba1ec42a96020a7ae3b18f5a83121d90ca0256a90027529135bac751373a31480860c0dbad30598833a7da43d1e7f25ce5b6d5d945ce550'
-+        '3ea05305c1d87ed239df74b9e985ef8dfd05a50ad5fcf43e9ce4e9939244e7706a12dee93b730982684174be0f151cd53002e862098f7cb89bbe69e0a9068669')
- validpgpkeys=(
-   108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
- )
-@@ -86,6 +84,9 @@ prepare() {
-   # Use our wasm-ld
-   patch -Np1 -i ../0004-compiler-Use-wasm-ld-for-wasm-targets.patch
- 
-+  # Backport https://github.com/rust-lang/rust/pull/123612 to fix cross-language LTO issues
-+  patch -Np1 -i ../riscv-target-abi-fix.patch
-+
-   cat >config.toml <<END
- profile = "user"
- change-id = 121754
-@@ -95,9 +96,8 @@ link-shared = true
+@@ -95,9 +92,8 @@ link-shared = true
  
  [build]
  target = [
@@ -49,7 +29,7 @@
    "wasm32-unknown-unknown",
    "wasm32-wasi",
  ]
-@@ -141,22 +141,18 @@ jemalloc = true
+@@ -141,22 +137,18 @@ jemalloc = true
  [dist]
  compression-formats = ["gz"]
  
@@ -76,7 +56,7 @@
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -207,12 +203,9 @@ build() {
+@@ -207,12 +199,9 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -91,9 +71,3 @@
    _pick dest-wasm usr/lib/rustlib/wasm32-*
    _pick dest-src  usr/lib/rustlib/src
  }
-@@ -292,3 +285,5 @@ package_rust-src() {
- }
- 
- # vim:set ts=2 sw=2 et:
-+
-+source+=(riscv-target-abi-fix.patch)
