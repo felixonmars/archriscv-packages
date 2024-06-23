@@ -1,5 +1,5 @@
 diff --git a/Source/CMakeLists.txt b/Source/CMakeLists.txt
-index dfb0ce09..b3e77d02 100644
+index df3903bf..b1ca66a7 100644
 --- a/Source/CMakeLists.txt
 +++ b/Source/CMakeLists.txt
 @@ -34,7 +34,7 @@ if(TARGET_PLATFORM_ANDROID OR TARGET_PLATFORM_IOS OR TARGET_PLATFORM_JS OR BUILD
@@ -11,6 +11,17 @@ index dfb0ce09..b3e77d02 100644
  	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -mssse3")
  endif()
  
+diff --git a/Source/ee/IPU.h b/Source/ee/IPU.h
+index 2c860a19..a46cb5c8 100644
+--- a/Source/ee/IPU.h
++++ b/Source/ee/IPU.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <algorithm>
+ #include <array>
+ #include <functional>
+ #include "Types.h"
 diff --git a/Source/gs/GSH_OpenGL/CMakeLists.txt b/Source/gs/GSH_OpenGL/CMakeLists.txt
 index ab40170d..a2da9da5 100644
 --- a/Source/gs/GSH_OpenGL/CMakeLists.txt
@@ -25,10 +36,10 @@ index ab40170d..a2da9da5 100644
  endif()
  
 diff --git a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
-index 0a903513..f0171797 100644
+index 01a12176..44c3bc7a 100644
 --- a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
 +++ b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
-@@ -567,13 +567,127 @@ inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int co
+@@ -547,13 +547,127 @@ inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int co
  }
  
  #else
@@ -220,3 +231,16 @@ index d2a9d04..1253ce7 100644
  		endif()
  	endif()
  	
+Submodule deps/Framework contains modified content
+diff --git a/deps/Framework/include/SimdDefs.h b/deps/Framework/include/SimdDefs.h
+index be7e2e1..88f0622 100644
+--- a/deps/Framework/include/SimdDefs.h
++++ b/deps/Framework/include/SimdDefs.h
+@@ -19,6 +19,6 @@
+ 	#define FRAMEWORK_SIMD_USE_NEON
+ #endif
+ 
+-#if !defined(FRAMEWORK_SIMD_USE_SSE) && !defined(FRAMEWORK_SIMD_USE_NEON)
++#if !defined(FRAMEWORK_SIMD_USE_SSE) && !defined(FRAMEWORK_SIMD_USE_NEON) && !(defined(__riscv) && (__riscv_xlen == 64))
+ #error No SIMD instrinsics available for this platform.
+ #endif
