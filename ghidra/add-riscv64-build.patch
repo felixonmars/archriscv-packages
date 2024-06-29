@@ -1,5 +1,5 @@
 diff --git a/GPL/nativeBuildProperties.gradle b/GPL/nativeBuildProperties.gradle
-index 5e9c33f..cfad0b1 100644
+index 5e9c33f4e..cfad0b1d2 100644
 --- a/GPL/nativeBuildProperties.gradle
 +++ b/GPL/nativeBuildProperties.gradle
 @@ -43,6 +43,9 @@ model {
@@ -13,7 +13,7 @@ index 5e9c33f..cfad0b1 100644
  		}
  		if (isCurrentMac()) {
 diff --git a/GPL/nativePlatforms.gradle b/GPL/nativePlatforms.gradle
-index a75cf48..09b817d 100644
+index a75cf48a5..09b817dde 100644
 --- a/GPL/nativePlatforms.gradle
 +++ b/GPL/nativePlatforms.gradle
 @@ -23,6 +23,7 @@ project.ext.PLATFORMS = [
@@ -49,8 +49,30 @@ index a75cf48..09b817d 100644
  /****************************************************************************
   * Establish Visual Studio configuration environment for Windows native builds
   * NOTE: vsconfig.gradle path is relative to each GPL project module
+diff --git a/Ghidra/Debug/Debugger-rmi-trace/build.gradle b/Ghidra/Debug/Debugger-rmi-trace/build.gradle
+index 40fbc17ab..c10fec6eb 100644
+--- a/Ghidra/Debug/Debugger-rmi-trace/build.gradle
++++ b/Ghidra/Debug/Debugger-rmi-trace/build.gradle
+@@ -46,9 +46,14 @@ task generateProtoPy {
+ 	inputs.files(src)
+ 	dependsOn(configurations.protocArtifact)
+ 	doLast {
+-		def exe = configurations.protocArtifact.first()
+-		if (!isCurrentWindows()) {
+-			exe.setExecutable(true)
++		def exe
++		if (isCurrentRiscv_64()) {
++			exe = System.env.PROTOBUF_DESTDIR + "/usr/local/bin/protoc"
++		} else {
++			exe = configurations.protocArtifact.first()
++			if (!isCurrentWindows()) {
++				exe.setExecutable(true)
++			}
+ 		}
+ 		exec {
+ 			commandLine exe, "--python_out=$outdir", "-I$srcdir"
 diff --git a/gradle/debugger/hasProtobuf.gradle b/gradle/debugger/hasProtobuf.gradle
-index 23b4ce7..24adc50 100644
+index 23b4ce74b..24adc50d7 100644
 --- a/gradle/debugger/hasProtobuf.gradle
 +++ b/gradle/debugger/hasProtobuf.gradle
 @@ -26,31 +26,34 @@ def platform = getCurrentPlatformName()

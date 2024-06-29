@@ -7,10 +7,10 @@
 -         python-opencv
 -         opencv-cuda)
 +         python-opencv)
- pkgver=4.8.1
- pkgrel=1
+ pkgver=4.9.0
+ pkgrel=3
  pkgdesc='Open Source Computer Vision Library'
-@@ -38,7 +37,6 @@ depends=(abseil-cpp
+@@ -39,7 +38,6 @@ depends=(abseil-cpp
           zlib)
  makedepends=(ant
               cmake
@@ -18,16 +18,16 @@
               eigen
               fmt
               glew
-@@ -68,6 +66,8 @@ sha256sums=('62f650467a60a38794d681ae7e66e3e8cfba38f445e0bf87867e2f2cdc8be9d5'
-             '0c082a0b29b3118f2a0a1856b403bb098643af7b994a0080f402a12159a99c6e'
-             'f35a2d4ea0d6212c7798659e59eda2cb0b5bc858360f7ce9c696c77d3029668e'
-             '2acacd8df0fab431aa2197304c4496f3e4d8a8de9305994a6474e4c66dc3a159')
+@@ -61,6 +59,8 @@ optdepends=('opencv-samples: samples'
+             'hdf5: for the HDF5 module'
+             'opencl-icd-loader: For coding with OpenCL'
+             'java-runtime: Java interface')
 +# fix error 'relocation truncated to fit: R_RISCV_PCREL_HI20 against `.LC19''
 +options=(!lto)
- 
- prepare() {
-   patch -d $pkgname-$pkgver -p1 < vtk9.patch # Don't require all vtk optdepends
-@@ -93,7 +93,6 @@ build() {
+ source=(https://github.com/opencv/opencv/archive/$pkgver/$pkgname-$pkgver.tar.gz
+         https://github.com/opencv/opencv_contrib/archive/$pkgver/opencv_contrib-$pkgver.tar.gz
+         $pkgname-cccl-2.2.0.zip::https://github.com/NVIDIA/cccl/archive/refs/tags/v2.2.0.zip
+@@ -99,7 +99,6 @@ build() {
           -DINSTALL_PYTHON_EXAMPLES=ON \
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DCPU_BASELINE_DISABLE=SSE3 \
@@ -35,48 +35,21 @@
           -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -110,17 +109,6 @@ build() {
-   cmake -B build -S $pkgname-$pkgver $_opts \
+@@ -117,6 +116,9 @@ build() {
      -DBUILD_WITH_DEBUG_INFO=ON
    cmake --build build
--
--  CFLAGS="${CFLAGS} -fno-lto" CXXFLAGS="${CXXFLAGS} -fno-lto" LDFLAGS="${LDFLAGS} -fno-lto" \
--  cmake -B build-cuda -S $pkgname-$pkgver $_opts \
--    -DBUILD_WITH_DEBUG_INFO=OFF \
--    -DWITH_CUDA=ON \
--    -DWITH_CUDNN=ON \
--    -DCMAKE_C_COMPILER=gcc-12 \
--    -DCMAKE_CXX_COMPILER=g++-12 \
--    -DCUDA_ARCH_BIN='52-real;53-real;60-real;61-real;62-real;70-real;72-real;75-real;80-real;86-real;87-real;89-real;90-real;90-virtual' \
--    -DCUDA_ARCH_PTX='90-virtual'
--  cmake --build build-cuda
+ 
++  # Use a "multi-line comment" to keep patch from rotting
++  : <<'COMMENT_SEPARATOR'
++
+   # opencv 4.9.0 does not build with thrust 2.3.0 from CUDA 12.4
+   # see https://github.com/opencv/opencv_contrib/issues/3690
+   # building thrust 2.2.0 (version from CUDA 12.3) works around this
+@@ -141,6 +143,7 @@ build() {
+     -DCUDA_ARCH_BIN='52-real;53-real;60-real;61-real;62-real;70-real;72-real;75-real;80-real;86-real;87-real;89-real;90-real;90-virtual' \
+     -DCUDA_ARCH_PTX='90-virtual'
+   cmake --build build-cuda
++COMMENT_SEPARATOR
  }
  
  package_opencv() {
-@@ -171,26 +159,3 @@ package_python-opencv() {
-   # install license file
-   install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
- }
--
--package_opencv-cuda() {
--  pkgdesc+=' (with CUDA support)'
--  depends+=(cudnn)
--  conflicts=(opencv)
--  provides=(opencv=$pkgver)
--  options=(!debug)
--
--  DESTDIR="$pkgdir" cmake --install build-cuda
--
--  # install license file
--  install -Dm644 $pkgbase-$pkgver/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
--
--  # Split samples
--  rm -r "$pkgdir"/usr/share/opencv4/samples
--
--  # Add java symlinks expected by some binary blobs
--  ln -sr "$pkgdir"/usr/share/java/{opencv4/opencv-${pkgver//./},opencv}.jar
--  ln -sr "$pkgdir"/usr/lib/{libopencv_java${pkgver//./},libopencv_java}.so
--
--  # Split Python bindings
--  rm -r "$pkgdir"/usr/lib/python3*
--}

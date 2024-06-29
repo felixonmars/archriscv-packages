@@ -1,67 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,7 +16,7 @@ depends=($_electron 'libsecret' 'libx11' 'libxkbfile' 'ripgrep')
- optdepends=('bash-completion: Bash completions'
-             'zsh-completions: ZSH completitons'
-             'x11-ssh-askpass: SSH authentication')
--makedepends=('gulp' 'npm' 'python' 'yarn' 'nodejs-lts-hydrogen' 'desktop-file-utils')
-+makedepends=('gulp' 'npm' 'python' 'yarn' 'nodejs-lts-hydrogen' 'desktop-file-utils' 'zip')
- provides=('vscode')
- source=("https://github.com/microsoft/vscode/archive/refs/tags/$pkgver/$pkgname-$pkgver.tar.gz"
-         'code.js'
-@@ -44,6 +44,9 @@ case "$CARCH" in
-   armv7h)
-     _vscode_arch=arm
-     ;;
-+  riscv64)
-+    _vscode_arch=riscv64
-+    ;;
-   *)
-     # Needed for mksrcinfo
-     _vscode_arch=DUMMY
-@@ -59,6 +62,9 @@ prepare() {
-     exit 1
-   fi
+@@ -74,6 +74,9 @@ prepare() {
+   # See https://github.com/Microsoft/vscode/issues/31168 for details.
+   patch -p0 -i ../product_json.diff
  
 +  # Add missing riscv definition
 +  sed -i "/BUILD_TARGETS = \[/a { platform: 'linux', arch: 'riscv64' }," build/gulpfile.vscode.js
 +
-   # Change electron binary name to the target electron
-   sed -e "s|name=electron|name=$_electron |" \
-       -e '/PKGBUILD/d' \
-@@ -109,7 +115,34 @@ prepare() {
+   # Set the commit and build date
+   sed -e "s/@COMMIT@/$(git rev-parse HEAD)/" -e "s/@DATE@/$(date -u -Is | sed 's/\+00:00/Z/')/" -i product.json
  
- build() {
-   cd vscode-$pkgver
--  yarn install --arch=$_vscode_arch
-+  ELECTRON_SKIP_BINARY_DOWNLOAD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 yarn install --arch=$_vscode_arch
-+
-+  # The build process wants a zipped electron, let's construct one from system electron and put it in cache.
-+  local _electron_ver=$(</usr/lib/$_electron/version)
-+  local _hash=$(echo -n "https://github.com/electron/electron/releases/download/v$_electron_ver" | sha256sum | cut -d ' ' -f 1)
-+  local _electron_zip="electron-v$_electron_ver-linux-riscv64.zip"
-+  cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
-+  echo "$(sha256sum "/tmp/$_electron_zip" | cut -d " " -f 1) *$_electron_zip" >> build/checksums/electron.txt 
-+  local _cache_dir="$HOME/.cache/electron/$_hash" 
-+  mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
-+
-+  # Native node extensions caused segfault or strange behaviors. 
-+  # Confirmed for @vscode/spdlog and node-pty. Let's build all native extensions in debug mode just in case.
-+  # TODO: needs further investigation
-+  # NOTICE to maintainer:
-+  # This list should be manually updated with every package version bump,
-+  # otherwise we risk creating broken package that doesn't work!
-+  # To list all native node modules, run: shopt -s globstar && ls node_modules/**/*.node
-+  for _module in @vscode/{spdlog,sqlite3,policy-watcher,windows-mutex,windows-process-tree,windows-registry} @parcel/watcher native-is-elevated native-keymap native-watchdog node-pty windows-foreground-love kerberos
-+  do
-+    pushd node_modules/$_module
-+    node-gyp rebuild --target=$_electron_ver --arch=$CARCH --dist-url=https://electronjs.org/headers --debug
-+    mkdir build/Release
-+    cp build/Debug/*.node build/Release
-+    rm -rf build/Debug
-+    popd
-+  done
-+
-   gulp --max_old_space_size=8192 \
-        --openssl-legacy-provider \
-        vscode-linux-$_vscode_arch-min

@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index cb4e69a..5dc3ca4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,13 +10,20 @@
+ license=('BSD-3-Clause')
+ depends=('glibc')
+ makedepends=('wget')
+-source=("https://gitlab.xiph.org/xiph/rnnoise/-/archive/v${pkgver}/rnnoise-v${pkgver}.tar.gz")
+-sha512sums=('930aa892299edbc1d512803df6b845ea6164eb498cacdab9970e5ae799bc6cf3c8c94d2b9576955fb9a2d8aa13a6d255e58fb99d0367a0d0ef842a1cb938e674')
++source=("https://gitlab.xiph.org/xiph/rnnoise/-/archive/v${pkgver}/rnnoise-v${pkgver}.tar.gz"
++        "fix-missing-header.patch::https://gitlab.xiph.org/xiph/rnnoise/-/commit/372f7b4b76cde4ca1ec4605353dd17898a99de38.diff")
++sha512sums=('930aa892299edbc1d512803df6b845ea6164eb498cacdab9970e5ae799bc6cf3c8c94d2b9576955fb9a2d8aa13a6d255e58fb99d0367a0d0ef842a1cb938e674'
++            'be105005f120579ca206dc1201ac88a57c725a57b7a040f23146ddbcd2a547af20f4bee61224dea0b136611531c5a1ae4044a55b40a2be60c955e63a93f4225b')
++
++prepare() {
++  cd "rnnoise-v${pkgver}"
++  patch -Np1 -i ../fix-missing-header.patch
++}
+ 
+ build() {
+   cd "rnnoise-v${pkgver}"
+   ./autogen.sh
+-  ./configure --prefix=/usr --enable-x86-rtcd
++  ./configure --prefix=/usr
+   make
+ }
+ 

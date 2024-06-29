@@ -1,36 +1,36 @@
 diff --git PKGBUILD PKGBUILD
-index 2b0f6d9..b1b9999 100644
+index c0b5c4e..6b6546a 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,6 +31,8 @@ source=(
+@@ -35,6 +35,8 @@ source=(
    https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
    config  # the main kernel config file
 +  riscv64.config-patch
-+  force-disable-sv57.patch::https://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/kinetic/patch/?id=f38611903ae7808ab1b7427809f478fbe0d20917
++  timer-sun4i-d1-regression.patch
  )
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -42,12 +44,16 @@ sha256sums=('c6662f64713f56bf30e009c32eac15536fad5fd1c02e8a3daf62a0dc2f058fd5'
+@@ -46,12 +48,16 @@ sha256sums=('272800e0d1a7d01a78bce95a3aaf5c80816f50eb15c517d7003e58355760ecc2'
              'SKIP'
-             '98c8e04079699a9316c37ed299a363c80ff9625388c492116683b929f35dcab6'
+             'fbd9a98f741c5793b584e8d59b65fde2fb27f40528a8a6b6db05f8a2e20a45b0'
              'SKIP'
--            '5aff0f8584e01165dc20cd107df338f57a13ce7f0da14e07f4c9097cd748469f')
-+            '5aff0f8584e01165dc20cd107df338f57a13ce7f0da14e07f4c9097cd748469f'
-+            '520543fabe16d58b5471a0a4215e980f1171713756a53e8bda0fedbad5c9d123'
-+            '1198234049bade57f513db3a48f62e15967b3f7480fa71970978ba412ef0f997')
- b2sums=('fb5fcc0dc79e2f615a550283481492a8185414d65369cbe805909112735593e5fc8bdbd482a347dc4cb3dcac979bea21cd03c503932e9321856eeea685d31c65'
+-            '54150ccad92d9a3e3383148c30326643773d2bfc92adf5649f37d62050f0c649')
++            '54150ccad92d9a3e3383148c30326643773d2bfc92adf5649f37d62050f0c649'
++            'e9f9d87dec7e28fd998da79c403e64be0d35870bcbebe1c7c8dfe3fb941f312a'
++            '87637edacf2e3bdf68f389d06a242ab162404aef90d1e78306b6a04e09f62c0f')
+ b2sums=('5579aef00f38e87ee9a9878ad4340aebc9c2590d8e813e2e106af59c6739e39a37267672ab7aff56160c8519d3014d139e6c849f33b9292c6fba019bc88d09da'
          'SKIP'
-         '2b8309c03ae0dd7582b471e39b459fbcb653bd3971eda91576791b1dabe73aad89d4b468a59d0cf3e834f6085ad33ac5449b60a567960835f6f56dd739411262'
+         'd9c3c74bab1b3acc3fd25825ce169b5052f8751d96d52006b8dcc2bdb9c43c6db59ebfa9f86fee9a6c5c64aae63cf03deb2acae1e595824dfcab8d254a96e3a1'
          'SKIP'
--        '1445dc90cf8bd3f2b9493e9e48eb76247bd37de412bdb247b132694e047ec260c25203836888ce6c1c864f46dab80b453b3f47d8b3a92f1f9dffc5589d7bc320')
-+        '1445dc90cf8bd3f2b9493e9e48eb76247bd37de412bdb247b132694e047ec260c25203836888ce6c1c864f46dab80b453b3f47d8b3a92f1f9dffc5589d7bc320'
-+        '6b1a8903ce7cc1b085be0b77216fa00170359275481e31aac061c6a7924fd7f60211ec8780ecf18ac818d4775e70c16fd04bc48ffae52ea65b77c2eccec36a2a'
-+        '93f8ad6cdb8bbbca596d866d930e3c59817055f35bf8484f3b6edf622c6927b83f027a04c9a1f3b878968ce4caba70909861e3ebc413060a80729232c475f311')
+-        '83a625cebd3f954b89c8836a6dc9350798b6f7878d29ecba134ddbd625988c54ed34eb6327a87e5e1518b938c3eb5c60881a7cc602628547b6e0bdadeb6a6987')
++        '83a625cebd3f954b89c8836a6dc9350798b6f7878d29ecba134ddbd625988c54ed34eb6327a87e5e1518b938c3eb5c60881a7cc602628547b6e0bdadeb6a6987'
++        'a2ea0612add119c6dba72736aeac8f33b8812fadcf1654e0d8daae35c6ab13d930868773175a6266319802d6f2eadd0f5935c5738cc32ff5197dc7ce283b83a6'
++        '6049506a3b300e6cf4eaf68ec326a862eea1cac7bc3c2f8223edd2087afe91400dbba6c4b59184bfb8701a514f14875b8f8cec079cdf10a7fa22b6da923c848d')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -75,6 +81,12 @@ prepare() {
+@@ -79,6 +85,12 @@ prepare() {
    make olddefconfig
    diff -u ../config .config || :
  
@@ -43,19 +43,19 @@ index 2b0f6d9..b1b9999 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -121,6 +133,9 @@ _package() {
+@@ -126,6 +138,9 @@ _package() {
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
 +  echo "Installing dtbs..."
-+  make INSTALL_DTBS_PATH="$pkgdir/usr/share/dtbs/$(<version)" dtbs_install
++  make INSTALL_DTBS_PATH="$pkgdir/usr/lib/modules/$(<version)/dtb" dtbs_install
 +
-   # remove build and source links
-   rm "$modulesdir"/{source,build}
+   # remove build link
+   rm "$modulesdir"/build
  }
-@@ -136,19 +151,16 @@ _package-headers() {
+@@ -141,19 +156,16 @@ _package-headers() {
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
-     localversion.* version vmlinux
+     localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
 -  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
 +  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
@@ -76,7 +76,7 @@ index 2b0f6d9..b1b9999 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -170,7 +182,7 @@ _package-headers() {
+@@ -175,7 +187,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do

@@ -1,27 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,17 +20,21 @@ optdepends=(
- )
- options=('!makeflags')
- source=(https://github.com/eventlet/eventlet/archive/v${pkgver}/${_pyname}-${pkgver}.tar.gz
--        python310.patch)
-+        python310.patch
-+        "increase-test-thread-sleep-time.patch")
- sha512sums=('b2e1818c7b6134be4020d2b4315bbb3db795960df76da08a490e0d952549eafb477800c884e7a99493146c1ac082aed5fb87c7e2882ee468ea42b5cc26b8517f'
--            '07739075628ff9d140064e04189332b479f184e4647753f987b0818fa55aaca907d4880afb5cf31f980426f315e1014027dcd848551149000a12145f982cd883')
-+            '07739075628ff9d140064e04189332b479f184e4647753f987b0818fa55aaca907d4880afb5cf31f980426f315e1014027dcd848551149000a12145f982cd883'
-+            '86dffff4fee9dcd4d17cd7c7ad04908874a68e6328641f72903f2e92438b537344712957f45476b872a489ef530915fc4c67916830e557b17c6b9cdbfd5a36cd')
- b2sums=('19bcd7a5adc2ef24f2637bfd9b19e68a9a268ebb7791cc9c419d9da88e5860c4cbbf6ecbaa0f3c300246584082622e6dab7ab75374f7d54f3c4a65661e22dbfd'
--        '783445f708c12586e026f7feac982a7b6c21f86468609c375568b51ad6055977df3d0bc740f3127b9f8bc95c1c50e81aae02ca0e0be674ed4627910d39b1ef47')
-+        '783445f708c12586e026f7feac982a7b6c21f86468609c375568b51ad6055977df3d0bc740f3127b9f8bc95c1c50e81aae02ca0e0be674ed4627910d39b1ef47'
-+        'b2415a0e47894115fd785e458cd4f8972c1c2128dd815e7e12479db4b6573a01d1ad2e73d7f36463c25c0b80eb789528ee94d4a86bfd24b50d094456178700ad')
- 
- prepare() {
-   cd ${_pyname}-${pkgver}
+@@ -31,6 +31,7 @@ prepare() {
    # https://github.com/eventlet/eventlet/issues/730
    # https://github.com/eventlet/eventlet/issues/739
    patch -Np1 -i ../python310.patch
-+  patch -Np1 -i "../increase-test-thread-sleep-time.patch"
++  patch -Np1 -i ../increase-test-thread-sleep-time.patch
    sed -r 's|(check_idle_cpu_usage\(.*,) .*\)|\1 0.8\)|g' -i tests/*_test.py
  }
  
+@@ -55,4 +56,8 @@ package() {
+   cp -r examples "${pkgdir}/usr/share/doc/${pkgname}"
+ }
+ 
++
++source+=(increase-test-thread-sleep-time.patch)
++sha512sums+=(86dffff4fee9dcd4d17cd7c7ad04908874a68e6328641f72903f2e92438b537344712957f45476b872a489ef530915fc4c67916830e557b17c6b9cdbfd5a36cd)
++b2sums+=(b2415a0e47894115fd785e458cd4f8972c1c2128dd815e7e12479db4b6573a01d1ad2e73d7f36463c25c0b80eb789528ee94d4a86bfd24b50d094456178700ad)
+ # vim: ts=2 sw=2 et:

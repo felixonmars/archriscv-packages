@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,9 +21,11 @@ install=$pkgname.install
+ source=(
+   "bitwarden-clients::git+https://github.com/bitwarden/clients.git#tag=web-v$_upstreamver"
+   "bw_web_builds::git+https://github.com/dani-garcia/bw_web_builds#tag=v$_pkgver"
++  "remove-electron.patch"
+ )
+ b2sums=('SKIP'
+-        'SKIP')
++        'SKIP'
++        'd325ca8860dfc13977afd257db98ab945115737ec866722003af498b892fd6d087577f2cb876810b9e5beaf17fd351f87816dfd64826a1fc5097e570ee93b3a9')
+ 
+ pkgver() {
+   echo $_pkgver | sed 's/[[:lower:]]$/.&/'
+@@ -38,6 +40,9 @@ prepare() {
+   # apply vaultwarden patch
+   patch --forward --strip=1 --input="$srcdir/bw_web_builds/patches/v$_patchver.patch"
+ 
++  # remove electron from npm dependencies
++  patch --forward --strip=1 --input="$srcdir/remove-electron.patch"
++
+   npm ci
+ }
+ 

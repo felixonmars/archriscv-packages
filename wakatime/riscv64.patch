@@ -1,24 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index feb5e10..f8a8efb 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,9 +17,10 @@ checkdepends=('svn')
- source=("${pkgname}-cli::git+https://github.com/${pkgname}/${pkgname}-cli#tag=v${pkgver}")
- sha256sums=('SKIP')
-
--_binname="${pkgname}-cli-linux-amd64"
--
- build() {
+@@ -23,7 +23,8 @@ prepare() {
+   cd "$_name-$pkgver"
+   # create build dir and add symlink to built executable so tests can find it
+   mkdir -p build
+-  ln -sv $pkgname build/$_name-linux-amd64
 +  _GOARCH=$(go env GOARCH)
-+  export _binname="${pkgname}-cli-linux-${_GOARCH}"
-+
-   cd "${srcdir}/${pkgname}-cli"
-
-   mkdir -p build  # create build dir
-@@ -37,7 +38,7 @@ build() {
++  ln -sv $pkgname build/$_name-linux-$_GOARCH
+ 
+   # replace hardcoded test assumptions
+   sed -e "s/<local-build>/${pkgver}/" -i ./main_test.go
+@@ -42,13 +43,14 @@ build() {
+   export CGO_CFLAGS="${CFLAGS}"
+   export CGO_CXXFLAGS="${CXXFLAGS}"
+   export CGO_LDFLAGS="${LDFLAGS}"
++  _GOARCH=$(go env GOARCH)
+ 
+   go build -o build/$pkgname \
+     -trimpath \
      -buildmode=pie \
      -mod=readonly \
      -modcacherw \
 -    -ldflags "-linkmode external -extldflags '${LDFLAGS}' -X '${_repo}/pkg/version.OS=linux' -X '${_repo}/pkg/version.Arch=amd64' -X '${_repo}/pkg/version.BuildDate=${_date}' -X '${_repo}/pkg/version.Commit=${_commit}' -X '${_repo}/pkg/version.Version=${pkgver}'"
 +    -ldflags "-linkmode external -extldflags '${LDFLAGS}' -X '${_repo}/pkg/version.OS=linux' -X '${_repo}/pkg/version.Arch=${_GOARCH}' -X '${_repo}/pkg/version.BuildDate=${_date}' -X '${_repo}/pkg/version.Commit=${_commit}' -X '${_repo}/pkg/version.Version=${pkgver}'"
  }
-
+ 
  check () {

@@ -1,0 +1,80 @@
+diff --git a/include/SDL2/SDL_cpuinfo.h b/include/SDL2/SDL_cpuinfo.h
+index 6d72bbb..aecc892 100644
+--- a/include/SDL2/SDL_cpuinfo.h
++++ b/include/SDL2/SDL_cpuinfo.h
+@@ -51,15 +51,24 @@
+ #endif
+ #ifdef __MMX__
+ #include <mmintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/mmx.h>
+ #endif
+ #ifdef __3dNOW__
+ #include <mm3dnow.h>
+ #endif
+ #ifdef __SSE__
+ #include <xmmintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/sse.h>
+ #endif
+ #ifdef __SSE2__
+ #include <emmintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/sse2.h>
+ #endif
+ #endif
+ 
+diff --git a/rts/System/FastMath.h b/rts/System/FastMath.h
+index 6377f87..e8f5193 100644
+--- a/rts/System/FastMath.h
++++ b/rts/System/FastMath.h
+@@ -4,7 +4,12 @@
+ #define FASTMATH_H
+ 
+ #ifndef DEDICATED_NOSSE
++#ifdef __SSE1__
+ #include <xmmintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/sse.h>
++#endif
+ #endif
+ #include <cinttypes>
+ 
+diff --git a/rts/System/Matrix44f.h b/rts/System/Matrix44f.h
+index 423c764..e7fd1f3 100644
+--- a/rts/System/Matrix44f.h
++++ b/rts/System/Matrix44f.h
+@@ -6,6 +6,13 @@
+ #include "System/float3.h"
+ #include "System/float4.h"
+ 
++#ifdef __SSE1__
++#include <xmmintrin.h>
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/sse.h>
++#endif
++
+ class CMatrix44f
+ {
+ public:
+diff --git a/test/engine/System/testMatrix44f.cpp b/test/engine/System/testMatrix44f.cpp
+index 2ebccfc..92ff77f 100644
+--- a/test/engine/System/testMatrix44f.cpp
++++ b/test/engine/System/testMatrix44f.cpp
+@@ -1,6 +1,11 @@
+ /* This file is part of the Spring engine (GPL v2 or later), see LICENSE.html */
+ 
++#ifdef __SSE1__
+ #include <xmmintrin.h> //SSE1
++#else
++#define SIMDE_ENABLE_NATIVE_ALIASES 1
++#include <simde/x86/sse.h>
++#endif
+ 
+ #include "System/Matrix44f.h"
+ #include "System/float4.h"

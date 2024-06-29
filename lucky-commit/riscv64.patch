@@ -1,25 +1,21 @@
-diff --git PKGBUILD PKGBUILD
-index 2bd142fb..aaa35836 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -10,12 +10,17 @@
+@@ -10,11 +10,16 @@ url="https://github.com/not-an-aardvark/lucky-commit"
  license=('MIT')
  depends=('gcc-libs' 'ocl-icd')
  makedepends=('cargo')
 -source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
--sha512sums=('10cccc4ee09f7c23086568e909d1c99b068ec2b9df485af8664afcabc0a8fba6b9de435a24e99a189879767c0fbde2c196c634eb8a3a33970e5d72d8c1b4677d')
+-sha512sums=('299e66f404a742abed1d11ba104d3bda7c26c3b035c27c8a3e4beb28706a277d2408aae2e45034aa3cffb840e2d51af8dce61369c0164dee81fdc09f22422955')
 +source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
 +        "disable-asm-feature.patch")
-+sha512sums=('10cccc4ee09f7c23086568e909d1c99b068ec2b9df485af8664afcabc0a8fba6b9de435a24e99a189879767c0fbde2c196c634eb8a3a33970e5d72d8c1b4677d'
++sha512sums=('299e66f404a742abed1d11ba104d3bda7c26c3b035c27c8a3e4beb28706a277d2408aae2e45034aa3cffb840e2d51af8dce61369c0164dee81fdc09f22422955'
 +            '4f0e9724566d3b9e89f52d2ba37cbf289c88092bd625fde331a22f58e3b645ac6c2a77915c5617436bce83aaa55c79fb752cd2b0cc2fe0ad34a09affff94c564')
  
  prepare() {
    cd "$pkgname-$pkgver"
--  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 +  patch -Np1 < ${srcdir}/disable-asm-feature.patch
-+  cargo update --package sha-1:0.10.0
-+  cargo update --package sha2:0.10.2
-+  cargo fetch --locked
++  cargo update --package sha-1:0.10
++  cargo update --package sha2:0.10
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
  }
  
- build() {

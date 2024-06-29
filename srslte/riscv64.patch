@@ -1,0 +1,48 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -1,7 +1,6 @@
+ # Maintainer: Filipe Laíns (FFY00) <lains@archlinux.org>
+ 
+-pkgbase=srslte
+-pkgname=($pkgbase $pkgbase-avx2)
++pkgname=srslte
+ _pkgname=srsRAN_4G
+ pkgver=23.11
+ _pkgver=release_${pkgver//./_}
+@@ -15,13 +14,17 @@ depends=('fftw' 'mbedtls' 'boost-libs' 'lksctp-tools' 'libconfig'
+ makedepends=('cmake' 'boost')
+ provides=('srsue' 'srsenb' 'srsepc')
+ conflicts=('srsue' 'srsenb' 'srsepc')
+-source=("$_pkgname-$pkgver.tar.gz::https://github.com/srsran/srsRAN/archive/$_pkgver.tar.gz")
+-sha512sums=('7ae5ee93c52505d608b6634aacc31dfd44ce40bfdcffe2a3b8f0e0bbfa28b66b400bca9a48c61d208c510655465f2bdf2eb2884b2a88ed7d022ed40d856e3725')
++source=("$_pkgname-$pkgver.tar.gz::https://github.com/srsran/srsRAN/archive/$_pkgver.tar.gz"
++        srslte-riscv.patch::https://github.com/srsran/srsRAN_4G/pull/1333.diff)
++sha512sums=('7ae5ee93c52505d608b6634aacc31dfd44ce40bfdcffe2a3b8f0e0bbfa28b66b400bca9a48c61d208c510655465f2bdf2eb2884b2a88ed7d022ed40d856e3725'
++            '9f99c56fb5ccc55a66c1bdc820e94a6530f23b30ed4ed75888b0b91f8c7d9215abdd9c1018bca141829b62622ca20f0c1b48442ebf17c2f46cdf67abb9a0fc87')
+ options=(!lto)
+ 
+ prepare() {
+   cd $_pkgname-$_pkgver
+ 
++  patch -Np1 -i ../srslte-riscv.patch
++
+   # Using too old of a version to even attempt to properly fix these
+   sed -e '/-Werror\"/d' -i CMakeLists.txt
+   CXXFLAGS+=' -Wno-error -Wp,-U_GLIBCXX_ASSERTIONS'
+@@ -44,6 +47,8 @@ build() {
+ 
+   make
+ 
++  # Use a "multi-line comment" to keep patch from rotting
++  : <<'COMMENT_SEPARATOR'
+   echo 'Building srslte-avx2...'
+   cd "$srcdir"/$_pkgname-avx2-$_pkgver/build
+ 
+@@ -54,6 +59,7 @@ build() {
+     -DHAVE_AVX2=True
+ 
+   make
++COMMENT_SEPARATOR
+ }
+ 
+ check() {

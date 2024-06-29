@@ -1,0 +1,133 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -52,6 +52,7 @@ makedepends=(clang
+              python-six
+              python-setuptools
+              rust
++             go
+              qt5-base
+              wget
+              yarn)
+@@ -62,7 +63,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+             'trash-cli: file deletion support (trash-put)'
+             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
+ options=('!lto') # Electron adds its own flags for ThinLTO
+-source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
++source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
+         https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+         # Chromium
+         drop-flag-unsupported-by-clang17.patch
+@@ -75,6 +76,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+         jinja-python-3.10.patch
+         libxml2-2.12.patch
+         use-system-libraries-in-node.patch
++        Debian-fix-rust-linking.patch
+         makepkg-source-roller.py
+         # BEGIN managed sources
+         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=120.0.6099.291
+@@ -232,7 +234,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+ sha256sums=('fd9395f4ac1482437612c79c6efccc71abd1f29bc4fbebd027c09eaa94ad5d39'
+             'ffee1082fbe3d0c9e79dacb8405d5a0e1aa94d6745089a30b093f647354894d2'
+             '3bd35dab1ded5d9e1befa10d5c6c4555fe0a76d909fb724ac57d0bf10cb666c1'
+-            'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
++            '8e128dec0d9416029ea8124e14963c9e0caf897bf60d347a070e393edebdff1c'
+             'dd2d248831dd4944d385ebf008426e66efe61d6fdf66f8932c963a12167947b4'
+             '13fcf26193f4417fd5dfbc82a3f24e5c7a1cce82f729f6a73f1b1d3a7b580b34'
+             '4484200d90b76830b69eea3a471c103999a3ce86bb2c29e6c14c945bf4102bae'
+@@ -240,6 +242,7 @@ sha256sums=('fd9395f4ac1482437612c79c6efccc71abd1f29bc4fbebd027c09eaa94ad5d39'
+             '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
+             '1808df5ba4d1e2f9efa07ac6b510bec866fa6d60e44505d82aea3f6072105a71'
+             'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
++            '98b0fbe1318897954cb8891cafed65e985613c69192e65984ba6785579b29f80'
+             '3ae82375ba212c31fd4ba6f1fa4e2445eeca8eb8c952176131ad57c0258db224'
+             '69ed3ac42b71f327c921971e1bef8a04f561f549ad89b4023e6742e4718c6df2'
+             '0b7a546ee6913c49519c10c293ac530ff381641a8a465fa2e184d6dbe0fb784d'
+@@ -439,12 +442,22 @@ prepare() {
+   cp -r chromium-mirror_third_party_depot_tools depot_tools
+   export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+   #export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
++  # Use a known commit that supports riscv64
++  git -C depot_tools checkout --detach 2a18f6d3245450d8c96c843a6584aaea561ef873
++  # Python 3.12 breaks gsutils
++  # Bundled wheels are not available for riscv64
++  sed -i '/wheel: </,$d' depot_tools/.vpython3
++  sed -i '/wheel: </,$d' depot_tools/gsutil.vpython3
++  # Manually install required wheels
++  vpython3 -m pip install httplib2==0.13.1 six==1.10.0 requests==2.31.0
+ 
+   echo "Putting together electron sources"
+   # Generate gclient gn args file and prepare-electron-source-tree.sh
+   python makepkg-source-roller.py generate electron/DEPS $pkgname
++  sed -i '/esbuild/d' prepare-electron-source-tree.sh
+   rbash prepare-electron-source-tree.sh "$CARCH"
+   mv electron src/electron
++  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v0.14.13"
+ 
+   echo "Running hooks..."
+   # depot_tools/gclient.py runhooks
+@@ -475,6 +488,8 @@ prepare() {
+ 
+   echo "Applying local patches..."
+ 
++  patch -Np1 -i ../Debian-fix-rust-linking.patch
++
+   ## Upstream fixes
+ 
+   # Fix build with libxml2 2.12
+@@ -490,7 +505,8 @@ prepare() {
+   patch -Np1 -i ../compiler-rt-adjust-paths.patch
+ 
+   # Fixes for building with libstdc++ instead of libc++
+-  patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
++  # patch -Np1 -i ../chromium-patches-*/chromium-119-at-spi-variable-consumption.patch
++  # The above patch is no longer needed because riscv fork fixes it.
+   patch -Np1 -i ../chromium-patches-*/chromium-119-clang16.patch
+ 
+   # Link to system tools required by the build
+@@ -590,6 +606,10 @@ build() {
+   CFLAGS+='   -Wno-unknown-warning-option'
+   CXXFLAGS+=' -Wno-unknown-warning-option'
+ 
++  # Remove flags that are causing weird bugs on riscv64
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++  CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++
+   # Let Chromium set its own symbol level
+   CFLAGS=${CFLAGS/-g }
+   CXXFLAGS=${CXXFLAGS/-g }
+@@ -637,3 +657,4 @@ package() {
+   install -Dm644 src/electron/default_app/icon.png \
+           "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
+ }
++sha256sums[0]=SKIP
+diff --git compiler-rt-adjust-paths.patch compiler-rt-adjust-paths.patch
+index 0469220..8ee7f55 100644
+--- compiler-rt-adjust-paths.patch
++++ compiler-rt-adjust-paths.patch
+@@ -1,8 +1,6 @@
+-diff --git a/build/config/clang/BUILD.gn b/build/config/clang/BUILD.gn
+-index d4de2e0cca0..57359c32121 100644
+---- a/build/config/clang/BUILD.gn
+-+++ b/build/config/clang/BUILD.gn
+-@@ -130,12 +130,15 @@ template("clang_lib") {
++--- a/build/config/clang/BUILD.gn	2024-03-09 04:32:07.577338262 +0100
+++++ b/build/config/clang/BUILD.gn	2024-03-09 04:55:29.376410067 +0100
++@@ -124,14 +124,18 @@
+        } else if (is_linux || is_chromeos) {
+          if (current_cpu == "x64") {
+            _dir = "x86_64-unknown-linux-gnu"
+@@ -15,10 +13,13 @@ index d4de2e0cca0..57359c32121 100644
+          } else if (current_cpu == "arm64") {
+            _dir = "aarch64-unknown-linux-gnu"
+ +          _suffix = "-aarch64"
++         } else if (current_cpu == "riscv64") {
++           _dir = "riscv64-unknown-linux-gnu"
+++          _suffix = "-riscv64"
+          } else {
+            assert(false)  # Unhandled cpu type
+          }
+-@@ -166,6 +169,11 @@ template("clang_lib") {
++@@ -162,6 +166,11 @@
+          assert(false)  # Unhandled target platform
+        }
+  

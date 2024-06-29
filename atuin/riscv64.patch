@@ -1,13 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,7 +18,9 @@ options=('!lto')
+@@ -32,7 +32,7 @@ build() {
  
- prepare() {
+ check() {
    cd "$pkgname-$pkgver"
--  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }\n" >> Cargo.toml
-+  cargo update -p ring@0.16.20
-+  cargo fetch --locked
-   mkdir completions/
+-  cargo test --frozen --all-features --workspace --lib
++  ATUIN_TEST_SQLITE_STORE_TIMEOUT=1.0 cargo test --frozen --all-features --workspace --lib
  }
  
+ package() {

@@ -1,0 +1,344 @@
+--- platform/util/src/com/intellij/util/system/CpuArch.java.orig	2024-03-10 23:22:32.793159479 -0400
++++ platform/util/src/com/intellij/util/system/CpuArch.java	2024-03-10 23:24:10.739939803 -0400
+@@ -12,7 +12,7 @@
+ import org.jetbrains.annotations.Nullable;
+ 
+ public enum CpuArch {
+-  X86(32), X86_64(64), ARM32(32), ARM64(64), OTHER(0), UNKNOWN(0);
++  X86(32), X86_64(64), ARM32(32), ARM64(64), RISCV64(64), OTHER(0), UNKNOWN(0);
+ 
+   /**
+    * Machine word size, in bits.
+@@ -40,6 +40,7 @@
+     if ("x86_64".equals(arch) || "amd64".equals(arch)) return X86_64;
+     if ("i386".equals(arch) || "x86".equals(arch)) return X86;
+     if ("aarch64".equals(arch) || "arm64".equals(arch)) return ARM64;
++    if ("riscv64".equals(arch)) return RISCV64;
+     return arch == null || arch.trim().isEmpty() ? UNKNOWN : OTHER;
+   }
+ 
+@@ -47,6 +48,7 @@
+   public static boolean isIntel64() { return CURRENT == X86_64; }
+   public static boolean isArm32() { return CURRENT == ARM32; }
+   public static boolean isArm64() { return CURRENT == ARM64; }
++  public static boolean isRiscv64() { return CURRENT == RISCV64; }
+ 
+   public static boolean is32Bit() { return CURRENT.width == 32; }
+ 
+--- platform/build-scripts/src/org/jetbrains/intellij/build/JvmArchitecture.kt.orig	2024-03-10 23:18:39.236221794 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/JvmArchitecture.kt	2024-03-10 23:27:41.616851170 -0400
+@@ -5,7 +5,7 @@
+ 
+ @Suppress("EnumEntryName")
+ enum class JvmArchitecture(@JvmField val archName: String, @JvmField val fileSuffix: String, @JvmField val dirName: String) {
+-  x64("X86_64", "64", "amd64"), aarch64("AArch64", "aarch64", "aarch64");
++  x64("X86_64", "64", "amd64"), aarch64("AArch64", "aarch64", "aarch64"), riscv64("RISC-V64", "riscv64", "riscv64");
+ 
+   companion object {
+     @JvmField
+@@ -15,6 +15,7 @@
+     val currentJvmArch: JvmArchitecture = when {
+       CpuArch.isArm64() -> aarch64
+       CpuArch.isIntel64() -> x64
++      CpuArch.isRiscv64() -> riscv64
+       else -> throw IllegalStateException("Unsupported arch: " + CpuArch.CURRENT)
+     }
+   }
+--- platform/build-scripts/src/org/jetbrains/intellij/build/product-info.schema.json.orig	2024-03-11 08:35:18.271942803 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/product-info.schema.json	2024-03-11 08:35:38.298631506 -0400
+@@ -59,7 +59,7 @@
+           "arch": {
+             "description": "CPU Architecture this launch method is supposed to be used for",
+             "type": "string",
+-            "enum": ["amd64", "aarch64"]
++            "enum": ["amd64", "aarch64", "riscv64"]
+           },
+           "launcherPath": {
+             "description": "Path to an executable file which starts the IDE (relative to the parent directory of this file, '/' as a separator, may start with '../'), e.g. 'bin/idea.sh'",
+--- platform/build-scripts/src/org/jetbrains/intellij/build/impl/LinuxDistributionBuilder.kt.orig	2024-03-11 10:48:52.277534601 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/impl/LinuxDistributionBuilder.kt	2024-03-11 08:13:33.247172780 -0400
+@@ -47,7 +47,7 @@
+       withContext(Dispatchers.IO) {
+         val distBinDir = targetPath.resolve("bin")
+         val sourceBinDir = context.paths.communityHomeDir.resolve("bin/linux")
+-        copyFileToDir(NativeBinaryDownloader.downloadRestarter(context = context, os = OsFamily.LINUX, arch = arch), distBinDir)
++        copyFileToDir(sourceBinDir.resolve("../../native/restarter/target/release/restarter"), distBinDir)
+         copyFileToDir(sourceBinDir.resolve("${arch.dirName}/fsnotifier"), distBinDir)
+         copyFileToDir(sourceBinDir.resolve("${arch.dirName}/libdbm.so"), distBinDir)
+         generateBuildTxt(context, targetPath)
+@@ -91,33 +91,6 @@
+           }
+         }
+       }
+-
+-      val runtimeDir = context.bundledRuntime.extract(os = OsFamily.LINUX, arch = arch)
+-      updateExecutablePermissions(runtimeDir, executableFileMatchers)
+-      val tarGzPath = buildTarGz(arch = arch, runtimeDir = runtimeDir, unixDistPath = osAndArchSpecificDistPath, suffix = suffix(arch))
+-      launch {
+-        if (arch == JvmArchitecture.x64) {
+-          buildSnapPackage(runtimeDir = runtimeDir, unixDistPath = osAndArchSpecificDistPath, arch = arch)
+-        }
+-        else {
+-          // TODO: Add snap for aarch64
+-          Span.current().addEvent("skip building Snap packages for non-x64 arch")
+-        }
+-      }
+-
+-      if (!context.isStepSkipped(BuildOptions.REPAIR_UTILITY_BUNDLE_STEP)) {
+-        val tempTar = Files.createTempDirectory(context.paths.tempDir, "tar-")
+-        try {
+-          unTar(tarGzPath, tempTar)
+-          RepairUtilityBuilder.generateManifest(context = context,
+-                                                unpackedDistribution = tempTar.resolve(rootDirectoryName),
+-                                                os = OsFamily.LINUX,
+-                                                arch = arch)
+-        }
+-        finally {
+-          NioFiles.deleteRecursively(tempTar)
+-        }
+-      }
+     }
+   }
+ 
+--- platform/build-scripts/src/org/jetbrains/intellij/build/impl/MacDistributionBuilder.kt.orig	2024-03-10 23:55:33.418786750 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/impl/MacDistributionBuilder.kt	2024-03-10 23:56:30.068851572 -0400
+@@ -555,6 +555,7 @@
+   else when (arch) {
+     JvmArchitecture.x64 -> listOf("x86_64")
+     JvmArchitecture.aarch64 -> listOf("arm64")
++    JvmArchitecture.riscv64 -> listOf("riscv64")
+   }).joinToString(separator = "\n      ") { "<string>${it}</string>" }
+ 
+   val todayYear = LocalDate.now().year.toString()
+@@ -587,4 +588,4 @@
+ }
+ 
+ internal val ProductProperties.targetIcnsFileName: String
+-  get() = "$baseFileName.icns"
+\ No newline at end of file
++  get() = "$baseFileName.icns"
+--- platform/build-scripts/src/org/jetbrains/intellij/build/impl/BundledRuntimeImpl.kt.orig	2024-03-10 23:40:04.994380447 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/impl/BundledRuntimeImpl.kt	2024-03-10 23:40:41.921089963 -0400
+@@ -167,6 +167,7 @@
+   return when (arch) {
+     JvmArchitecture.x64 -> "x64"
+     JvmArchitecture.aarch64 -> "aarch64"
++    JvmArchitecture.riscv64 -> "riscv64"
+   }
+ }
+ 
+@@ -222,4 +223,4 @@
+       return FileVisitResult.CONTINUE
+     }
+   })
+-}
+\ No newline at end of file
++}
+--- platform/build-scripts/src/org/jetbrains/intellij/build/impl/nativeLib.kt.orig	2024-03-11 05:45:43.374533754 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/impl/nativeLib.kt	2024-03-11 05:49:28.201418594 -0400
+@@ -146,7 +146,7 @@
+  * Represent CPU architecture for which native code was built.
+  */
+ private enum class NativeFileArchitecture(val jvmArch: JvmArchitecture?) {
+-  X_64(JvmArchitecture.x64), AARCH_64(JvmArchitecture.aarch64),
++  X_64(JvmArchitecture.x64), AARCH_64(JvmArchitecture.aarch64), RISCV_64(JvmArchitecture.riscv64),
+ 
+   // Universal native file can be used by any platform
+   UNIVERSAL(null);
+@@ -161,6 +161,9 @@
+   val osAndArch = path.indexOf('/').takeIf { it != -1 }?.let { path.substring(0, it) }
+   if (osAndArch != null) {
+     when {
++      osAndArch.endsWith("-riscv64") || path.contains("/riscv64/") -> {
++        return RISCV_64
++      }
+       osAndArch.endsWith("-aarch64") || path.contains("/aarch64/") -> {
+         return AARCH_64
+       }
+@@ -180,6 +183,9 @@
+   // try to detect architecture from file name e.g. "libskiko-macos-arm64.dylib"
+   // otherwise return null
+   return when {
++    fileName.contains("riscv64") -> {
++      return RISCV_64
++    }
+     fileName.contains("arm64") -> {
+       return AARCH_64
+     }
+--- platform/build-scripts/src/org/jetbrains/intellij/build/impl/BuildTasksImpl.kt.orig	2024-03-11 05:48:52.391383843 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/impl/BuildTasksImpl.kt	2024-03-11 05:52:42.934941428 -0400
+@@ -180,6 +180,7 @@
+   SupportedDistribution(os = OsFamily.WINDOWS, arch = JvmArchitecture.aarch64),
+   SupportedDistribution(os = OsFamily.LINUX, arch = JvmArchitecture.x64),
+   SupportedDistribution(os = OsFamily.LINUX, arch = JvmArchitecture.aarch64),
++  SupportedDistribution(os = OsFamily.LINUX, arch = JvmArchitecture.riscv64),
+ )
+ 
+ private fun isSourceFile(path: String): Boolean {
+--- platform/build-scripts/src/org/jetbrains/intellij/build/impl/sbom/SoftwareBillOfMaterialsImpl.kt.orig	2024-03-10 23:41:22.504470389 -0400
++++ platform/build-scripts/src/org/jetbrains/intellij/build/impl/sbom/SoftwareBillOfMaterialsImpl.kt	2024-03-11 08:58:34.520145791 -0400
+@@ -273,14 +273,17 @@
+       OsFamily.LINUX -> when (arch) {
+         JvmArchitecture.aarch64 -> "linuxarm64"
+         JvmArchitecture.x64 -> "linux64"
++        JvmArchitecture.riscv64 -> "linuxriscv64"
+       }
+       OsFamily.MACOS -> when (arch) {
+         JvmArchitecture.aarch64 -> "macosarm64"
+         JvmArchitecture.x64 -> "macosx64"
++        JvmArchitecture.riscv64 -> "macosriscv64"
+       }
+       OsFamily.WINDOWS -> when (arch) {
+         JvmArchitecture.aarch64 -> "windowsarm64"
+         JvmArchitecture.x64 -> "windows64"
++        JvmArchitecture.riscv64 -> "windowsriscv64"
+       }
+     }
+     val cefArchive = "cef_binary_${cefVersion}_$cefSuffix.tar.bz2"
+@@ -348,7 +351,7 @@
+       document.documentDescribes.add(rootPackage)
+       generate(
+         document, rootPackage,
+-        runtimePackage = document.runtimePackage(os, arch),
++        runtimePackage = null,
+         distributionDir = distributionDir,
+         // distributions weren't built
+         claimContainedFiles = false
+@@ -821,4 +824,4 @@
+       }
+     }
+   }
+-}
+\ No newline at end of file
++}
+--- platform/build-scripts/downloader/src/org/jetbrains/intellij/build/dependencies/JdkDownloader.kt.orig	2024-03-11 00:15:03.856779724 -0400
++++ platform/build-scripts/downloader/src/org/jetbrains/intellij/build/dependencies/JdkDownloader.kt	2024-03-11 00:32:19.094598626 -0400
+@@ -1,9 +1,11 @@
+ // Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+ package org.jetbrains.intellij.build.dependencies
+ 
++import java.lang.System;
+ import java.net.URI
+ import java.nio.file.Files
+ import java.nio.file.Path
++import java.nio.file.Paths
+ import java.util.logging.Logger
+ 
+ /**
+@@ -26,17 +28,8 @@
+ 
+   fun getJdkHome(communityRoot: BuildDependenciesCommunityRoot, os: OS, arch: Arch, infoLog: (String) -> Unit): Path {
+     val jdkUrl = getUrl(communityRoot, os, arch)
+-    val jdkArchive = BuildDependenciesDownloader.downloadFileToCacheLocation(communityRoot, jdkUrl)
+-    val jdkExtracted = BuildDependenciesDownloader.extractFileToCacheLocation(
+-      communityRoot, jdkArchive, BuildDependenciesExtractOptions.STRIP_ROOT)
+-    infoLog("jps-bootstrap JDK is at $jdkExtracted")
+ 
+-    val jdkHome: Path = if (os == OS.MACOSX) {
+-      jdkExtracted.resolve("Contents").resolve("Home")
+-    }
+-    else {
+-      jdkExtracted
+-    }
++    val jdkHome: Path = Paths.get(System.getenv("JAVA_HOME"))
+     val executable = getJavaExecutable(jdkHome)
+     infoLog("JDK home is at $jdkHome, executable at $executable")
+     return jdkHome
+@@ -63,6 +56,7 @@
+     val archString: String = when (arch) {
+       Arch.X86_64 -> "x64"
+       Arch.ARM64 -> "aarch64"
++      Arch.RISCV64 -> "riscv64"
+     }
+ 
+     val dependenciesProperties = BuildDependenciesDownloader.getDependenciesProperties(communityRoot)
+@@ -97,7 +91,8 @@
+ 
+   enum class Arch {
+     X86_64,
+-    ARM64;
++    ARM64,
++    RISCV64;
+ 
+     companion object {
+       val current: Arch
+@@ -105,6 +100,7 @@
+           val arch = System.getProperty("os.arch").lowercase()
+           if ("x86_64" == arch || "amd64" == arch) return X86_64
+           if ("aarch64" == arch || "arm64" == arch) return ARM64
++          if ("riscv64" == arch) return RISCV64;
+           throw IllegalStateException("Only X86_64 and ARM64 are supported, current arch: $arch")
+         }
+     }
+--- platform/jps-bootstrap/jps-bootstrap.sh.orig	2024-03-10 21:46:03.369699281 -0400
++++ platform/jps-bootstrap/jps-bootstrap.sh	2024-03-10 21:55:48.790397679 -0400
+@@ -96,6 +96,9 @@
+       aarch64)
+         JBR_ARCH=linux-aarch64
+         ;;
++      riscv64)
++        JBR_ARCH=linux-riscv64
++        ;;
+       *)
+         die "Unknown architecture $(uname -m)"
+         ;;
+@@ -111,31 +114,10 @@
+     # Everything is up-to-date in $JVM_TARGET_DIR, do nothing
+     true
+ else
+-  JVM_TEMP_FILE=$(mktemp "$JPS_BOOTSTRAP_PREPARE_DIR/jvm.tar.gz.XXXXXXXXX")
+-  trap 'echo "Removing $JVM_TEMP_FILE"; rm -f "$JVM_TEMP_FILE"; trap - EXIT' EXIT INT HUP
+-
+-  warn "Downloading $JVM_URL to $JVM_TEMP_FILE"
+-
+-  if command -v curl >/dev/null 2>&1; then
+-      if [ -t 1 ]; then CURL_PROGRESS="--progress-bar"; else CURL_PROGRESS=""; fi
+-      CURL_OPTIONS="-fsSL"
+-      if [ "${JBR_DOWNLOAD_CURL_VERBOSE:-false}" = "true" ]; then CURL_OPTIONS="-fvL"; fi
+-      # CURL_PROGRESS may be empty, with quotes this interpreted by curl as malformed URL
+-      # shellcheck disable=SC2086
+-      expBackOffRetry curl "$CURL_OPTIONS" $CURL_PROGRESS --output "${JVM_TEMP_FILE}" "$JVM_URL"
+-  elif command -v wget >/dev/null 2>&1; then
+-      if [ -t 1 ]; then WGET_PROGRESS=""; else WGET_PROGRESS="-nv"; fi
+-      expBackOffRetry wget $WGET_PROGRESS -O "${JVM_TEMP_FILE}" "$JVM_URL"
+-  else
+-      die "ERROR: Please install wget or curl"
+-  fi
+-
+-  warn "Extracting $JVM_TEMP_FILE to $JVM_TARGET_DIR"
+   rm -rf "$JVM_TARGET_DIR"
+   mkdir -p "$JVM_TARGET_DIR"
+ 
+-  tar -x -f "$JVM_TEMP_FILE" -C "$JVM_TARGET_DIR"
+-  rm -f "$JVM_TEMP_FILE"
++  ln -sf /usr/lib/jvm/java-17-openjdk "$JVM_TARGET_DIR"
+ 
+   echo "$JVM_URL" >"$JVM_TARGET_DIR/.flag"
+ fi
+--- platform/sqlite/make.sh.orig	2024-03-11 10:30:57.012981543 -0400
++++ platform/sqlite/make.sh	2024-03-11 10:31:57.739717024 -0400
+@@ -27,7 +27,7 @@
+   libFilename="libsqliteij.so"
+ 
+   # cannot compile arm - unable to find library -lgcc, so, use dock cross
+-  if [ "$ARCH" == "aarch64" ]; then
++  if [ "$ARCH" == "aarch64" ] || [ "$ARCH" == "riscv64" ]; then
+     linkFlags+=" -shared"
+   else
+     cFlags+=" --target=$ARCH-unknown-linux-gnu --sysroot=target/linux-$ARCH"
+--- native/LinuxGlobalMenu/CMakeLists.txt.orig	2024-03-11 07:19:01.466968628 -0400
++++ native/LinuxGlobalMenu/CMakeLists.txt	2024-03-11 07:25:13.334027472 -0400
+@@ -29,10 +29,10 @@
+ find_library(LIB_GOBJ NAMES libgobject-2.0.so.0)
+ MESSAGE("LIB_GOBJ: " ${LIB_GOBJ})
+ 
+-# use patched library, you may build it from https://github.com/JetBrains/libdbusmenu
+-set(LIB_DBUSMENU "${PROJECT_SOURCE_DIR}/libdbusmenu-glib.a")
++find_library(LIB_DBUSMENU NAMES libdbusmenu-glib.so.4)
++MESSAGE("LIB_DBUSMENU: " ${LIB_DBUSMENU})
+ 
+-set(GLIB_INCLUDE_DIRS /usr/include/glib-2.0 /usr/lib64/glib-2.0/include)
++set(GLIB_INCLUDE_DIRS /usr/include/glib-2.0 /usr/lib64/glib-2.0/include /usr/lib/glib-2.0/include)
+ set(DBUSMENU_GLIB_INCLUDE_DIRS /usr/include/libdbusmenu-glib-0.4)
+ 
+ include_directories(

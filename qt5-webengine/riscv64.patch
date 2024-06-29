@@ -1,34 +1,25 @@
-diff --git PKGBUILD PKGBUILD
-index 57ae711..0c1954d 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,13 +20,17 @@ source=(git+https://code.qt.io/qt/qtwebengine.git#tag=v${pkgver}-lts
-         qt5-webengine-python3.patch
-         qt5-webengine-chromium-python3.patch
-         qt5-webengine-ffmpeg5.patch
--        qt5-webengine-pipewire-0.3.patch)
-+        qt5-webengine-pipewire-0.3.patch
-+        v8.patch
-+        riscv.patch)
- sha256sums=('SKIP'
-             'SKIP'
-             '0ad5d1660886f7bbf5108b071bf5d7bbbabf1cd1258ce9d4587a01dec4a1aa89'
-             'd8beb3d65a1aaf927285e6f055a9d1facd0f9c3fd851f91ba568389fb3137399'
-             'c50d3019626183e753c53a997dc8a55938847543aa3178d4c51f377be741c693'
--            '5e3a3c4711d964d5152a04059a2b5c1d14bb13dd29bce370120f60e85b476b6f')
-+            '5e3a3c4711d964d5152a04059a2b5c1d14bb13dd29bce370120f60e85b476b6f'
-+            'f0394a75373d319fbe5826862a59c5b266a901887a8ef32e7d05fb8efa23992c'
-+            '1b04f07fe50a6312f829354c8f1efa9af6914d25d00898bd69d5196cb844b7ba')
+@@ -32,6 +32,11 @@ sha256sums=('SKIP'
+             'bfae9e773edfd0ddbc617777fdd4c0609cba2b048be7afe40f97768e4eb6117e'
+             '547e092f6a20ebd15e486b31111145bc94b8709ec230da89c591963001378845')
  
++makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}")
++source+=($pkgname-v8.patch $pkgname-riscv.patch)
++sha256sums+=('f0394a75373d319fbe5826862a59c5b266a901887a8ef32e7d05fb8efa23992c'
++             '1b04f07fe50a6312f829354c8f1efa9af6914d25d00898bd69d5196cb844b7ba')
++
  prepare() {
    mkdir -p build
-@@ -42,6 +46,9 @@ prepare() {
  
-   patch -p1 -d src/3rdparty -i "$srcdir"/qt5-webengine-ffmpeg5.patch # Fix build with ffmpeg 5
-   patch -p1 -d src/3rdparty -i "$srcdir"/qt5-webengine-pipewire-0.3.patch # Port to pipewire 0.3
+@@ -41,6 +46,10 @@ prepare() {
+   git submodule set-branch --branch 87-based src/3rdparty
+   git -c protocol.file.allow=always submodule update
+ 
++  patch -Np1 -i "$srcdir"/$pkgname-v8.patch
++  patch -Np1 -i "$srcdir"/$pkgname-riscv.patch
 +
-+  patch -Np1 -i "$srcdir"/v8.patch
-+  patch -Np1 -i "$srcdir"/riscv.patch
- }
++
+   patch -p1 -i "$srcdir"/qt5-webengine-python3.patch # Fix build with Python 3
+   patch -p1 -d src/3rdparty -i "$srcdir"/qt5-webengine-chromium-python3.patch
  
- build() {

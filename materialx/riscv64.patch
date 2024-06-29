@@ -1,0 +1,30 @@
+diff --git PKGBUILD PKGBUILD
+index fe05a3b..043d434 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,11 +15,13 @@ makedepends=('cmake' 'chrpath' 'libxinerama' 'libxcursor' 'pybind11' 'ninja')
+ source=("https://github.com/AcademySoftwareFoundation/MaterialX/releases/download/v${pkgver}/MaterialX-${pkgver}.tar.gz"
+         "materialx-grapheditor.desktop"
+         "materialx-view.desktop"
+-        "materialx.xml")
++        "materialx.xml"
++        "nanogui-do-not-fallback-to-nehalem.patch::https://github.com/mitsuba-renderer/nanogui/pull/156.diff")
+ sha256sums=('f7f2aa7587ae63eb095cef35d202d23df341e3d67c8c458357d2a555d76c69f2'
+             '88e5ecafa8088b90f799b49c36af59f8462ca7426cdec58215332ee283556ddb'
+             '2f2b675540fea39a749f89083a9c341319c1f7b478fbb049a77bd66c29b2ee01'
+-            'd9b9426fb94121da052b796542cc74a0c5d7cef06997be70611c25f345553861')
++            'd9b9426fb94121da052b796542cc74a0c5d7cef06997be70611c25f345553861'
++            'fe60c485ddc71df9be0bd79ddda8bdd127d1ff8beec7b6fc2ffc4e1dcc0bbb70')
+ 
+ _pyver=$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+ 
+@@ -36,6 +38,9 @@ prepare() {
+   sed -i 's|"libraries"|"/usr/share/materialx/libraries"|g' source/MaterialXGenShader/GenOptions.h
+ 
+   dos2unix python/Scripts/*
++
++  dos2unix source/MaterialXView/NanoGUI/CMakeLists.txt
++  patch -Np1 -i "$srcdir"/nanogui-do-not-fallback-to-nehalem.patch -d source/MaterialXView/NanoGUI
+ }
+ 
+ build() {

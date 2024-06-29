@@ -1,29 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,13 +15,11 @@ depends=(flint
-          gmp-ecm
-          gperftools
-          libmpc
--         llvm-libs
-          mpfr
-          primesieve)
- makedepends=(boost
-              cereal
--             cmake
--             llvm)
-+             cmake)
- source=(https://github.com/symengine/symengine/releases/download/v$pkgver/$pkgname-$pkgver.tar.gz
-         llvm-shared.patch
-         flint-3.patch)
-@@ -35,6 +33,7 @@ prepare() {
- }
- 
- build() {
-+  # LLVM's MCJIT doesn't support riscv64
-   cmake -B build -S $pkgname-$pkgver \
-     -DCMAKE_INSTALL_PREFIX=/usr \
-     -DBUILD_SHARED_LIBS=ON \
-@@ -43,7 +42,7 @@ build() {
+@@ -41,7 +41,7 @@ build() {
      -DWITH_SYMENGINE_THREAD_SAFE=ON \
      -DWITH_ARB=ON \
      -DWITH_ECM=ON \
@@ -32,3 +9,10 @@
      -DWITH_MPFR=ON \
      -DWITH_MPC=ON \
      -DWITH_PRIMESIEVE=ON \
+@@ -59,3 +59,6 @@ package() {
+   DESTDIR="$pkgdir" cmake --install build
+   install -Dm644 $pkgname/LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
+ }
++
++depends=(${depends[@]/llvm-libs})
++makedepends=(${makedepends[@]/llvm})

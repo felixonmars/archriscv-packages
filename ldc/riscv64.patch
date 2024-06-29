@@ -1,35 +1,37 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -23,12 +23,14 @@ source=(
-     "ldc-druntime::git+https://github.com/ldc-developers/druntime.git"
-     "ldc-phobos::git+https://github.com/ldc-developers/phobos.git"
-     "ldc-testsuite::git+https://github.com/ldc-developers/dmd-testsuite.git"
-+    "disable-static-NaN-tests.patch"
- )
+@@ -14,7 +14,7 @@ pkgdesc="A D Compiler based on the LLVM Compiler Infrastructure including D runt
+ arch=('x86_64')
+ url="https://github.com/ldc-developers/ldc"
+ license=('BSD')
+-makedepends=('git' 'cmake' 'llvm' 'lld' 'ldc' 'ninja')
++makedepends=('git' 'cmake' 'llvm' 'ldc' 'ninja')
+ # Disable lto as linking the ldc2 binary fails
+ options=(!lto)
  
- sha256sums=('SKIP'
-             'SKIP'
-             'SKIP'
--            'SKIP')
-+            'SKIP'
-+            '22b9132b58dde320d6da3c22d2eeabbc0c4d6a079348e9e0fbe5172ef4b86aba')
+@@ -35,6 +35,8 @@ prepare() {
  
- prepare() {
-     cd "$srcdir/ldc"
-@@ -56,7 +58,7 @@ build() {
+     # Set version used for path construction in getRelativeClangCompilerRTLibPath()
+     sed -i "s/ldc::llvm_version_base/\"$_clangversion\"/" driver/linker-gcc.cpp
++
++    patch -Np1 -d runtime/phobos -i "$srcdir/disable-static-NaN-tests.patch"
+ }
+ 
+ build() {
+@@ -50,7 +52,8 @@ build() {
      -DBUILD_SHARED_LIBS=BOTH \
      -DBUILD_LTO_LIBS=ON \
      -DLDC_WITH_LLD=OFF \
--    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=gold --flto=thin" \
+-    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=lld --flto=thin" \
 +    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false" \
-     -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"" \
-     -DCMAKE_PREFIX_PATH=/usr/lib/llvm \
++    -DLD_FLAGS="-Wl,--no-as-needed -latomic -Wl,--as-needed" \
+     -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"," \
      ..
-@@ -65,6 +67,7 @@ build() {
- 
- check() {
-     cd "$srcdir/ldc/build"
-+    patch -Np1 -d ../runtime/phobos -i "$srcdir/disable-static-NaN-tests.patch"
-     ninja all-test-runners
+     ninja
+@@ -102,3 +105,6 @@ package_liblphobos() {
+     # licenses
+     install -D -m644 "$srcdir/ldc/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
- 
++
++source+=(disable-static-NaN-tests.patch)
++sha256sums+=('22b9132b58dde320d6da3c22d2eeabbc0c4d6a079348e9e0fbe5172ef4b86aba')

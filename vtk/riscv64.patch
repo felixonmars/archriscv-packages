@@ -1,11 +1,9 @@
-diff --git PKGBUILD PKGBUILD
-index 9c855f3..92fcbaf 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -51,13 +51,11 @@ makedepends=(
-   lz4
+@@ -54,13 +54,11 @@ makedepends=(
    mariadb-libs
    netcdf
+   opencascade
 -  openimagedenoise
    openmp
    openmpi
@@ -16,10 +14,10 @@ index 9c855f3..92fcbaf 100644
    pdal
    postgresql-libs
    proj
-@@ -98,12 +96,10 @@ optdepends=(
-   lz4
+@@ -102,12 +100,10 @@ optdepends=(
    mariadb-libs
    netcdf
+   opencascade
 -  openimagedenoise
    'openmpi: OpenMPI support'
    openvdb
@@ -29,7 +27,15 @@ index 9c855f3..92fcbaf 100644
    pdal
    postgresql-libs
    proj
-@@ -162,6 +158,7 @@ build() {
+@@ -138,6 +134,7 @@ prepare() {
+   patch -Np1 -i "$srcdir"/vtk-occt.patch
+   patch -Np1 -i ../5055371e.patch # Fix link to PDAL 2.6
+   patch -Np1 -i ../ospray-3.patch # Fix build with ospray 3.0
++  patch -Np1 -i ../0001-Use-freshly-built-libraries-for-qmlvtkplugin.patch 
+ }
+ 
+ build() {
+@@ -170,6 +167,7 @@ build() {
      -DVTKm_ENABLE_HDF5_IO=ON \
      -DVTKm_ENABLE_MPI=ON \
      -DVTKm_ENABLE_OPENMP=ON \
@@ -37,3 +43,10 @@ index 9c855f3..92fcbaf 100644
      -DVTK_USE_EXTERNAL=ON \
      -DVTK_MODULE_USE_EXTERNAL_VTK_exprtk=OFF \
      -DVTK_MODULE_USE_EXTERNAL_VTK_ioss=OFF \
+@@ -203,3 +201,6 @@ package() {
+   # … as well as duplicate copies
+   rm -rv "${pkgdir}"/usr/lib/cmake/vtk/vtkm/{Find*.cmake,cmake/{Find*.cmake,3.15}}
+ }
++
++source+=(0001-Use-freshly-built-libraries-for-qmlvtkplugin.patch::https://gitlab.kitware.com/vtk/vtk/-/commit/25a28fb1a625d0126fd8ee3f8a37f60b6868e56f.diff)
++sha256sums+=('102457eeda790830877c2d227153f13579c5a7ad8a2cbb8827c0376e11ab47a0')

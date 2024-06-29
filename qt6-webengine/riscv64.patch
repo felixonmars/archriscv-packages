@@ -1,37 +1,38 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -64,16 +64,33 @@ makedepends=(cmake
-              pipewire
-              python-html5lib
-              qt6-tools
--             qt6-websockets)
-+             qt6-websockets
-+             clang)
- optdepends=('pipewire: WebRTC desktop sharing under Wayland')
- groups=(qt6)
- _pkgfn=${pkgname/6-/}-everywhere-src-$_qtver
- source=(https://download.qt.io/official_releases/qt/${pkgver%.*}/$_qtver/submodules/$_pkgfn.tar.xz)
- sha256sums=('d5dc9ff05a2c57adbf99cbf0c7cb6f19527f67216caf627b0cc160a1d253b780')
+@@ -83,6 +83,10 @@ prepare() {
  
-+source+=(riscv-{angle,crashpad,libgav1,sandbox,base,dav1d,libyuv}.patch)
-+sha256sums+=('fb0738fc32f228cef59e5516dbb4acd8818f1e2ba9db2cfbc21cf72a4ace8c3f'
-+             '70f8bcd3dd68c13d1e074415952c0b7e3e3b6058c97d39ba7a78dc17daa30547'
-+             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
-+             '3fc1c003675dfc336f5a61eadb2009d558d5ceef0113c46c1d38f39506835304'
-+             'da17695cc437eb3f2a71719772d29ee9d0b6f80152536b061208ab29253fca7c'
-+             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+             'd71a8dd17e3acb8f76032a35a6e633ddb12304194f36b6fc7bc24b4f0867f0bf')
-+prepare() {
-+  for _patch in angle crashpad libgav1 sandbox base dav1d libyuv; do
-+    patch -d $_pkgfn/src/3rdparty/chromium -Np1 < riscv-$_patch.patch
+ # Fix build with ninja 1.12 - Gentoo patch
+   patch -Np1 -i ../qtwebengine-6.7.0-ninja1.12.patch
++  for _patch in angle libgav1 sandbox base dav1d; do
++    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
 +  done
-+}
-+
++  patch -d src/3rdparty/chromium/v8 -Np1 < ../riscv-v8.patch
+ }
+ 
  build() {
-   cmake -B build -S $_pkgfn -G Ninja \
-     -DCMAKE_MESSAGE_LOG_LEVEL=STATUS \
+@@ -94,7 +98,10 @@ build() {
+     -DQT_FEATURE_webengine_system_libevent=ON \
+     -DQT_FEATURE_webengine_proprietary_codecs=ON \
+     -DQT_FEATURE_webengine_kerberos=ON \
+-    -DQT_FEATURE_webengine_webrtc_pipewire=ON
++    -DQT_FEATURE_webengine_webrtc_pipewire=ON \
 +    -DCMAKE_C_COMPILER=/usr/bin/clang \
-+    -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
-     -DCMAKE_TOOLCHAIN_FILE=/usr/lib/cmake/Qt6/qt.toolchain.cmake \
-     -DQT_FEATURE_webengine_system_ffmpeg=ON \
-     -DQT_FEATURE_webengine_system_icu=ON \
++    -DCMAKE_CXX_COMPILER=/usr/bin/clang++
++  ninja -C build -t targets | grep '^runGn' | cut -d ':' -f 1 | xargs ninja -C build
+   cmake --build build
+ }
+ 
+@@ -103,3 +110,12 @@ package() {
+ 
+   install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
+ }
++
++makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}" clang)
++source+=(riscv-{angle,libgav1,sandbox,base,dav1d,v8}.patch)
++sha256sums+=('d092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
++             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
++             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
++             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
++             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
++             '668e63bc4a388db24fc2ed519d29d6bf73c6f97e768d651adcd72378e93291f5')

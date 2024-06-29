@@ -1,16 +1,18 @@
+diff --git PKGBUILD PKGBUILD
+index 6e0135d..6a1a612 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,7 +20,7 @@ libfftw3_threads.so libfftw3_omp.so libfftw3_mpi.so libfftw3.so)
- source=("http://www.fftw.org/${pkgname}-${pkgver}.tar.gz")
+@@ -22,7 +22,7 @@ makedepends=(
+ source=(http://www.fftw.org/$pkgname-$pkgver.tar.gz)
  sha512sums=('2d34b5ccac7b08740dbdacc6ebe451d8a34cf9d9bfec85a5e776e87adf94abfd803c222412d8e10fbaa4ed46f504aa87180396af1b108666cde4314a55610b40')
  b2sums=('3663872bd95a01d2c79af185f53918e1d1a9c91c620082402772c07f25b9b77d4920a78dc686fac6b51aa961b8d62b7e2cef3f3031e096bed40ced80b59b29d5')
 -_build_types=(single double long-double quad)
 +_build_types=(single double long-double)
+ _soname=3.6.10
  
- prepare() {
-   local _i
-@@ -45,21 +45,13 @@ build() {
-     --enable-openmp
+ _pick() {
+@@ -59,21 +59,13 @@ build() {
+     MPILIBS="$(mpicc --showme:link)"
    )
    local _configure_single=(
 -    --enable-sse
@@ -31,7 +33,7 @@
    local _cmake_options=(
      -B build
      -S $pkgname-$pkgver-$_build_types
-@@ -69,11 +61,6 @@ build() {
+@@ -83,11 +75,6 @@ build() {
      -D ENABLE_THREADS=ON
      -D ENABLE_FLOAT=ON
      -D ENABLE_LONG_DOUBLE=ON
@@ -43,7 +45,7 @@
    )
  
    # create missing FFTW3LibraryDepends.cmake
-@@ -84,7 +71,7 @@ build() {
+@@ -98,7 +85,7 @@ build() {
  
    export F77='gfortran'
    # use upstream default CFLAGS while keeping our -march/-mtune
@@ -52,7 +54,7 @@
  
    for _name in "${_build_types[@]}"; do
      (
-@@ -99,9 +86,6 @@ build() {
+@@ -113,9 +100,6 @@ build() {
          long-double)
          "${_configure[@]}" "${_configure_long_double[@]}"
          ;;

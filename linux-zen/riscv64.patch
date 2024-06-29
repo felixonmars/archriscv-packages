@@ -1,26 +1,33 @@
 diff --git PKGBUILD PKGBUILD
-index 6d9aad4a..68b454bf 100644
+index 10bc56b..c682e2e 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,6 +18,7 @@
- source=(
-   "$_srcname::git+https://github.com/zen-kernel/zen-kernel?signed#tag=$_srctag"
-   config         # the main kernel config file
+@@ -31,6 +31,7 @@ source=(
+   https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
+   $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
+   config  # the main kernel config file
 +  riscv64.config-patch
  )
  validpgpkeys=(
-   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
-@@ -26,7 +27,8 @@
-   'C5ADB4F3FEBBCE27A3E54D7D9AE4078033F8024D'  # Steven Barrett <steven@liquorix.net>
- )
- sha256sums=('SKIP'
--            '2a8a574db19f5b1885df7ce5975c9a1be7a42ce893fc6d5130b5c6bfc87c0f7a')
-+            '2a8a574db19f5b1885df7ce5975c9a1be7a42ce893fc6d5130b5c6bfc87c0f7a'
-+            'c2431c06b231d9847ef1192d1a73d37a5db65a7593e9ca4c551d5c5e95c59700')
+   ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
+@@ -42,12 +43,14 @@ sha256sums=('5036c434e11e4b36d8da3f489851f7f829cf785fa7f7887468537a9ea4572416'
+             'SKIP'
+             '754939cecb0938e147c7973ebce505b6aacd3e21572345f9aced312177df3ebf'
+             'SKIP'
+-            '51a51ccec610ee033009c9fdeb9bd2795cf209605e7c67da2855abc0951ed90f')
++            '51a51ccec610ee033009c9fdeb9bd2795cf209605e7c67da2855abc0951ed90f'
++            '1f5d9db3af1128dd7b1246e11b0ff0a4b449eb6c2c7026e60df8f6a940342877')
+ b2sums=('d6f58bfae29239f985c1aa329b19c2fdea1c08c79e819e60f85359e9ef00e97a7f72d74662df7d9def75ff85a3b4bdf36dc9ded578ee472e9b4efa7bf50fcd33'
+         'SKIP'
+         'b43bea249615fd8ebce9303fa9c889d4e4fd3310b0949c66aaa4ba026bd4b3bed871ef452536aaf891e33a5cf0b427d96da04146e8aa8e2e61f36afc203efcab'
+         'SKIP'
+-        'ca1c5495d27fee6b54f5165ff2e3e30ffdc2a388f9404894fed7b38a3643e84edd550d9fceb1bae91595c289070a9d6b4fd53a24796ce2820f6c842d40a1ce2d')
++        'ca1c5495d27fee6b54f5165ff2e3e30ffdc2a388f9404894fed7b38a3643e84edd550d9fceb1bae91595c289070a9d6b4fd53a24796ce2820f6c842d40a1ce2d'
++        'e6556ab89c6425c00be5f4fe811c5a8f574cb6ffd992b03fea60606e5a8dfc09628870d2a2b0851c21d75aec36edbd77b8381b4d7e9e42e2608863cf5cff2e01')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -54,6 +56,12 @@
+@@ -75,6 +78,12 @@ prepare() {
    make olddefconfig
    diff -u ../config .config || :
  
@@ -33,17 +40,17 @@ index 6d9aad4a..68b454bf 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -88,6 +96,9 @@
-   make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+@@ -121,6 +130,9 @@ _package() {
+   ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
 +  echo "Installing dtbs..."
-+  make INSTALL_DTBS_PATH="$pkgdir/usr/share/dtbs/$kernver" dtbs_install
++  make INSTALL_DTBS_PATH="$pkgdir/usr/lib/modules/$(<version)/dtb" dtbs_install
 +
-   # remove build and source links
-   rm "$modulesdir"/{source,build}
+   # remove build link
+   rm "$modulesdir"/build
  }
-@@ -103,19 +114,16 @@
+@@ -136,19 +148,16 @@ _package-headers() {
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -66,7 +73,7 @@ index 6d9aad4a..68b454bf 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -137,7 +145,7 @@
+@@ -170,7 +179,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do

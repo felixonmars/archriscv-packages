@@ -1,0 +1,53 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -6,7 +6,7 @@
+ # Contributor: Sebastian Voecking < voeck at web dot de >
+ 
+ pkgbase=root
+-pkgname=('root' 'root-cuda')
++pkgname=('root')
+ pkgver=6.32.00
+ pkgrel=2
+ pkgdesc='C++ data analysis framework and interpreter from CERN'
+@@ -20,7 +20,6 @@ makedepends=(
+     'chromium'
+     'cfitsio'
+     'cmake'
+-    'cuda'
+     #'cudnn'
+     'gcc-fortran'
+     'git'
+@@ -149,6 +148,10 @@ prepare() {
+     export CGO_LDFLAGS="${LDFLAGS}"
+     export GOFLAGS="-buildmode=pie -trimpath -modcacherw"
+ 
++
++    # Use a "multi-line comment" to keep patch from rotting
++    : << COMMENT_SEPARATOR
++
+     # pass CUDA architectures to nvcc calls
+     # Not yet supported in root: TBD
+     local _cuda_arches=('52' '53' '60' '61' '62' '70' '72' '75' '80' '86' '87' '89' '90')
+@@ -158,6 +161,7 @@ prepare() {
+     done
+     _cuda_arch_vals="${_cuda_arch_vals:0:-1}"
+     export CUSTOM_CUDA_ARCH='-DCMAKE_CUDA_ARCHITECTURES='"${_cuda_arch_vals}"
++COMMENT_SEPARATOR
+ }
+ 
+ build() {
+@@ -167,12 +171,14 @@ build() {
+         ${CUSTOM_CMAKE_FLAGS}
+     cmake --build build
+ 
++    : << COMMENT_SEPARATOR
+     ## ROOT with CUDA
+     cmake -B build-cuda -S ${pkgbase}-${pkgver} -G Ninja \
+         -C settings-cuda.cmake \
+         ${CUSTOM_CMAKE_FLAGS} \
+         ${CUSTOM_CUDA_ARCH}
+     cmake --build build-cuda
++COMMENT_SEPARATOR
+ }
+ 
+ _package() {

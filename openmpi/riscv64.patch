@@ -1,29 +1,47 @@
+diff --git PKGBUILD PKGBUILD
+index 54f95a7..87cf1da 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,18 +21,15 @@ depends=(
-   zlib
- )
+@@ -15,7 +15,6 @@ arch=(x86_64)
+ url='https://www.open-mpi.org'
+ license=('BSD-3-Clause AND LicenseRef-MPICH')
  makedepends=(
 -  cuda
    gcc-fortran
-   inetutils
+   gcc-libs
+   glibc
+@@ -25,8 +24,6 @@ makedepends=(
+   libfabric
+   libnl
+   openpmix
+-  openucc
+-  openucx
+   prrte
    valgrind
- )
- optdepends=(
--  'cuda: cuda support'
-   'gcc-fortran: fortran support'
-   'perl: for aggregate_profile.pl and profile2mat.pl'
- )
- provides=(
--  libmca_common_cuda.so
-   libmca_common_monitoring.so
-   libmca_common_ompio.so
-   libmca_common_sm.so
-@@ -70,7 +67,6 @@ build() {
-     --enable-pretty-print-stacktrace
-     --libdir=/usr/lib
-     --sysconfdir=/etc/$pkgname
--    --with-cuda=/opt/cuda
-     --with-hwloc=external
-     --with-libevent=external
+   zlib
+@@ -68,12 +65,6 @@ build() {
      --with-pmix=external
+     --with-prrte=external
+     --with-valgrind
+-    --with-ucc=/usr
+-    --with-ucx=/usr
+-    --with-cuda=/opt/cuda
+-    # this tricks the configure script to look for /usr/lib/pkgconfig/cuda.pc
+-    # instead of /opt/cuda/lib/pkgconfig/cuda.pc
+-    --with-cuda-libdir=/usr/lib
+     --with-rocm=/opt/rocm
+     # all components that link to libraries provided by optdepends must be run-time loadable
+     --enable-mca-dso=accelerator_cuda,accelerator_rocm,btl_smcuda,rcache_gpusm,rcache_rgpusm,coll_ucc,scoll_ucc
+@@ -108,12 +99,10 @@ package_openmpi() {
+     libfabric
+     libnl
+     openpmix libpmix.so
+-    openucx
+     prrte
+     zlib
+   )
+   optdepends=(
+-    'cuda: cuda support'
+     'hip-runtime-amd: ROCm support'
+     'gcc-fortran: fortran support'
+     'openssh: for execution on remote hosts via plm_ssh_agent'

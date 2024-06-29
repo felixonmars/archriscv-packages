@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,14 +19,17 @@ makedepends=(
+   libxext
+   lv2
+   meson
++  simde
+ )
+ checkdepends=(
+   kxstudio-lv2-extensions
+   lv2lint
+   xorg-server-xvfb
+ )
+-source=(git+$url#tag=${pkgver//./-}?signed)
+-b2sums=('SKIP')
++source=(git+$url#tag=${pkgver//./-}?signed
++        use-simde.patch)
++b2sums=('SKIP'
++        'dfb57a90d6e2df7b386f52e66404399f996079595ad155e1d84e466e6a5241ab42e1661c3da53bdcd02585aa28670701a4998474f9e66d189ebf9a1bb4a77ea6')
+ validpgpkeys=('62B11043D2F6EB6672D93103CDBAA37ABC74FBA0') # falkTX <falktx@falktx.com>
+ 
+ _pick() {
+@@ -39,6 +42,11 @@ _pick() {
+   done
+ }
+ 
++prepare() {
++  cd $pkgname
++  patch -Np1 -i ../use-simde.patch
++}
++
+ build() {
+   arch-meson build $pkgname
+   ninja -C build

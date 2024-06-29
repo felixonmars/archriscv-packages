@@ -1,0 +1,24 @@
+diff --git PKGBUILD PKGBUILD
+index b2437e2..2e1a5e4 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,11 +11,17 @@
+ depends=('rocm-core' 'glibc' 'gcc-libs' 'hsa-rocr' 'python')
+ makedepends=('cmake')
+ _git='https://github.com/ROCm/rocm_smi_lib'
+-source=("$pkgname-$pkgver.tar.gz::$_git/archive/rocm-$pkgver.tar.gz")
+-sha256sums=('61e755d710ff38425df3d262d1ad4c510d52d3c64e3fe15140c2575eba316949')
++source=("$pkgname-$pkgver.tar.gz::$_git/archive/rocm-$pkgver.tar.gz"
++        "$pkgname-fix-assignment-in-readonly-object.patch::https://918709.bugs.gentoo.org/attachment.cgi?id=894311")
++sha256sums=('61e755d710ff38425df3d262d1ad4c510d52d3c64e3fe15140c2575eba316949'
++            '333ce0e93b9a96867707eb696fc7ffe73be029dcf352ce2901c98a361fbd95d2')
+ options=(!lto)
+ _dirname="$(basename "$_git")-$(basename "${source[0]}" .tar.gz)"
+ 
++prepare() {
++  patch -d "$_dirname" -Np1 -i ../"$pkgname-fix-assignment-in-readonly-object.patch"
++}
++
+ build() {
+   local cmake_args=(
+     -Wno-dev

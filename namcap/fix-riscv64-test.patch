@@ -1,5 +1,5 @@
 diff --git a/Namcap/tests/package/test_anyelf.py b/Namcap/tests/package/test_anyelf.py
-index 97c7ad7..937feae 100644
+index 62580ab..30a0b69 100644
 --- a/Namcap/tests/package/test_anyelf.py
 +++ b/Namcap/tests/package/test_anyelf.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_anyelf
@@ -9,31 +9,56 @@ index 97c7ad7..937feae 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_elffiles.py b/Namcap/tests/package/test_elffiles.py
-index 07e98ac..95f31f1 100644
+index ffe76b6..9ab0b73 100644
 --- a/Namcap/tests/package/test_elffiles.py
 +++ b/Namcap/tests/package/test_elffiles.py
-@@ -12,7 +12,7 @@ pkgname=__namcap_test_elffiles
+@@ -2,6 +2,8 @@
+ # SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ import os
++import platform
++from pytest import mark
+ from Namcap.tests.makepkg import MakepkgTest
+ import Namcap.rules.elffiles
+ 
+@@ -12,7 +14,7 @@ pkgname=__namcap_test_elffiles
  pkgver=1.0
  pkgrel=1
  pkgdesc="A package"
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
-@@ -43,7 +43,7 @@ pkgname=__namcap_test_execstack
+@@ -43,7 +45,7 @@ pkgname=__namcap_test_execstack
  pkgver=1.0
  pkgrel=1
  pkgdesc="A package"
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
-@@ -76,7 +76,7 @@ pkgname=__namcap_test_nopie
+@@ -76,7 +78,7 @@ pkgname=__namcap_test_nopie
+ pkgver=1.0
+ pkgrel=1
+ pkgdesc="A package"
+-arch=('i686' 'x86_64')
++arch=('i686' 'x86_64' 'riscv64')
+ url="http://www.example.com/"
+ license=('GPL-3.0-or-later')
+ depends=('glibc')
+@@ -103,13 +105,14 @@ package() {
+         self.assertEqual(r.infos, [])
+ 
+ 
++@mark.skipif(all(arch not in platform.machine() for arch in ['x86_64', 'i686']), reason="-fcf-protection currently only works for i686 processor or newer.")
+ class TestNoShadowStack(MakepkgTest):
+     pkgbuild = """
+ pkgname=__namcap_test_noshstk
  pkgver=1.0
  pkgrel=1
  pkgdesc="A package"
@@ -43,7 +68,7 @@ index 07e98ac..95f31f1 100644
  license=('GPL')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_emptydirs.py b/Namcap/tests/package/test_emptydirs.py
-index adb8f00..adb8b60 100644
+index d93c1fa..3524fe9 100644
 --- a/Namcap/tests/package/test_emptydirs.py
 +++ b/Namcap/tests/package/test_emptydirs.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_emptydirs
@@ -53,10 +78,10 @@ index adb8f00..adb8b60 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_fhs.py b/Namcap/tests/package/test_fhs.py
-index de88734..7a7d075 100644
+index b3ca0d2..6872c0f 100644
 --- a/Namcap/tests/package/test_fhs.py
 +++ b/Namcap/tests/package/test_fhs.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_nonfhs
@@ -66,7 +91,7 @@ index de88734..7a7d075 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 @@ -57,7 +57,7 @@ pkgname=__namcap_test_nonfhs
  pkgver=1.0
@@ -75,7 +100,7 @@ index de88734..7a7d075 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 @@ -87,7 +87,7 @@ pkgname=__namcap_test_nonfhs
  pkgver=1.0
@@ -84,10 +109,10 @@ index de88734..7a7d075 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_filenames.py b/Namcap/tests/package/test_filenames.py
-index 377179f..1a66cc3 100644
+index 5296288..03483ac 100644
 --- a/Namcap/tests/package/test_filenames.py
 +++ b/Namcap/tests/package/test_filenames.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_nonascii
@@ -97,10 +122,10 @@ index 377179f..1a66cc3 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_fileownership.py b/Namcap/tests/package/test_fileownership.py
-index acd989b..f9c7d5e 100644
+index d901cf3..0222b00 100644
 --- a/Namcap/tests/package/test_fileownership.py
 +++ b/Namcap/tests/package/test_fileownership.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_fileownership
@@ -110,10 +135,10 @@ index acd989b..f9c7d5e 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_gnomemime.py b/Namcap/tests/package/test_gnomemime.py
-index a057b28..ac352f6 100644
+index c484f75..3861696 100644
 --- a/Namcap/tests/package/test_gnomemime.py
 +++ b/Namcap/tests/package/test_gnomemime.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_gnomemime
@@ -123,10 +148,10 @@ index a057b28..ac352f6 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_hardlinks.py b/Namcap/tests/package/test_hardlinks.py
-index b334dbe..c0bcfd9 100644
+index 26a94da..36c650a 100644
 --- a/Namcap/tests/package/test_hardlinks.py
 +++ b/Namcap/tests/package/test_hardlinks.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_hardlinks
@@ -136,10 +161,10 @@ index b334dbe..c0bcfd9 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_hicoloricons.py b/Namcap/tests/package/test_hicoloricons.py
-index 9c9cee6..40cffa4 100644
+index 17189dc..f7154b3 100644
 --- a/Namcap/tests/package/test_hicoloricons.py
 +++ b/Namcap/tests/package/test_hicoloricons.py
 @@ -13,7 +13,7 @@ pkgname=__namcap_test_hicoloricons
@@ -149,7 +174,7 @@ index 9c9cee6..40cffa4 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=()
 @@ -54,7 +54,7 @@ pkgname=__namcap_test_hicoloricons
  pkgver=1.0
@@ -158,10 +183,10 @@ index 9c9cee6..40cffa4 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('hicolor-icon-theme')
 diff --git a/Namcap/tests/package/test_infodirectory.py b/Namcap/tests/package/test_infodirectory.py
-index 5bc08b2..aacfe59 100644
+index d2de497..3f7cd26 100644
 --- a/Namcap/tests/package/test_infodirectory.py
 +++ b/Namcap/tests/package/test_infodirectory.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_infodirectory
@@ -171,10 +196,10 @@ index 5bc08b2..aacfe59 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_libtool.py b/Namcap/tests/package/test_libtool.py
-index ac8c476..616a704 100644
+index 2fe8719..88c58f3 100644
 --- a/Namcap/tests/package/test_libtool.py
 +++ b/Namcap/tests/package/test_libtool.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_libtool
@@ -184,41 +209,95 @@ index ac8c476..616a704 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_licensepkg.py b/Namcap/tests/package/test_licensepkg.py
-index dc2ba62..a843946 100644
+index 69cbfab..9d9036b 100644
 --- a/Namcap/tests/package/test_licensepkg.py
 +++ b/Namcap/tests/package/test_licensepkg.py
-@@ -12,7 +12,7 @@ pkgname=__namcap_test_licensepkg
- pkgver=1.0
- pkgrel=1
- pkgdesc="A package"
--arch=('i686' 'x86_64')
-+arch=('i686' 'x86_64' 'riscv64')
- url="http://www.example.com/"
- license=('custom:DWTFYWL')
- depends=('glibc')
-@@ -43,7 +43,7 @@ pkgname=__namcap_test_licensepkg
- pkgver=1.0
- pkgrel=1
- pkgdesc="A package"
--arch=('i686' 'x86_64')
-+arch=('i686' 'x86_64' 'riscv64')
- url="http://www.example.com/"
- license=('CCPL:cc-by-sa-3.0')
- depends=('glibc')
-@@ -73,7 +73,7 @@ pkgname=__namcap_test_licensepkg
- pkgver=1.0
- pkgrel=1
- pkgdesc="A package"
--arch=('i686' 'x86_64')
-+arch=('i686' 'x86_64' 'riscv64')
- url="http://www.example.com/"
- license=('DWTFYWL')
- depends=('glibc')
+@@ -212,7 +212,7 @@ class LicenseFileTest(MakepkgTest):
+         pkgver=1.0
+         pkgrel=1
+         pkgdesc="A package"
+-        arch=('i686' 'x86_64')
++        arch=('i686' 'x86_64' 'riscv64')
+         url="http://www.example.com/"
+         license=('GPL-3.0-or-later')
+         depends=('glibc')
+@@ -241,7 +241,7 @@ class LicenseFileTest(MakepkgTest):
+             pkgver=1.0
+             pkgrel=1
+             pkgdesc="A package"
+-            arch=('i686' 'x86_64')
++            arch=('i686' 'x86_64' 'riscv64')
+             url="http://www.example.com/"
+             license=('DWTFYWL')
+             depends=('glibc')
+@@ -275,7 +275,7 @@ class LicenseFileTest(MakepkgTest):
+             pkgver=1.0
+             pkgrel=1
+             pkgdesc="A package"
+-            arch=('i686' 'x86_64')
++            arch=('i686' 'x86_64' 'riscv64')
+             url="http://www.example.com/"
+             license=('LicenseRef-DWTFYWL')
+             depends=('glibc')
+@@ -307,7 +307,7 @@ class LicenseFileTest(MakepkgTest):
+             pkgver=1.0
+             pkgrel=1
+             pkgdesc="A package"
+-            arch=('i686' 'x86_64')
++            arch=('i686' 'x86_64' 'riscv64')
+             url="http://www.example.com/"
+             license=('LicenseRef-DWTFYWL')
+             depends=('glibc')
+@@ -344,7 +344,7 @@ class LicenseFileTest(MakepkgTest):
+             pkgver=1.0
+             pkgrel=1
+             pkgdesc="A package"
+-            arch=('i686' 'x86_64')
++            arch=('i686' 'x86_64' 'riscv64')
+             url="http://www.example.com/"
+             license=('GPL-3.0-or-later with Bootloader-exception')
+             depends=('glibc')
+@@ -382,7 +382,7 @@ class LicenseFileTest(MakepkgTest):
+             pkgver=1.0
+             pkgrel=1
+             pkgdesc="A package"
+-            arch=('i686' 'x86_64')
++            arch=('i686' 'x86_64' 'riscv64')
+             url="http://www.example.com/"
+             license=('() broken')
+             depends=('glibc')
+@@ -419,7 +419,7 @@ class LicenseFileTest(MakepkgTest):
+         pkgver=1.0
+         pkgrel=1
+         pkgdesc="A package"
+-        arch=('i686' 'x86_64')
++        arch=('i686' 'x86_64' 'riscv64')
+         url="http://www.example.com/"
+         license=('MIT')
+         depends=('glibc')
+@@ -456,7 +456,7 @@ class LicenseFileTest(MakepkgTest):
+         pkgver=1.0
+         pkgrel=1
+         pkgdesc="A package"
+-        arch=('i686' 'x86_64')
++        arch=('i686' 'x86_64' 'riscv64')
+         url="http://www.example.com/"
+         license=('MIT')
+         depends=('glibc')
+@@ -490,7 +490,7 @@ class LicenseFileTest(MakepkgTest):
+         pkgver=1.0
+         pkgrel=1
+         pkgdesc="A package"
+-        arch=('i686' 'x86_64')
++        arch=('i686' 'x86_64' 'riscv64')
+         url="http://www.example.com/"
+         license=('MIT')
+         depends=('licenses')
 diff --git a/Namcap/tests/package/test_lotsofdocs.py b/Namcap/tests/package/test_lotsofdocs.py
-index ec6b2dd..5a9bc9b 100644
+index 883bf24..d067746 100644
 --- a/Namcap/tests/package/test_lotsofdocs.py
 +++ b/Namcap/tests/package/test_lotsofdocs.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_lotsofdocs
@@ -228,10 +307,10 @@ index ec6b2dd..5a9bc9b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_missingbackups.py b/Namcap/tests/package/test_missingbackups.py
-index c85dbf3..a26a863 100644
+index c204708..950cc5c 100644
 --- a/Namcap/tests/package/test_missingbackups.py
 +++ b/Namcap/tests/package/test_missingbackups.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_missingbackups
@@ -241,10 +320,10 @@ index c85dbf3..a26a863 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_pathdepends.py b/Namcap/tests/package/test_pathdepends.py
-index 9976291..b9cab58 100644
+index 9e44163..5d10c7a 100644
 --- a/Namcap/tests/package/test_pathdepends.py
 +++ b/Namcap/tests/package/test_pathdepends.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_pathdepends
@@ -254,10 +333,10 @@ index 9976291..b9cab58 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_perllocal.py b/Namcap/tests/package/test_perllocal.py
-index 830cfc1..1640652 100644
+index af1f507..27c19c7 100644
 --- a/Namcap/tests/package/test_perllocal.py
 +++ b/Namcap/tests/package/test_perllocal.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_perllocal
@@ -267,10 +346,10 @@ index 830cfc1..1640652 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_permissions.py b/Namcap/tests/package/test_permissions.py
-index 13ab5f0..9e4b033 100644
+index ab07e78..4dc6a18 100644
 --- a/Namcap/tests/package/test_permissions.py
 +++ b/Namcap/tests/package/test_permissions.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_permissions
@@ -280,10 +359,10 @@ index 13ab5f0..9e4b033 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_rpath.py b/Namcap/tests/package/test_rpath.py
-index a617a45..2d27285 100644
+index 7a4423d..82658bf 100644
 --- a/Namcap/tests/package/test_rpath.py
 +++ b/Namcap/tests/package/test_rpath.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_rpath
@@ -293,10 +372,10 @@ index a617a45..2d27285 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_scrollkeeper.py b/Namcap/tests/package/test_scrollkeeper.py
-index 3d6bc9a..90b1633 100644
+index e1368d5..8d81a5c 100644
 --- a/Namcap/tests/package/test_scrollkeeper.py
 +++ b/Namcap/tests/package/test_scrollkeeper.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_scrollkeeper
@@ -306,10 +385,10 @@ index 3d6bc9a..90b1633 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_sodepends.py b/Namcap/tests/package/test_sodepends.py
-index 186f082..f5fdce5 100644
+index 92533a7..0f932b1 100644
 --- a/Namcap/tests/package/test_sodepends.py
 +++ b/Namcap/tests/package/test_sodepends.py
 @@ -25,7 +25,7 @@ pkgname=__namcap_test_sodepends
@@ -319,10 +398,10 @@ index 186f082..f5fdce5 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_symlink.py b/Namcap/tests/package/test_symlink.py
-index 14aacce..f030204 100644
+index 0994683..8b4503c 100644
 --- a/Namcap/tests/package/test_symlink.py
 +++ b/Namcap/tests/package/test_symlink.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_symlink
@@ -332,10 +411,10 @@ index 14aacce..f030204 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_systemdlocation.py b/Namcap/tests/package/test_systemdlocation.py
-index 51263d8..2521aaa 100644
+index 597a085..77e88ff 100644
 --- a/Namcap/tests/package/test_systemdlocation.py
 +++ b/Namcap/tests/package/test_systemdlocation.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_systemdlocation
@@ -345,10 +424,10 @@ index 51263d8..2521aaa 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/package/test_unusedsodepends.py b/Namcap/tests/package/test_unusedsodepends.py
-index fb9960e..45b2a0e 100644
+index c3a730f..1d24743 100644
 --- a/Namcap/tests/package/test_unusedsodepends.py
 +++ b/Namcap/tests/package/test_unusedsodepends.py
 @@ -12,7 +12,7 @@ pkgname=__namcap_test_unusedsodepends
@@ -358,10 +437,10 @@ index fb9960e..45b2a0e 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/pkgbuild/test_arrays.py b/Namcap/tests/pkgbuild/test_arrays.py
-index 8c9a622..667a546 100644
+index 25ef7fe..72a1161 100644
 --- a/Namcap/tests/pkgbuild/test_arrays.py
 +++ b/Namcap/tests/pkgbuild/test_arrays.py
 @@ -14,7 +14,7 @@ pkgname=mypackage
@@ -371,10 +450,10 @@ index 8c9a622..667a546 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license='GPL'
+ license='GPL-3.0-or-later'
  depends='glibc'
 diff --git a/Namcap/tests/pkgbuild/test_badbackups.py b/Namcap/tests/pkgbuild/test_badbackups.py
-index 29302e1..977ab2a 100644
+index deb15aa..1c1e740 100644
 --- a/Namcap/tests/pkgbuild/test_badbackups.py
 +++ b/Namcap/tests/pkgbuild/test_badbackups.py
 @@ -14,7 +14,7 @@ pkgname=mypackage
@@ -384,10 +463,10 @@ index 29302e1..977ab2a 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/pkgbuild/test_extravars.py b/Namcap/tests/pkgbuild/test_extravars.py
-index f0d4ddc..b994d7b 100644
+index c1f345d..bf67fe6 100644
 --- a/Namcap/tests/pkgbuild/test_extravars.py
 +++ b/Namcap/tests/pkgbuild/test_extravars.py
 @@ -15,7 +15,7 @@ pkgname=mypackage
@@ -397,7 +476,7 @@ index f0d4ddc..b994d7b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license='GPL'
+ license='GPL-3.0-or-later'
  depends=('glibc')
 @@ -51,7 +51,7 @@ pkgver=1.0
  pkgrel=1
@@ -406,7 +485,7 @@ index f0d4ddc..b994d7b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 @@ -60,6 +60,7 @@ glibc=2.12
  )
@@ -417,7 +496,7 @@ index f0d4ddc..b994d7b 100644
  options=('!libtool')
  source=(ftp://ftp.example.com/pub/mypackage-0.1.tar.gz)
 diff --git a/Namcap/tests/pkgbuild/test_invalidstartdir.py b/Namcap/tests/pkgbuild/test_invalidstartdir.py
-index 591ec5a..75afbc2 100644
+index 8795708..5349242 100644
 --- a/Namcap/tests/pkgbuild/test_invalidstartdir.py
 +++ b/Namcap/tests/pkgbuild/test_invalidstartdir.py
 @@ -14,7 +14,7 @@ pkgname=mypackage
@@ -427,10 +506,10 @@ index 591ec5a..75afbc2 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/pkgbuild/test_makedepends.py b/Namcap/tests/pkgbuild/test_makedepends.py
-index 2578074..d2e3b43 100644
+index 23d611d..2ba2bb4 100644
 --- a/Namcap/tests/pkgbuild/test_makedepends.py
 +++ b/Namcap/tests/pkgbuild/test_makedepends.py
 @@ -15,7 +15,7 @@ pkgver=1.0
@@ -441,7 +520,7 @@ index 2578074..d2e3b43 100644
 +arch=('i686' 'x86_64' 'riscv64')
  depends=('lib1' 'lib2' 'lib3')
  makedepends=('lib1' 'lib2' 'lib4')
- license=('GPL')
+ license=('GPL-3.0-or-later')
 @@ -54,7 +54,7 @@ pkgver=1.0
  pkgrel=1
  pkgdesc="A package"
@@ -450,9 +529,9 @@ index 2578074..d2e3b43 100644
 +arch=('i686' 'x86_64' 'riscv64')
  depends=()
  makedepends=()
- license=('GPL')
+ license=('GPL-3.0-or-later')
 diff --git a/Namcap/tests/pkgbuild/test_makepkgfunctions.py b/Namcap/tests/pkgbuild/test_makepkgfunctions.py
-index f18f692..4255cb0 100644
+index 4ff2b32..c17aa23 100644
 --- a/Namcap/tests/pkgbuild/test_makepkgfunctions.py
 +++ b/Namcap/tests/pkgbuild/test_makepkgfunctions.py
 @@ -14,7 +14,7 @@ pkgname=mypackage
@@ -462,10 +541,10 @@ index f18f692..4255cb0 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/pkgbuild/test_missingvars.py b/Namcap/tests/pkgbuild/test_missingvars.py
-index c176dce..b8e3e7b 100644
+index bf99283..a28bc72 100644
 --- a/Namcap/tests/pkgbuild/test_missingvars.py
 +++ b/Namcap/tests/pkgbuild/test_missingvars.py
 @@ -14,7 +14,7 @@ pkgname=mypackage
@@ -475,7 +554,7 @@ index c176dce..b8e3e7b 100644
 -arch=('i686' 'x86_64')
 +
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 @@ -38,7 +38,7 @@ pkgname=mypackage
  pkgver=1.0
@@ -484,7 +563,7 @@ index c176dce..b8e3e7b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 @@ -65,7 +65,7 @@ pkgname=mypackage
  pkgver=1.0
@@ -493,7 +572,7 @@ index c176dce..b8e3e7b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc' 'pacman')
 @@ -92,7 +92,7 @@ pkgver=24.0.1312.5
  pkgrel=1
@@ -521,10 +600,10 @@ index c176dce..b8e3e7b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/pkgbuild/test_pkginfo.py b/Namcap/tests/pkgbuild/test_pkginfo.py
-index 234949d..aea0f01 100644
+index 93fffb0..c4927c4 100644
 --- a/Namcap/tests/pkgbuild/test_pkginfo.py
 +++ b/Namcap/tests/pkgbuild/test_pkginfo.py
 @@ -14,7 +14,7 @@ pkgname=MyPackage
@@ -534,7 +613,7 @@ index 234949d..aea0f01 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 @@ -57,7 +57,7 @@ pkgname=mypackage
  pkgver=1.0
@@ -552,10 +631,10 @@ index 234949d..aea0f01 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  depends=('glibc')
- license=('GPL')
+ license=('GPL-3.0-or-later')
  options=('!libtool')
 diff --git a/Namcap/tests/pkgbuild/test_pkgnameindesc.py b/Namcap/tests/pkgbuild/test_pkgnameindesc.py
-index 98b4605..ce0f2d4 100644
+index 2380fa9..824348a 100644
 --- a/Namcap/tests/pkgbuild/test_pkgnameindesc.py
 +++ b/Namcap/tests/pkgbuild/test_pkgnameindesc.py
 @@ -14,7 +14,7 @@ pkgname=mypackage
@@ -565,10 +644,10 @@ index 98b4605..ce0f2d4 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc')
 diff --git a/Namcap/tests/pkgbuild/test_sfurl.py b/Namcap/tests/pkgbuild/test_sfurl.py
-index 08bd6c6..97737c1 100644
+index 378a676..d072318 100644
 --- a/Namcap/tests/pkgbuild/test_sfurl.py
 +++ b/Namcap/tests/pkgbuild/test_sfurl.py
 @@ -15,7 +15,7 @@ pkgver=1.0
@@ -578,10 +657,10 @@ index 08bd6c6..97737c1 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  depends=('glibc')
- license=('GPL')
+ license=('GPL-3.0-or-later')
  options=('!libtool')
 diff --git a/Namcap/tests/pkgbuild/test_splitpkgbuild.py b/Namcap/tests/pkgbuild/test_splitpkgbuild.py
-index f5d3b7e..2202cfc 100644
+index c0ca2f4..3e50010 100644
 --- a/Namcap/tests/pkgbuild/test_splitpkgbuild.py
 +++ b/Namcap/tests/pkgbuild/test_splitpkgbuild.py
 @@ -16,7 +16,7 @@ pkgver=1.0
@@ -591,7 +670,7 @@ index f5d3b7e..2202cfc 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  depends=('glibc')
- license=('GPL')
+ license=('GPL-3.0-or-later')
  options=('!libtool')
 @@ -60,7 +60,7 @@ pkgver=1.0
  pkgrel=1
@@ -600,10 +679,10 @@ index f5d3b7e..2202cfc 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  makedepends=('gtk2')
- license=('GPL')
+ license=('GPL-3.0-or-later')
  options=('!libtool')
 diff --git a/Namcap/tests/pkgbuild_test.py b/Namcap/tests/pkgbuild_test.py
-index ea7fece..6bb4f2b 100644
+index 0fa04e2..b49c5e4 100644
 --- a/Namcap/tests/pkgbuild_test.py
 +++ b/Namcap/tests/pkgbuild_test.py
 @@ -68,7 +68,7 @@ pkgver=1.0
@@ -613,7 +692,7 @@ index ea7fece..6bb4f2b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc' 'pacman')
 @@ -97,7 +97,7 @@ pkgname=('mypackage1' 'mypackage2' 'mypackage3')
  pkgver=1.0
@@ -622,10 +701,10 @@ index ea7fece..6bb4f2b 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  makedepends=('make' 'python')
 diff --git a/Namcap/tests/test_pacman.py b/Namcap/tests/test_pacman.py
-index 8a2eb81..90b27b6 100644
+index 35e311d..e16160b 100644
 --- a/Namcap/tests/test_pacman.py
 +++ b/Namcap/tests/test_pacman.py
 @@ -16,7 +16,7 @@ pkgname=mypackage
@@ -635,5 +714,5 @@ index 8a2eb81..90b27b6 100644
 -arch=('i686' 'x86_64')
 +arch=('i686' 'x86_64' 'riscv64')
  url="http://www.example.com/"
- license=('GPL')
+ license=('GPL-3.0-or-later')
  depends=('glibc' 'foobar')

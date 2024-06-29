@@ -1,21 +1,21 @@
 diff --git PKGBUILD PKGBUILD
-index 86dc2de..9dbfd59 100644
+index f929ea1..a61f163 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,7 +37,7 @@ sha256sums=('7d8e3e8c5121aec0965df71f59bedf46052c6cf14f96365c4411ec3de0a4c1a5'
-             '8641d514ef4cae9e4d1867aadf4b9c850a9e8dc9792c6c559f9d2a0e1713a5a1'
-             'b11f62d4bd9557e9d3e7456bc95f63e9eabab5ecee1368f4a14a84bc94b1c8d1'
+@@ -39,7 +39,7 @@
+             '160515b741aadc876a67f213029f5f62a51ff072ea4aaeb687bbe614035bf72f'
+             '1f4e4cc54332e60c9da2bdabf9a80dc11db466535f1a0be298cbf654f0723721'
              '656c4d4cb8cb12adbf178fc8cb2fd25f8c285d6572bbdbb24d865d00e0d5a85a'
--            'b46bca4d3f8b41138923b7a1d7ada272b56ad8b89d0d6ce09145638bdf15185d')
-+            '2f4ef92c72b9b30fad6890142110d0e0a1c18a608f541fb9ac557f0e5983fee8')
+-            '2465d495cb275dce434eb3bfe4d293a223e301b968c14861aea42bc7c60404ef')
++            'a005154076e6092e472e61677d3e493f0390fc66ba35c74715ff6417b4fdc442')
  
  prepare() {
-   cd "${pkgname}-${pkgver}"
+   cd "$pkgname-$pkgver"
 diff --git makepkg.conf makepkg.conf
-index b9e04eb..944dc74 100644
+index ac4c95f..dc2a631 100644
 --- makepkg.conf
 +++ makepkg.conf
-@@ -33,14 +33,14 @@ VCSCLIENTS=('bzr::breezy'
+@@ -35,18 +35,17 @@
  # ARCHITECTURE, COMPILE FLAGS
  #########################################################################
  #
@@ -28,9 +28,15 @@ index b9e04eb..944dc74 100644
  #CPPFLAGS=""
 -CFLAGS="-march=x86-64 -mtune=generic -O2 -pipe -fno-plt -fexceptions \
 +CFLAGS="-march=rv64gc -mabi=lp64d -O2 -pipe -fno-plt -fexceptions \
-         -Wp,-D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security \
--        -fstack-clash-protection -fcf-protection"
-+        -fstack-clash-protection"
+         -Wp,-D_FORTIFY_SOURCE=3 -Wformat -Werror=format-security \
+-        -fstack-clash-protection -fcf-protection \
+-        -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
++        -fstack-clash-protection \
++        -fno-omit-frame-pointer"
  CXXFLAGS="$CFLAGS -Wp,-D_GLIBCXX_ASSERTIONS"
- LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now"
+-LDFLAGS="-Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now \
+-         -Wl,-z,pack-relative-relocs"
++LDFLAGS="-Wl,-O1 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now"
  LTOFLAGS="-flto=auto"
+ RUSTFLAGS="-Cforce-frame-pointers=yes"
+ #-- Make Flags: change this for DistCC/SMP systems

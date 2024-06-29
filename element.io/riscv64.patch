@@ -8,19 +8,15 @@
 +makedepends=(npm git yarn python rust tcl ${_electron} nodejs libxcrypt-compat sentry-cli go jq zip p7zip)
  _url="https://github.com/vector-im/element"
  source=(element-web-${pkgver}.tar.gz::${_url}-web/archive/v${pkgver}.tar.gz
-         element-web-${pkgver}.tar.gz.asc::${_url}-web/releases/download/v${pkgver}/v${pkgver}-src.tar.gz.asc
-@@ -30,18 +30,55 @@ sha256sums=('c7395f14a7747ece79ade9ab1133e95abf9c35c73fa430220e4a5d8868cd5028'
+         element-web-${pkgver}.tar.gz.asc::${_url}-web/releases/download/v${pkgver}/v${pkgver}.tar.gz.asc
+@@ -30,18 +30,50 @@ sha256sums=('53f480ad98619209f8cab66d043c8f1fde4f967caf6688f591eeebf0c4184b19'
              'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba')
  validpgpkeys=(712BFBEE92DCA45252DB17D7C7BE97EFA179B100) # Element Releases <releases@riot.im>
  
 +source+=(element-desktop-riscv64-support.patch
-+         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb
-+         builder-util+24.4.0.patch
-+         app-builder-lib+24.5.2.patch)
++         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
 +sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45'
-+             'SKIP'
-+             '887a6c6e0f1ad5ceceef1e35582bd7498145406945d08ed036d98311cec35a89'
-+             '96f0242d8071075b2f8d916b2f0eabeba660d7314a504792965ee2ff89965175')
++             'SKIP')
 +
  prepare() {
    # Specify electron version in launcher
@@ -37,14 +33,13 @@
    patch -p1 < ../autolaunch.patch
 -  sed -i 's|"target": "deb"|"target": "dir"|' package.json
 +  patch -Np0 -i ../element-desktop-riscv64-support.patch
-+  jq '.build.linux.target=["dir"]' package.json > package.json.new
++  jq '.build.linux.target=["dir"]
++    | .resolutions."electron-builder"="npm:@riscv-forks/electron-builder"
++    | .resolutions."app-builder-lib"="npm:@riscv-forks/app-builder-lib"
++    | .resolutions."builder-util"="npm:@riscv-forks/builder-util"' package.json > package.json.new
 +  mv package.json.new package.json
    sed -i 's|"https://packages.element.io/desktop/update/"|null|' element.io/release/config.json
    yarn install --no-fund
-+
-+  mkdir patches
-+  cp ../builder-util+24.4.0.patch ../app-builder-lib+24.5.2.patch patches
-+  npx patch-package </dev/null
 +
 +  yarn run hak fetch matrix-seshat
 +  pushd .hak/matrix-seshat/riscv64gc-unknown-linux-gnu/build/
@@ -66,7 +61,7 @@
  }
  
  build() {
-@@ -53,7 +90,7 @@ build() {
+@@ -53,7 +85,7 @@ build() {
    export SQLCIPHER_BUNDLED=1
    export CFLAGS+=" -ffat-lto-objects"
    yarn run build:native
@@ -75,7 +70,7 @@
  }
  
  package_element-web() {
-@@ -81,7 +118,7 @@ package_element-desktop() {
+@@ -81,7 +113,7 @@ package_element-desktop() {
    install -d "${pkgdir}"{/usr/lib/element/,/etc/webapps/element}
  
    # Install the app content, replace the webapp with a symlink to the system package

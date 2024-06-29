@@ -1,19 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -19,8 +19,14 @@ options=(!lto)
- depends=('brotli' 'openssl' 'zlib' 'icu' 'libuv' 'libnghttp2' 'c-ares') # 'http-parser' 'v8')
- makedepends=('git' 'python' 'procps-ng')
- optdepends=('npm: nodejs package manager')
--source=("git+https://github.com/nodejs/node.git#commit=$_commit")
--sha512sums=('SKIP')
-+source=("git+https://github.com/nodejs/node.git#commit=$_commit"
-+        "node21-fix-v8.patch::https://github.com/nodejs/node/pull/50551.diff")
-+sha512sums=('SKIP'
-+            '97b47d493b3364695c150c5ba8e5991f5009260cc8c4931da7fd324bb0129b0f04b6fad73ffe156150a76a621b6f13d13dab8640fc4aa9499d19db2ac66411e0')
-+
-+prepare() {
-+  patch -Np1 -d node < node21-fix-v8.patch
-+}
+@@ -26,6 +26,14 @@ validpgpkeys=(
+   '890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4' # RafaelGSS <rafael.nunu@hotmail.com>
+ )
  
++prepare() {
++  cd node
++  patch -Np1 -i ../fix-trap-handler.patch
++  cd deps/v8
++  patch -Np1 -i "${srcdir}"/Skip-check-sv57-when-enable-pointer-compress.patch
++  patch -Np1 -i "${srcdir}"/avoid-cpu-probing-in-li_ptr.patch
++}
++
  build() {
    cd node
+ 
+@@ -62,4 +70,11 @@ package() {
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
+ }
+ 
++source+=("fix-trap-handler.patch"
++          "https://github.com/riscv-forks/electron/raw/610e905b10f11a0844576b04b034015cfe407315/patches/v8/Skip-check-sv57-when-enable-pointer-compress.patch"
++          "https://github.com/riscv-forks/electron/raw/610e905b10f11a0844576b04b034015cfe407315/patches/v8/avoid-cpu-probing-in-li_ptr.patch")
++sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c'
++             'c4567c0220a0604129aab8731e7ff2825f856abc93ef6aaccb7e98dfac7d3592ed29a9b026d2f636baba9d113636ac4dfed7db75989eb8d1b460fe623520615f'
++             'eb3ece4b859a241677ef5d92a5a9a1fb3393cbe7e14f73f0860c3552553a5b52af5263a73a9073417b7dc2447264d3f5dd9ae8d0b63ef49da97c02b519b56afe')
++
+ # vim:set ts=2 sw=2 et:

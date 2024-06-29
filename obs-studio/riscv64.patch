@@ -1,25 +1,10 @@
-diff --git PKGBUILD PKGBUILD
-index e0b4c63..543678b 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,15 +20,18 @@ optdepends=('libfdk-aac: FDK AAC codec support'
-             'v4l2loopback-dkms: virtual camera support')
- source=($pkgname-$pkgver.tar.gz::https://github.com/jp9000/obs-studio/archive/$pkgver.tar.gz
-         fix_python_binary_loading.patch
--        ignore_unused_submodules.patch)
-+        ignore_unused_submodules.patch
-+        libcaption-branch-optimize.patch::https://github.com/obsproject/obs-studio/pull/9184.patch)
- sha256sums=('9d9cfbdbdd255f48a23feeefb60089769a65f52bbca24fa31d74125f3bbb0e90'
-             'bdfbd062f080bc925588aec1989bb1df34bf779cc2fc08ac27236679cf612abd'
--            '60b0ee1f78df632e1a8c13cb0a7a5772b2a4b092c4a2a78f23464a7d239557c3')
-+            '60b0ee1f78df632e1a8c13cb0a7a5772b2a4b092c4a2a78f23464a7d239557c3'
-+            'f4de2aa52afd013fb9c1e6b1248245269a5e78a06ddf8ce166038a7dff097760')
- 
- prepare() {
-   cd $pkgname-$pkgver
-   patch -Np1 < "$srcdir"/fix_python_binary_loading.patch
-   patch -Np1 < "$srcdir"/ignore_unused_submodules.patch
-+  patch -Np1 < "$srcdir"/libcaption-branch-optimize.patch
- }
- 
- build() {
+@@ -43,6 +43,7 @@ build() {
+     -DENABLE_JACK=ON \
+     -DENABLE_LIBFDK=ON \
+     -DENABLE_WEBRTC=ON \
++    -DENABLE_QSV11=OFF \
+     -DOBS_VERSION_OVERRIDE="$pkgver-$pkgrel" \
+     -DCALM_DEPRECATION=ON \
+     -Wno-dev
