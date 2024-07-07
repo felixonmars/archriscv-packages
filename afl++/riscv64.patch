@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,9 +41,18 @@ replaces=(
+   afl
+   aflplusplus
+ )
+-source=("https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha256sums=('11f7c77d37cff6e7f65ac7cc55bab7901e0c6208e845a38764394d04ed567b30')
+-b2sums=('c182260ba25a8a7a87b91ece5b3ea6aafba09b3361259361d9be24b7c5dd90430403a3170ed9397edaa714a45f62de26f324aab005a27a44fffce2708bb366e5')
++source=(
++  "https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/v${pkgver}/${pkgname}-${pkgver}.tar.gz"
++  'change-test-timeout.patch'
++)
++sha256sums=(
++  '11f7c77d37cff6e7f65ac7cc55bab7901e0c6208e845a38764394d04ed567b30'
++  'a4b4ea87b3bb0d4a7b20b9e77941b0157388bc8ab01ed7bdc4c4193a1add7323'
++)
++b2sums=(
++  'c182260ba25a8a7a87b91ece5b3ea6aafba09b3361259361d9be24b7c5dd90430403a3170ed9397edaa714a45f62de26f324aab005a27a44fffce2708bb366e5'
++  '04d69ade554451b3d6e7c16ec3013eea41c5a63ab7dd680a4f8ab87042add30d2ae7b646c68b4629f4b2d8112db799dbb01dad224876a63e31702df6495323bb'
++)
+ 
+ build() {
+   cd "AFLplusplus-${pkgver}"
+@@ -53,6 +62,7 @@ build() {
+ 
+ check() {
+   cd "AFLplusplus-${pkgver}"
++  patch -p0 -i "${srcdir}/change-test-timeout.patch"
+   # Unset our CFLAGS/CXXFLAGS for the tests since these may
+   # interact in unexpected ways with afl-cc instrumentation.
+   CFLAGS= CXXFLAGS= make test
