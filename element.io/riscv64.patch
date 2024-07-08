@@ -1,28 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,7 +12,7 @@ pkgdesc="Glossy Matrix collaboration client — "
- arch=(x86_64)
- url="https://element.io"
- license=(Apache)
--makedepends=(npm git yarn python rust tcl ${_electron} nodejs libxcrypt-compat)
-+makedepends=(npm git yarn python rust tcl ${_electron} nodejs libxcrypt-compat sentry-cli go jq zip p7zip)
- _url="https://github.com/vector-im/element"
- source=(element-web-${pkgver}.tar.gz::${_url}-web/archive/v${pkgver}.tar.gz
-         element-web-${pkgver}.tar.gz.asc::${_url}-web/releases/download/v${pkgver}/v${pkgver}.tar.gz.asc
-@@ -30,18 +30,50 @@ sha256sums=('53f480ad98619209f8cab66d043c8f1fde4f967caf6688f591eeebf0c4184b19'
-             'c1bd9ace215e3ec9af14d7f28b163fc8c8b42e23a2cf04ce6f4ce2fcc465feba')
- validpgpkeys=(712BFBEE92DCA45252DB17D7C7BE97EFA179B100) # Element Releases <releases@riot.im>
- 
-+source+=(element-desktop-riscv64-support.patch
-+         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
-+sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45'
-+             'SKIP')
-+
- prepare() {
+@@ -34,14 +34,41 @@ prepare() {
    # Specify electron version in launcher
    sed -i "s|@ELECTRON@|${_electron}|" element-desktop.sh
  
-+  export ELECTRON_SKIP_BINARY_DOWNLOAD=1 
++  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
 +  export SENTRYCLI_USE_LOCAL=1 SENTRYCLI_SKIP_DOWNLOAD=1
 +  export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 +
@@ -61,7 +43,7 @@
  }
  
  build() {
-@@ -53,7 +85,7 @@ build() {
+@@ -53,7 +80,7 @@ build() {
    export SQLCIPHER_BUNDLED=1
    export CFLAGS+=" -ffat-lto-objects"
    yarn run build:native
@@ -70,7 +52,7 @@
  }
  
  package_element-web() {
-@@ -81,7 +113,7 @@ package_element-desktop() {
+@@ -81,7 +108,7 @@ package_element-desktop() {
    install -d "${pkgdir}"{/usr/lib/element/,/etc/webapps/element}
  
    # Install the app content, replace the webapp with a symlink to the system package
@@ -79,3 +61,14 @@
    ln -s /usr/share/webapps/element "${pkgdir}"/usr/lib/element/webapp
  
    # Config file
+@@ -98,3 +125,10 @@ package_element-desktop() {
+     install -Dm644 build/icons/${i}x${i}.png "${pkgdir}"/usr/share/icons/hicolor/${i}x${i}/apps/io.element.Element.png
+   done
+ }
++
++makedepends+=(sentry-cli go jq zip p7zip)
++source+=(element-desktop-riscv64-support.patch
++         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
++sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45'
++             'SKIP')
++
