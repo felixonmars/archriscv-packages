@@ -1,33 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,13 +9,26 @@ arch=('x86_64')
- url="https://github.com/JakWai01/lurk"
- license=('MIT' 'Apache')
- depends=('gcc-libs')
--makedepends=('cargo')
--source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
--sha512sums=('f545b83f5f6fc84399419394c606e3d7c9c4a5ed094ae171f4f226768609ee7c1d364d13f862efd6aa2d21615cd7c14165dc3c4c4a2b2f9148fba4963b62f401')
-+makedepends=('cargo' 'git')
-+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
-+        "add-riscv64-support.patch::https://github.com/JakWai01/lurk/commit/ac8aa8e548570ec419ffe55106503e1c04d4a4bc.diff"
-+        "git+https://github.com/nix-rust/nix#tag=v0.27.1"
-+        "nix-add-ptrace-getregs.patch::https://patch-diff.githubusercontent.com/raw/nix-rust/nix/pull/2044.diff")
-+sha512sums=('f545b83f5f6fc84399419394c606e3d7c9c4a5ed094ae171f4f226768609ee7c1d364d13f862efd6aa2d21615cd7c14165dc3c4c4a2b2f9148fba4963b62f401'
-+            'dcf21e49a40a06fad81fc9b47bc61d8a0f1fc7f4a599836bbc533d31c5824151137b6504ac320ded4606c3e4c98331eab615539c3385d55c56b19b590b6ce657'
-+            'SKIP'
-+            '296d19da72f137b6a90e76b4b955372d8741991a89186f335619a3f65a81de07c71107fb3efe1137966ddbb3520f9e21d91d454e66f35eec90ace1a49bb85aa3')
+@@ -15,6 +15,7 @@ sha512sums=('8d74eca342a61f7a020cc85253e5afc70a81c46c4936b927fd3158c65299a3b1f67
  
  prepare() {
-+  cd nix
-+  git apply ../nix-add-ptrace-getregs.patch
-+  cd ..
-+
    cd "$pkgname-$pkgver"
--  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  echo -e '\n[patch.crates-io]\nnix = { path = "../nix" }\n' >> Cargo.toml
-+  cargo update -p nix
-+  cargo fetch --locked
-+  patch -Np1 -i ../add-riscv64-support.patch
++  patch -Np1 -i ../riscv64-support.patch
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
  }
  
- build() {
+@@ -35,4 +36,7 @@ package() {
+   install -Dm 644 LICENSE-MIT -t "$pkgdir/usr/share/licenses/$pkgname"
+ }
+ 
++source+=(riscv64-support.patch::https://github.com/JakWai01/lurk/pull/44.diff)
++sha512sums+=('SKIP')
++
+ # vim: ts=2 sw=2 et:
