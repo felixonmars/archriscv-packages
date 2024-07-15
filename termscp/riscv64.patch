@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,9 @@ options=('!lto')
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
++  patch -Np1 -i ../bump-ring.patch
++  echo -e "[patch.crates-io]\npavao = { git = 'https://github.com/veeso/pavao', rev = 'e802cb48351375adfbd83991d3acf02b737499bb' }" >> Cargo.toml
++  cargo update -p pavao
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ }
+ 
+@@ -40,4 +43,7 @@ package() {
+   install -Dm 644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
+ 
++source+=(bump-ring.patch)
++sha512sums+=('7ebddee1ff13148717e0159e50f0654b224f8c3ae51e0cfc4b79600bfcfb37402ae248f32448c8c56879b8892e077d0a4f2bd63859ed29d40f159966e21ecd18')
++
+ # vim: ts=2 sw=2 et:
