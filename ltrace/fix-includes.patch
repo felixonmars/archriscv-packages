@@ -1,0 +1,110 @@
+diff --git a/sysdeps/linux-gnu/riscv64/breakpoint.c b/sysdeps/linux-gnu/riscv64/breakpoint.c
+index ac82693..c43095d 100644
+--- a/sysdeps/linux-gnu/riscv64/breakpoint.c
++++ b/sysdeps/linux-gnu/riscv64/breakpoint.c
+@@ -22,9 +22,11 @@
+ 
+ #include "config.h"
+ 
++#include <assert.h>
+ #include <sys/ptrace.h>
+ #include <errno.h>
+ #include <string.h>
++#include <stdbool.h>
+ #include <stdio.h>
+ 
+ #include "common.h"
+diff --git a/testsuite/ltrace.main/filters.exp b/testsuite/ltrace.main/filters.exp
+index 988346f..f7f4140 100644
+--- a/testsuite/ltrace.main/filters.exp
++++ b/testsuite/ltrace.main/filters.exp
+@@ -22,6 +22,7 @@ set libfilt1 [ltraceCompile libfilt1.so [ltraceSource c {
+ }]]
+ 
+ set libfilt2 [ltraceCompile libfilt2.so [ltraceSource c {
++    #include <stdio.h>
+     void func2(void) { puts("func2"); }
+ }]]
+ 
+diff --git a/testsuite/ltrace.main/parameters.c b/testsuite/ltrace.main/parameters.c
+index ff24a38..9569dbe 100644
+--- a/testsuite/ltrace.main/parameters.c
++++ b/testsuite/ltrace.main/parameters.c
+@@ -17,6 +17,7 @@ void func_intptr_ret(int *i);
+ int func_strlen(char*);
+ void func_strfixed(char*);
+ void func_ppp(int***);
++void func_string(char*);
+ void func_stringp(char**);
+ void func_short(short, short);
+ void func_ushort(unsigned short, unsigned short);
+diff --git a/testsuite/ltrace.main/signals.c b/testsuite/ltrace.main/signals.c
+index a02e795..fda4ab9 100644
+--- a/testsuite/ltrace.main/signals.c
++++ b/testsuite/ltrace.main/signals.c
+@@ -5,6 +5,7 @@
+ #include<stdio.h>
+ #include<signal.h>
+ #include <sys/types.h>
++#include <unistd.h>
+ 
+ #define LOOP	7
+ 
+diff --git a/testsuite/ltrace.minor/time-record.c b/testsuite/ltrace.minor/time-record.c
+index a66b838..7d5e5e3 100644
+--- a/testsuite/ltrace.minor/time-record.c
++++ b/testsuite/ltrace.minor/time-record.c
+@@ -5,6 +5,7 @@
+    This file was written by Yao Qi <qiyao@cn.ibm.com>.  */
+ #include <stdio.h>
+ #include <time.h>
++#include <unistd.h>
+ 
+ #define SLEEP_COUNT 2
+ #define NANOSLEEP_COUNT 50
+diff --git a/testsuite/ltrace.minor/trace-clone.c b/testsuite/ltrace.minor/trace-clone.c
+index db1936d..c68b128 100644
+--- a/testsuite/ltrace.minor/trace-clone.c
++++ b/testsuite/ltrace.minor/trace-clone.c
+@@ -8,6 +8,7 @@
+ #include <sys/types.h>
+ #include <stdlib.h>
+ #include <sched.h>
++#include <unistd.h>
+ 
+ int child ()
+ {
+diff --git a/testsuite/ltrace.minor/trace-fork.c b/testsuite/ltrace.minor/trace-fork.c
+index c5f0c71..a4092db 100644
+--- a/testsuite/ltrace.minor/trace-fork.c
++++ b/testsuite/ltrace.minor/trace-fork.c
+@@ -6,6 +6,8 @@
+ 
+ #include <stdio.h>
+ #include <sys/types.h>
++#include <unistd.h>
++#include <sys/wait.h>
+ 
+ void 
+ child ()
+@@ -27,7 +29,7 @@ main ()
+   else
+     {
+       printf("My child pid is %d\n",pid);
+-      wait(); 
++      wait(NULL); 
+     }
+   return 0;
+ }
+diff --git a/testsuite/ltrace.torture/signals.c b/testsuite/ltrace.torture/signals.c
+index b786c81..86e2dba 100644
+--- a/testsuite/ltrace.torture/signals.c
++++ b/testsuite/ltrace.torture/signals.c
+@@ -5,6 +5,7 @@
+ #include<stdio.h>
+ #include<signal.h>
+ #include <sys/types.h>
++#include <unistd.h>
+ 
+ #define LOOP	20
+ 
