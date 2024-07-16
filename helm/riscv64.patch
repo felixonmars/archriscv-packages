@@ -1,27 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,12 +14,14 @@ license=("Apache-2.0")
- depends=('glibc')
- makedepends=("go" "git")
- options=("!lto")
--source=("git+https://github.com/helm/helm.git#tag=v${pkgver}?signed")
-+source=("git+https://github.com/helm/helm.git#tag=v${pkgver}?signed"
-+        "add-riscv64-build.patch")
- validpgpkeys=('672C657BE06B4B30969C4A57461449C25E36B98E'
-               'CABAA8D44DFACA14791FBE9892C44A3D421FF7F9'
-               '967F8AC5E2216F9F4FD270AD92AA783CBAAE8E3B'
-               'F1261BDE929012C8FF2E501D6EA5D7598529A53E')
--sha256sums=('b03f5238f924d10872e453d58442b1fd493a321aff4b70178e9a94a47e1338e4')
-+sha256sums=('b03f5238f924d10872e453d58442b1fd493a321aff4b70178e9a94a47e1338e4'
-+            '0708ba6d62eae84d74c290ad13092ec997aa6883ef80b9854ec8080a5479a2ed')
- 
- pkgver() {
-   cd "${pkgname}"
-@@ -28,6 +30,7 @@ pkgver() {
+@@ -26,6 +26,7 @@ sha256sums=('77b3b7ce47e6a2ba79d38f5e6936ff94177ff401708421198bbbab8d34faa22f')
  
  prepare() {
    cd "${pkgname}"
 +  patch -Np1 -i ../add-riscv64-build.patch
-   go mod tidy -compat=1.17
+   go mod download -x
  }
  
+@@ -56,3 +57,6 @@ package() {
+   bin/helm completion zsh | install -Dm644 /dev/stdin "$pkgdir/usr/share/zsh/site-functions/_helm"
+   bin/helm completion fish | install -Dm644 /dev/stdin "$pkgdir/usr/share/fish/vendor_completions.d/helm.fish"
+ }
++
++source+=("add-riscv64-build.patch")
++sha256sums+=('7f9f010b8b91d9c692b9fe7d96cc8d870f601aec366454f23fc1f59d40b8e1c0')
