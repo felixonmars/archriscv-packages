@@ -1,0 +1,190 @@
+diff --git a/sysdeps/linux-gnu/riscv64/Makefile.am b/sysdeps/linux-gnu/riscv64/Makefile.am
+index f018dfc0b337b6bf5023eb8dfd3f9405257ad919..d68fe4d4ef265a36252232aea1a362e7dbe28b68 100644
+--- a/sysdeps/linux-gnu/riscv64/Makefile.am
++++ b/sysdeps/linux-gnu/riscv64/Makefile.am
+@@ -23,7 +23,8 @@ ___libcpu_la_SOURCES = \
+ 	fetch.c \
+ 	plt.c \
+ 	regs.c \
+-	trace.c
++	trace.c \
++	breakpoint.c
+ 
+ noinst_HEADERS = \
+ 	arch.h \
+diff --git a/sysdeps/linux-gnu/riscv64/arch.h b/sysdeps/linux-gnu/riscv64/arch.h
+index 5f5b0fed239c554a3a74bb244b9c26d1a2b48c88..d858ea6ca92357720b5619be8cb15d0dae0630eb 100644
+--- a/sysdeps/linux-gnu/riscv64/arch.h
++++ b/sysdeps/linux-gnu/riscv64/arch.h
+@@ -25,9 +25,19 @@
+ 
+ #define ARCH_ENDIAN_LITTLE
+ 
++/* NOTE:
++    Name 'BREAKPOINT_LENGTH' is expected to exist and be constexpr
++    (e.g. to initialize unsigned char orig_value[BREAKPOINT_LENGTH]),
++    so it's kind of public, of semantic "max possible size of breakpoint".
++*/
+ /* ebreak */
+ #define BREAKPOINT_VALUE { 0x73, 0x00, 0x10, 0x00 }
+ #define BREAKPOINT_LENGTH 4
++
++/* c.ebreak */
++#define BREAKPOINT_VALUE_COMPRESSED { 0x02, 0x90 }
++#define BREAKPOINT_LENGTH_COMPRESSED 2
++
+ #define DECR_PC_AFTER_BREAK 0
+ 
+ #define LT_ELFCLASS    ELFCLASS64
+@@ -40,6 +50,9 @@
+ #define ARCH_HAVE_FETCH_ARG
+ #define ARCH_HAVE_FETCH_PACK
+ 
++#define ARCH_HAVE_ENABLE_BREAKPOINT
++#define ARCH_HAVE_DISABLE_BREAKPOINT
++
+ #define ARCH_HAVE_LTELF_DATA
+ struct arch_ltelf_data {
+ };
+diff --git a/sysdeps/linux-gnu/riscv64/breakpoint.c b/sysdeps/linux-gnu/riscv64/breakpoint.c
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac826936653b2ef5cc3ac15fb3f1e5b89520cb2a
+--- /dev/null
++++ b/sysdeps/linux-gnu/riscv64/breakpoint.c
+@@ -0,0 +1,110 @@
++/*
++ * This file is part of ltrace.
++ * Copyright (C) 2011 Petr Machata, Red Hat Inc.
++ * Copyright (C) 2006 Ian Wienand
++ * Copyright (C) 2002,2008,2009 Juan Cespedes
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
++ * 02110-1301 USA
++ */
++
++#include "config.h"
++
++#include <sys/ptrace.h>
++#include <errno.h>
++#include <string.h>
++#include <stdio.h>
++
++#include "common.h"
++#include "backend.h"
++#include "sysdep.h"
++#include "breakpoint.h"
++#include "proc.h"
++#include "library.h"
++
++#include "arch.h"
++
++static bool insn_is_compressed(uint32_t insn) {
++	return (insn & 0b11) != 0b11;
++}
++
++void
++arch_enable_breakpoint(pid_t pid, struct breakpoint *sbp)
++{
++	static unsigned char break_insn_full[] = BREAKPOINT_VALUE;
++	static unsigned char break_insn_compressed[] = BREAKPOINT_VALUE_COMPRESSED;
++
++	static unsigned char* bp_insn;
++	unsigned int bp_length;
++
++	debug(DEBUG_PROCESS,
++	      "arch_enable_breakpoint: pid=%d, addr=%p, symbol=%s",
++	      pid, sbp->addr, breakpoint_name(sbp));
++
++	long a = ptrace(PTRACE_PEEKTEXT, pid, sbp->addr, 0);
++	if (a == -1 && errno) goto fail;
++
++	memcpy((void*) sbp->orig_value, (void*) &a, sizeof(sbp->orig_value));
++
++	bool orig_insn_is_compressed = insn_is_compressed(a);
++
++	if (orig_insn_is_compressed) {
++		bp_insn = break_insn_compressed;
++		bp_length = BREAKPOINT_LENGTH_COMPRESSED;
++	} else {
++		bp_insn = break_insn_full;
++		bp_length = BREAKPOINT_LENGTH;
++	}
++
++	assert (bp_length <= sizeof(long));
++
++	// fill lower bytes of original value with (c.)ebreak insn.
++	memcpy(&a, bp_insn, bp_length);
++
++	a = ptrace(PTRACE_POKETEXT, pid, sbp->addr, a);
++	if (a == -1 && errno) goto fail;
++
++	return;
++
++fail:
++	fprintf(stderr, "enable_breakpoint"
++		" pid=%d, addr=%p, symbol=%s: %s\n",
++		pid, sbp->addr, breakpoint_name(sbp),
++		strerror(errno));
++}
++
++void
++arch_disable_breakpoint(pid_t pid, const struct breakpoint *sbp)
++{
++	debug(DEBUG_PROCESS,
++	      "arch_disable_breakpoint: pid=%d, addr=%p, symbol=%s",
++	      pid, sbp->addr, breakpoint_name(sbp));
++
++	long a = ptrace(PTRACE_PEEKTEXT, pid, sbp->addr, 0);
++	if (a == -1 && errno) goto fail;
++
++	memcpy((void*) &a, (void*) sbp->orig_value, sizeof(sbp->orig_value));
++
++	a = ptrace(PTRACE_POKETEXT, pid, sbp->addr, a);
++	if (a == -1 && errno) goto fail;
++
++	return;
++
++fail:
++	fprintf(stderr,
++		"disable_breakpoint pid=%d, addr=%p: %s\n",
++		pid, sbp->addr, strerror(errno));
++	return;
++}
+diff --git a/sysdeps/linux-gnu/riscv64/plt.c b/sysdeps/linux-gnu/riscv64/plt.c
+index abffe97f8f79e276c47ff91333343e80f65ee67f..41f8db196c8fdc98c7a4214b801ce0691a8002fe 100644
+--- a/sysdeps/linux-gnu/riscv64/plt.c
++++ b/sysdeps/linux-gnu/riscv64/plt.c
+@@ -18,6 +18,8 @@
+  * 02110-1301 USA
+  */
+ 
++#include <stdio.h>
++
+ #include <sys/uio.h>
+ #include <gelf.h>
+ #include "ltrace-elf.h"
+diff --git a/sysdeps/linux-gnu/riscv64/regs.c b/sysdeps/linux-gnu/riscv64/regs.c
+index ff29756fe32399ab75e3dcb8562bc04424388cf8..7d0eaa67bfcc0e0ff00061a14f679d1d241a9bbc 100644
+--- a/sysdeps/linux-gnu/riscv64/regs.c
++++ b/sysdeps/linux-gnu/riscv64/regs.c
+@@ -18,6 +18,8 @@
+  * 02110-1301 USA
+  */
+ 
++#include <stdio.h>
++
+ #include <sys/uio.h>
+ #include "proc.h"
+ #include "ptrace.h"

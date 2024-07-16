@@ -1,21 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,8 +12,16 @@ license=('GPL')
- depends=('elfutils' 'libunwind')
- makedepends=('dejagnu')
- backup=('etc/ltrace.conf')
--source=(https://sources.archlinux.org/other/$pkgname/$pkgname-$pkgver.tar.bz2)
--sha256sums=('0e6f8c077471b544c06def7192d983861ad2f8688dd5504beae62f0c5f5b9503')
-+source=(https://sources.archlinux.org/other/$pkgname/$pkgname-$pkgver.tar.bz2
-+        "riscv64-support.patch")
-+sha256sums=('0e6f8c077471b544c06def7192d983861ad2f8688dd5504beae62f0c5f5b9503'
-+            '3261e93f9ae91982afd382046de2f2a7399402c74981724c53cb8b4e25745beb')
-+
+@@ -15,6 +15,14 @@ backup=('etc/ltrace.conf')
+ source=(https://sources.archlinux.org/other/$pkgname/$pkgname-$pkgver.tar.bz2)
+ sha256sums=('0e6f8c077471b544c06def7192d983861ad2f8688dd5504beae62f0c5f5b9503')
+ 
 +prepare() {
 +  cd "$srcdir/$pkgname-$pkgver"
-+  patch -p1 -Ni ${srcdir}/riscv64-support.patch
++  patch -Np1 -i ../riscv64-support.patch
++  patch -Np1 -i ../support-c-ebreak.patch
++  patch -Np1 -i ../fix-includes.patch
 +  autoreconf -fiv
 +}
- 
++
  build() {
    cd "$srcdir/$pkgname-$pkgver"
+ 
+@@ -37,4 +45,11 @@ package(){
+   make DESTDIR="$pkgdir" install
+ }
+ 
++source+=(riscv64-support.patch
++         support-c-ebreak.patch::https://gitlab.com/cespedes/ltrace/-/merge_requests/21.diff
++         fix-includes.patch)
++sha256sums+=('3261e93f9ae91982afd382046de2f2a7399402c74981724c53cb8b4e25745beb'
++             'e6d7a6e7c940d534195e62312acc19d2c2be3012ba1c8ae8e82a6f088ff2ede6'
++             '1e9eb6ca2ae93bcd83a82f39faa7865ea6c460f8035e8b73218985ee5c64b067')
++
+ # vim:set ts=2 sw=2 et:
