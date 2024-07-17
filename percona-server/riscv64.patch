@@ -1,25 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -25,6 +25,9 @@ sha256sums=('c4e6977e787f960fd3bad6a7c06b7e126c46e1403ca133dd8a5da7bd4dcd6574'
-             '4ca7ffdcb2d1716d4f31e4c7dd314e5d76e64f13fdc67c5d81c53650b793f5e0'
-             '2d73c79f355eaf3c0bced0f0da6ad099323f4f489d5cddb609cf01af5a617305')
- 
-+source+=('add-riscv-support.patch::https://patch-diff.githubusercontent.com/raw/percona/percona-server/pull/5030.patch')
-+sha256sums+=('465d90e49cf781b200e8d7155d7273dfde2781438f268f1dea8978259b3d4053')
-+
- prepare() {
- 	cd $pkgbase-$_pkgver
- 	rm -v sql/sql_yacc.{cc,h}
-@@ -42,6 +45,8 @@ prepare() {
- 
- 	sed '/^PrivateTmp=/ a StateDirectory=mysqlrouter\nRuntimeDirectory=mysqlrouter' \
+@@ -42,6 +42,7 @@ prepare() {
  		-i scripts/systemd/mysqlrouter.service.in
-+
-+	patch -Np1 -i ../add-riscv-support.patch
+ 
+         patch -p1 -i ../gcc-14.patch # Fix build with GCC 14
++	patch -p1 -d extra/coredumper -i "$srcdir"/fix-missing-include.patch
  }
  
  build() {
-@@ -50,8 +55,8 @@ build() {
+@@ -50,8 +51,8 @@ build() {
  	cd build
  
  	cmake "../$pkgbase-$_pkgver" \
@@ -30,3 +19,10 @@
  		-Wno-dev \
  		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
  		-DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+@@ -196,3 +197,6 @@ package_percona-server() {
+ 	# not needed
+ 	rm -r usr/share/mysql-test
+ }
++
++source+=("fix-missing-include.patch::https://github.com/Percona-Lab/coredumper/pull/8.diff")
++sha256sums+=('81e3293d9b032d0dfed281067958e5f10306214dfac92a0b321f072bfc5f9910')
