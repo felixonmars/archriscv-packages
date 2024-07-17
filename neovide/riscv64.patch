@@ -1,28 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,6 +29,8 @@ sha256sums=('5425c60454388651fd79757bde7c4d7499cdc49b375f7697b48d8366d45d08e4')
+@@ -40,6 +40,8 @@ sha256sums=('21c8eaa53cf3290d2b1405c8cb2cde5f39bc14ef597b328e76f1789b0ef3539a')
  prepare() {
  	cd "$_archive"
  	sed -r -i -e '/^incremental/a opt-level = 3' Cargo.toml
-+	echo -e "\n[patch.crates-io]\nskia-bindings = { git = 'https://github.com/aimixsaka/rust-skia', branch = 'riscv-skia-bindings-0.68.0' }" >> Cargo.toml
++	echo -e "\n[patch.crates-io]\nskia-bindings = { git = 'https://github.com/hack3ric/rust-skia', branch = 'archrv-0.75.0' }" >> Cargo.toml
 +	cargo update -p skia-bindings
  	cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
  }
  
-@@ -40,6 +42,9 @@ build() {
- 	export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
- 	CFLAGS+=' -ffat-lto-objects'
- 	export SKIA_USE_SYSTEM_LIBRARIES=true
-+	export FORCE_SKIA_BUILD=true
-+	export SKIA_GN_COMMAND=gn
-+	export SKIA_NINJA_COMMAND=ninja
- 	cargo build --frozen --release --features embed-fonts
- }
- 
-@@ -53,3 +58,6 @@ package() {
- 	done
- 	install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE
- }
-+
-+makedepends+=(python git gn ninja clang)
-+options=(!lto)
