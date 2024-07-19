@@ -8,8 +8,11 @@
    rust-musl
    rust-wasm
    rust-src
-@@ -37,8 +36,6 @@ depends=(
+@@ -35,10 +34,9 @@ depends=(
+   zlib
+ )
  makedepends=(
++  git
    clang
    cmake
 -  lib32-gcc-libs
@@ -17,7 +20,37 @@
    libffi
    lld
    llvm
-@@ -95,9 +92,8 @@ link-shared = true
+@@ -60,13 +58,17 @@ source=(
+   0002-bootstrap-Change-bash-completion-dir.patch
+   0003-compiler-Change-LLVM-targets.patch
+   0004-compiler-Use-wasm-ld-for-wasm-targets.patch
++  pin-cc-to-1-0-77.patch
++  cc-1.0.77::git+https://github.com/rust-lang/cc-rs#tag=1.0.77
+ )
+ b2sums=('07fbb29007921cffa6fc11a928d64a43c93c14cd421aee77cf44b7ee71a67c67d9f7454f5d1b85f2d79f50dcc7048a356f4f3971ba87ebad21f53321c51808ca'
+         'SKIP'
+         'c1cf64e26d240fbacbe2170ad4a114e09deb8230c8c7934415c7b9cb32eb30f708694265b34f281f466c8d8ec7841bfa4895da877d2ca87a3a953a7faa40de80'
+         '093cf81b7c5be5ef8421b4a31a56b5b28d3ecfcb2e952bfea379683f31a237142afdd1c2e45a67e29a11e8e915e80671249fdc2b5760e58702234e5b339abf4e'
+         'c81eb7e5f4dd8225701aa379381bd377be2348f42f778e67b77118f68e92ac1fe60aab692fbcd61a02af900f9e017ea05adc7bb508ef6297dd096585e0571e5e'
+-        '963aa64d27763f063b9fac483a870563f5a71a49ec02d17b7ca0c14dbf67064ba56028bbc45f2ee50b16eada725cb55c2aa2ab17ceadff65ba9e40cb220f7a0c')
++        '963aa64d27763f063b9fac483a870563f5a71a49ec02d17b7ca0c14dbf67064ba56028bbc45f2ee50b16eada725cb55c2aa2ab17ceadff65ba9e40cb220f7a0c'
++        '3cc7a30f0adf5e6fb17f02da5c3ad36201b9196408de52363c4863c6b88a95e8a70aca96dcf02535868ff79a263d6e49cc5882cf34f254069256d651f5f34c10'
++        '2e585d4d0d654bfda6fbcd288fda390edb93848f17cfc11cae6f40c57c141f6c7c62c0704679787eec2be3322384376e519defc86b6fc4f047b5570ad786ef24')
+ validpgpkeys=(
+   108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
+ )
+@@ -87,6 +89,10 @@ prepare() {
+   # Use our wasm-ld
+   patch -Np1 -i ../0004-compiler-Use-wasm-ld-for-wasm-targets.patch
+ 
++  # Bump bootstrap cc to v1.0.77, remove upon rust 1.80: https://github.com/rust-lang/rust/pull/122504
++  patch -Np1 -i ../pin-cc-to-1-0-77.patch
++  cd src/bootstrap && cargo update -p cc && cd -
++
+   cat >config.toml <<END
+ # see src/bootstrap/defaults/
+ profile = "dist"
+@@ -99,9 +105,8 @@ link-shared = true
  
  [build]
  target = [
@@ -28,8 +61,8 @@
 +  "riscv64gc-unknown-linux-musl",
    "wasm32-unknown-unknown",
    "wasm32-wasi",
- ]
-@@ -141,22 +137,18 @@ jemalloc = true
+   "wasm32-wasip1",
+@@ -148,22 +153,18 @@ jemalloc = true
  [dist]
  compression-formats = ["gz"]
  
@@ -56,7 +89,7 @@
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -207,12 +199,9 @@ build() {
+@@ -229,12 +230,9 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
