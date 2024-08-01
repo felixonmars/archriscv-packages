@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index b1e6243..4e2d72a 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,15 +13,21 @@
+ checkdepends=('pifpaf' 'rabbitmq')
+ source=("https://files.pythonhosted.org/packages/source/l/librabbitmq/librabbitmq-$pkgver.tar.gz"
+         "librabbitmq-c-$_librabbitmqver.zip::https://github.com/alanxz/rabbitmq-c/archive/v$_librabbitmqver.zip"
+-        $pkgname-remove-u-mode.patch::https://github.com/celery/librabbitmq/commit/eba309a9354347f0824f3f9a82e462ef243e11ff.patch)
++        $pkgname-remove-u-mode.patch::https://github.com/celery/librabbitmq/commit/eba309a9354347f0824f3f9a82e462ef243e11ff.patch
++        $pkgname-fix-missing-include.patch::https://github.com/celery/librabbitmq/pull/169.diff
++        $pkgname-fix-cast.patch::https://github.com/celery/librabbitmq/pull/168.diff)
+ sha512sums=('c35b815bc776bbac3087880406cb8dbcf6d3d8fad3590139d0dd88ae059599927f7a277493e6fd557ba2da6c9e8ee1a668f079bbb16f5127ccfd223afbd30a3f'
+             'e386979ce1bc05c02cda06e8582981e0df25f9b31ca950f8a921bd2b249020f751ba65a6f38b8f5ba0be1b3e89492b29b72c6cd1d5ed3d6f19440799d6419ba6'
+-            '05405dd194a43958658ab03910bc5f52aa385dc0ee75b6c95f0d593fa9d443204d201b1e38f88f57e296e9100d91334199aa75eaa85a2dcfbd341cc4cc29b6e4')
++            '05405dd194a43958658ab03910bc5f52aa385dc0ee75b6c95f0d593fa9d443204d201b1e38f88f57e296e9100d91334199aa75eaa85a2dcfbd341cc4cc29b6e4'
++            'baec58a171d104f6a23c7f2b68b5cdd302e70a9c60fd1aa1ff721f8c5262af04133389ec4870ce0ad0d9cc0b21574748e9814aef5872b366eb7a89ade1f1607f'
++            'b4ba0bb41d63fb2cccdab5de37a6ef06adf0ae83e16a895d55e9ddefe085048a0caa999e80bc09f81f0ca5fe25bed41941f6b080089e575dcfe669d6db584314')
+ validpgpkeys=('0E54D05A3224273DC1B5435612A53B890119D176') # Omer Katz <omer.drow@gmail.com>
+ 
+ prepare() {
+   cd librabbitmq-$pkgver
+   patch -p1 < ../$pkgname-remove-u-mode.patch
++  patch -p1 < ../$pkgname-fix-missing-include.patch
++  patch -p1 < ../$pkgname-fix-cast.patch
+   ln -s ../rabbitmq-c-$_librabbitmqver ./rabbitmq-c
+   sed -i "s/'git'/'true'/;s/if six.PY2:/if sys.version_info[0] < 3:/" setup.py
+ }
