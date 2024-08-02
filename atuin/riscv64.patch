@@ -1,11 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -32,7 +32,7 @@ build() {
- 
- check() {
+@@ -21,6 +21,8 @@ prepare() {
    cd "$pkgname-$pkgver"
--  cargo test --frozen --all-features --workspace --lib
-+  ATUIN_TEST_SQLITE_STORE_TIMEOUT=1.0 cargo test --frozen --all-features --workspace --lib
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+   mkdir completions/
++  # increase SQLite connection timeout
++  sed -i 's/Sqlite::new("sqlite::memory:", 0.1)/Sqlite::new("sqlite::memory:", 2.0)/' crates/atuin-client/src/database.rs
  }
  
- package() {
+ build() {
+@@ -36,6 +38,7 @@ build() {
+ }
+ 
+ check() {
++  export ATUIN_TEST_SQLITE_STORE_TIMEOUT=2.0
+   cd "$pkgname-$pkgver"
+   cargo test --frozen --all-features --workspace --lib
+ }
