@@ -1,15 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -6,6 +6,8 @@ pkgver=11.0.1
- _d2j=2.1
- _yajsw=13.09
- _jserif=2.1
-+_protobuf=21.8
-+_protobuf_cpp=3.$_protobuf
- pkgrel=1
- pkgdesc='Software reverse engineering framework'
- url='https://ghidra-sre.org/'
-@@ -33,6 +35,12 @@ sha512sums=('14a555c8bc6b66c02a92192f20abda1c8c82119894529bd7d14d40ae0bf22449d3a
+@@ -33,6 +33,12 @@ sha512sums=('4805c0508c2781f3b05697aa7930b044241d749341b2ba5087d50ff0839d08052c8
              '04d1f895f87a8f0a653ee5c2b18ed0b6d158f1b7de4e16de2e50ed5a3087b1e83ca01f6c4c8c53d1788942e29d2f41528c910f224c41e27098cb5c2838a8ddf3')
  
  prepare() {
@@ -22,7 +13,7 @@
    export PATH="/usr/lib/jvm/java-17-openjdk/bin:${PATH}"
    cd ghidra-Ghidra_${pkgver}_build
  
-@@ -50,14 +58,24 @@ prepare() {
+@@ -50,14 +56,24 @@ prepare() {
  
    # Ignore lack of licensing for YAJSW zip, packed FID datasets, and the native binaries
    sed -i '/FileTree tree/a\\t\texclude "yajsw-stable-**.zip"\n\t\texclude "src/main/fidb/**.fidb"\n\t\texclude "os/linux64/**"' gradle/support/ip.gradle
@@ -48,7 +39,7 @@
    gradle sleighCompile
    gradle buildGhidra
  }
-@@ -69,7 +87,7 @@ package() {
+@@ -69,7 +85,7 @@ package() {
    install -d "${pkgdir}"/{opt,usr/bin}
    _appver=$(grep -oP '(?<=^application.version=).*$' Ghidra/application.properties)
    _relname=$(grep -oP '(?<=^application.release.name=).*$' Ghidra/application.properties)
@@ -57,10 +48,12 @@
  
    # Simplify some directory and binary names
    mv "${pkgdir}"/opt/ghidra{_*,}
-@@ -77,4 +95,9 @@ package() {
+@@ -77,4 +93,11 @@ package() {
    ln -s /opt/ghidra/support/analyzeHeadless "${pkgdir}"/usr/bin/ghidra-analyzeHeadless
  }
  
++_protobuf=21.8
++_protobuf_cpp=3.$_protobuf
 +source+=(https://github.com/protocolbuffers/protobuf/releases/download/v${_protobuf}/protobuf-cpp-${_protobuf_cpp}.tar.gz
 +         add-riscv64-build.patch)
 +sha512sums+=('ef4939dcd7d10a602f95cb8d6fdb5d31c53bd39f18678572f97d443be01093e05a69b6756e8431a27200ad30decf2a007274a5b90ecaecbb5d8e341008bba175'
