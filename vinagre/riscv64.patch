@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -54,6 +54,13 @@ pkgver() {
+ prepare() {
+   cd $pkgname
+   NOCONFIGURE=1 ./autogen.sh
++  sed -i 's/volatile dontoptimiseaway/volatile int dontoptimiseaway/' \
++    plugins/vnc/vinagre-vnc-plugin.c \
++    plugins/rdp/vinagre-rdp-plugin.c \
++    plugins/ssh/vinagre-ssh-plugin.c \
++    plugins/spice/vinagre-spice-plugin.c
++  sed -i 's/priv->channel = g_object_ref (channel);/priv->channel = (TpChannel *)g_object_ref (channel);/' \
++    vinagre/vinagre-tube-handler.c
+ }
+ 
+ build() {
