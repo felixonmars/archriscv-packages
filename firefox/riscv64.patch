@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -109,7 +109,6 @@ ac_add_options --enable-optimize
+@@ -143,7 +143,6 @@ ac_add_options --enable-optimize
  ac_add_options --enable-rust-simd
  ac_add_options --enable-linker=lld
  ac_add_options --disable-install-strip
@@ -8,7 +8,7 @@
  ac_add_options --disable-bootstrap
  ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
  
-@@ -134,7 +133,7 @@ ac_add_options --with-system-nss
+@@ -168,7 +167,7 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -17,14 +17,14 @@
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -157,34 +156,7 @@ build() {
+@@ -195,34 +194,7 @@ build() {
  
    # Do 3-tier PGO
    echo "Building instrumented browser..."
 -  cat >.mozconfig ../mozconfig - <<END
 -ac_add_options --enable-profile-generate=cross
 -END
--  ./mach build
+-  ./mach build --priority normal
 -
 -  echo "Profiling instrumented browser..."
 -  ./mach package
@@ -40,7 +40,7 @@
 -  test -s jarlog
 -
 -  echo "Removing instrumented browser..."
--  ./mach clobber
+-  ./mach clobber objdir
 -
 -  echo "Building optimized browser..."
 -  cat >.mozconfig ../mozconfig - <<END
@@ -50,6 +50,6 @@
 -ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
 -END
 +  cat >.mozconfig ../mozconfig
-   ./mach build
+   ./mach build --priority normal
  }
  
