@@ -1,0 +1,39 @@
+From 11eb324ba321fe04c9853aaa0aa309603170a54f Mon Sep 17 00:00:00 2001
+From: Icenowy Zheng <uwu@icenowy.me>
+Date: Sat, 20 Jul 2024 22:03:54 +0800
+Subject: [PATCH 25/26] zink: reject Imagination proprietary driver w/o
+ geometryShader
+
+On some low-end GPUs (e.g. BXE/BXM series), the Imagination proprietary
+Vulkan driver do not implement geometryShader feature, which is required
+by Zink currently to smoothen lines. In addition, these vulkan drivers
+shipped are usually not robust enough to run Zink at all, and
+frequently fail with crashes.
+
+Reject these drivers.
+
+Signed-off-by: Icenowy Zheng <uwu@icenowy.me>
+---
+ src/gallium/drivers/zink/zink_screen.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/gallium/drivers/zink/zink_screen.c b/src/gallium/drivers/zink/zink_screen.c
+index 43ae9829d47..5b80f1657d7 100644
+--- a/src/gallium/drivers/zink/zink_screen.c
++++ b/src/gallium/drivers/zink/zink_screen.c
+@@ -3424,6 +3424,12 @@ zink_internal_create_screen(const struct pipe_screen_config *config, int64_t dev
+       }
+    }
+ 
++   if (screen->info.driver_props.driverID == VK_DRIVER_ID_IMAGINATION_PROPRIETARY && !screen->info.feats.features.geometryShader) {
++      if (!screen->driver_name_is_inferred)
++         mesa_loge("zink: Imagination proprietary driver w/o geometryShader is unsupported");
++      goto fail;
++   }
++
+    if (zink_debug & ZINK_DEBUG_MEM) {
+       simple_mtx_init(&screen->debug_mem_lock, mtx_plain);
+       screen->debug_mem_sizes = _mesa_hash_table_create(screen, _mesa_hash_string, _mesa_key_string_equal);
+-- 
+2.46.0
+

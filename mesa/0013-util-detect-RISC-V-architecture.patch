@@ -1,0 +1,51 @@
+From dcc49942d672154bb70d1c7a05a281066bb71f57 Mon Sep 17 00:00:00 2001
+From: Yukari Chiba <i@0x7f.cc>
+Date: Tue, 25 Jun 2024 13:44:40 +0800
+Subject: [PATCH 13/26] util: detect RISC-V architecture
+
+---
+ src/util/detect_arch.h | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/src/util/detect_arch.h b/src/util/detect_arch.h
+index 83e4784465b..35385a02b49 100644
+--- a/src/util/detect_arch.h
++++ b/src/util/detect_arch.h
+@@ -101,6 +101,17 @@
+ #define DETECT_ARCH_HPPA 1
+ #endif
+ 
++#if defined(__riscv)
++#define DETECT_ARCH_RISCV 1
++#if __riscv_xlen == 64
++#define DETECT_ARCH_RISCV64 1
++#elif __riscv_xlen == 32
++#define DETECT_ARCH_RISCV32 1
++#else
++#error "detect_arch: unknown target riscv xlen"
++#endif
++#endif
++
+ #ifndef DETECT_ARCH_X86
+ #define DETECT_ARCH_X86 0
+ #endif
+@@ -145,4 +156,16 @@
+ #define DETECT_ARCH_HPPA 0
+ #endif
+ 
++#ifndef DETECT_ARCH_RISCV
++#define DETECT_ARCH_RISCV 0
++#endif
++
++#ifndef DETECT_ARCH_RISCV32
++#define DETECT_ARCH_RISCV32 0
++#endif
++
++#ifndef DETECT_ARCH_RISCV64
++#define DETECT_ARCH_RISCV64 0
++#endif
++
+ #endif /* UTIL_DETECT_ARCH_H_ */
+-- 
+2.46.0
+

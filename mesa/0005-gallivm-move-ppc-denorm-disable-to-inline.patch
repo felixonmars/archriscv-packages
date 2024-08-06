@@ -1,0 +1,96 @@
+From 18a926c9ca1ddac5dd224b5d7d75c65bc0dc6e21 Mon Sep 17 00:00:00 2001
+From: Dave Airlie <airlied@redhat.com>
+Date: Fri, 21 Jun 2024 12:13:42 +1000
+Subject: [PATCH 05/26] gallivm: move ppc denorm disable to inline
+
+This just puts it out of the way
+
+Reviewed-By: Mike Blumenkrantz <michael.blumenkrantz@gmail.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/29869>
+---
+ src/gallium/auxiliary/gallivm/lp_bld_init.c | 22 +---------------
+ src/gallium/auxiliary/gallivm/lp_bld_init.h | 28 +++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 21 deletions(-)
+
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_init.c b/src/gallium/auxiliary/gallivm/lp_bld_init.c
+index 62d26141175..398ebe070ae 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_init.c
++++ b/src/gallium/auxiliary/gallivm/lp_bld_init.c
+@@ -453,27 +453,7 @@ lp_build_init(void)
+ 
+    lp_set_target_options();
+ 
+-#if DETECT_ARCH_PPC_64
+-   /* Set the NJ bit in VSCR to 0 so denormalized values are handled as
+-    * specified by IEEE standard (PowerISA 2.06 - Section 6.3). This guarantees
+-    * that some rounding and half-float to float handling does not round
+-    * incorrectly to 0.
+-    * XXX: should eventually follow same logic on all platforms.
+-    * Right now denorms get explicitly disabled (but elsewhere) for x86,
+-    * whereas ppc64 explicitly enables them...
+-    */
+-   if (util_get_cpu_caps()->has_altivec) {
+-      unsigned short mask[] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
+-                                0xFFFF, 0xFFFF, 0xFFFE, 0xFFFF };
+-      __asm (
+-        "mfvscr %%v1\n"
+-        "vand   %0,%%v1,%0\n"
+-        "mtvscr %0"
+-        :
+-        : "r" (*mask)
+-      );
+-   }
+-#endif
++   lp_bld_ppc_disable_denorms();
+ 
+    gallivm_initialized = true;
+ 
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_init.h b/src/gallium/auxiliary/gallivm/lp_bld_init.h
+index f53702f17a1..d29837eeb0e 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_init.h
++++ b/src/gallium/auxiliary/gallivm/lp_bld_init.h
+@@ -32,6 +32,7 @@
+ 
+ #include "util/compiler.h"
+ #include "util/u_pointer.h" // for func_pointer
++#include "util/u_cpu_detect.h"
+ #include "lp_bld.h"
+ #include <llvm-c/ExecutionEngine.h>
+ 
+@@ -102,6 +103,33 @@ gallivm_jit_function(struct gallivm_state *gallivm,
+ unsigned gallivm_get_perf_flags(void);
+ 
+ void lp_init_clock_hook(struct gallivm_state *gallivm);
++
++static inline void
++lp_bld_ppc_disable_denorms(void)
++{
++#if DETECT_ARCH_PPC_64
++   /* Set the NJ bit in VSCR to 0 so denormalized values are handled as
++    * specified by IEEE standard (PowerISA 2.06 - Section 6.3). This guarantees
++    * that some rounding and half-float to float handling does not round
++    * incorrectly to 0.
++    * XXX: should eventually follow same logic on all platforms.
++    * Right now denorms get explicitly disabled (but elsewhere) for x86,
++    * whereas ppc64 explicitly enables them...
++    */
++   if (util_get_cpu_caps()->has_altivec) {
++      unsigned short mask[] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,
++                                0xFFFF, 0xFFFF, 0xFFFE, 0xFFFF };
++      __asm (
++        "mfvscr %%v1\n"
++        "vand   %0,%%v1,%0\n"
++        "mtvscr %0"
++        :
++        : "r" (*mask)
++      );
++   }
++#endif
++}
++
+ #ifdef __cplusplus
+ }
+ #endif
+-- 
+2.46.0
+
