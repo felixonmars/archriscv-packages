@@ -1,21 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,7 +9,6 @@ pkgname=(
-   'vulkan-mesa-layers'
-   'opencl-clover-mesa'
-   'opencl-rusticl-mesa'
--  'vulkan-intel'
-   'vulkan-nouveau'
-   'vulkan-radeon'
-   'vulkan-swrast'
-@@ -127,13 +126,17 @@ prepare() {
+@@ -11,7 +11,6 @@ pkgname=(
+   mesa-vdpau
+   opencl-clover-mesa
+   opencl-rusticl-mesa
+-  vulkan-intel
+   vulkan-mesa-layers
+   vulkan-nouveau
+   vulkan-radeon
+@@ -139,13 +138,17 @@ prepare() {
    # its GPU cache; otherwise it can cause pages to render incorrectly.
    # https://bugs.launchpad.net/ubuntu/+source/chromium-browser/+bug/2020604
    echo "$pkgver-arch$epoch.$pkgrel" >VERSION
 +
-+  # Add orcjit support
-+  # https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/26018
-+  patch -Np1 -i ../add-llvm-orcjit.patch
++  for _patch in $(find .. -name '00??-*.patch'); do
++    patch -Np1 -i "$_patch"
++  done
  }
  
  build() {
@@ -27,9 +27,12 @@
      -D gallium-extra-hud=true
      -D gallium-nine=true
      -D gallium-omx=bellagio
-@@ -144,13 +147,14 @@ build() {
+@@ -154,15 +157,16 @@ build() {
+     -D gles1=disabled
      -D glx=dri
      -D intel-clc=enabled
+-    -D intel-rt=enabled
++    -D intel-rt=disabled
      -D libunwind=disabled
 +    -D llvm-orcjit=true
      -D microsoft-clc=disabled
@@ -37,18 +40,83 @@
      -D platforms=x11,wayland
      -D valgrind=enabled
      -D video-codecs=all
--    -D vulkan-drivers=amd,intel,intel_hasvk,swrast,virtio,nouveau-experimental
+-    -D vulkan-drivers=amd,intel,intel_hasvk,swrast,virtio,nouveau
 -    -D vulkan-layers=device-select,intel-nullhw,overlay
-+    -D vulkan-drivers=amd,swrast,virtio,nouveau-experimental
++    -D vulkan-drivers=amd,swrast,virtio,nouveau
 +    -D vulkan-layers=device-select,overlay
    )
  
    # Build only minimal debug info to reduce size
-@@ -501,3 +505,7 @@ package_mesa() {
+@@ -234,9 +238,6 @@ package_mesa() {
+     _pick clrust $libdir/libRusticlOpenCL*
+     _pick clrust etc/OpenCL/vendors/rusticl.icd
+ 
+-    _pick vkintel $icddir/intel_*.json
+-    _pick vkintel $libdir/libvulkan_intel*.so
+-
+     _pick vklayer $libdir/libVkLayer_*.so
+     _pick vklayer usr/bin/mesa-overlay-control.py
+     _pick vklayer usr/share/vulkan/{ex,im}plicit_layer.d
+@@ -508,4 +509,62 @@ package_vulkan-virtio() {
+   install -Dm644 mesa-$pkgver/docs/license.rst -t "$pkgdir/usr/share/licenses/$pkgname"
  }
  
- # vim:set sw=2 sts=-1 et:
++source+=(0004-gallivm-add-lp_context_ref-for-combine-usage-of-LLVM.patch
++         0005-gallivm-move-ppc-denorm-disable-to-inline.patch
++         0006-gallivm-split-some-code-out-from-init-module.patch
++         0007-gallivm-make-lp_bld_coro.h-c-include-safe.patch
++         0008-gallivm-export-target-init-code-for-orc-jit-to-reuse.patch
++         0009-gallivm-split-out-generating-LLVM-Mattrs.patch
++         0010-gallivm-create-a-pass-manager-wrapper.patch
++         0011-llvmpipe-add-gallivm_add_global_mapping.patch
++         0012-llvmpipe-make-unnamed-global-have-internal-linkage.patch
++         0013-util-detect-RISC-V-architecture.patch
++         0014-gallivm-add-riscv-support-to-the-mattrs-setting-code.patch
++         0015-llvmpipe-add-function-name-to-gallivm_jit_function.patch
++         0016-llvmpipe-tests-add-a-new-test-for-multiple-symbols-f.patch
++         0017-llvmpipe-add-an-implementation-with-llvm-orcjit.patch
++         0018-llvmpipe-append-partial-mask-to-partial-fs_variant-f.patch
++         0019-llvmpipe-add-shader-cache-support-for-ORCJIT-impleme.patch
++         0023-vulkan-runtime-Rename-vk_meta_object_list-to-vk_obje.patch
++         0024-vulkan-runtime-Split-vk_object_list-into-separate-fi.patch
++         0025-zink-reject-Imagination-proprietary-driver-w-o-geome.patch)
++sha256sums+=('395e871d3382feb58a1f4ec3f6c51147f8c513fa7cd596b9472a84c74a3baad3'
++             '9fd37362ce05eeeea5f2e335439480c6d04d783e597c2de9e99a31122d6ad925'
++             'be4a0b60e19c762512699f51d7ecc523a648bd80e96fadce5658adc38681fb9d'
++             'e3d1aee10ad7af999e1d04c78b0cc1fb6be8b8e724e499d0718d4917701ddb07'
++             '546b67cc53506e2333b8ce2bbbe8e795803e37b1432f4b60c780f856cf103c01'
++             'ff965b3027592f5dfe7a76fd531aaa0431542791d3a2801be400ab7407490270'
++             'cd01ec0c7dc1eaa8ddd9f15cf3550b8ac44c0d1dcee875f050cb56a7d9b8e330'
++             '7cff07feefe199cc6c594021c28a4fe119b0490978a4b4d7ac175a78a6d2c8ef'
++             '0046f36c95648189a17b52574894348882bbbc2ac59407ca66e8a172b449a69c'
++             '32c0e5256d4ede4c957f60b90e64f0b769d204167d703eb3d23fe84ba8eda253'
++             'fb0ac7acb932716e6f6d76338a2694c784b358c865580e73f6717d5c7d3ae034'
++             '0cb74bc4d5440232b1e7b6023e7a11e6c9adf35675102c28c7b36b9fd5fa96f9'
++             '3ae825b1b35f3e5d83d96077d694b63cc4c1f7a0cd2eaf50c7d162464496a371'
++             '06e0f00b2e63f826bf56afb50076907641e9064829dcf29ec9753783ed69bd58'
++             '024e7f5ee10983b58ac0efdf9e49c441d8e665a201d26a65f4992cc85093725d'
++             'cd5e7d0d3bf282af9cd92a805b2f3155bee4fbb970360cc754d1b07b5ffd86b0'
++             '015e8cd557d1fcec0ca6130435c78c76935015bb2096783c54e1960d49cd391d'
++             '502fbbcfbada58972166990a5d97053be850b8bcdcc25f12186b80bfd278daba'
++             '8cdc0e0241849af4aa432a1f0d9abde2fad9a5a987fb2de8c7cdab552eddadf2')
++b2sums+=('8043e7fbc6ef6fe014c868adc328ebcdae5615973f0b277618525ef040d2df5ee6f080f09ec872c5a00a48967c07a48819058b43a50ba1210d35ed5e3cc22a7b'
++         'b4ce31fcad12d2571ea3aa97b16f3661844b52765119955c89253ed995be9ec53446f52153a959b3f98cb6c85b123c7313b2fdf162f0681bfccca14385284cfa'
++         'bb8ddce4163d3c27d4fa0c3eb51ac7a6d9a78f35b66168b2bd502260c2c2482248462bab10047e943b24e83c7c6d6f09aaf0230b697346dd8f5ca25c8207c5a9'
++         '85f107ce57c16a1bb3efc908c39e82b92dceb477bdbb98ab3e24825ed1801f684d104218fa2298550a0f293eb930cc0ac6f75eb0e73da3267531df49e4e6a781'
++         'd6ac9c3b3feabc9568d638e1a5df7fd2feb0458ba5b38adca393206463a93a8ab3b0f74f520f461dd1e9c6b11cecb6bf188736395e403632886781b219ff3920'
++         '21a366d439ff52c90af9482370baf144c8afa55bbc373701dcbb1bda259b320168426e3978715b107764bcdec5dec1afa389f07e26b5999fdbb4bd6e0bcd50b8'
++         '8743071c66c7fa661a914f370bc11dd83667add4051d6f10519d87e5b732f1c1f5678182a0b5aa9a114cc9e248f859743b1c5f0c700d022220db11c1e7b98327'
++         'af7bbc9666537d906e5457d67e6643a447b54bb3809e01e397c4db92800d2fee12447ff68a1e37c96cab53678e53380fdac6668e1b610d884793792a81ad9fe7'
++         'bbb3aa8262a98dcc4b232a04014075433e2a58fef16f799435e050293ceca4247c0422a0fd301b14249b2179e9add0d1997ea88e06338f3cbda8b7dea871815b'
++         '9503830d3a5deb490fd6c03a4e9ccc6c524356ba7e8a4c06b042d35088b7f8541b1dccb54fd3cccd869294f7576c98b54fab7f2e1b08ea700c1f87b1ea589a96'
++         'e19ae13201937665a72f541430df4bc0f6b883189846ada8443d126ba22cd95a3aa79831d1dca052dc39bb3255471bd52538396761306eb5106fc8a7c4363df8'
++         'eb5bd0a8c62a4d06f29c4096d9ce69933fe7f33f2485d954f379b8d6aaf3c3204447a1ed6c3750710acdd9a4631942f01bcfa66804d7c0ff36b4fb6605898341'
++         'eb802c6bee158736a377ba6dc57138458eef46c0ade2640cfa2c5e1da367e43c6f2bcb86e274dfdab971f397524dd91b2eb7501c0489eb8d54e748ebee56643f'
++         '835fd060fa610fce3dabcddb3da8638a3acbc012bfaabcabdd45f86540b250fed7a422a10c55cf206590b01693ee32a95f40b6ac61d70b9fcff8d0efca3ee743'
++         '2cb8b7f9b02af2546630c0f2a1317d025504dbac0ac7743b97efdf14977f04a1b5537571a129c911774d7c8c15eca5f818e861845002bdf21bd8cd8dc5d2a609'
++         '2340524f90c75313b7b8679c218851a5a44af68515b1312309534735b6d55f67d3718700a0022490de8209cd4ca5430180fe04429d500ede411000e5cae870af'
++         '0f4737d747873d25748dd64fbc1391ba7e6f71f76c12682ef3b14c03d4d6a91d70d8368fc162cebfa0568f3873e9e8286d3de5e3503e6310257c7e9c8d362800'
++         'd7c4005b0e6c38439e4c48598871bcc35abd4a5728a67e75e0a3fa03277539b9c69645d325ff15c938e0114139c2f91f8074011a716d2b5e36109f12fa8d88ea'
++         '1858b1ae88dbd2845101961863d05bce78505121909c3d1f1f47c84c980aa991cc7dc510dd38c11a7e8e4ee93ca184a2348698191c63e5b7aa73225a2cf33ab0')
 +
-+source+=(add-llvm-orcjit.patch)
-+sha256sums+=('50179d3a76ea0d40c968e0f2f0a48500103d3e626436bfc66d7d97ec09738c84')
-+b2sums+=('3d955c5dc5da34b218b337ee536b1a9923c50f8a894f75df5d8474ef3f227bffb6a1fa644aacc00fe433dd06bbeb372f2b6bc4eb51598bb708910cc45047c12b')
+ # vim:set sw=2 sts=-1 et:

@@ -1,0 +1,158 @@
+From 6b660ed933727d598f230d4b59fe676afd0ac97f Mon Sep 17 00:00:00 2001
+From: Yonggang Luo <luoyonggang@gmail.com>
+Date: Fri, 3 May 2024 17:14:02 +0800
+Subject: [PATCH 23/26] vulkan/runtime: Rename vk_meta_object_list to
+ vk_object_list
+
+Signed-off-by: Yonggang Luo <luoyonggang@gmail.com>
+---
+ src/vulkan/runtime/vk_command_buffer.c |  6 +++---
+ src/vulkan/runtime/vk_command_buffer.h |  2 +-
+ src/vulkan/runtime/vk_meta.c           | 16 ++++++++--------
+ src/vulkan/runtime/vk_meta.h           | 18 +++++++++---------
+ 4 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/vulkan/runtime/vk_command_buffer.c b/src/vulkan/runtime/vk_command_buffer.c
+index f678d9bc0a1..64df6211011 100644
+--- a/src/vulkan/runtime/vk_command_buffer.c
++++ b/src/vulkan/runtime/vk_command_buffer.c
+@@ -44,7 +44,7 @@ vk_command_buffer_init(struct vk_command_pool *pool,
+    command_buffer->state = MESA_VK_COMMAND_BUFFER_STATE_INITIAL;
+    command_buffer->record_result = VK_SUCCESS;
+    vk_cmd_queue_init(&command_buffer->cmd_queue, &pool->alloc);
+-   vk_meta_object_list_init(&command_buffer->meta_objects);
++   vk_object_list_init(&command_buffer->meta_objects);
+    util_dynarray_init(&command_buffer->labels, NULL);
+    command_buffer->region_begin = true;
+ 
+@@ -61,7 +61,7 @@ vk_command_buffer_reset(struct vk_command_buffer *command_buffer)
+    command_buffer->record_result = VK_SUCCESS;
+    vk_command_buffer_reset_render_pass(command_buffer);
+    vk_cmd_queue_reset(&command_buffer->cmd_queue);
+-   vk_meta_object_list_reset(command_buffer->base.device,
++   vk_object_list_reset(command_buffer->base.device,
+                              &command_buffer->meta_objects);
+    util_dynarray_clear(&command_buffer->labels);
+    command_buffer->region_begin = true;
+@@ -98,7 +98,7 @@ vk_command_buffer_finish(struct vk_command_buffer *command_buffer)
+    vk_command_buffer_reset_render_pass(command_buffer);
+    vk_cmd_queue_finish(&command_buffer->cmd_queue);
+    util_dynarray_fini(&command_buffer->labels);
+-   vk_meta_object_list_finish(command_buffer->base.device,
++   vk_object_list_finish(command_buffer->base.device,
+                               &command_buffer->meta_objects);
+    vk_object_base_finish(&command_buffer->base);
+ }
+diff --git a/src/vulkan/runtime/vk_command_buffer.h b/src/vulkan/runtime/vk_command_buffer.h
+index 5ff51bbf578..634ff1b69d6 100644
+--- a/src/vulkan/runtime/vk_command_buffer.h
++++ b/src/vulkan/runtime/vk_command_buffer.h
+@@ -127,7 +127,7 @@ struct vk_command_buffer {
+    struct vk_cmd_queue cmd_queue;
+ 
+    /** Object list for meta objects */
+-   struct vk_meta_object_list meta_objects;
++   struct vk_object_list meta_objects;
+ 
+    /**
+     * VK_EXT_debug_utils
+diff --git a/src/vulkan/runtime/vk_meta.c b/src/vulkan/runtime/vk_meta.c
+index cb7aee3ca3a..970a6bf8632 100644
+--- a/src/vulkan/runtime/vk_meta.c
++++ b/src/vulkan/runtime/vk_meta.c
+@@ -528,14 +528,14 @@ vk_meta_create_compute_pipeline(struct vk_device *device,
+ }
+ 
+ void
+-vk_meta_object_list_init(struct vk_meta_object_list *mol)
++vk_object_list_init(struct vk_object_list *mol)
+ {
+    util_dynarray_init(&mol->arr, NULL);
+ }
+ 
+ void
+-vk_meta_object_list_reset(struct vk_device *device,
+-                          struct vk_meta_object_list *mol)
++vk_object_list_reset(struct vk_device *device,
++                          struct vk_object_list *mol)
+ {
+    util_dynarray_foreach(&mol->arr, struct vk_object_base *, obj)
+       destroy_object(device, *obj);
+@@ -544,10 +544,10 @@ vk_meta_object_list_reset(struct vk_device *device,
+ }
+ 
+ void
+-vk_meta_object_list_finish(struct vk_device *device,
+-                           struct vk_meta_object_list *mol)
++vk_object_list_finish(struct vk_device *device,
++                           struct vk_object_list *mol)
+ {
+-   vk_meta_object_list_reset(device, mol);
++   vk_object_list_reset(device, mol);
+    util_dynarray_fini(&mol->arr);
+ }
+ 
+@@ -565,7 +565,7 @@ vk_meta_create_buffer(struct vk_command_buffer *cmd,
+    if (unlikely(result != VK_SUCCESS))
+       return result;
+ 
+-   vk_meta_object_list_add_handle(&cmd->meta_objects,
++   vk_object_list_add_handle(&cmd->meta_objects,
+                                   VK_OBJECT_TYPE_BUFFER,
+                                   (uint64_t)*buffer_out);
+    return VK_SUCCESS;
+@@ -585,7 +585,7 @@ vk_meta_create_image_view(struct vk_command_buffer *cmd,
+    if (unlikely(result != VK_SUCCESS))
+       return result;
+ 
+-   vk_meta_object_list_add_handle(&cmd->meta_objects,
++   vk_object_list_add_handle(&cmd->meta_objects,
+                                   VK_OBJECT_TYPE_IMAGE_VIEW,
+                                   (uint64_t)*image_view_out);
+    return VK_SUCCESS;
+diff --git a/src/vulkan/runtime/vk_meta.h b/src/vulkan/runtime/vk_meta.h
+index dd113b0ea13..0120b636e63 100644
+--- a/src/vulkan/runtime/vk_meta.h
++++ b/src/vulkan/runtime/vk_meta.h
+@@ -181,29 +181,29 @@ vk_meta_create_sampler(struct vk_device *device,
+                        const void *key_data, size_t key_size,
+                        VkSampler *sampler_out);
+ 
+-struct vk_meta_object_list {
++struct vk_object_list {
+    struct util_dynarray arr;
+ };
+ 
+-void vk_meta_object_list_init(struct vk_meta_object_list *mol);
+-void vk_meta_object_list_reset(struct vk_device *device,
+-                               struct vk_meta_object_list *mol);
+-void vk_meta_object_list_finish(struct vk_device *device,
+-                                struct vk_meta_object_list *mol);
++void vk_object_list_init(struct vk_object_list *mol);
++void vk_object_list_reset(struct vk_device *device,
++                               struct vk_object_list *mol);
++void vk_object_list_finish(struct vk_device *device,
++                                struct vk_object_list *mol);
+ 
+ static inline void
+-vk_meta_object_list_add_obj(struct vk_meta_object_list *mol,
++vk_object_list_add_obj(struct vk_object_list *mol,
+                             struct vk_object_base *obj)
+ {
+    util_dynarray_append(&mol->arr, struct vk_object_base *, obj);
+ }
+ 
+ static inline void
+-vk_meta_object_list_add_handle(struct vk_meta_object_list *mol,
++vk_object_list_add_handle(struct vk_object_list *mol,
+                                VkObjectType obj_type,
+                                uint64_t handle)
+ {
+-   vk_meta_object_list_add_obj(mol,
++   vk_object_list_add_obj(mol,
+       vk_object_base_from_u64_handle(handle, obj_type));
+ }
+ 
+-- 
+2.46.0
+

@@ -1,0 +1,603 @@
+From 65b265375f4982cbcf9a94dcf70857e7d0ad06c7 Mon Sep 17 00:00:00 2001
+From: Yonggang Luo <luoyonggang@gmail.com>
+Date: Wed, 19 Jun 2024 16:35:39 +1000
+Subject: [PATCH 04/26] gallivm: add lp_context_ref for combine usage of
+ LLVMContextSetOpaquePointers
+
+Reviewed-by: Dave Airlie <airlied@redhat.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/26033>
+---
+ src/gallium/auxiliary/draw/draw_context.c     |  2 +-
+ src/gallium/auxiliary/draw/draw_llvm.c        | 31 +++++++----------
+ src/gallium/auxiliary/draw/draw_llvm.h        |  5 ++-
+ src/gallium/auxiliary/gallivm/lp_bld.h        | 34 +++++++++++++++++--
+ src/gallium/auxiliary/gallivm/lp_bld_init.c   |  6 ++--
+ src/gallium/auxiliary/gallivm/lp_bld_init.h   |  2 +-
+ src/gallium/drivers/llvmpipe/lp_context.c     | 23 ++++++-------
+ src/gallium/drivers/llvmpipe/lp_context.h     |  2 +-
+ src/gallium/drivers/llvmpipe/lp_state_cs.c    |  2 +-
+ src/gallium/drivers/llvmpipe/lp_state_fs.c    |  2 +-
+ src/gallium/drivers/llvmpipe/lp_state_setup.c |  2 +-
+ src/gallium/drivers/llvmpipe/lp_test_arit.c   | 11 +++---
+ src/gallium/drivers/llvmpipe/lp_test_blend.c  | 11 +++---
+ src/gallium/drivers/llvmpipe/lp_test_conv.c   | 11 +++---
+ src/gallium/drivers/llvmpipe/lp_test_format.c | 22 +++++-------
+ src/gallium/drivers/llvmpipe/lp_test_printf.c | 11 +++---
+ .../drivers/llvmpipe/lp_texture_handle.c      | 12 +++----
+ .../drivers/llvmpipe/lp_texture_handle.h      |  2 +-
+ 18 files changed, 98 insertions(+), 93 deletions(-)
+
+diff --git a/src/gallium/auxiliary/draw/draw_context.c b/src/gallium/auxiliary/draw/draw_context.c
+index ef371dc1214..a184370ae51 100644
+--- a/src/gallium/auxiliary/draw/draw_context.c
++++ b/src/gallium/auxiliary/draw/draw_context.c
+@@ -77,7 +77,7 @@ draw_create_context(struct pipe_context *pipe, void *context,
+ 
+ #if DRAW_LLVM_AVAILABLE
+    if (try_llvm && draw_get_option_use_llvm()) {
+-      draw->llvm = draw_llvm_create(draw, (LLVMContextRef)context);
++      draw->llvm = draw_llvm_create(draw, (lp_context_ref *)context);
+    }
+ #endif
+ 
+diff --git a/src/gallium/auxiliary/draw/draw_llvm.c b/src/gallium/auxiliary/draw/draw_llvm.c
+index 5273814adfc..03bcfb1dc90 100644
+--- a/src/gallium/auxiliary/draw/draw_llvm.c
++++ b/src/gallium/auxiliary/draw/draw_llvm.c
+@@ -382,7 +382,7 @@ get_vertex_header_ptr_type(struct draw_llvm_variant *variant)
+  * Create per-context LLVM info.
+  */
+ struct draw_llvm *
+-draw_llvm_create(struct draw_context *draw, LLVMContextRef context)
++draw_llvm_create(struct draw_context *draw, lp_context_ref *context)
+ {
+    struct draw_llvm *llvm;
+ 
+@@ -395,17 +395,14 @@ draw_llvm_create(struct draw_context *draw, LLVMContextRef context)
+ 
+    llvm->draw = draw;
+ 
+-   llvm->context = context;
+-   if (!llvm->context) {
+-      llvm->context = LLVMContextCreate();
+-
+-#if LLVM_VERSION_MAJOR == 15
+-      LLVMContextSetOpaquePointers(llvm->context, false);
+-#endif
+-
+-      llvm->context_owned = true;
++   if (context) {
++      llvm->context = *context;
++      llvm->context.owned = false;
++   }
++   if (!llvm->context.ref) {
++      lp_context_create(&llvm->context);
+    }
+-   if (!llvm->context)
++   if (!llvm->context.ref)
+       goto fail;
+ 
+    llvm->nr_variants = 0;
+@@ -434,9 +431,7 @@ fail:
+ void
+ draw_llvm_destroy(struct draw_llvm *llvm)
+ {
+-   if (llvm->context_owned)
+-      LLVMContextDispose(llvm->context);
+-   llvm->context = NULL;
++   lp_context_destroy(&llvm->context);
+ 
+    /* XXX free other draw_llvm data? */
+    FREE(llvm);
+@@ -510,7 +505,7 @@ draw_llvm_create_variant(struct draw_llvm *llvm,
+       if (!cached.data_size)
+          needs_caching = true;
+    }
+-   variant->gallivm = gallivm_create(module_name, llvm->context, &cached);
++   variant->gallivm = gallivm_create(module_name, &llvm->context, &cached);
+ 
+    create_vs_jit_types(variant);
+ 
+@@ -2525,7 +2520,7 @@ draw_gs_llvm_create_variant(struct draw_llvm *llvm,
+       if (!cached.data_size)
+          needs_caching = true;
+    }
+-   variant->gallivm = gallivm_create(module_name, llvm->context, &cached);
++   variant->gallivm = gallivm_create(module_name, &llvm->context, &cached);
+ 
+    create_gs_jit_types(variant);
+ 
+@@ -3179,7 +3174,7 @@ draw_tcs_llvm_create_variant(struct draw_llvm *llvm,
+          needs_caching = true;
+    }
+ 
+-   variant->gallivm = gallivm_create(module_name, llvm->context, &cached);
++   variant->gallivm = gallivm_create(module_name, &llvm->context, &cached);
+ 
+    create_tcs_jit_types(variant);
+ 
+@@ -3698,7 +3693,7 @@ draw_tes_llvm_create_variant(struct draw_llvm *llvm,
+       if (!cached.data_size)
+          needs_caching = true;
+    }
+-   variant->gallivm = gallivm_create(module_name, llvm->context, &cached);
++   variant->gallivm = gallivm_create(module_name, &llvm->context, &cached);
+ 
+    create_tes_jit_types(variant);
+ 
+diff --git a/src/gallium/auxiliary/draw/draw_llvm.h b/src/gallium/auxiliary/draw/draw_llvm.h
+index 65199feab1b..c95ef4e0c2f 100644
+--- a/src/gallium/auxiliary/draw/draw_llvm.h
++++ b/src/gallium/auxiliary/draw/draw_llvm.h
+@@ -538,8 +538,7 @@ struct llvm_tess_eval_shader {
+ struct draw_llvm {
+    struct draw_context *draw;
+ 
+-   LLVMContextRef context;
+-   bool context_owned;
++   lp_context_ref context;
+ 
+    struct draw_vs_jit_context vs_jit_context;
+    struct draw_gs_jit_context gs_jit_context;
+@@ -585,7 +584,7 @@ llvm_tess_eval_shader(struct draw_tess_eval_shader *tes)
+ }
+ 
+ struct draw_llvm *
+-draw_llvm_create(struct draw_context *draw, LLVMContextRef llvm_context);
++draw_llvm_create(struct draw_context *draw, lp_context_ref *llvm_context);
+ 
+ void
+ draw_llvm_destroy(struct draw_llvm *llvm);
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld.h b/src/gallium/auxiliary/gallivm/lp_bld.h
+index e1f6200ac94..fd2a4943f56 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld.h
++++ b/src/gallium/auxiliary/gallivm/lp_bld.h
+@@ -48,9 +48,11 @@
+ 
+ #include <llvm/Config/llvm-config.h>
+ 
+-#include <llvm-c/Core.h>  
+-
++#include <llvm-c/Core.h>
+ 
++#include <assert.h>
++#include <stdbool.h>
++#include <stddef.h>
+ 
+ /**
+  * Redefine these LLVM entrypoints as invalid macros to make sure we
+@@ -136,4 +138,32 @@ LLVMBuildCall2(LLVMBuilderRef B, LLVMTypeRef Ty, LLVMValueRef Fn,
+ 
+ #endif /* LLVM_VERSION_MAJOR < 8 */
+ 
++typedef struct lp_context_ref {
++   LLVMContextRef ref;
++   bool owned;
++} lp_context_ref;
++
++static inline void
++lp_context_create(lp_context_ref *context)
++{
++   assert(context != NULL);
++   context->ref = LLVMContextCreate();
++   context->owned = true;
++#if LLVM_VERSION_MAJOR == 15
++   if (context->ref) {
++      LLVMContextSetOpaquePointers(context->ref, false);
++   }
++#endif
++}
++
++static inline void
++lp_context_destroy(lp_context_ref *context)
++{
++   assert(context != NULL);
++   if (context->owned) {
++      LLVMContextDispose(context->ref);
++      context->ref = NULL;
++   }
++}
++
+ #endif /* LP_BLD_H */
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_init.c b/src/gallium/auxiliary/gallivm/lp_bld_init.c
+index 4b859776e5c..62d26141175 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_init.c
++++ b/src/gallium/auxiliary/gallivm/lp_bld_init.c
+@@ -329,7 +329,7 @@ fail:
+  */
+ static bool
+ init_gallivm_state(struct gallivm_state *gallivm, const char *name,
+-                   LLVMContextRef context, struct lp_cached_code *cache)
++                   lp_context_ref *context, struct lp_cached_code *cache)
+ {
+    assert(!gallivm->context);
+    assert(!gallivm->module);
+@@ -337,7 +337,7 @@ init_gallivm_state(struct gallivm_state *gallivm, const char *name,
+    if (!lp_build_init())
+       return false;
+ 
+-   gallivm->context = context;
++   gallivm->context = context->ref;
+    gallivm->cache = cache;
+    if (!gallivm->context)
+       goto fail;
+@@ -486,7 +486,7 @@ lp_build_init(void)
+  * Create a new gallivm_state object.
+  */
+ struct gallivm_state *
+-gallivm_create(const char *name, LLVMContextRef context,
++gallivm_create(const char *name, lp_context_ref *context,
+                struct lp_cached_code *cache)
+ {
+    struct gallivm_state *gallivm;
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_init.h b/src/gallium/auxiliary/gallivm/lp_bld_init.h
+index 418921cb7ad..f53702f17a1 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_init.h
++++ b/src/gallium/auxiliary/gallivm/lp_bld_init.h
+@@ -79,7 +79,7 @@ lp_build_init(void);
+ 
+ 
+ struct gallivm_state *
+-gallivm_create(const char *name, LLVMContextRef context,
++gallivm_create(const char *name, lp_context_ref *context,
+                struct lp_cached_code *cache);
+ 
+ void
+diff --git a/src/gallium/drivers/llvmpipe/lp_context.c b/src/gallium/drivers/llvmpipe/lp_context.c
+index 8e5e8ced3fe..bdf956d45a9 100644
+--- a/src/gallium/drivers/llvmpipe/lp_context.c
++++ b/src/gallium/drivers/llvmpipe/lp_context.c
+@@ -107,10 +107,7 @@ llvmpipe_destroy(struct pipe_context *pipe)
+ 
+    llvmpipe_sampler_matrix_destroy(llvmpipe);
+ 
+-#ifndef USE_GLOBAL_LLVM_CONTEXT
+-   LLVMContextDispose(llvmpipe->context);
+-#endif
+-   llvmpipe->context = NULL;
++   lp_context_destroy(&llvmpipe->context);
+ 
+    align_free(llvmpipe);
+ }
+@@ -257,23 +254,25 @@ llvmpipe_create_context(struct pipe_screen *screen, void *priv,
+    llvmpipe_init_sampler_matrix(llvmpipe);
+ 
+ #ifdef USE_GLOBAL_LLVM_CONTEXT
+-   llvmpipe->context = LLVMGetGlobalContext();
++   llvmpipe->context.ref = LLVMGetGlobalContext();
++   llvmpipe->context.owned = false;
++#if LLVM_VERSION_MAJOR == 15
++   if (llvmpipe->context.ref) {
++      LLVMContextSetOpaquePointers(llvmpipe->context.ref, false);
++   }
++#endif
+ #else
+-   llvmpipe->context = LLVMContextCreate();
++   lp_context_create(&llvmpipe->context);
+ #endif
+ 
+-   if (!llvmpipe->context)
++   if (!llvmpipe->context.ref)
+       goto fail;
+ 
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(llvmpipe->context, false);
+-#endif
+-
+    /*
+     * Create drawing context and plug our rendering stage into it.
+     */
+    llvmpipe->draw = draw_create_with_llvm_context(&llvmpipe->pipe,
+-                                                  llvmpipe->context);
++                                                  &llvmpipe->context);
+    if (!llvmpipe->draw)
+       goto fail;
+ 
+diff --git a/src/gallium/drivers/llvmpipe/lp_context.h b/src/gallium/drivers/llvmpipe/lp_context.h
+index 7dd6a3f8596..f05e3c6189d 100644
+--- a/src/gallium/drivers/llvmpipe/lp_context.h
++++ b/src/gallium/drivers/llvmpipe/lp_context.h
+@@ -190,7 +190,7 @@ struct llvmpipe_context {
+    unsigned render_cond_offset;
+ 
+    /** The LLVMContext to use for LLVM related work */
+-   LLVMContextRef context;
++   lp_context_ref context;
+ 
+    int max_global_buffers;
+    struct pipe_resource **global_buffers;
+diff --git a/src/gallium/drivers/llvmpipe/lp_state_cs.c b/src/gallium/drivers/llvmpipe/lp_state_cs.c
+index 0bf0e5cab9c..d9e2a1b7788 100644
+--- a/src/gallium/drivers/llvmpipe/lp_state_cs.c
++++ b/src/gallium/drivers/llvmpipe/lp_state_cs.c
+@@ -1241,7 +1241,7 @@ generate_variant(struct llvmpipe_context *lp,
+    if (!cached.data_size)
+       needs_caching = true;
+ 
+-   variant->gallivm = gallivm_create(module_name, lp->context, &cached);
++   variant->gallivm = gallivm_create(module_name, &lp->context, &cached);
+    if (!variant->gallivm) {
+       FREE(variant);
+       return NULL;
+diff --git a/src/gallium/drivers/llvmpipe/lp_state_fs.c b/src/gallium/drivers/llvmpipe/lp_state_fs.c
+index 6fb3b8b31c2..0e1e6ebcaba 100644
+--- a/src/gallium/drivers/llvmpipe/lp_state_fs.c
++++ b/src/gallium/drivers/llvmpipe/lp_state_fs.c
+@@ -3751,7 +3751,7 @@ generate_variant(struct llvmpipe_context *lp,
+    char module_name[64];
+    snprintf(module_name, sizeof(module_name), "fs%u_variant%u",
+             shader->no, shader->variants_created);
+-   variant->gallivm = gallivm_create(module_name, lp->context, &cached);
++   variant->gallivm = gallivm_create(module_name, &lp->context, &cached);
+    if (!variant->gallivm) {
+       FREE(variant);
+       return NULL;
+diff --git a/src/gallium/drivers/llvmpipe/lp_state_setup.c b/src/gallium/drivers/llvmpipe/lp_state_setup.c
+index 2f4bbdf7a88..d181a79557c 100644
+--- a/src/gallium/drivers/llvmpipe/lp_state_setup.c
++++ b/src/gallium/drivers/llvmpipe/lp_state_setup.c
+@@ -652,7 +652,7 @@ generate_setup_variant(struct lp_setup_variant_key *key,
+             variant->no);
+ 
+    struct gallivm_state *gallivm;
+-   variant->gallivm = gallivm = gallivm_create(func_name, lp->context, NULL);
++   variant->gallivm = gallivm = gallivm_create(func_name, &lp->context, NULL);
+    if (!variant->gallivm) {
+       goto fail;
+    }
+diff --git a/src/gallium/drivers/llvmpipe/lp_test_arit.c b/src/gallium/drivers/llvmpipe/lp_test_arit.c
+index fd8489f8358..7c5a2fb6ad9 100644
+--- a/src/gallium/drivers/llvmpipe/lp_test_arit.c
++++ b/src/gallium/drivers/llvmpipe/lp_test_arit.c
+@@ -417,7 +417,7 @@ test_unary(unsigned verbose, FILE *fp, const struct unary_test_t *test, unsigned
+ {
+    char test_name[128];
+    snprintf(test_name, sizeof test_name, "%s.v%u", test->name, length);
+-   LLVMContextRef context;
++   lp_context_ref context;
+    struct gallivm_state *gallivm;
+    LLVMValueRef test_func;
+    unary_func_t test_func_jit;
+@@ -433,11 +433,8 @@ test_unary(unsigned verbose, FILE *fp, const struct unary_test_t *test, unsigned
+       in[i] = 1.0;
+    }
+ 
+-   context = LLVMContextCreate();
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(context, false);
+-#endif
+-   gallivm = gallivm_create("test_module", context, NULL);
++   lp_context_create(&context);
++   gallivm = gallivm_create("test_module", &context, NULL);
+ 
+    test_func = build_unary_test_func(gallivm, test, length, test_name);
+ 
+@@ -512,7 +509,7 @@ test_unary(unsigned verbose, FILE *fp, const struct unary_test_t *test, unsigned
+    }
+ 
+    gallivm_destroy(gallivm);
+-   LLVMContextDispose(context);
++   lp_context_destroy(&context);
+ 
+    align_free(in);
+    align_free(out);
+diff --git a/src/gallium/drivers/llvmpipe/lp_test_blend.c b/src/gallium/drivers/llvmpipe/lp_test_blend.c
+index 7851bf29dd6..d1bcdd11dc1 100644
+--- a/src/gallium/drivers/llvmpipe/lp_test_blend.c
++++ b/src/gallium/drivers/llvmpipe/lp_test_blend.c
+@@ -437,7 +437,7 @@ test_one(unsigned verbose,
+          const struct pipe_blend_state *blend,
+          struct lp_type type)
+ {
+-   LLVMContextRef context;
++   lp_context_ref context;
+    struct gallivm_state *gallivm;
+    LLVMValueRef func = NULL;
+    blend_test_ptr_t blend_test_ptr;
+@@ -451,11 +451,8 @@ test_one(unsigned verbose,
+    if (verbose >= 1)
+       dump_blend_type(stdout, blend, type);
+ 
+-   context = LLVMContextCreate();
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(context, false);
+-#endif
+-   gallivm = gallivm_create("test_module", context, NULL);
++   lp_context_create(&context);
++   gallivm = gallivm_create("test_module", &context, NULL);
+ 
+    func = add_blend_test(gallivm, blend, type);
+ 
+@@ -584,7 +581,7 @@ test_one(unsigned verbose,
+       write_tsv_row(fp, blend, type, cycles_avg, success);
+ 
+    gallivm_destroy(gallivm);
+-   LLVMContextDispose(context);
++   lp_context_destroy(&context);
+ 
+    return success;
+ }
+diff --git a/src/gallium/drivers/llvmpipe/lp_test_conv.c b/src/gallium/drivers/llvmpipe/lp_test_conv.c
+index 9fb64486f11..9bb7e0e9d77 100644
+--- a/src/gallium/drivers/llvmpipe/lp_test_conv.c
++++ b/src/gallium/drivers/llvmpipe/lp_test_conv.c
+@@ -157,7 +157,7 @@ test_one(unsigned verbose,
+          struct lp_type src_type,
+          struct lp_type dst_type)
+ {
+-   LLVMContextRef context;
++   lp_context_ref context;
+    struct gallivm_state *gallivm;
+    LLVMValueRef func = NULL;
+    conv_test_ptr_t conv_test_ptr;
+@@ -222,11 +222,8 @@ test_one(unsigned verbose,
+       eps *= 2;
+    }
+ 
+-   context = LLVMContextCreate();
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(context, false);
+-#endif
+-   gallivm = gallivm_create("test_module", context, NULL);
++   lp_context_create(&context);
++   gallivm = gallivm_create("test_module", &context, NULL);
+ 
+    func = add_conv_test(gallivm, src_type, num_srcs, dst_type, num_dsts);
+ 
+@@ -337,7 +334,7 @@ test_one(unsigned verbose,
+       write_tsv_row(fp, src_type, dst_type, cycles_avg, success);
+ 
+    gallivm_destroy(gallivm);
+-   LLVMContextDispose(context);
++   lp_context_destroy(&context);
+ 
+    return success;
+ }
+diff --git a/src/gallium/drivers/llvmpipe/lp_test_format.c b/src/gallium/drivers/llvmpipe/lp_test_format.c
+index 6d3a60bd8db..250a74a935e 100644
+--- a/src/gallium/drivers/llvmpipe/lp_test_format.c
++++ b/src/gallium/drivers/llvmpipe/lp_test_format.c
+@@ -139,7 +139,7 @@ test_format_float(unsigned verbose, FILE *fp,
+                   const struct util_format_description *desc,
+                   unsigned use_cache)
+ {
+-   LLVMContextRef context;
++   lp_context_ref context;
+    struct gallivm_state *gallivm;
+    LLVMValueRef fetch = NULL;
+    fetch_ptr_t fetch_ptr;
+@@ -149,11 +149,8 @@ test_format_float(unsigned verbose, FILE *fp,
+    bool success = true;
+    unsigned i, j, k, l;
+ 
+-   context = LLVMContextCreate();
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(context, false);
+-#endif
+-   gallivm = gallivm_create("test_module_float", context, NULL);
++   lp_context_create(&context);
++   gallivm = gallivm_create("test_module_float", &context, NULL);
+ 
+    fetch = add_fetch_rgba_test(gallivm, verbose, desc,
+                                lp_float32_vec4_type(), use_cache);
+@@ -228,7 +225,7 @@ test_format_float(unsigned verbose, FILE *fp,
+    }
+ 
+    gallivm_destroy(gallivm);
+-   LLVMContextDispose(context);
++   lp_context_destroy(&context);
+ 
+    if (fp)
+       write_tsv_row(fp, desc, success);
+@@ -243,7 +240,7 @@ test_format_unorm8(unsigned verbose, FILE *fp,
+                    const struct util_format_description *desc,
+                    unsigned use_cache)
+ {
+-   LLVMContextRef context;
++   lp_context_ref context;
+    struct gallivm_state *gallivm;
+    LLVMValueRef fetch = NULL;
+    fetch_ptr_t fetch_ptr;
+@@ -253,11 +250,8 @@ test_format_unorm8(unsigned verbose, FILE *fp,
+    bool success = true;
+    unsigned i, j, k, l;
+ 
+-   context = LLVMContextCreate();
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(context, false);
+-#endif
+-   gallivm = gallivm_create("test_module_unorm8", context, NULL);
++   lp_context_create(&context);
++   gallivm = gallivm_create("test_module_unorm8", &context, NULL);
+ 
+    fetch = add_fetch_rgba_test(gallivm, verbose, desc,
+                                lp_unorm8_vec4_type(), use_cache);
+@@ -331,7 +325,7 @@ test_format_unorm8(unsigned verbose, FILE *fp,
+    }
+ 
+    gallivm_destroy(gallivm);
+-   LLVMContextDispose(context);
++   lp_context_destroy(&context);
+ 
+    if (fp)
+       write_tsv_row(fp, desc, success);
+diff --git a/src/gallium/drivers/llvmpipe/lp_test_printf.c b/src/gallium/drivers/llvmpipe/lp_test_printf.c
+index 7e53aa51928..77b1f591d95 100644
+--- a/src/gallium/drivers/llvmpipe/lp_test_printf.c
++++ b/src/gallium/drivers/llvmpipe/lp_test_printf.c
+@@ -89,17 +89,14 @@ static bool
+ test_printf(unsigned verbose, FILE *fp,
+             const struct printf_test_case *testcase)
+ {
+-   LLVMContextRef context;
++   lp_context_ref context;
+    struct gallivm_state *gallivm;
+    LLVMValueRef test;
+    test_printf_t test_printf_func;
+    bool success = true;
+ 
+-   context = LLVMContextCreate();
+-#if LLVM_VERSION_MAJOR == 15
+-   LLVMContextSetOpaquePointers(context, false);
+-#endif
+-   gallivm = gallivm_create("test_module", context, NULL);
++   lp_context_create(&context);
++   gallivm = gallivm_create("test_module", &context, NULL);
+ 
+    test = add_printf_test(gallivm);
+ 
+@@ -112,7 +109,7 @@ test_printf(unsigned verbose, FILE *fp,
+    test_printf_func(0);
+ 
+    gallivm_destroy(gallivm);
+-   LLVMContextDispose(context);
++   lp_context_destroy(&context);
+ 
+    return success;
+ }
+diff --git a/src/gallium/drivers/llvmpipe/lp_texture_handle.c b/src/gallium/drivers/llvmpipe/lp_texture_handle.c
+index a2020276bdf..fac2a2be94e 100644
+--- a/src/gallium/drivers/llvmpipe/lp_texture_handle.c
++++ b/src/gallium/drivers/llvmpipe/lp_texture_handle.c
+@@ -209,19 +209,19 @@ llvmpipe_sampler_matrix_destroy(struct llvmpipe_context *ctx)
+ 
+    util_dynarray_fini(&ctx->sampler_matrix.gallivms);
+ 
+-   if (ctx->sampler_matrix.context)
+-      LLVMContextDispose(ctx->sampler_matrix.context);
++   if (ctx->sampler_matrix.context.ref)
++      lp_context_destroy(&ctx->sampler_matrix.context);
+ }
+ 
+-static LLVMContextRef
++static lp_context_ref *
+ get_llvm_context(struct llvmpipe_context *ctx)
+ {
+    struct lp_sampler_matrix *matrix = &ctx->sampler_matrix;
+ 
+-   if (!matrix->context)
+-      matrix->context = LLVMContextCreate();
++   if (!matrix->context.ref)
++      lp_context_create(&matrix->context);
+ 
+-   return matrix->context;
++   return &matrix->context;
+ }
+ 
+ static void *
+diff --git a/src/gallium/drivers/llvmpipe/lp_texture_handle.h b/src/gallium/drivers/llvmpipe/lp_texture_handle.h
+index 6259b517ddd..333bfd14eba 100644
+--- a/src/gallium/drivers/llvmpipe/lp_texture_handle.h
++++ b/src/gallium/drivers/llvmpipe/lp_texture_handle.h
+@@ -52,7 +52,7 @@ struct lp_sampler_matrix {
+    struct llvmpipe_context *ctx;
+ 
+    /* Use a separate LLVMContext since it is not thread safe but can be accessed by shaders. */
+-   LLVMContextRef context;
++   lp_context_ref context;
+ 
+    struct util_dynarray gallivms;
+ };
+-- 
+2.46.0
+

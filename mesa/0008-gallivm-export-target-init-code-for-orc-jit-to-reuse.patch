@@ -1,0 +1,52 @@
+From a455b83147d6fbd1a69f44fbb673281e92d49ca9 Mon Sep 17 00:00:00 2001
+From: Dave Airlie <airlied@redhat.com>
+Date: Mon, 24 Jun 2024 13:38:55 +1000
+Subject: [PATCH 08/26] gallivm: export target init code for orc-jit to reuse
+
+It doesn't need the wrapper since it already has a singleton
+
+Reviewed-By: Mike Blumenkrantz <michael.blumenkrantz@gmail.com>
+Part-of: <https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/29869>
+---
+ src/gallium/auxiliary/gallivm/lp_bld_misc.cpp | 4 ++--
+ src/gallium/auxiliary/gallivm/lp_bld_misc.h   | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp b/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp
+index fa9b4b75fdb..fc8b374a98f 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp
++++ b/src/gallium/auxiliary/gallivm/lp_bld_misc.cpp
+@@ -108,7 +108,7 @@ static LLVMEnsureMultithreaded lLVMEnsureMultithreaded;
+ 
+ static once_flag init_native_targets_once_flag = ONCE_FLAG_INIT;
+ 
+-static void init_native_targets()
++void lp_bld_init_native_targets()
+ {
+    // If we have a native target, initialize it to ensure it is linked in and
+    // usable by the JIT.
+@@ -150,7 +150,7 @@ lp_set_target_options(void)
+     * LLVM targets should be initialized before the driver or gallium frontend tries
+     * to access the registry.
+     */
+-   call_once(&init_native_targets_once_flag, init_native_targets);
++   call_once(&init_native_targets_once_flag, lp_bld_init_native_targets);
+ }
+ 
+ extern "C"
+diff --git a/src/gallium/auxiliary/gallivm/lp_bld_misc.h b/src/gallium/auxiliary/gallivm/lp_bld_misc.h
+index fa0ce90162e..3506a15d882 100644
+--- a/src/gallium/auxiliary/gallivm/lp_bld_misc.h
++++ b/src/gallium/auxiliary/gallivm/lp_bld_misc.h
+@@ -64,6 +64,8 @@ gallivm_dispose_target_library_info(LLVMTargetLibraryInfoRef library_info);
+ extern void
+ lp_set_target_options(void);
+ 
++extern void
++lp_bld_init_native_targets();
+ 
+ extern int
+ lp_build_create_jit_compiler_for_module(LLVMExecutionEngineRef *OutJIT,
+-- 
+2.46.0
+
