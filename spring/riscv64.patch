@@ -1,49 +1,23 @@
-diff --git PKGBUILD PKGBUILD
-index 4665b74..5ec8c12 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,18 +11,30 @@ url="http://springrts.com/"
- license=('GPL')
- depends=('openal' 'glew' 'minizip' 'freetype2' 'devil' 'libvorbis' 'sdl2' 'libunwind'
-          'libxcursor' 'curl' 'shared-mime-info' 'desktop-file-utils' 'libx11' 'jsoncpp')
--makedepends=('cmake' 'zip' 'xz' 'p7zip' 'python' 'jdk8-openjdk' 'mesa')
-+makedepends=('cmake' 'zip' 'xz' 'p7zip' 'python' 'jdk8-openjdk' 'mesa' 'simde')
- optdepends=('python: python-based bots'
-             'java-runtime: java-based bots')
- source=("https://springrts.com/dl/buildbot/default/master/106.0/source/spring_106.0_src.tar.gz"
--         spring-gcc12.patch)
-+         spring-gcc12.patch
-+         add-missing-header.patch
-+         disable-streflop-for-cutils.patch
-+         support-riscv64-build.patch
-+         use-simde.patch)
- sha512sums=('d76bec4cc106ed23f09699d702b9d14b76e32f4e34beac2313268c2ef29f6379a970efaee209d4db5dc7c6323d1a47882b10c5c4faa0744087fada227ed91f7b'
--            '68bbffe545fe5200ab7273954a1aad7fdc67ba904a0a3d86f9fb6b02cd2e716ab9623da8b8bf92c1efda269b161ee28432aa7e0f8899ad914491648fae13e34a')
-+            '68bbffe545fe5200ab7273954a1aad7fdc67ba904a0a3d86f9fb6b02cd2e716ab9623da8b8bf92c1efda269b161ee28432aa7e0f8899ad914491648fae13e34a'
-+            '9e3a02ea320ffc3265ab7e0778df8193e6583a1d7f08e3826df717131ab79d776ad245ec6ae2bf98ae85c95f903baf1d12753013d0b423c1a92ae4be4b35eee9'
-+            '9fc1ecdcfba4df8135b02ea59d09873372ea0381e6e9c465cc2d5c7f822bc128108028359054367c9ebc4abffafc0016d7509d75755e65b179e7edef611584bd'
-+            'd546cd7e9848dfdbdfc74d2a9a84f797c662117de318ef3d271b964445b825248f45ce97aeefb225edb902d8cc857cc91cd18580eaebab61e7fd5c6ee72bc268'
-+            'dd885fbec0b6423c4c7667e05babeb2f6a48c878661fd502236b1f1743cb6f7a47f702f7e22030a684bfbd8d4190980999a0bf13e74cff3d2138782c884be8c6')
- 
- prepare() {
-   cd spring_$pkgver
+@@ -26,6 +26,9 @@ prepare() {
  
    patch -Np1 -i ../spring-gcc12.patch
-+  patch -Np1 -i ../add-missing-header.patch
+   patch -Np1 -i ../spring-gcc13.patch # missing includes
 +  patch -Np1 -i ../disable-streflop-for-cutils.patch
 +  patch -Np1 -i ../support-riscv64-build.patch
 +  patch -Np1 -i ../use-simde.patch
    #remove bundled libraries
    rm -r tools/pr-downloader/src/lib/jsoncpp
    rm -r tools/pr-downloader/src/lib/minizip
-@@ -31,13 +43,18 @@ prepare() {
+@@ -34,13 +37,18 @@ prepare() {
  build() {
    cd spring_$pkgver
  
 +  # disable streflop, remove arch-specific flags
 +  # https://springrts.com/mantis/view.php?id=1846
 +  # https://springrts.com/mantis/view.php?id=1788
-   cmake	\
+   cmake \
      -Bbuild \
      -DCMAKE_INSTALL_PREFIX=/usr \
      -DDATADIR=share/spring \
@@ -56,3 +30,16 @@ index 4665b74..5ec8c12 100644
    make -C build
  }
  
+@@ -53,4 +61,12 @@ package() {
+   echo '$HOME/.spring' > "$pkgdir/etc/spring/datadir"
+ }
+ 
++makedepends+=('simde')
++source+=(disable-streflop-for-cutils.patch
++         support-riscv64-build.patch
++         use-simde.patch)
++sha512sums+=('9fc1ecdcfba4df8135b02ea59d09873372ea0381e6e9c465cc2d5c7f822bc128108028359054367c9ebc4abffafc0016d7509d75755e65b179e7edef611584bd'
++             'd546cd7e9848dfdbdfc74d2a9a84f797c662117de318ef3d271b964445b825248f45ce97aeefb225edb902d8cc857cc91cd18580eaebab61e7fd5c6ee72bc268'
++             'dd885fbec0b6423c4c7667e05babeb2f6a48c878661fd502236b1f1743cb6f7a47f702f7e22030a684bfbd8d4190980999a0bf13e74cff3d2138782c884be8c6')
++
+ # vim sw=2:ts=2 et:
