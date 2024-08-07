@@ -1,14 +1,5 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,7 +7,7 @@
- # toolchain build order: linux-api-headers->glibc->binutils->gcc->glibc->binutils->gcc
- # NOTE: libtool requires rebuilt with each new gcc version
- 
--pkgname=(gcc gcc-libs lib32-gcc-libs gcc-ada gcc-d gcc-fortran gcc-go gcc-m2 gcc-objc gcc-rust lto-dump libgccjit)
-+pkgname=(gcc gcc-libs gcc-d gcc-fortran gcc-go gcc-m2 gcc-objc gcc-rust lto-dump libgccjit)
- pkgver=14.1.1+r309+gbb34b7eda1f
- _commit=bb34b7eda1fbfcfe108d985fd0ae1421c2fa14c0
- pkgrel=1
 @@ -18,11 +18,8 @@ url='https://gcc.gnu.org'
  makedepends=(
    binutils
@@ -29,8 +20,8 @@
  )
  validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.org
                86CFFCA918CF3AF47147588051E8B148A9999C34  # foutrelis@archlinux.org
-@@ -49,7 +47,8 @@ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.
- sha256sums=('8d63594191c775835535289c482116f2f21095d54c2480999eea2d4baf098e9b'
+@@ -49,12 +47,19 @@ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.
+ sha256sums=('d3e9d9a008f3b63101eb5d771b3ee7db3a77ee87b8975485a79738245b377521'
              'de48736f6e4153f03d0a5d38ceb6c6fdb7f054e8f47ddd6af0a3dbf14f27b931'
              '2513c6d9984dd0a2058557bf00f06d8d5181734e41dcfe07be7ed86f2959622a'
 -            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f')
@@ -39,7 +30,18 @@
  pkgver() {
    cd gcc
    echo "$(cat gcc/BASE-VER)+$(git describe --tags | sed 's/[^-]*-[^-]*-//;s/[^-]*-/r&/;s/-/+/g;s/_/./')"
-@@ -68,6 +67,18 @@ prepare() {
+ }
+ 
++for i in "${pkgname[@]}"; do
++  if [[ ${pkgname[i]} = "gcc-ada" ]] || [[ ${pkgname[i]} = "lib32-gcc-libs" ]]; then
++    unset 'array[i]'
++  fi
++done
++
+ prepare() {
+   [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
+   cd gcc
+@@ -68,6 +73,15 @@ prepare() {
    # Reproducible gcc-ada
    patch -Np0 < "$srcdir/gcc-ada-repro.patch"
  
@@ -52,13 +54,10 @@
 +  # https://github.com/golang/go/issues/57691
 +  git cherry-pick -n 21a07620f4bfe38f12e6d5be8b1eeecc29fa6852
 +
-+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=116057
-+  git cherry-pick -n a7f1b00ed69810ce7f000d385a60e148d0228d48
-+
    mkdir -p "$srcdir/gcc-build"
    mkdir -p "$srcdir/libgccjit-build"
  }
-@@ -95,7 +106,7 @@ build() {
+@@ -95,7 +109,7 @@ build() {
        --enable-link-serialization=1
        --enable-linker-build-id
        --enable-lto
@@ -67,7 +66,7 @@
        --enable-plugin
        --enable-shared
        --enable-threads=posix
-@@ -113,7 +124,7 @@ build() {
+@@ -113,7 +127,7 @@ build() {
    CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
  
    "$srcdir/gcc/configure" \
@@ -76,7 +75,7 @@
      --enable-bootstrap \
      "${_confflags[@]:?_confflags unset}"
  
-@@ -161,9 +172,9 @@ check() {
+@@ -161,9 +175,9 @@ check() {
  package_gcc-libs() {
    pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
@@ -88,7 +87,7 @@
    replaces=($pkgname-multilib libgphobos)
  
    cd gcc-build
-@@ -176,9 +187,8 @@ package_gcc-libs() {
+@@ -176,9 +190,8 @@ package_gcc-libs() {
               libgomp \
               libitm \
               libquadmath \
@@ -100,7 +99,7 @@
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -195,18 +205,17 @@ package_gcc-libs() {
+@@ -195,18 +208,17 @@ package_gcc-libs() {
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-info
    done
  
@@ -122,7 +121,7 @@
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs)
-@@ -220,22 +229,18 @@ package_gcc() {
+@@ -220,22 +232,18 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -147,7 +146,7 @@
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -250,16 +255,11 @@ package_gcc() {
+@@ -250,16 +258,11 @@ package_gcc() {
    make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
    make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
    make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
@@ -165,7 +164,7 @@
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -270,7 +270,7 @@ package_gcc() {
+@@ -270,7 +273,7 @@ package_gcc() {
    # create cc-rs compatible symlinks
    # https://github.com/rust-lang/cc-rs/blob/1.0.73/src/lib.rs#L2578-L2581
    for binary in {c++,g++,gcc,gcc-ar,gcc-nm,gcc-ranlib}; do
@@ -174,7 +173,7 @@
    done
  
    # POSIX conformance launcher scripts for c89 and c99
-@@ -280,9 +280,6 @@ package_gcc() {
+@@ -280,9 +283,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -184,7 +183,7 @@
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -302,8 +299,6 @@ package_gcc-fortran() {
+@@ -302,8 +302,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -193,7 +192,7 @@
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -381,7 +376,6 @@ package_gcc-go() {
+@@ -381,7 +379,6 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
