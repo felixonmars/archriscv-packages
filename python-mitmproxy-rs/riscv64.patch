@@ -1,16 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,6 +15,13 @@ source=("https://github.com/mitmproxy/mitmproxy_rs/archive/$pkgver/$pkgname-$pkg
- sha256sums=('1eb33d77c1da48911f1bb365beb34ef2eb235683a737ebaeddcf055854d5d673')
- b2sums=('4f1aa5c52bfc5f3104b7d7dcbebbccf030d0c489d4bc9b38170a494cfdec8ee8c704e2fc7df422cc50736db3cc0c9e26aee2dfdb4ca1247990bdbc0e938f0ed4')
+@@ -43,4 +43,12 @@ package() {
+   install -Dm0644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+ }
  
 +prepare() {
 +  cd ${_pyname}-${pkgver}
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
-+  cargo fetch --locked
++  sed -i Cargo.toml \
++    -e 's/x25519-dalek = "=2.0.0-rc.3"/x25519-dalek = "2.0.0"/' \
++    -e '/\[patch.crates-io\]/a boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e3252d9c4f4c8fc628995330f45369effd4660a1" }'
++  cargo update -p boringtun
 +}
 +
- build() {
-   cd ${_pyname}-${pkgver}/mitmproxy-rs
-   maturin build --release --strip
+ # vim: ts=2 sw=2 et:
