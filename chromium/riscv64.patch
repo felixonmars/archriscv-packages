@@ -1,38 +1,57 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -119,6 +119,17 @@ prepare() {
+@@ -37,7 +37,16 @@ sha256sums=('9297c1e1dc9310534f6a48f90eacc2eac1d964ac3c827dc0798594e8a2742dc4'
+             '1a5bc75a90abad153c8eb6dbdce138132a5f11190b0a40c925958a72d706b2aa'
+             'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
+             'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
+-            'a9b417b96daec33c9059065e15b3a92ae1bf4b59f89d353659b335d9e0379db6')
++            'a9b417b96daec33c9059065e15b3a92ae1bf4b59f89d353659b335d9e0379db6'
++            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
++            'f6625f7c3bb313bc46ef4d39715a2ec84dadf4536dd6a3d38e44e41f7cfcf439'
++            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
++            '7ed0c8d50f05604b49bbaf1048bbf496c5c1acd4071cf7bb395bc7b7651e9a0a'
++            '1713cfc3c73d7f33fd7a9daba9b642869632468bc1068b727827a6b5320a7f88'
++            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
++            '811cf95871cd5a9d6dcd6c139f1c50f095c69254e8a3f376e4990aa79630a328'
++            'abc9d2f93d9104de6f6d82c89124cfe0bb5afc291a0b10e0fa8ad827210ae62c'
++            '53cbad1796b6ef78806b4babef8d29472895d9b23391f4259d092646173b4ccc')
+ 
+ if (( _manual_clone )); then
+   source[0]=fetch-chromium-release
+@@ -117,6 +126,23 @@ prepare() {
+ 
    # Fixes for building with libstdc++ instead of libc++
-   patch -Np1 -i ../chromium-patches-*/chromium-117-material-color-include.patch
  
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
-+  patch -Np1 -i ../Debian-fix-rust-linking.patch
++  patch -Np0 -i ../Debian-fix-rust-linking.patch
++
++  # Bump v8 to a good revision
++  rm -rf v8
++  mv "$srcdir"/v8 .
 +
 +  # riscv64
-+  for rvpatch in riscv-{dav1d,sandbox,fix-rust-target}.patch; do
++  for rvpatch in riscv-{dav1d,sandbox}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
-+  patch -Np1 -d v8 < ../riscv-v8-fix-perf-regression.patch
++  patch -Np1 -i ../0001-chrome-runtime_api_delegate-add-riscv64-define.patch
++  patch -Np1 -i ../0001-extensions-common-api-runtime.json-riscv64-support.patch
 +  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg.patch
++  patch -Np1 -d v8 < ../REVERT-deprecation-removals.patch
 +
 +
    # Link to system tools required by the build
-   mkdir -p third_party/node/linux/node-linux-x64/bin
+   rm third_party/node/linux/node-linux-x64/bin/node
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-@@ -318,4 +329,17 @@ package() {
+@@ -322,4 +348,12 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
-+makedepends=("${makedepends[@]/nodejs/nodejs-lts-iron}")
 +source+=(swiftshader-use-llvm16.patch
-+         riscv-fix-rust-target.patch::https://github.com/riscv-forks/electron/raw/v31.0.1-riscv/patches/chromium/0005-Fix-Rust-target-triple-for-riscv64.patch
-+         riscv-{dav1d,ffmpeg,sandbox,v8-fix-perf-regression}.patch
-+         Debian-fix-rust-linking.patch)
-+sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+             '9248bb9d12487fd763bc45524c5fc676580660a320a50436d200ab93afc844bd'
-+             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+             '64333a3c3f5230d58066c2ca1daacccab311066485cd905d1c387b1bc2ba3dbf'
-+             '1713cfc3c73d7f33fd7a9daba9b642869632468bc1068b727827a6b5320a7f88'
-+             'e03f824676649821de5c3362264b8f7028e8d6c3cc4ad3d6e9da531c398c2dd7'
-+             '98b0fbe1318897954cb8891cafed65e985613c69192e65984ba6785579b29f80')
++         "git+https://github.com/v8/v8#commit=2b368def"
++         riscv-{dav1d,ffmpeg,sandbox}.patch
++         Debian-fix-rust-linking.patch
++         https://github.com/riscv-forks/electron/raw/v32.0.0-riscv/patches/v8/REVERT-deprecation-removals.patch
++         https://github.com/riscv-forks/electron/raw/v32.0.1-riscv/patches/chromium/0001-extensions-common-api-runtime.json-riscv64-support.patch
++         0001-chrome-runtime_api_delegate-add-riscv64-define.patch)
 +
  # vim:set ts=2 sw=2 et:
