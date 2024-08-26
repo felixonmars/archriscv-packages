@@ -1,13 +1,31 @@
+diff --git 0001-Fix-libbpf-build-workaround-for-netdata-libbpf-4.patch 0001-Fix-libbpf-build-workaround-for-netdata-libbpf-4.patch
+index d4a29e6..907c27a 100644
+--- 0001-Fix-libbpf-build-workaround-for-netdata-libbpf-4.patch
++++ 0001-Fix-libbpf-build-workaround-for-netdata-libbpf-4.patch
+@@ -18,11 +18,11 @@ index 17a26a10f..823a45b4a 100644
+ -        CONFIGURE_COMMAND ""
+ -        BUILD_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ DESTDIR=../ install
+ +        CONFIGURE_COMMAND mkdir -pv src/build/
+-+        BUILD_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ all
+++        BUILD_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ LIBSUBDIR=lib all
+          BUILD_IN_SOURCE 1
+          BUILD_BYPRODUCTS "${_libbpf_library}"
+ -        INSTALL_COMMAND ""
+-+        INSTALL_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ DESTDIR=../ install
+++        INSTALL_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ LIBSUBDIR=lib DESTDIR=../ install
+          EXCLUDE_FROM_ALL 1
+      )
+  
 diff --git PKGBUILD PKGBUILD
-index 57aeb4a..c1f1563 100644
+index e2b0167..6e9eccc 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,7 +35,7 @@ prepare() {
-   sed -i "s|usr/libexec|usr/lib|g" CMakeLists.txt
- 
-   # libbpf sources for eBPF.plugin
--  CFLAGS="${CFLAGS} -fPIC" "packaging/bundle-libbpf.sh" "../netdata-v${pkgver}" "other"
-+  CFLAGS="${CFLAGS} -fPIC" LIBDIR=/usr/lib "packaging/bundle-libbpf.sh" "../netdata-v${pkgver}" "other"
-   CFLAGS="${CFLAGS} -fPIC" "packaging/bundle-ebpf-co-re.sh" "../netdata-v${pkgver}"
- }
+@@ -25,7 +25,7 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/netdata/netdata/releases/do
+         netdata.sysusers
+         netdata.tmpfiles)
+ sha512sums=('8470398d60eba82af94ee1bc41896bc8200decbd51f242d0ef4ac293f5b0257cd72dd88191d82a37e717c08ed50e75bc72855a65d76356491c487ba50ade395e'
+-            '87a97db04edc986d0b687e325c0bd9fbc4bc364f3186cb6ef2b8258a77efe56e20585944260280b20c1280d924f015ee0dc21363562f7f60afb468d049b7e315'
++            '90cc7013229dfc80db60dc6f91cbf681b889b436e5b55179dd427c0340157877542dc0fcb2cd3e3b251074532f54ae83ae5b7b2f6828356619da98bb3c57f81b'
+             'a910809a823ba58ca7bdaa72e8d68427b48f452c1fbb2343fa182ecb0a091a7640e73af24b8ba2fdd90e00aed8ef53b7fccd25cb8f04ca9b9fa6c8e52223ca66'
+             '9dcf6058d7e2b072ca6797c3e8fcb2cccc1f6670a9e58769922e078c95a9431370dc429cc34d8e642dbab10942221f1f730d570df7c40d651872931c070be832')
  
