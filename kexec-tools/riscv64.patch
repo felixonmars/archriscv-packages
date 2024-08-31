@@ -1,24 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,15 +8,19 @@ pkgdesc="Load another kernel from the currently executing Linux kernel"
- arch=('x86_64')
- url="https://kernel.org/pub/linux/utils/kernel/kexec/"
- source=("git+https://git.kernel.org/pub/scm/utils/kernel/kexec/kexec-tools.git#tag=v${pkgver}"
--         'binutils-2.41.patch')
-+        'binutils-2.41.patch'
-+        "add-riscv64-support.patch::https://marc.info/?l=kexec&m=166636009110699&q=mbox")
-+ 
- makedepends=('git')
- depends=('zlib' 'xz')
- license=('GPL-2.0-or-later')
- b2sums=('a11aaef9190cc2f4470a35085fcfc61609c356c42ded1b5269501f91bbde234401da5151f03d3fcfe9f39c8d02ff67d65549f2cdd5f2cbc551863a7d34788321'
--        '57b9830fc3e522d04b8d0db091502d2b101103a68af7c3c1099ea18d8b8d8b7f4a5ccbafebda38e7c7dce43172658dff8a786a5ae4452ad40b57e0161015550e')
-+        '57b9830fc3e522d04b8d0db091502d2b101103a68af7c3c1099ea18d8b8d8b7f4a5ccbafebda38e7c7dce43172658dff8a786a5ae4452ad40b57e0161015550e'
-+        'd93625d1a1725e7c8029cadeb8b47a97fb334d5dd07557f8135c0d7a076a0074e1297bdcffd28426ba38b955be5c9938e664eadae7835b92f120d575beaa1cb6')
+@@ -16,6 +16,8 @@ b2sums=('e49b21dadc06cd91ec71a7c48e6a731a29560dde91f53cea615ffcfc747f443b5db3bfc
  
  prepare() {
-   cd $pkgname
-+  patch -Np1 -i $srcdir/add-riscv64-support.patch
+   cd "${pkgname}"
++  patch -Np1 -i ../add-riscv64-support.patch
++  patch -Np1 -i ../riscv-hotplug.patch
    ./bootstrap
-   patch -Np1 -i $srcdir/binutils-2.41.patch
  }
+ 
+@@ -31,3 +33,7 @@ package() {
+   install -D -m644 kexec/kexec.8 "$pkgdir"/usr/share/man/man8/kexec.8
+ }
+ 
++source+=("add-riscv64-support.patch"
++         "riscv-hotplug.patch")
++b2sums+=('60f71a3da5945af3099f0359f695c7e8cb6875b10b223df32bd729d25baa7474914c9aa49c37fbc2af173ce9804696b17d3681060cba599e150b42c9daa32bbd'
++         '05600e0964fa35df04f5f25aee15745bce91f5b1ad9320880bc48bf56563e512b21ceb069bc3898069602b4629cbba89e3688887fb9d39c1438c031654c8016a')

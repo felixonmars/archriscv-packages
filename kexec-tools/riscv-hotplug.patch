@@ -1,0 +1,23 @@
+From: Petr Tesarik <ptesarik@suse.com>
+Subject: riscv: fix build with hotplug support
+Upstream: not yet, blocked by base RISC-V patches
+
+Commit 3c47f384f1c4 ("kexec_load: Use new kexec flag for hotplug support")
+adds a new architecture-specific function named arch_do_exclude_segment.
+Since RISC-V does not yet implement hotplug updates in the kernel, add a
+trivial definition of this function to kexec-tools.
+
+Signed-off-by: Petr Tesarik <ptesarik@suse.com>
+Index: kexec-tools-2.0.29/kexec/arch/riscv/kexec-riscv.c
+===================================================================
+--- kexec-tools-2.0.29.orig/kexec/arch/riscv/kexec-riscv.c
++++ kexec-tools-2.0.29/kexec/arch/riscv/kexec-riscv.c
+@@ -362,3 +362,8 @@ int arch_compat_trampoline(struct kexec_
+ void arch_update_purgatory(struct kexec_info *UNUSED(info))
+ {
+ }
++
++int arch_do_exclude_segment(struct kexec_info *UNUSED(info), struct kexec_segment *UNUSED(segment))
++{
++	return 0;
++}
