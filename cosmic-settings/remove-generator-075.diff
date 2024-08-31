@@ -1,0 +1,50 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 7506805..e145401 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1538,7 +1538,6 @@ version = "0.1.0"
+ dependencies = [
+  "derive_setters",
+  "downcast-rs",
+- "generator 0.7.5",
+  "libcosmic",
+  "once_cell",
+  "regex",
+diff --git a/page/Cargo.toml b/page/Cargo.toml
+index e0446b4..31e7570 100644
+--- a/page/Cargo.toml
++++ b/page/Cargo.toml
+@@ -8,7 +8,6 @@ derive_setters = "0.1.6"
+ regex = "1.10.5"
+ slotmap = "1.0.7"
+ libcosmic = { workspace = true }
+-generator = "0.7.5"
+ downcast-rs = "1.2.1"
+ once_cell = "1.19.0"
+ tokio.workspace = true
+diff --git a/page/src/binder.rs b/page/src/binder.rs
+index f256d7e..235828c 100644
+--- a/page/src/binder.rs
++++ b/page/src/binder.rs
+@@ -204,16 +204,11 @@ impl<Message: 'static> Binder<Message> {
+         &'a self,
+         rule: &'a Regex,
+     ) -> impl Iterator<Item = (crate::Entity, section::Entity)> + 'a {
+-        generator::Gn::new_scoped_local(|mut s| {
+-            for (page, sections) in self.content.iter() {
+-                for id in sections {
+-                    if self.sections[*id].search_matches(rule) {
+-                        s.yield_((page, *id));
+-                    }
+-                }
+-            }
+-
+-            generator::done!();
++        self.content.iter().flat_map(move |(page, sections)| {
++            sections
++                .into_iter()
++                .filter(|&id| self.sections[*id].search_matches(rule))
++                .map(move |&id| (page, id))
+         })
+     }
+ 
