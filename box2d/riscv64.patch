@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,8 +13,15 @@ makedepends=('cmake' 'ninja' 'git' 'wayland'
+              'xorg-xrandr' 'libxcursor' 'xorg-xinput' 'glfw')
+ # We're going to this alternate fork until the patches are upstreamed.
+ # See https://github.com/erincatto/box2d/issues/621
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/erincatto/Box2D/archive/v${pkgver}.tar.gz")
+-sha512sums=('b56e4e79aa3660ee728c1698b7a5256727b505d993103ad3cc6555e9b38cf81e6f26d5cbc717bdc6f386a6062ee47065277778ca6dd78cacb35f2d5e8c897723')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/erincatto/Box2D/archive/v${pkgver}.tar.gz"
++        remove-unsupported-cpu.patch)
++sha512sums=('b56e4e79aa3660ee728c1698b7a5256727b505d993103ad3cc6555e9b38cf81e6f26d5cbc717bdc6f386a6062ee47065277778ca6dd78cacb35f2d5e8c897723'
++            'cfd1eebb7cf807541be6307481fe2f68dbd506c7f0aa5287b267eceb04a5836ad304987d4625d77cc5c624e073f9319f4007d18d4a48a625234b8edadc388fb0')
++
++prepare() {
++  cd $pkgname-$pkgver
++  patch -Np1 -i ../remove-unsupported-cpu.patch
++}
+ 
+ build() {
+   cd $pkgname-$pkgver
