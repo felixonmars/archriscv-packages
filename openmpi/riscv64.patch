@@ -1,30 +1,30 @@
 diff --git PKGBUILD PKGBUILD
-index 54f95a7..87cf1da 100644
+index 73f1276..11cda03 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,7 +15,6 @@ arch=(x86_64)
+@@ -16,8 +16,6 @@ arch=(x86_64)
  url='https://www.open-mpi.org'
  license=('BSD-3-Clause AND LicenseRef-MPICH')
  makedepends=(
 -  cuda
+-  nvidia-utils  # for libcuda.so
    gcc-fortran
    gcc-libs
    glibc
-@@ -25,8 +24,6 @@ makedepends=(
+@@ -27,7 +25,6 @@ makedepends=(
    libfabric
    libnl
    openpmix
 -  openucc
--  openucx
+   openucx
    prrte
    valgrind
-   zlib
-@@ -68,12 +65,6 @@ build() {
+@@ -70,12 +67,7 @@ build() {
      --with-pmix=external
      --with-prrte=external
      --with-valgrind
 -    --with-ucc=/usr
--    --with-ucx=/usr
+     --with-ucx=/usr
 -    --with-cuda=/opt/cuda
 -    # this tricks the configure script to look for /usr/lib/pkgconfig/cuda.pc
 -    # instead of /opt/cuda/lib/pkgconfig/cuda.pc
@@ -32,12 +32,7 @@ index 54f95a7..87cf1da 100644
      --with-rocm=/opt/rocm
      # all components that link to libraries provided by optdepends must be run-time loadable
      --enable-mca-dso=accelerator_cuda,accelerator_rocm,btl_smcuda,rcache_gpusm,rcache_rgpusm,coll_ucc,scoll_ucc
-@@ -108,12 +99,10 @@ package_openmpi() {
-     libfabric
-     libnl
-     openpmix libpmix.so
--    openucx
-     prrte
+@@ -115,11 +107,9 @@ package_openmpi() {
      zlib
    )
    optdepends=(
@@ -45,3 +40,7 @@ index 54f95a7..87cf1da 100644
      'hip-runtime-amd: ROCm support'
      'gcc-fortran: fortran support'
      'openssh: for execution on remote hosts via plm_ssh_agent'
+-    'openucc: for UCC accelerated collectives'
+   )
+   provides=(
+     libmpi.so
