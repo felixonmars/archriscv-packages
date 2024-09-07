@@ -1,23 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,7 +22,10 @@ source=("https://releases.wildfiregames.com/$pkgname-$_pkgver-unix-build.tar.xz"
-         https://github.com/0ad/0ad/commit/093e1eb2.patch
+@@ -23,7 +23,10 @@ source=("https://releases.wildfiregames.com/$pkgname-$_pkgver-unix-build.tar.xz"
          https://github.com/0ad/0ad/commit/d2426312.patch
          fix_gcc_14_ftbfs.patch
--        miniupnpc-2.2.8.patch)
-+        miniupnpc-2.2.8.patch
+         miniupnpc-2.2.8.patch
+-        af348d84.patch)
++        af348d84.patch
 +        https://github.com/0ad/0ad/commit/d2426312.patch
 +        add-riscv64-support.patch
 +        "$pkgname-fix-riscv64-build.patch::https://code.wildfiregames.com/D5127?download=true")
  validpgpkeys=('A035C8C19219BA821ECEA86B64E628F8D684696D')  # Pablo Galindo Salgado <pablogsal@gmail.com>
  sha512sums=('aaf647d5d8454c244015d2a198beeaaebc571a5bc96446f3acff8dbd05f9843029c500bf4162651a5e1fcdb42bd5fb5b4f5c512c78372479fbd8565dd093f272'
              '2b0a1d936b4ef8376f9655797aece8ffdff75031ad7bfa840f330cac2aed189aecc80c163edc12ea772851d7a011f3fc1960470a73d9d4290cf3ab8ad6ed7e6a'
-@@ -33,13 +36,18 @@ sha512sums=('aaf647d5d8454c244015d2a198beeaaebc571a5bc96446f3acff8dbd05f9843029c
-             'a7fd1454385f56b7c8cb0fc6ac001761d4419df4aeec570ba846c7df4eb327d25b9ff1a7946cb334315109fa90ca2c1820583619f4e1ec5d53805afa08e10093'
+@@ -35,11 +38,17 @@ sha512sums=('aaf647d5d8454c244015d2a198beeaaebc571a5bc96446f3acff8dbd05f9843029c
              '5f32d47f01d845e07b2f919c9b04ac5e50dc9977fa97f981eba4a53677a29d797d0d76bc385ac047dd7c7d24af7d95cd8256d433bd43ce1a6606763c0ea736cb'
              'b991b27168b0bfb13fe27aea1dd1f2759b6f243dba62a169612ebc28d601a84d06d3f3a44f3af6dd79ccf8b71f9eacd3fcdb9cb5de9fce7684614afb4ad91851'
--            'cb858c31d7748e99b3332f28dddb00ac264b7352f59a4e9eddca21b92d1cf4c5a8b47d2be29aa4c1960a73fe47ef9772a2e7abae45fe297ef55c2eee1cc498ed')
-+            'cb858c31d7748e99b3332f28dddb00ac264b7352f59a4e9eddca21b92d1cf4c5a8b47d2be29aa4c1960a73fe47ef9772a2e7abae45fe297ef55c2eee1cc498ed'
+             'cb858c31d7748e99b3332f28dddb00ac264b7352f59a4e9eddca21b92d1cf4c5a8b47d2be29aa4c1960a73fe47ef9772a2e7abae45fe297ef55c2eee1cc498ed'
+-            '42351c34b6a871c9efd463db18b8dd3ea4e143657d9bafd3cce604e724556b63a7d7b670c8c512f7509fb474778108b4a51635a1e4965a7532f7af35773983ac')
++            '42351c34b6a871c9efd463db18b8dd3ea4e143657d9bafd3cce604e724556b63a7d7b670c8c512f7509fb474778108b4a51635a1e4965a7532f7af35773983ac'
 +            '5f32d47f01d845e07b2f919c9b04ac5e50dc9977fa97f981eba4a53677a29d797d0d76bc385ac047dd7c7d24af7d95cd8256d433bd43ce1a6606763c0ea736cb'
 +            '3b8456690dd1674e216734c7b61abd1f5e60576d7b0108a8557f48a67fb2f844a0d73dc468240afe1a9b7e74dcb5bd247cd3675fd392cb4e19d48e837327757a'
 +            '9dba3d00ceb61bd0b08fc3dea4d975e14428b93383fb24c4de69e594d3a9c5ed95f37aade3681aac42a80af53c0c1286e54fb7e2d7f3ff8a4dbe27ad7718074f')
@@ -25,10 +25,9 @@
  prepare() {
    cd "$pkgname-$_pkgver"
  
-   # Thanks Debian!
-   patch -Np1 -i "$srcdir"/fix_python_3.11_ftbfs.patch
 +  patch -Np1 -i "$srcdir"/add-riscv64-support.patch
 +  patch -Np0 -i "$srcdir"/$pkgname-fix-riscv64-build.patch
++
+   # Thanks Debian!
+   patch -Np1 -i "$srcdir"/fix_python_3.11_ftbfs.patch
    cp "$srcdir"/mozjs_virtualenv.patch libraries/source/spidermonkey
-   patch -p1 -i ../839edc3a.patch # Fix build with fmt 10
-   patch -p1 -i ../093e1eb2.patch # Fix build with GCC 13
