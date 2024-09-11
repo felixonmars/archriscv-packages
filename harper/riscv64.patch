@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,12 +15,18 @@ makedepends=(
+   'cargo'
+ )
+ options=(!lto)
+-source=(https://github.com/elijah-potter/${pkgname}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz)
+-sha256sums=('7e2dadc3e5f394f505bc2b4e05f63857b9a2f568d84fa8e403aa557f1a6d0d6e')
+-b2sums=('e5d34c81568c57add335a9d5c7fa0a2f948bc8f2b19cabae26d56c25e5e7086935b067fbb5dd9c0ede7c3e2be7b2f941f0b106bfe248fcc5fa2dd36714ea31c5')
++source=(https://github.com/elijah-potter/${pkgname}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz
++  fix-test.patch::https://github.com/elijah-potter/harper/commit/133671262a169668216cf4b76eaa829cba9ea65f.patch)
++sha256sums=('7e2dadc3e5f394f505bc2b4e05f63857b9a2f568d84fa8e403aa557f1a6d0d6e'
++  'd553fc6e34fd6fa49750f14479c0aca9db0ff5b6c4700ad824ae0814e063faa6')
++b2sums=('e5d34c81568c57add335a9d5c7fa0a2f948bc8f2b19cabae26d56c25e5e7086935b067fbb5dd9c0ede7c3e2be7b2f941f0b106bfe248fcc5fa2dd36714ea31c5'
++  '741ed744cad9f79f82af97a9bb8957ba42b2b3415d212c4d7a5a7c70fd996d7d354c5fa8aa0bac22017c55dc474ab7297b39f68fbde79655e737e72fc3e7e18f')
+ 
+ prepare() {
+   cd "${pkgname}-${pkgver}"
++
++  patch -p1 -i "$srcdir/fix-test.patch"
++
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ }
+ 
