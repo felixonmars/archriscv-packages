@@ -1,36 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,6 +13,15 @@ makedepends=('cargo' 'cargo-about' 'git')
- source=("$pkgname-$pkgver::git+https://github.com/kxxt/tracexec.git#tag=v$pkgver")
- b2sums=('d06df4fc6e42ef302fa5a07e232111f93226b2b5958082f44c75cf8965586778b96eb4ba79211ebddd80ae1f36574e502f883c4dad78ce24c17ae5f9c6fc87d2')
+@@ -15,6 +15,8 @@ b2sums=('c4eda38453a58623735cfbb78a612ae21488519a794bb246288e3f90cead013db64a7aa
  
-+case "$CARCH" in
-+  riscv64)
-+    _feature_flags="--no-default-features"
-+    ;;
-+  *)
-+    _feature_flags="--all-features"
-+    ;;
-+esac
-+
  prepare() {
    cd "$pkgname-$pkgver"
++  echo -e "\n[patch.crates-io]\nseccompiler = { git = 'https://github.com/kxxt/seccompiler', branch = 'riscv64' }" >> Cargo.toml
++  cargo update -p seccompiler
    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
-@@ -22,7 +31,7 @@ prepare() {
- build() {
-   cd "$pkgname-$pkgver"
-   # --bins: needed for test
--  cargo build --bins --frozen --release --all-features
-+  cargo build --bins --frozen --release $_feature_flags
-   cargo about generate -o THIRD_PARTY_LICENSES.HTML about.hbs
-   local compgen="target/release/$pkgname generate-completions"
-   $compgen bash >"completions/$pkgbase"
-@@ -33,7 +42,7 @@ build() {
- 
- check() {
-   cd "$pkgname-$pkgver"
--  RUST_TEST_THREADS=1 cargo test --frozen --release --all-features
-+  RUST_TEST_THREADS=1 cargo test --frozen --release $_feature_flags
+   mkdir completions/
  }
- 
- package() {
