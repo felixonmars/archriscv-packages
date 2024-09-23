@@ -24,9 +24,9 @@
 +        Debian-fix-rust-linking.patch
          makepkg-source-roller.py
          # BEGIN managed sources
-         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=124.0.6367.233
+         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=124.0.6367.243
 @@ -235,12 +237,13 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
- sha256sums=('b76443c063c26069651e3e4968ffd9802b40df80febe4aaac5a95649175d4666'
+ sha256sums=('aaf19eb1c3baa169df8e3b9b891daac734c6e3158e5e5cc2d7dae49cdd30f775'
              'c2bc4e65ed2a4e23528dd10d5c15bf99f880b7bbb789cc720d451b78098a7e12'
              '3bd35dab1ded5d9e1befa10d5c6c4555fe0a76d909fb724ac57d0bf10cb666c1'
 -            'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
@@ -38,7 +38,7 @@
              'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
 +            '98b0fbe1318897954cb8891cafed65e985613c69192e65984ba6785579b29f80'
              '3ae82375ba212c31fd4ba6f1fa4e2445eeca8eb8c952176131ad57c0258db224'
-             '5b726fabb7b6a7364eb4e712947596989c411b0735d745084c8609579f3f6b5b'
+             'f1674e6550645996c9e4fdb3de00f1f53978c2d4a72daec127d9e2973cc33ecb'
              '0b7a546ee6913c49519c10c293ac530ff381641a8a465fa2e184d6dbe0fb784d'
 @@ -445,12 +448,22 @@ prepare() {
    cp -r chromium-mirror_third_party_depot_tools depot_tools
@@ -72,7 +72,16 @@
    ## Upstream fixes
  
    # https://crbug.com/893950
-@@ -592,6 +607,10 @@ build() {
+@@ -558,6 +573,8 @@ build() {
+     'enable_hangout_services_extension=true'
+     'enable_widevine=false'
+     'enable_nacl=false'
++    'is_clang=true'
++    "override_electron_version\"$pkgver\""
+   )
+ 
+   if [[ -n ${_system_libs[icu]+set} ]]; then
+@@ -592,6 +609,10 @@ build() {
    CFLAGS+='   -Wno-unknown-warning-option'
    CXXFLAGS+=' -Wno-unknown-warning-option'
  
@@ -83,7 +92,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -639,3 +658,5 @@ package() {
+@@ -639,3 +660,5 @@ package() {
    install -Dm644 src/electron/default_app/icon.png \
            "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
  }
