@@ -1,20 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,10 +29,12 @@ source=(
-   "git+https://github.com/dart-lang/sdk.git#tag=$pkgver"
-   "git+https://chromium.googlesource.com/chromium/tools/depot_tools.git"
-   "DEPS.patch"
-+  "dart-riscv-no-cross.patch"
- )
- sha256sums=('aba863b230001773aa8cbbedb2824de154f778377c4048dbcc12460fdcd969f5'
-             'SKIP'
--            'db6576a70c6719e26795b9824546058b79fefa64158c1002d36546d826084403')
-+            'db6576a70c6719e26795b9824546058b79fefa64158c1002d36546d826084403'
-+            '9b69b12208faa1a4b98be5e5e73385526e2571f0f3527aadd0496eadb4b7aab6')
- 
- prepare() {
- cat >.gclient <<EOF
-@@ -53,6 +55,7 @@ EOF
+@@ -53,6 +53,7 @@ EOF
    cd sdk
  
    patch -Np 1 --input=$srcdir/DEPS.patch
@@ -22,7 +8,7 @@
  
    python ../depot_tools/gclient.py sync -D \
        --nohooks \
-@@ -74,7 +77,7 @@ build() {
+@@ -72,7 +73,7 @@ build() {
    # gn args --list out
  
    /usr/bin/gn gen -qv out --args='
@@ -31,3 +17,10 @@
                          is_debug = false
                          is_release = true
                          is_clang = false
+@@ -104,3 +105,6 @@ package() {
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++source+=("dart-riscv-no-cross.patch")
++sha256sums+=('9b69b12208faa1a4b98be5e5e73385526e2571f0f3527aadd0496eadb4b7aab6')
