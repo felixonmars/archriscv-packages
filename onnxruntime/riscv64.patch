@@ -1,0 +1,72 @@
+diff --git PKGBUILD PKGBUILD
+index 9329cdd..aa0a981 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -3,23 +3,21 @@
+ # Contributor: Chih-Hsuan Yen <yan12125@gmail.com>
+ 
+ pkgbase=onnxruntime
+-pkgname=("${pkgbase}" "${pkgbase}-opt"  "${pkgbase}-rocm" "${pkgbase}-opt-rocm"
+-         "python-${pkgbase}" "python-${pkgbase}-opt"
+-         "python-${pkgbase}-rocm" "python-${pkgbase}-opt-rocm")
++pkgname=("${pkgbase}"
++         "python-${pkgbase}")
+ pkgver=1.18.0
+ _pkgdesc='Cross-platform, high performance scoring engine for ML models'
+ pkgrel=3
+ arch=('x86_64')
+ url='https://github.com/microsoft/onnxruntime'
+ license=('MIT')
+-depends=('abseil-cpp' 'boost' 'nsync' 'onednn' 'intel-oneapi-mkl')
++depends=('abseil-cpp' 'boost' 'nsync' 'onednn')
+ # https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/python/tools/transformers/requirements.txt
+ _pydepends=('python-onnx' 'python-numpy' 'python-coloredlogs' 'python-psutil'
+             'python-py-cpuinfo' 'python-sympy' 'python-scipy' 'python-pillow'
+             'python-flatbuffers' 'python-protobuf' 'python-packaging')
+ makedepends=('git' 'cmake' 'ninja' 'pybind11' 'nlohmann-json' 'chrono-date' 'eigen' 'cxxopts' 'openmpi'
+-             'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'gcc13'
+-             'cuda' 'cudnn' 'nccl' 'rocm-hip-sdk' 'hipify-clang' 'rocm-smi-lib' 'roctracer')
++             'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'gcc13')
+ makedepends+=("${_pydepends[@]}")
+ #TODO: Add migraphx for ROCm and tensorrt for CUDA.
+ optdepends=('openmpi: Distributed memory parallelization')
+@@ -148,15 +146,17 @@ build() {
+   export CXX="$NVCC_CCBIN"
+   export CC="${NVCC_CCBIN/g++/gcc}"
+ 
+-  echo "Build onnxruntime with CUDA without optimization"
++  echo "Build onnxruntime without optimization"
+   cd "${srcdir}/${pkgbase}-cuda"
+-  cmake "${_cmake_cuda_args[@]}"
++  cmake "${_cmake_args[@]}"
+   cmake --build build
+   cd build
+   install -Dm644 ../docs/python/README.rst docs/python/README.rst
+   ln -s ../setup.py .
+   python -m build --wheel --no-isolation
+ 
++  return
++
+   echo "Build onnxruntime with CUDA with AVX optimizations"
+   cd "${srcdir}/${pkgbase}-opt-cuda"
+   echo 'string(APPEND CMAKE_C_FLAGS " -march=haswell")' \
+@@ -195,9 +195,6 @@ build() {
+ 
+ package_onnxruntime() {
+   pkgdesc="$_pkgdesc"
+-  optdepends+=('cuda: nVidia GPU acceleration'
+-               'cudnn: nVidia GPU acceleration'
+-               'nccl: nVidia GPU acceleration')
+ 
+   cd "${pkgbase}-cuda"
+   DESTDIR="${pkgdir}" cmake --install build
+@@ -247,9 +244,6 @@ package_onnxruntime-opt-rocm() {
+ package_python-onnxruntime() {
+   pkgdesc="$_pkgdesc"
+   depends+=("${pkgbase}" "${_pydepends[@]}")
+-  optdepends+=('cuda: nVidia GPU acceleration'
+-               'cudnn: nVidia GPU acceleration'
+-               'nccl: nVidia GPU acceleration')
+ 
+   cd "${pkgbase}-cuda/build"
+   python -m installer --destdir="${pkgdir}" dist/*.whl
