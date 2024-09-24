@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index e3d59cc..81c34ce 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -5,8 +5,7 @@
@@ -7,49 +9,32 @@
 -         python-opencv
 -         opencv-cuda)
 +         python-opencv)
- pkgver=4.9.0
- pkgrel=3
+ pkgver=4.10.0
+ pkgrel=10
  pkgdesc='Open Source Computer Vision Library'
-@@ -39,7 +38,6 @@ depends=(abseil-cpp
+@@ -39,8 +38,6 @@ depends=(abseil-cpp
           zlib)
  makedepends=(ant
               cmake
+-             cuda
 -             cudnn
               eigen
               fmt
-              glew
-@@ -61,6 +59,8 @@ optdepends=('opencv-samples: samples'
-             'hdf5: for the HDF5 module'
-             'opencl-icd-loader: For coding with OpenCL'
-             'java-runtime: Java interface')
-+# fix error 'relocation truncated to fit: R_RISCV_PCREL_HI20 against `.LC19''
-+options=(!lto)
- source=(https://github.com/opencv/opencv/archive/$pkgver/$pkgname-$pkgver.tar.gz
-         https://github.com/opencv/opencv_contrib/archive/$pkgver/opencv_contrib-$pkgver.tar.gz
-         $pkgname-cccl-2.2.0.zip::https://github.com/NVIDIA/cccl/archive/refs/tags/v2.2.0.zip
-@@ -99,7 +99,6 @@ build() {
+              gcc13
+@@ -108,7 +105,6 @@ build() {
           -DINSTALL_PYTHON_EXAMPLES=ON \
           -DCMAKE_INSTALL_PREFIX=/usr \
           -DCPU_BASELINE_DISABLE=SSE3 \
 -         -DCPU_BASELINE_REQUIRE=SSE2 \
-          -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib-$pkgver/modules \
+          -DOPENCV_EXTRA_MODULES_PATH=$srcdir/opencv_contrib/modules \
           -DOPENCV_SKIP_PYTHON_LOADER=ON \
           -DLAPACK_LIBRARIES=/usr/lib/liblapack.so;/usr/lib/libblas.so;/usr/lib/libcblas.so \
-@@ -117,6 +116,9 @@ build() {
+@@ -126,6 +122,8 @@ build() {
      -DBUILD_WITH_DEBUG_INFO=ON
    cmake --build build
  
-+  # Use a "multi-line comment" to keep patch from rotting
-+  : <<'COMMENT_SEPARATOR'
++  return
 +
-   # opencv 4.9.0 does not build with thrust 2.3.0 from CUDA 12.4
-   # see https://github.com/opencv/opencv_contrib/issues/3690
-   # building thrust 2.2.0 (version from CUDA 12.3) works around this
-@@ -141,6 +143,7 @@ build() {
-     -DCUDA_ARCH_BIN='52-real;53-real;60-real;61-real;62-real;70-real;72-real;75-real;80-real;86-real;87-real;89-real;90-real;90-virtual' \
-     -DCUDA_ARCH_PTX='90-virtual'
-   cmake --build build-cuda
-+COMMENT_SEPARATOR
- }
- 
- package_opencv() {
+   CFLAGS="${CFLAGS} -fno-lto" CXXFLAGS="${CXXFLAGS} -fno-lto" LDFLAGS="${LDFLAGS} -fno-lto" \
+   cmake -B build-cuda -S $pkgname $_opts \
+     -DBUILD_WITH_DEBUG_INFO=OFF \
