@@ -1472,18 +1472,6 @@ index 74d1b25..e688001 100644
  
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
-@@ -21,9 +21,10 @@
- #include "config.h"
- #endif /* HAVE_CONFIG_H */
- 
--#include <string.h>
- #include "libxmlutil.h"
- 
-+#include <string.h>
-+
- char *libxmlutil_dup_attr(const xmlNode *node, const char *name)
- {
-   xmlChar *s;
 @@ -81,8 +82,10 @@ int libxmlutil_count_by_tag_name(const xmlNode *node, const char *name)
    return n;
  }
@@ -1636,41 +1624,6 @@ diff --git a/src/progress.c b/src/progress.c
 index 39afaca..b4f9a24 100644
 --- a/src/progress.c
 +++ b/src/progress.c
-@@ -1,5 +1,5 @@
- /*
--  Copyright (C) 2013-2016 Marius L. Jøhndal
-+  Copyright (C) 2013-2020 Marius L. Jøhndal
- 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-@@ -21,18 +21,18 @@
- #include "config.h"
- #endif /* HAVE_CONFIG_H */
- 
--#include <stdio.h>
--#include <string.h>
--#include <stdlib.h>
--#include <math.h>
--#include <glib.h>
- #include "progress.h"
- 
--/* This code was inspired/guided by the progress-bar implementation found in
-- * curl (src/tool_cb_prg.c) by Daniel Stenberg, in turn building on an
-- * implementation by Lars Aas. */
-+#include <glib.h>
-+#include <math.h>
-+#include <stdlib.h>
-+#include <string.h>
- 
--int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
-+/* This code was inspired/guided by the progress-bar implementation found in
-+   curl (src/tool_cb_prg.c) by Daniel Stenberg, in turn building on an
-+   implementation by Lars Aas. */
-+int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal,
-+                    double ulnow)
- {
-   double fraction;
-   int num;
 @@ -55,7 +55,7 @@ int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal,
        total = (long)dltotal + pb->resume_from;
        position = MIN((long)dlnow + pb->resume_from, total);
@@ -1724,13 +1677,6 @@ diff --git a/src/progress.h b/src/progress.h
 index 18910f7..0d43d48 100644
 --- a/src/progress.h
 +++ b/src/progress.h
-@@ -1,5 +1,5 @@
- /*
--  Copyright (C) 2005-2016 Marius L. Jøhndal
-+  Copyright (C) 2005-2020 Marius L. Jøhndal
- 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
 @@ -20,6 +20,8 @@
  #ifndef PROGRESS_H
  #define PROGRESS_H
@@ -1740,15 +1686,6 @@ index 18910f7..0d43d48 100644
  typedef struct _progress_bar {
    FILE *f;
    long resume_from;
-@@ -30,6 +32,7 @@ typedef struct _progress_bar {
- 
- progress_bar *progress_bar_new(long resume_from);
- void progress_bar_free(progress_bar *pb);
--int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow);
-+int progress_bar_cb(void *clientp, double dltotal, double dlnow, double ultotal,
-+                    double ulnow);
- 
- #endif /* PROGRESS_H */
 diff --git a/src/rss.c b/src/rss.c
 index 7c795e2..5eae5aa 100644
 --- a/src/rss.c
