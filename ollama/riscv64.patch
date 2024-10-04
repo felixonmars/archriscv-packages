@@ -1,12 +1,63 @@
+diff --git PKGBUILD PKGBUILD
+index a2e53cb..70a91e6 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,6 +38,9 @@ prepare() {
+@@ -4,7 +4,7 @@
+ # Contributor: Kainoa Kanter <kainoa@t1c.dev>
  
-   # Display a more helpful error message
-   sed -i "s|could not connect to ollama server, run 'ollama serve' to start it|ollama is not running, try 'systemctl start ollama'|g" cmd/cmd.go
+ pkgbase=ollama
+-pkgname=(ollama ollama-cuda ollama-rocm)
++pkgname=(ollama)
+ pkgver=0.3.12
+ _ollama_commit=e9e9bdb8d904f009e8b1e54af9f77624d481cfb2 # tag: v0.3.12
+ pkgrel=1
+@@ -14,7 +14,7 @@ url='https://github.com/ollama/ollama'
+ _llama_cpp_commit=$(curl -sL "https://github.com/ollama/ollama/tree/$_ollama_commit/llm" | tr ' ' '\n' | tr '"' '\n' | grep ggerganov | cut -d/ -f5 | head -1)
+ license=(MIT)
+ install=msg.install
+-makedepends=(clblast cmake cuda git go rocm-hip-sdk rocm-opencl-sdk)
++makedepends=(clblast cmake git go)
+ source=(git+$url#commit=$_ollama_commit
+         llama.cpp::git+https://github.com/ggerganov/llama.cpp#commit=$_llama_cpp_commit
+         ollama.service
+@@ -36,6 +36,8 @@ prepare() {
+   # Set the CMake build type to "Release"
+   sed -i 's,T_CODE=on,T_CODE=on -D CMAKE_BUILD_TYPE=Release,g' $pkgbase/llm/generate/gen_linux.sh
+ 
++  patch -d $pkgbase -p1 < $pkgname-riscv-support.patch
 +
-+  go mod edit -replace github.com/chewxy/math32@v1.0.8=github.com/chewxy/math32@8e68659b6eeb81aaeb87ddcf85216f3d3096f234
-+  go mod tidy
+   # Copy the ollama directory to ollama-cuda and ollama-rocm
+   cp -r $pkgbase $pkgbase-cuda
+   cp -r $pkgbase $pkgbase-rocm
+@@ -61,6 +63,7 @@ build() {
+   cd $pkgbase
+   go generate ./...
+   go build $goflags -ldflags="$ldflags"
++  return
+ 
+   # Ollama with CUDA support
+   cd "$srcdir/$pkgbase-cuda"
+@@ -83,15 +86,9 @@ build() {
+ 
+ check() {
+   $pkgbase/$pkgbase --version > /dev/null
+-  $pkgbase-cuda/$pkgbase --version > /dev/null
+-  $pkgbase-rocm/$pkgbase --version > /dev/null
+-
++  
+   cd $pkgbase
+   go test .
+-  cd ../$pkgbase-cuda
+-  go test .
+-  cd ../$pkgbase-rocm
+-  go test .
  }
  
- build() {
+ package_ollama() {
+@@ -139,3 +136,6 @@ package_ollama-rocm() {
+ 
+   ln -s /var/lib/ollama "$pkgdir/usr/share/ollama"
+ }
++
++source+=($pkgname-riscv-support.patch::https://github.com/ollama/ollama/pull/6627.patch)
++b2sums+=('cf0bc96cb57415c0f86d8e5d460b72339eeb7ac511d197424447dceb3795a112a8b8c13b531d412ab71757fd9ee11ff493d8bff662dfbd4977f2021227208b87')
