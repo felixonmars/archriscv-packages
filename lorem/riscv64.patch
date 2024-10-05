@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,14 +22,18 @@ makedepends=(
+   meson
+   rust
+ )
+-source=("git+https://gitlab.gnome.org/World/design/lorem.git#tag=$pkgver")
+-b2sums=(967ed9ffc098f3ce55a5549ce2beccde4e95a1fa69917f087c83ecf45fa2f8018983e2c892dc6d28d64fce5507d5c4d7db33f6950006f434cdc09b0de021f570)
++source=("git+https://gitlab.gnome.org/World/design/lorem.git#tag=$pkgver"
++        "longer-timeout.patch")
++b2sums=(967ed9ffc098f3ce55a5549ce2beccde4e95a1fa69917f087c83ecf45fa2f8018983e2c892dc6d28d64fce5507d5c4d7db33f6950006f434cdc09b0de021f570
++        e9628245c57e1e344eb7a19a75a52edede7c33cc073a0749b770a8b875d32360c260f6642c1bbad013e8d36ebf959f7147024c2d2580b2022341dbcfcc3090c1)
+ 
+ prepare() {
+   cd $pkgname
+ 
+   CARGO_HOME="$srcdir/build/cargo-home" \
+     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++
++  patch -Np0 -i ../longer-timeout.patch
+ }
+ 
+ build() {
