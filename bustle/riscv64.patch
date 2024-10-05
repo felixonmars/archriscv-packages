@@ -1,24 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,8 +24,10 @@ makedepends=(
-   meson
-   rust
- )
--source=("git+https://gitlab.gnome.org/World/bustle.git#tag=$pkgver")
--b2sums=(2ab4ab0d5a27acf032f572a6179382b45898892cb1e9c9caa899cd8677a50f76c579f7bca6d4704a894c43d6e36606c855b526f4c8d709de9333caa3842fff59)
-+source=("git+https://gitlab.gnome.org/World/bustle.git#tag=$pkgver"
-+        "longer-timeout.patch")
-+b2sums=(2ab4ab0d5a27acf032f572a6179382b45898892cb1e9c9caa899cd8677a50f76c579f7bca6d4704a894c43d6e36606c855b526f4c8d709de9333caa3842fff59
-+        '02e3c6be731c8eaa5d4886320eb21f98a8db43071190e474141d502eb822dc6152d711464b48f49ef83ae60fb51ff9b3c33d1238b41a95a99adfcdd2be496bfb')
- 
- prepare() {
-   cd $pkgname
-@@ -36,6 +38,8 @@ prepare() {
-   # note: test did not panic as expected
-   # https://gitlab.gnome.org/World/bustle/-/issues/36
-   sed -i '/#\[should_panic/d' src/i18n.rs
-+
-+  patch -Np0 -i ../longer-timeout.patch
+@@ -49,7 +49,7 @@ build() {
  }
  
- build() {
+ check() {
+-  meson test -C build --print-errorlogs --no-rebuild
++  meson test -C build --print-errorlogs --no-rebuild --timeout-multiplier 0
+ }
+ 
+ package() {
