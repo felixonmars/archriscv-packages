@@ -1,6 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -95,6 +95,7 @@ makedepends=(
+@@ -22,7 +22,6 @@ pkgname=(
+   qemu-ui-{curses,dbus,egl-headless,gtk,opengl,sdl,spice-{app,core}}
+   qemu-user{,-static}{,-binfmt}
+   qemu-vhost-user-gpu
+-  qemu-vmsr-helper
+   qemu-{base,desktop,emulators-full,full}
+ )
+ pkgver=9.1.0
+@@ -123,6 +122,7 @@ makedepends=(
    zlib
    zstd
  )
@@ -8,7 +16,7 @@
  source=(
    https://download.qemu.org/qemu-$pkgver.tar.xz{,.sig}
    bridge.conf
-@@ -355,13 +356,6 @@ package_qemu-common() {
+@@ -429,13 +429,6 @@ package_qemu-common() {
    # remove unneeded files
    find "$pkgdir" -name .buildinfo -delete
  
@@ -22,7 +30,7 @@
    (
      # create man page symlinks for all system emulators
      cd "$pkgdir/usr/share/man/man1"
-@@ -421,6 +415,9 @@ package_qemu-common() {
+@@ -496,6 +489,9 @@ package_qemu-common() {
  
      _pick qemu-system-aarch64 usr/bin/qemu-system-aarch64
      _pick qemu-system-aarch64 usr/share/man/man1/qemu-system-aarch64.1*
@@ -32,7 +40,7 @@
  
      _pick qemu-system-alpha usr/bin/qemu-system-alpha
      _pick qemu-system-alpha usr/share/man/man1/qemu-system-alpha.1*
-@@ -431,6 +428,9 @@ package_qemu-common() {
+@@ -506,6 +502,9 @@ package_qemu-common() {
      _pick qemu-system-arm usr/share/man/man1/qemu-system-arm.1*
  
      _pick qemu-system-arm-firmware usr/share/qemu/npcm7xx_bootrom.bin
@@ -42,7 +50,7 @@
  
      _pick qemu-system-avr usr/bin/qemu-system-avr
      _pick qemu-system-avr usr/share/man/man1/qemu-system-avr.1*
-@@ -508,6 +508,13 @@ package_qemu-common() {
+@@ -580,6 +579,13 @@ package_qemu-common() {
  
      _pick qemu-system-x86-firmware usr/share/qemu/{kvmvapic,linuxboot,multiboot{,_dma},pvh}.bin
      _pick qemu-system-x86-firmware usr/share/qemu/qboot.rom
@@ -56,30 +64,46 @@
  
      _pick qemu-system-xtensa usr/bin/qemu-system-xtensa{,eb}
      _pick qemu-system-xtensa usr/share/man/man1/qemu-system-xtensa{,eb}.1*
-@@ -698,7 +705,7 @@ package_qemu-hw-s390x-virtio-gpu-ccw() {
+@@ -607,7 +613,6 @@ package_qemu-common() {
+     _pick qemu-vhost-user-gpu usr/lib/qemu/vhost-user-gpu
+     _pick qemu-vhost-user-gpu usr/share/qemu/vhost-user/50-qemu-gpu.json
+ 
+-    _pick qemu-vmsr-helper usr/bin/qemu-vmsr-helper
+   )
+ }
+ 
+@@ -804,7 +809,7 @@ package_qemu-hw-s390x-virtio-gpu-ccw() {
  
  package_qemu-system-aarch64() {
    pkgdesc="QEMU system emulator for AARCH64"
 -  depends=("${_qemu_system_deps[@]}" edk2-aarch64 systemd-libs libudev.so)
 +  depends=("${_qemu_system_deps[@]}" systemd-libs libudev.so)
    mv -v $pkgname/* "$pkgdir"
+   _install_licenses
  }
- 
-@@ -716,7 +723,7 @@ package_qemu-system-alpha-firmware() {
+@@ -825,7 +830,7 @@ package_qemu-system-alpha-firmware() {
  
  package_qemu-system-arm() {
    pkgdesc="QEMU system emulator for ARM"
 -  depends=("${_qemu_system_deps[@]}" edk2-arm qemu-system-arm-firmware=$pkgver-$pkgrel systemd-libs libudev.so)
 +  depends=("${_qemu_system_deps[@]}" qemu-system-arm-firmware=$pkgver-$pkgrel systemd-libs libudev.so)
    mv -v $pkgname/* "$pkgdir"
+   _install_licenses
  }
- 
-@@ -861,7 +868,7 @@ package_qemu-system-tricore() {
+@@ -987,7 +992,7 @@ package_qemu-system-tricore() {
  
  package_qemu-system-x86() {
    pkgdesc="QEMU system emulator for x86"
 -  depends=("${_qemu_system_deps[@]}" edk2-ovmf qemu-system-x86-firmware=$pkgver-$pkgrel seabios systemd-libs libudev.so)
 +  depends=("${_qemu_system_deps[@]}" qemu-system-x86-firmware=$pkgver-$pkgrel systemd-libs libudev.so)
    mv -v $pkgname/* "$pkgdir"
+   _install_licenses
  }
- 
+@@ -1231,7 +1236,6 @@ package_qemu-full() {
+     qemu-tests=$pkgver-$pkgrel
+     qemu-tools=$pkgver-$pkgrel
+     qemu-user=$pkgver-$pkgrel
+-    qemu-vmsr-helper=$pkgver-$pkgrel
+   )
+   optdepends=("${_qemu_full_optdepends[@]}")
+   provides=(qemu=$pkgver)
