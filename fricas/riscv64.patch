@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,7 +14,7 @@ depends=(gawk
+          libxpm
+          sh
+          zstd)
+-makedepends=(sbcl
++makedepends=(clisp
+              texlive-basic)
+ options=(!strip)
+ source=(https://github.com/fricas/fricas/releases/download/$pkgver/fricas-$pkgver-full.tar.bz2)
+@@ -27,13 +27,16 @@ prepare() {
+   sed -e "s|^LDF=.*|LDF=$LDFLAGS|" -i $pkgname-$pkgver/configure -i $pkgname-$pkgver/config/var-def.mk
+   sed -e "s|^FRICAS_X11_LDFLAGS = |FRICAS_X11_LDFLAGS = $LDFLAGS |" -i $pkgname-$pkgver/config/var-def.mk
+   sed -e "s|\$(fricas_c_runtime_extra)| \$(fricas_c_runtime_extra) \$(LDF)|g" -i $pkgname-$pkgver/src/lib/Makefile.in
++
++  cd $pkgname-$pkgver
++  autoreconf -fi
+ }
+ 
+ build() {
+   cd $pkgname-$pkgver
+   ./configure \
+     --prefix=/usr \
+-    --with-lisp='sbcl --control-stack-size 512 --dynamic-space-size 6000'
++    --with-lisp='clisp'
+   make
+ }
+ 
