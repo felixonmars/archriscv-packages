@@ -1,0 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index ea77423..9d16949 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,7 +18,7 @@
+   make\
+     COMPLEX_RETSTYLE_AUTODETECTION=0 \
+     F2C_AUTODETECTION=0 \
+-    LBT_CFLAGS="$CFLAGS -fPIC -D_GNU_SOURCE -DARCH_x86_64" \
++    LBT_CFLAGS="$CFLAGS -fPIC -D_GNU_SOURCE -DARCH_$CARCH" \
+     LBT_LDFLAGS="-shared $LDFLAGS"
+ }
+ 
+@@ -27,3 +27,12 @@
+   make F2C_AUTODETECTION=0 COMPLEX_RETSTYLE_AUTODETECTION=0 prefix="$pkgdir"/usr install
+   install -Dm644 ../LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
+ }
++
++source+=($pkgname-riscv.patch)
++sha256sums+=('f1acacf940ea66eacc1667d90a4b3608fcd8d62252d97c623ac3da0a34e2f37c')
++
++prepare() {
++  cd $pkgname/src
++  # https://build.opensuse.org/projects/openSUSE:Factory:RISCV/packages/libblastrampoline/files/riscv.patch?expand=1
++  patch -Np2 -i $srcdir/$pkgname-riscv.patch
++}
