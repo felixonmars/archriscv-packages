@@ -1,0 +1,128 @@
+Index: sbcl-2.4.4/make-config.sh
+===================================================================
+--- sbcl-2.4.4.orig/make-config.sh
++++ sbcl-2.4.4/make-config.sh
+@@ -565,7 +565,7 @@ case "$sbcl_os" in
+     linux)
+         printf ' :unix :linux :elf' >> $ltf
+         case "$sbcl_arch" in
+-          arm64 | ppc64 | x86 | x86-64)
++          arm64 | ppc64 | x86 | x86-64 | riscv)
+ 	        printf ' :gcc-tls' >> $ltf
+         esac
+         case "$sbcl_arch" in
+Index: sbcl-2.4.4/src/runtime/gc-common.c
+===================================================================
+--- sbcl-2.4.4.orig/src/runtime/gc-common.c
++++ sbcl-2.4.4/src/runtime/gc-common.c
+@@ -3187,9 +3187,6 @@ static inline void memset_page_range(int
+  *   Otherwise, pages which are already zero-filled are skipped.
+  *   For each newly zeroed page, clear the need_to_zero flag.
+  */
+-#if defined LISP_FEATURE_RISCV && defined LISP_FEATURE_LINUX // KLUDGE
+-int mmap_does_not_zero;
+-#endif
+ void prepare_pages(__attribute__((unused)) bool commit,
+                    page_index_t start, page_index_t end,
+                    int page_type, generation_index_t generation) {
+Index: sbcl-2.4.4/src/runtime/gencgc-impl.h
+===================================================================
+--- sbcl-2.4.4.orig/src/runtime/gencgc-impl.h
++++ sbcl-2.4.4/src/runtime/gencgc-impl.h
+@@ -575,11 +575,7 @@ extern os_vm_size_t auto_gc_trigger;
+ typedef unsigned int page_bytes_t;
+ #define page_words_used(index) page_table[index].words_used_
+ #define page_bytes_used(index) ((page_bytes_t)page_table[index].words_used_<<WORD_SHIFT)
+-#if defined LISP_FEATURE_RISCV && defined LISP_FEATURE_LINUX // KLUDGE
+-#define page_need_to_zero(index) (mmap_does_not_zero || page_table[index].need_zerofill)
+-#else
+ #define page_need_to_zero(index) page_table[index].need_zerofill
+-#endif
+ #define set_page_bytes_used(index,val) page_table[index].words_used_ = ((val)>>WORD_SHIFT)
+ #define set_page_need_to_zero(index,val) page_table[index].need_zerofill = val
+ 
+Index: sbcl-2.4.4/src/runtime/linux-os.c
+===================================================================
+--- sbcl-2.4.4.orig/src/runtime/linux-os.c
++++ sbcl-2.4.4/src/runtime/linux-os.c
+@@ -275,23 +275,16 @@ extern char **environ;
+ int os_preinit(char *argv[], char *envp[])
+ {
+ #ifdef LISP_FEATURE_RISCV
+-    extern int riscv_user_emulation, mmap_does_not_zero, sigaction_does_not_mask;
+-    /* Accomodate buggy mmap() emulation, but detect up front whether it may be.
+-     * Full system emulation running a RISCV kernel is generally fine. User mode is not.
+-     * There's no way to know what it _will_ do, so we have to guess based on
+-     * whether the emulation looks bad. */
++    extern int sigaction_does_not_mask;
+     char buf[100];
+     FILE *f = fopen("/proc/cpuinfo", "r");
+-    ignore_value(fgets(buf, sizeof buf, f));
+-    ignore_value(fgets(buf, sizeof buf, f));
+-    if (!strstr(buf, "hart")) { // look for "hardware thread" string
+-        fprintf(stderr, "WARNING: enabling mmap() workaround. GC time may be affected\n");
+-        rewind(f);
+-        fprintf(stderr, "Contents of /proc/cpuinfo:\n");
+-        while (fgets(buf, sizeof buf, f) && strlen(buf)>1) fprintf(stderr, " | %s", buf);
+-        fprintf(stderr, "----\n");
+-        riscv_user_emulation = 1;
+-        mmap_does_not_zero = 1;
++    buf[0] = 0;
++    if (f != NULL) {
++        while (fgets(buf, sizeof buf, f) && buf[0] != '\n')
++            if (strncmp(buf, "uarch", strlen("uarch")) == 0)
++                break;
++    }
++    if (strstr(buf, "qemu")) { // look for "uarch : qemu"
+         sigaction_does_not_mask = 1;
+     }
+     fclose(f);
+Index: sbcl-2.4.4/src/runtime/pmrgc-impl.h
+===================================================================
+--- sbcl-2.4.4.orig/src/runtime/pmrgc-impl.h
++++ sbcl-2.4.4/src/runtime/pmrgc-impl.h
+@@ -568,11 +568,7 @@ extern os_vm_size_t auto_gc_trigger;
+ typedef unsigned int page_bytes_t;
+ #define page_words_used(index) page_table[index].words_used_
+ #define page_bytes_used(index) ((page_bytes_t)page_table[index].words_used_<<WORD_SHIFT)
+-#if defined LISP_FEATURE_RISCV && defined LISP_FEATURE_LINUX // KLUDGE
+-#define page_need_to_zero(index) (mmap_does_not_zero || page_table[index].need_zerofill)
+-#else
+ #define page_need_to_zero(index) page_table[index].need_zerofill
+-#endif
+ #define set_page_bytes_used(index,val) page_table[index].words_used_ = ((val)>>WORD_SHIFT)
+ #define set_page_need_to_zero(index,val) page_table[index].need_zerofill = val
+ 
+Index: sbcl-2.4.4/src/runtime/riscv-arch.c
+===================================================================
+--- sbcl-2.4.4.orig/src/runtime/riscv-arch.c
++++ sbcl-2.4.4/src/runtime/riscv-arch.c
+@@ -94,27 +94,11 @@ arch_handle_single_step_trap(os_context_
+     arch_skip_instruction(context);
+ }
+ 
+-int riscv_user_emulation;
+-
+ static void
+ sigtrap_handler(int signal, siginfo_t *info, os_context_t *context)
+ {
+     uint32_t trap_instruction = *(uint32_t *)OS_CONTEXT_PC(context);
+ 
+-    static int sigaction_workaround;
+-    if (riscv_user_emulation && !sigaction_workaround) {
+-        sigset_t curmask;
+-        thread_sigmask(SIG_BLOCK, 0, &curmask);
+-        if (*(unsigned long int*)&curmask == 0) {
+-            char msg[] = "WARNING: broken sigaction() workaround enabled\n";
+-            ignore_value(write(2, msg, sizeof msg-1));
+-            sigaction_workaround = 1;
+-        } else {
+-            sigaction_workaround = -1;
+-        }
+-    }
+-    if (sigaction_workaround == 1) thread_sigmask(SIG_BLOCK, &blockable_sigset, 0);
+-
+     if (trap_instruction != 0x100073) {
+         lose("Unrecognized trap instruction %08x in sigtrap_handler()",
+              trap_instruction);
+
