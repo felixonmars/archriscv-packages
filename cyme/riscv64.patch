@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,11 +11,14 @@ license=('GPL-3.0-or-later')
+ depends=('gcc-libs' 'libusb')
+ makedepends=('cargo')
+ _pkgsrc="${pkgname}-${pkgver}"
+-source=("${_pkgsrc}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+-sha256sums=('f9136c5794c4d199ee3d7745b82e901de4a15e4626f3bb4c9269e67c6e31885a')
++source=("${_pkgsrc}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz"
++        "fix-udevrs.patch::https://github.com/Cryolitia-Forks/cyme/commit/e19df9b3e89148e2b5317b9ade6c0612c88dd0d4.patch")
++sha256sums=('f9136c5794c4d199ee3d7745b82e901de4a15e4626f3bb4c9269e67c6e31885a'
++            'ccff8f4e875773a535563e5c2a62eb73a1a8029f2a0c49bcd8073ab08b6b9414')
+ 
+ prepare() {
+   cd "${srcdir}/${_pkgsrc}"
++  patch -Np1 -i "$srcdir/fix-udevrs.patch"
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ }
+ 
