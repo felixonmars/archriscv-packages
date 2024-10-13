@@ -1,29 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,11 +37,15 @@ source=(
-   'no-python-pip.patch'
-   'no-recompile-on-install.patch'
-   'no-amdgpu-manpage.patch'
-+  'add-loongarch64-support.patch::https://patch-diff.githubusercontent.com/raw/checkpoint-restore/criu/pull/2183.diff'
-+  'add-riscv64-support.patch::https://patch-diff.githubusercontent.com/raw/checkpoint-restore/criu/pull/2234.diff'
+@@ -47,9 +47,18 @@ provides=(
+   'libcriu.so'
  )
- b2sums=('SKIP'
-         'd83da0ce0222c1aea1fc0c97bbf8a40f3cd5a6b5d55ee973b64f97bd9769df265b148e89cee8ee6564f065adc00552b511904f322555ac659b735933d42a9a64'
-         'e4b7c4831fa513d602c73e377847705240a6a42ee1986effd10a589784bd0ad818032ff8283c1f9fd17cb7ddf3204e4a932796a1df816afc30a0e594c92b50f6'
--        '9c713724e8f6b062f7a09e34555d31e5aa0315db6308b7527835484eaad8dbf5deac5c66521bf5a819462d5f38c64f6602ba421f7bbb73180a3b05189816c8f6')
-+        '9c713724e8f6b062f7a09e34555d31e5aa0315db6308b7527835484eaad8dbf5deac5c66521bf5a819462d5f38c64f6602ba421f7bbb73180a3b05189816c8f6'
-+        'd5fdc622a3ca454e02683a4b928e3653566b172fa0e7b88ca782712fdc9adc9b8dad2f75ee694e52bb2e3bedf11a07e24c6779d4c40c30c7029f409e66aea025'
-+        'e482471b9d6d7b59f54d7a70ab5ed46a3c8ec130e0d6262a1c9c3a52b9bc2ff7bb810547a4a3d1a42dc5798992354b3c590e3912d8b0c301819d950d9e0a96f7')
- 
- pkgver() {
-   cd "$pkgname"
-@@ -60,6 +64,9 @@ prepare() {
- 
-   # do not install amdgpu_plugin manpage
-   patch -p1 -i "$srcdir/no-amdgpu-manpage.patch"
+ options=('!lto')
+-source=("git+https://github.com/checkpoint-restore/criu#tag=v$pkgver")
+-sha512sums=('cdfaebfe37c2e1111383444a0575499bb4a6b7618a944921d8c2bfa7c2a72831557bc568f8457c70ea0d94b0e70549ed5f4d43134e0c58baa5ffab3c1b3e40c6')
+-b2sums=('4cf22e25a848007e5c7230aa1a60216f4ba98423be47442a00fd7d5c0079ac86901bfcd5c82d2ee7f4ab243bc1eb431328848317dc24c3c45d81250318bc9e21')
++source=("git+https://github.com/checkpoint-restore/criu#tag=v$pkgver"
++        'riscv64-support.patch')
++sha512sums=('cdfaebfe37c2e1111383444a0575499bb4a6b7618a944921d8c2bfa7c2a72831557bc568f8457c70ea0d94b0e70549ed5f4d43134e0c58baa5ffab3c1b3e40c6'
++            'e8ba686efde48aa1f8c8ea993151cefd31565d4746c63be6c466f1e4b6be186c325bdfb2766bdf2af872bad9505fd5ef25563074a760e17d26854d80ded800c4')
++b2sums=('4cf22e25a848007e5c7230aa1a60216f4ba98423be47442a00fd7d5c0079ac86901bfcd5c82d2ee7f4ab243bc1eb431328848317dc24c3c45d81250318bc9e21'
++        '5df6e1dc381fe662bf6efe08ad1071576afa1efb02f289c6d4171363f6d08f5c1d50c0aba1edc3b46da1224531a4a73ac6763d55dfb3b37729fc48e61c75eb8d')
 +
-+  patch -p1 -i "$srcdir/add-loongarch64-support.patch"
-+  patch -p1 -i "$srcdir/add-riscv64-support.patch"
- }
++prepare() {
++  cd "$pkgname"
++
++  patch -Np1 -i "$srcdir/riscv64-support.patch"
++}
  
  build() {
+   cd "$pkgname"

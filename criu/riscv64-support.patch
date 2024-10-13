@@ -1,0 +1,3116 @@
+diff --git a/.github/workflows/cross-compile-daily.yml b/.github/workflows/cross-compile-daily.yml
+index b8c8c86d4..c709cca00 100644
+--- a/.github/workflows/cross-compile-daily.yml
++++ b/.github/workflows/cross-compile-daily.yml
+@@ -10,7 +10,7 @@ jobs:
+     runs-on: ubuntu-latest
+     strategy:
+       matrix:
+-        target: [armv7-stable-cross, aarch64-stable-cross, ppc64-stable-cross, mips64el-stable-cross]
++        target: [armv7-stable-cross, aarch64-stable-cross, ppc64-stable-cross, mips64el-stable-cross, riscv64-stable-cross]
+         branches: [criu-dev, master]
+ 
+     steps:
+diff --git a/.github/workflows/cross-compile.yml b/.github/workflows/cross-compile.yml
+index 06b812823..96672b294 100644
+--- a/.github/workflows/cross-compile.yml
++++ b/.github/workflows/cross-compile.yml
+@@ -21,6 +21,7 @@ jobs:
+           aarch64-stable-cross,
+           ppc64-stable-cross,
+           mips64el-stable-cross,
++          riscv64-stable-cross,
+         ]
+         include:
+           - experimental: true
+diff --git a/Makefile b/Makefile
+index 97b4dc211..8690073e2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -19,7 +19,7 @@ endif
+ 
+ #
+ # Supported Architectures
+-ifneq ($(filter-out x86 arm aarch64 ppc64 s390 mips loongarch64,$(ARCH)),)
++ifneq ($(filter-out x86 arm aarch64 ppc64 s390 mips loongarch64 riscv64,$(ARCH)),)
+         $(error "The architecture $(ARCH) isn't supported")
+ endif
+ 
+@@ -84,6 +84,10 @@ ifeq ($(ARCH),loongarch64)
+         DEFINES		:= -DCONFIG_LOONGARCH64
+ endif
+ 
++ifeq ($(ARCH),riscv64)
++        DEFINES		:= -DCONFIG_RISCV64
++endif
++
+ #
+ # CFLAGS_PIE:
+ #
+diff --git a/compel/Makefile b/compel/Makefile
+index 78ec4826a..c0b8a82a0 100644
+--- a/compel/Makefile
++++ b/compel/Makefile
+@@ -32,8 +32,8 @@ ifeq ($(ARCH),x86)
+ lib-y			+= arch/$(ARCH)/src/lib/thread_area.o
+ endif
+ 
+-# handle_elf() has no support of ELF relocations on ARM (yet?)
+-ifneq ($(filter arm aarch64 loongarch64,$(ARCH)),)
++# handle_elf() has no support of ELF relocations on ARM and RISCV64 (yet?)
++ifneq ($(filter arm aarch64 loongarch64 riscv64,$(ARCH)),)
+ CFLAGS			+= -DNO_RELOCS
+ HOSTCFLAGS		+= -DNO_RELOCS
+ endif
+diff --git a/compel/arch/riscv64/plugins/include/asm/prologue.h b/compel/arch/riscv64/plugins/include/asm/prologue.h
+new file mode 100644
+index 000000000..5c22b7b06
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/include/asm/prologue.h
+@@ -0,0 +1,35 @@
++#ifndef __ASM_PROLOGUE_H__
++#define __ASM_PROLOGUE_H__
++
++#ifndef __ASSEMBLY__
++
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <sys/un.h>
++
++#include <errno.h>
++
++#define sys_recv(sockfd, ubuf, size, flags) sys_recvfrom(sockfd, ubuf, size, flags, NULL, NULL)
++
++typedef struct prologue_init_args {
++	struct sockaddr_un ctl_sock_addr;
++	unsigned int ctl_sock_addr_len;
++
++	unsigned int arg_s;
++	void *arg_p;
++
++	void *sigframe;
++} prologue_init_args_t;
++
++#endif /* __ASSEMBLY__ */
++
++/*
++ * Reserve enough space for sigframe.
++ *
++ * FIXME It is rather should be taken from sigframe header.
++ */
++#define PROLOGUE_SGFRAME_SIZE 4096
++
++#define PROLOGUE_INIT_ARGS_SIZE 1024
++
++#endif /* __ASM_PROLOGUE_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/include/asm/syscall-types.h b/compel/arch/riscv64/plugins/include/asm/syscall-types.h
+new file mode 100644
+index 000000000..b9740a9ee
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/include/asm/syscall-types.h
+@@ -0,0 +1,28 @@
++#ifndef COMPEL_ARCH_SYSCALL_TYPES_H__
++#define COMPEL_ARCH_SYSCALL_TYPES_H__
++
++#define SA_RESTORER 0x04000000
++
++typedef void rt_signalfn_t(int, siginfo_t *, void *);
++typedef rt_signalfn_t *rt_sighandler_t;
++
++typedef void rt_restorefn_t(void);
++typedef rt_restorefn_t *rt_sigrestore_t;
++
++#define _KNSIG	  64 // number of signals
++#define _NSIG_BPW 64 // number of signals per word
++
++#define _KNSIG_WORDS (_KNSIG / _NSIG_BPW)
++
++typedef struct {
++	unsigned long sig[_KNSIG_WORDS];
++} k_rtsigset_t;
++
++typedef struct {
++	rt_sighandler_t rt_sa_handler;
++	unsigned long rt_sa_flags;
++	rt_sigrestore_t rt_sa_restorer;
++	k_rtsigset_t rt_sa_mask;
++} rt_sigaction_t;
++
++#endif /* COMPEL_ARCH_SYSCALL_TYPES_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/include/features.h b/compel/arch/riscv64/plugins/include/features.h
+new file mode 100644
+index 000000000..274cee52a
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/include/features.h
+@@ -0,0 +1,4 @@
++#ifndef __COMPEL_ARCH_FEATURES_H
++#define __COMPEL_ARCH_FEATURES_H
++
++#endif /* __COMPEL_ARCH_FEATURES_H */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/parasite-head.S b/compel/arch/riscv64/plugins/std/parasite-head.S
+new file mode 100644
+index 000000000..3e9d272e3
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/parasite-head.S
+@@ -0,0 +1,7 @@
++#include "common/asm/linkage.h"
++
++	.section .head.text, "ax"
++ENTRY(__export_parasite_head_start)
++	jal parasite_service
++	ebreak
++END(__export_parasite_head_start)
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/Makefile.syscalls b/compel/arch/riscv64/plugins/std/syscalls/Makefile.syscalls
+new file mode 100644
+index 000000000..5af35bcb4
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/Makefile.syscalls
+@@ -0,0 +1,59 @@
++ccflags-y		+= -iquote $(PLUGIN_ARCH_DIR)/std/syscalls/
++asflags-y		+= -iquote $(PLUGIN_ARCH_DIR)/std/syscalls/
++
++sys-types		:= $(obj)/include/uapi/std/syscall-types.h
++sys-codes		:= $(obj)/include/uapi/std/syscall-codes.h
++sys-proto		:= $(obj)/include/uapi/std/syscall.h
++
++sys-def			:= $(PLUGIN_ARCH_DIR)/std/syscalls/syscall.def
++sys-asm-common-name	:= std/syscalls/syscall-common.S
++sys-asm-common		:= $(PLUGIN_ARCH_DIR)/$(sys-asm-common-name)
++sys-asm-types		:= $(obj)/include/uapi/std/asm/syscall-types.h
++sys-exec-tbl		 = $(PLUGIN_ARCH_DIR)/std/sys-exec-tbl.c
++
++sys-gen			:= $(PLUGIN_ARCH_DIR)/std/syscalls/gen-syscalls.pl
++sys-gen-tbl		:= $(PLUGIN_ARCH_DIR)/std/syscalls/gen-sys-exec-tbl.pl
++
++sys-asm			:= ./$(PLUGIN_ARCH_DIR)/std/syscalls/syscalls.S
++std-lib-y		+= $(sys-asm:.S=).o
++
++ifeq ($(ARCH),arm)
++arch_bits		:= 32
++else
++arch_bits		:= 64
++endif
++
++sys-exec-tbl		:= sys-exec-tbl.c
++
++$(sys-asm) $(sys-types) $(sys-codes) $(sys-proto): $(sys-gen) $(sys-def) $(sys-asm-common) $(sys-asm-types)
++	$(E) "  GEN     " $@
++	$(Q) perl				\
++		$(sys-gen)			\
++		$(sys-def)			\
++		$(sys-codes)			\
++		$(sys-proto)			\
++		$(sys-asm)			\
++		$(sys-asm-common-name)		\
++		$(sys-types)			\
++		$(arch_bits)
++
++$(sys-asm:.S=).o: $(sys-asm)
++
++$(sys-exec-tbl): $(sys-gen-tbl) $(sys-def)
++	$(E) "  GEN     " $@
++	$(Q) perl				\
++		$(sys-gen-tbl)			\
++		$(sys-def)			\
++		$(sys-exec-tbl)			\
++		$(arch_bits)
++
++$(sys-asm-types): $(PLUGIN_ARCH_DIR)/include/asm/syscall-types.h
++	$(call msg-gen, $@)
++	$(Q) ln -s ../../../../../../$(PLUGIN_ARCH_DIR)/include/asm/syscall-types.h $(sys-asm-types)
++	$(Q) ln -s ../../../../../$(PLUGIN_ARCH_DIR)/std/syscalls/syscall-aux.S $(obj)/include/uapi/std/syscall-aux.S
++	$(Q) ln -s ../../../../../$(PLUGIN_ARCH_DIR)/std/syscalls/syscall-aux.h $(obj)/include/uapi/std/syscall-aux.h
++
++std-headers-deps	+= $(sys-asm) $(sys-codes) $(sys-proto) $(sys-asm-types) $(sys-codes)
++mrproper-y		+= $(std-headers-deps)
++mrproper-y		+= $(obj)/include/uapi/std/syscall-aux.S
++mrproper-y		+= $(obj)/include/uapi/std/syscall-aux.h
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/gen-sys-exec-tbl.pl b/compel/arch/riscv64/plugins/std/syscalls/gen-sys-exec-tbl.pl
+new file mode 100755
+index 000000000..61a807eb6
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/gen-sys-exec-tbl.pl
+@@ -0,0 +1,43 @@
++#!/usr/bin/perl
++
++use strict;
++use warnings;
++
++my $in		= $ARGV[0];
++my $tblout	= $ARGV[1];
++my $bits	= $ARGV[2];
++
++my $code	= "code$bits";
++
++open TBLOUT,	">", $tblout	or die $!;
++open IN,		"<", $in		or die $!;
++
++print TBLOUT "/* Autogenerated, don't edit */\n";
++print TBLOUT "static struct syscall_exec_desc sc_exec_table[] = {\n";
++
++for (<IN>) {
++	if ($_ =~ /\#/) {
++		next;
++	}
++
++	my $sys_name;
++	my $sys_num;
++
++	if (/(?<name>\S+)\s+(?<alias>\S+)\s+(?<code64>\d+|\!)\s+(?<code32>(?:\d+|\!))\s+\((?<args>.+)\)/) {
++		$sys_name = $+{alias};
++	} elsif (/(?<name>\S+)\s+(?<code64>\d+|\!)\s+(?<code32>(?:\d+|\!))\s+\((?<args>.+)\)/) {
++		$sys_name = $+{name};
++	} else {
++		unlink $tblout;
++		die "Invalid syscall definition file: invalid entry $_\n";
++	}
++
++	$sys_num = $+{$code};
++
++	if ($sys_num ne "!") {
++		print TBLOUT "SYSCALL($sys_name, $sys_num)\n";
++	}
++}
++
++print TBLOUT " 	{ }, /* terminator */";
++print TBLOUT "};"
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/gen-syscalls.pl b/compel/arch/riscv64/plugins/std/syscalls/gen-syscalls.pl
+new file mode 100755
+index 000000000..a53f1962f
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/gen-syscalls.pl
+@@ -0,0 +1,99 @@
++#!/usr/bin/perl
++
++use strict;
++use warnings;
++
++my $in         = $ARGV[0];
++my $codesout   = $ARGV[1];
++my $codes      = $ARGV[1];
++$codes         =~ s/.*include\/uapi\//compel\/plugins\//g;
++my $protosout  = $ARGV[2];
++my $protos     = $ARGV[2];
++$protos        =~ s/.*include\/uapi\//compel\/plugins\//g;
++my $asmout     = $ARGV[3];
++my $asmcommon  = $ARGV[4];
++my $prototypes = $ARGV[5];
++$prototypes    =~ s/.*include\/uapi\//compel\/plugins\//g;
++my $bits       = $ARGV[6];
++
++my $codesdef   = $codes;
++$codesdef      =~ tr/.\-\//_/;
++my $protosdef  = $protos;
++$protosdef     =~ tr/.\-\//_/;
++my $code       = "code$bits";
++my $need_aux   = 0;
++
++unlink $codesout;
++unlink $protosout;
++unlink $asmout;
++
++open CODESOUT,	">", $codesout	or die $!;
++open PROTOSOUT, ">", $protosout or die $!;
++open ASMOUT,	">", $asmout	or die $!;
++open IN,	"<", $in	or die $!;
++
++print CODESOUT <<"END";
++/* Autogenerated, don't edit */
++#ifndef $codesdef
++#define $codesdef
++END
++
++print PROTOSOUT <<"END";
++/* Autogenerated, don't edit */
++#ifndef $protosdef
++#define $protosdef
++#include <$prototypes>
++#include <$codes>
++END
++
++print ASMOUT <<"END";
++/* Autogenerated, don't edit */
++#include <$codes>
++#include "$asmcommon"
++END
++
++
++for (<IN>) {
++	if ($_ =~ /\#/) {
++		next;
++	}
++
++	my $code_macro;
++	my $sys_macro;
++	my $sys_name;
++
++	if (/(?<name>\S+)\s+(?<alias>\S+)\s+(?<code64>\d+|\!)\s+(?<code32>(?:\d+|\!))\s+\((?<args>.+)\)/) {
++		$code_macro = "__NR_$+{name}";
++		$sys_macro  = "SYS_$+{name}";
++		$sys_name   = "sys_$+{alias}";
++	} elsif (/(?<name>\S+)\s+(?<code64>\d+|\!)\s+(?<code32>(?:\d+|\!))\s+\((?<args>.+)\)/) {
++		$code_macro = "__NR_$+{name}";
++		$sys_macro  = "SYS_$+{name}";
++		$sys_name   = "sys_$+{name}";
++	} else {
++		unlink $codesout;
++		unlink $protosout;
++		unlink $asmout;
++
++		die "Invalid syscall definition file: invalid entry $_\n";
++	}
++
++	if ($+{$code} ne "!") {
++		print CODESOUT "#ifndef $code_macro\n#define $code_macro $+{$code}\n#endif\n";
++		print CODESOUT "#ifndef $sys_macro\n#define $sys_macro $code_macro\n#endif\n";
++		print ASMOUT "syscall $sys_name, $code_macro\n";
++
++	} else {
++		$need_aux = 1;
++	}
++
++	print PROTOSOUT "extern long $sys_name($+{args});\n";
++}
++
++if ($need_aux == 1) {
++	print ASMOUT   "#include <compel/plugins/std/syscall-aux.S>\n";
++	print CODESOUT "#include <compel/plugins/std/syscall-aux.h>\n";
++}
++
++print CODESOUT  "#endif /* $codesdef */";
++print PROTOSOUT "#endif /* $protosdef */";
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/syscall-aux.S b/compel/arch/riscv64/plugins/std/syscalls/syscall-aux.S
+new file mode 100644
+index 000000000..04160b7ac
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/syscall-aux.S
+@@ -0,0 +1,37 @@
++/**
++ * This source contains emulation of syscalls
++ * that are not implemented in the riscv64 Linux kernel
++ */
++
++ENTRY(sys_open)
++	add a3, x0, a2
++	add a2, x0, a1
++	add a1, x0, a0
++	addi a0, x0, -100
++	j   sys_openat
++END(sys_open)
++
++
++ENTRY(sys_mkdir)
++	add a3,x0, a2
++	add a2, x0, a1
++	add a1, x0, a0
++	addi a0, x0, -100
++	j   sys_mkdirat
++END(sys_mkdir)
++
++
++ENTRY(sys_rmdir)
++	addi a2, x0, 0x200		// flags = AT_REMOVEDIR
++	add a1, x0, a0
++	addi a0, x0, -100
++	j   sys_unlinkat
++END(sys_rmdir)
++
++
++ENTRY(sys_unlink)
++	addi a2, x0, 0		// flags = 0
++	add a1, x0, a0
++	addi a0, x0, -100
++	j   sys_unlinkat
++END(sys_unlink)
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/syscall-aux.h b/compel/arch/riscv64/plugins/std/syscalls/syscall-aux.h
+new file mode 100644
+index 000000000..881765bbb
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/syscall-aux.h
+@@ -0,0 +1,3 @@
++#ifndef __NR_openat
++#define __NR_openat 56
++#endif
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/syscall-common.S b/compel/arch/riscv64/plugins/std/syscalls/syscall-common.S
+new file mode 100644
+index 000000000..fdef3b47a
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/syscall-common.S
+@@ -0,0 +1,17 @@
++#include "common/asm/linkage.h"
++
++syscall_common:
++	ecall
++	ret
++
++.macro syscall name, nr
++	ENTRY(\name)
++		li	a7, \nr
++		j	syscall_common
++	END(\name)
++.endm
++
++ENTRY(__cr_restore_rt)
++	li	a7, __NR_rt_sigreturn
++	ecall
++END(__cr_restore_rt)
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/syscall.def b/compel/arch/riscv64/plugins/std/syscalls/syscall.def
+new file mode 100644
+index 000000000..17f763e90
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/syscall.def
+@@ -0,0 +1,125 @@
++#
++# System calls table, please make sure the table consists of only the syscalls
++# really used somewhere in the project.
++#
++# The template is (name and arguments are optional if you need only __NR_x
++# defined, but no real entry point in syscalls lib).
++#
++# name/alias			code64	code32	arguments
++# -----------------------------------------------------------------------
++#
++read				63	3	(int fd, void *buf, unsigned long count)
++write				64	4	(int fd, const void *buf, unsigned long count)
++open				!	5	(const char *filename, unsigned long flags, unsigned long mode)
++close				57	6	(int fd)
++lseek				62	19	(int fd, unsigned long offset, unsigned long origin)
++mmap				222	!	(void *addr, unsigned long len, unsigned long prot, unsigned long flags, unsigned long fd, unsigned long offset)
++mprotect			226	125	(const void *addr, unsigned long len, unsigned long prot)
++munmap				215	91	(void *addr, unsigned long len)
++brk				214	45	(void *addr)
++rt_sigaction	sigaction	134	174	(int signum, const rt_sigaction_t *act, rt_sigaction_t *oldact, size_t sigsetsize)
++rt_sigprocmask	sigprocmask	135	175	(int how, k_rtsigset_t *set, k_rtsigset_t *old, size_t sigsetsize)
++rt_sigreturn			139	173	(void)
++ioctl				29	54	(unsigned int fd, unsigned int cmd, unsigned long arg)
++pread64				67	180	(unsigned int fd, char *buf, size_t count, loff_t pos)
++ptrace				117	26	(long request, pid_t pid, void *addr, void *data)
++mremap				216	163	(unsigned long addr, unsigned long old_len, unsigned long new_len, unsigned long flag, unsigned long new_addr)
++mincore				232	219	(void *addr, unsigned long size, unsigned char *vec)
++madvise				233	220	(unsigned long start, size_t len, int behavior)
++shmat				196	305	(int shmid, void *shmaddr, int shmflag)
++pause				1061	29	(void)
++nanosleep			101	162	(struct timespec *req, struct timespec *rem)
++getitimer			102	105	(int which, const struct itimerval *val)
++setitimer			103	104	(int which, const struct itimerval *val, struct itimerval *old)
++getpid				172	20	(void)
++socket				198	281	(int domain, int type, int protocol)
++connect				203	283	(int sockfd, struct sockaddr *addr, int addrlen)
++sendto				206	290	(int sockfd, void *buff, size_t len, unsigned int flags, struct sockaddr *addr, int addr_len)
++recvfrom			207	292	(int sockfd, void *ubuf, size_t size, unsigned int flags, struct sockaddr *addr, int *addr_len)
++sendmsg				211	296	(int sockfd, const struct msghdr *msg, int flags)
++recvmsg				212	297	(int sockfd, struct msghdr *msg, int flags)
++shutdown			210	293	(int sockfd, int how)
++bind				235	282	(int sockfd, const struct sockaddr *addr, int addrlen)
++setsockopt			208	294	(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
++getsockopt			209	295	(int sockfd, int level, int optname, const void *optval, socklen_t *optlen)
++clone				220	120	(unsigned long flags, void *child_stack, void *parent_tid, unsigned long newtls, void *child_tid)
++exit				93	1	(unsigned long error_code)
++wait4				260	114	(int pid, int *status, int options, struct rusage *ru)
++waitid				95	280	(int which, pid_t pid, struct siginfo *infop, int options, struct rusage *ru)
++kill				129	37	(long pid, int sig)
++fcntl				25	55	(int fd, int type, long arg)
++flock				32	143	(int fd, unsigned long cmd)
++mkdir				!	39	(const char *name, int mode)
++rmdir				!	40	(const char *name)
++unlink				!	10	(char *pathname)
++readlinkat			78	332	(int fd, const char *path, char *buf, int bufsize)
++umask				166	60	(int mask)
++getgroups			158	205	(int gsize, unsigned int *groups)
++setgroups			159	206	(int gsize, unsigned int *groups)
++setresuid			147	164	(int uid, int euid, int suid)
++getresuid			148	165	(int *uid, int *euid, int *suid)
++setresgid			149	170	(int gid, int egid, int sgid)
++getresgid			150	171	(int *gid, int *egid, int *sgid)
++getpgid				155	132	(pid_t pid)
++setfsuid			151	138	(int fsuid)
++setfsgid			152	139	(int fsgid)
++getsid				156	147	(void)
++capget				90	184	(struct cap_header *h, struct cap_data *d)
++capset				91	185	(struct cap_header *h, struct cap_data *d)
++rt_sigqueueinfo			138	178	(pid_t pid, int sig, siginfo_t *info)
++setpriority			140	97	(int which, int who, int nice)
++sched_setscheduler		119	156	(int pid, int policy, struct sched_param *p)
++sigaltstack			132	186	(const void *uss, void *uoss)
++personality			92	136	(unsigned int personality)
++prctl				167	172	(int option, unsigned long arg2, unsigned long arg3, unsigned long arg4, unsigned long arg5)
++arch_prctl			!	17	(int option, unsigned long addr)
++setrlimit			164	75	(int resource, struct krlimit *rlim)
++mount				40	21	(char *dev_nmae, char *dir_name, char *type, unsigned long flags, void *data)
++umount2				39	52	(char *name, int flags)
++gettid				178	224	(void)
++futex				98	240	(uint32_t *uaddr, int op, uint32_t val, struct timespec *utime, uint32_t *uaddr2, uint32_t val3)
++set_tid_address			96	256	(int *tid_addr)
++restart_syscall			128	0	(void)
++timer_create			107	257	(clockid_t which_clock, struct sigevent *timer_event_spec, kernel_timer_t *created_timer_id)
++timer_settime			110	258	(kernel_timer_t timer_id, int flags, const struct itimerspec *new_setting, struct itimerspec *old_setting)
++timer_gettime			108	259	(int timer_id, const struct itimerspec *setting)
++timer_getoverrun		109	260	(int timer_id)
++timer_delete			111	261	(kernel_timer_t timer_id)
++clock_gettime			113	263	(const clockid_t which_clock, const struct timespec *tp)
++exit_group			94	248	(int error_code)
++set_robust_list			99	338	(struct robust_list_head *head, size_t len)
++get_robust_list			100	339	(int pid, struct robust_list_head **head_ptr, size_t *len_ptr)
++signalfd4			74	355	(int fd, k_rtsigset_t *mask, size_t sizemask, int flags)
++rt_tgsigqueueinfo		240	363	(pid_t tgid, pid_t pid, int sig, siginfo_t *info)
++vmsplice			75	343	(int fd, const struct iovec *iov, unsigned long nr_segs, unsigned int flags)
++timerfd_settime			86	353	(int ufd, int flags, const struct itimerspec *utmr, struct itimerspec *otmr)
++fanotify_init			262	367	(unsigned int flags, unsigned int event_f_flags)
++fanotify_mark			263	368	(int fanotify_fd, unsigned int flags, uint64_t mask, int dfd, const char *pathname)
++open_by_handle_at		265	371	(int mountdirfd, struct file_handle *handle, int flags)
++setns				268	375	(int fd, int nstype)
++kcmp				272	378	(pid_t pid1, pid_t pid2, int type, unsigned long idx1, unsigned long idx2)
++openat				56	322	(int dirfd, const char *pathname, int flags, mode_t mode)
++mkdirat				34	323	(int dirfd, const char *pathname, mode_t mode)
++unlinkat			35	328	(int dirfd, const char *pathname, int flags)
++memfd_create			279	385	(const char *name, unsigned int flags)
++io_setup			0	243	(unsigned nr_events, aio_context_t *ctx)
++io_submit			2	246	(aio_context_t ctx_id, long nr, struct iocb **iocbpp)
++io_getevents			4	245	(aio_context_t ctx, long min_nr, long nr, struct io_event *evs, struct timespec *tmo)
++seccomp				277	383	(unsigned int op, unsigned int flags, const char *uargs)
++gettimeofday			169	78	(struct timeval *tv, struct timezone *tz)
++preadv_raw			69	361	(int fd, struct iovec *iov, unsigned long nr, unsigned long pos_l, unsigned long pos_h)
++userfaultfd			282	388	(int flags)
++fallocate			47	352	(int fd, int mode, loff_t offset, loff_t len)
++cacheflush			!	983042	(void *start, void *end, int flags)
++ppoll				73	336	(struct pollfd *fds, unsigned int nfds, const struct timespec *tmo, const sigset_t *sigmask, size_t sigsetsize)
++fsopen				430	430	(char *fsname, unsigned int flags)
++fsconfig			431	431	(int fd, unsigned int cmd, const char *key, const char *value, int aux)
++fsmount				432	432	(int fd, unsigned int flags, unsigned int attr_flags)
++clone3				435	435	(struct clone_args *uargs, size_t size)
++pidfd_open			434	434	(pid_t pid, unsigned int flags)
++pidfd_getfd			438	438	(int pidfd, int targetfd, unsigned int flags)
++rseq				293 	293 	(void *rseq, uint32_t rseq_len, int flags, uint32_t sig)
++move_mount          		429	429	(int from_dfd, const char *from_pathname, int to_dfd, const char *to_pathname, int flags)
++open_tree			428	428	(int dirfd, const char *pathname, unsigned int flags)
++openat2				437	437	(int dirfd, char *pathname, struct open_how *how, size_t size)
++membarrier 			283	283	(int cmd, unsigned int flags, int cpu_id)
+diff --git a/compel/arch/riscv64/plugins/std/syscalls/syscalls.S b/compel/arch/riscv64/plugins/std/syscalls/syscalls.S
+new file mode 100644
+index 000000000..715da4612
+--- /dev/null
++++ b/compel/arch/riscv64/plugins/std/syscalls/syscalls.S
+@@ -0,0 +1,112 @@
++/* Autogenerated, don't edit */
++#include <compel/plugins/std/syscall-codes.h>
++#include "std/syscalls/syscall-common.S"
++syscall sys_read, __NR_read
++syscall sys_write, __NR_write
++syscall sys_close, __NR_close
++syscall sys_lseek, __NR_lseek
++syscall sys_mmap, __NR_mmap
++syscall sys_mprotect, __NR_mprotect
++syscall sys_munmap, __NR_munmap
++syscall sys_brk, __NR_brk
++syscall sys_sigaction, __NR_rt_sigaction
++syscall sys_sigprocmask, __NR_rt_sigprocmask
++syscall sys_rt_sigreturn, __NR_rt_sigreturn
++syscall sys_ioctl, __NR_ioctl
++syscall sys_pread64, __NR_pread64
++syscall sys_ptrace, __NR_ptrace
++syscall sys_mremap, __NR_mremap
++syscall sys_mincore, __NR_mincore
++syscall sys_madvise, __NR_madvise
++syscall sys_shmat, __NR_shmat
++syscall sys_pause, __NR_pause
++syscall sys_nanosleep, __NR_nanosleep
++syscall sys_getitimer, __NR_getitimer
++syscall sys_setitimer, __NR_setitimer
++syscall sys_getpid, __NR_getpid
++syscall sys_socket, __NR_socket
++syscall sys_connect, __NR_connect
++syscall sys_sendto, __NR_sendto
++syscall sys_recvfrom, __NR_recvfrom
++syscall sys_sendmsg, __NR_sendmsg
++syscall sys_recvmsg, __NR_recvmsg
++syscall sys_shutdown, __NR_shutdown
++syscall sys_bind, __NR_bind
++syscall sys_setsockopt, __NR_setsockopt
++syscall sys_getsockopt, __NR_getsockopt
++syscall sys_clone, __NR_clone
++syscall sys_exit, __NR_exit
++syscall sys_wait4, __NR_wait4
++syscall sys_waitid, __NR_waitid
++syscall sys_kill, __NR_kill
++syscall sys_fcntl, __NR_fcntl
++syscall sys_flock, __NR_flock
++syscall sys_readlinkat, __NR_readlinkat
++syscall sys_umask, __NR_umask
++syscall sys_getgroups, __NR_getgroups
++syscall sys_setgroups, __NR_setgroups
++syscall sys_setresuid, __NR_setresuid
++syscall sys_getresuid, __NR_getresuid
++syscall sys_setresgid, __NR_setresgid
++syscall sys_getresgid, __NR_getresgid
++syscall sys_getpgid, __NR_getpgid
++syscall sys_setfsuid, __NR_setfsuid
++syscall sys_setfsgid, __NR_setfsgid
++syscall sys_getsid, __NR_getsid
++syscall sys_capget, __NR_capget
++syscall sys_capset, __NR_capset
++syscall sys_rt_sigqueueinfo, __NR_rt_sigqueueinfo
++syscall sys_setpriority, __NR_setpriority
++syscall sys_sched_setscheduler, __NR_sched_setscheduler
++syscall sys_sigaltstack, __NR_sigaltstack
++syscall sys_personality, __NR_personality
++syscall sys_prctl, __NR_prctl
++syscall sys_setrlimit, __NR_setrlimit
++syscall sys_mount, __NR_mount
++syscall sys_umount2, __NR_umount2
++syscall sys_gettid, __NR_gettid
++syscall sys_futex, __NR_futex
++syscall sys_set_tid_address, __NR_set_tid_address
++syscall sys_restart_syscall, __NR_restart_syscall
++syscall sys_timer_create, __NR_timer_create
++syscall sys_timer_settime, __NR_timer_settime
++syscall sys_timer_gettime, __NR_timer_gettime
++syscall sys_timer_getoverrun, __NR_timer_getoverrun
++syscall sys_timer_delete, __NR_timer_delete
++syscall sys_clock_gettime, __NR_clock_gettime
++syscall sys_exit_group, __NR_exit_group
++syscall sys_set_robust_list, __NR_set_robust_list
++syscall sys_get_robust_list, __NR_get_robust_list
++syscall sys_signalfd4, __NR_signalfd4
++syscall sys_rt_tgsigqueueinfo, __NR_rt_tgsigqueueinfo
++syscall sys_vmsplice, __NR_vmsplice
++syscall sys_timerfd_settime, __NR_timerfd_settime
++syscall sys_fanotify_init, __NR_fanotify_init
++syscall sys_fanotify_mark, __NR_fanotify_mark
++syscall sys_open_by_handle_at, __NR_open_by_handle_at
++syscall sys_setns, __NR_setns
++syscall sys_kcmp, __NR_kcmp
++syscall sys_openat, __NR_openat
++syscall sys_mkdirat, __NR_mkdirat
++syscall sys_unlinkat, __NR_unlinkat
++syscall sys_memfd_create, __NR_memfd_create
++syscall sys_io_setup, __NR_io_setup
++syscall sys_io_submit, __NR_io_submit
++syscall sys_io_getevents, __NR_io_getevents
++syscall sys_seccomp, __NR_seccomp
++syscall sys_gettimeofday, __NR_gettimeofday
++syscall sys_preadv_raw, __NR_preadv_raw
++syscall sys_userfaultfd, __NR_userfaultfd
++syscall sys_fallocate, __NR_fallocate
++syscall sys_ppoll, __NR_ppoll
++syscall sys_fsopen, __NR_fsopen
++syscall sys_fsconfig, __NR_fsconfig
++syscall sys_fsmount, __NR_fsmount
++syscall sys_clone3, __NR_clone3
++syscall sys_pidfd_open, __NR_pidfd_open
++syscall sys_pidfd_getfd, __NR_pidfd_getfd
++syscall sys_rseq, __NR_rseq
++syscall sys_move_mount, __NR_move_mount
++syscall sys_open_tree, __NR_open_tree
++syscall sys_openat2, __NR_openat2
++#include <compel/plugins/std/syscall-aux.S>
+diff --git a/compel/arch/riscv64/scripts/compel-pack.lds.S b/compel/arch/riscv64/scripts/compel-pack.lds.S
+new file mode 100644
+index 000000000..a61235b44
+--- /dev/null
++++ b/compel/arch/riscv64/scripts/compel-pack.lds.S
+@@ -0,0 +1,32 @@
++OUTPUT_ARCH(riscv)
++EXTERN(__export_parasite_head_start)
++
++SECTIONS
++{
++	.crblob 0x0 : {
++		*(.head.text)
++		ASSERT(DEFINED(__export_parasite_head_start),
++			"Symbol __export_parasite_head_start is missing");
++		*(.text*)
++		. = ALIGN(32);
++		*(.data*)
++		. = ALIGN(32);
++		*(.rodata*)
++		. = ALIGN(32);
++		*(.bss*)
++		. = ALIGN(32);
++		*(.got*)
++		. = ALIGN(32);
++		*(.toc*)
++		. = ALIGN(32);
++	} =0x00000000,
++
++	/DISCARD/ : {
++		*(.debug*)
++		*(.comment*)
++		*(.note*)
++		*(.group*)
++		*(.eh_frame*)
++		*(*)
++	}
++}
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/cpu.c b/compel/arch/riscv64/src/lib/cpu.c
+new file mode 100644
+index 000000000..9a0291f70
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/cpu.c
+@@ -0,0 +1,78 @@
++#include <string.h>
++#include <stdbool.h>
++
++#include "compel-cpu.h"
++
++#include "common/bitops.h"
++
++#include "log.h"
++
++#undef LOG_PREFIX
++#define LOG_PREFIX "cpu: "
++
++static compel_cpuinfo_t rt_info;
++
++static void fetch_rt_cpuinfo(void)
++{
++	static bool rt_info_done = false;
++
++	if (!rt_info_done) {
++		compel_cpuid(&rt_info);
++		rt_info_done = true;
++	}
++}
++
++void compel_set_cpu_cap(compel_cpuinfo_t *info, unsigned int feature)
++{
++}
++void compel_clear_cpu_cap(compel_cpuinfo_t *info, unsigned int feature)
++{
++}
++int compel_test_cpu_cap(compel_cpuinfo_t *info, unsigned int feature)
++{
++	return 0;
++}
++int compel_test_fpu_cap(compel_cpuinfo_t *info, unsigned int feature)
++{
++	return 0;
++}
++int compel_cpuid(compel_cpuinfo_t *info)
++{
++	return 0;
++}
++
++bool compel_cpu_has_feature(unsigned int feature)
++{
++	fetch_rt_cpuinfo();
++	return compel_test_cpu_cap(&rt_info, feature);
++}
++
++bool compel_fpu_has_feature(unsigned int feature)
++{
++	fetch_rt_cpuinfo();
++	return compel_test_fpu_cap(&rt_info, feature);
++}
++
++uint32_t compel_fpu_feature_size(unsigned int feature)
++{
++	fetch_rt_cpuinfo();
++	return 0;
++}
++
++uint32_t compel_fpu_feature_offset(unsigned int feature)
++{
++	fetch_rt_cpuinfo();
++	return 0;
++}
++
++void compel_cpu_clear_feature(unsigned int feature)
++{
++	fetch_rt_cpuinfo();
++	return compel_clear_cpu_cap(&rt_info, feature);
++}
++
++void compel_cpu_copy_cpuinfo(compel_cpuinfo_t *c)
++{
++	fetch_rt_cpuinfo();
++	memcpy(c, &rt_info, sizeof(rt_info));
++}
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/handle-elf-host.c b/compel/arch/riscv64/src/lib/handle-elf-host.c
+new file mode 120000
+index 000000000..fe4611886
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/handle-elf-host.c
+@@ -0,0 +1 @@
++handle-elf.c
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/handle-elf.c b/compel/arch/riscv64/src/lib/handle-elf.c
+new file mode 100644
+index 000000000..22420bc78
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/handle-elf.c
+@@ -0,0 +1,32 @@
++#include <string.h>
++#include <errno.h>
++
++#include "handle-elf.h"
++#include "piegen.h"
++#include "log.h"
++
++static const unsigned char __maybe_unused elf_ident_64_le[EI_NIDENT] = {
++	0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, /* clang-format */
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++};
++
++static const unsigned char __maybe_unused elf_ident_64_be[EI_NIDENT] = {
++	0x7f, 0x45, 0x4c, 0x46, 0x02, 0x02, 0x01, 0x00, /* clang-format */
++	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++};
++
++int handle_binary(void *mem, size_t size)
++{
++	const unsigned char *elf_ident =
++#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++		elf_ident_64_le;
++#else
++		elf_ident_64_be;
++#endif
++
++	if (memcmp(mem, elf_ident, sizeof(elf_ident_64_le)) == 0)
++		return handle_elf_riscv64(mem, size);
++
++	pr_err("Unsupported Elf format detected\n");
++	return -EINVAL;
++}
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/cpu.h b/compel/arch/riscv64/src/lib/include/cpu.h
+new file mode 100644
+index 000000000..e69de29bb
+diff --git a/compel/arch/riscv64/src/lib/include/handle-elf.h b/compel/arch/riscv64/src/lib/include/handle-elf.h
+new file mode 100644
+index 000000000..582770583
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/handle-elf.h
+@@ -0,0 +1,12 @@
++#ifndef COMPEL_HANDLE_ELF_H__
++#define COMPEL_HANDLE_ELF_H__
++
++#include "elf64-types.h"
++
++#define __handle_elf handle_elf_riscv64
++#define ELF_RISCV
++#define arch_is_machine_supported(e_machine) (e_machine == EM_RISCV)
++
++extern int handle_elf_riscv64(void *mem, size_t size);
++
++#endif /* COMPEL_HANDLE_ELF_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/syscall.h b/compel/arch/riscv64/src/lib/include/syscall.h
+new file mode 100644
+index 000000000..53f10525d
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/syscall.h
+@@ -0,0 +1,8 @@
++#ifndef __COMPEL_SYSCALL_H__
++#define __COMPEL_SYSCALL_H__
++#define __NR(syscall, compat)   \
++	({                      \
++		(void)compat;   \
++		__NR_##syscall; \
++	})
++#endif
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/breakpoints.h b/compel/arch/riscv64/src/lib/include/uapi/asm/breakpoints.h
+new file mode 100644
+index 000000000..f2ba799cb
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/breakpoints.h
+@@ -0,0 +1,15 @@
++#ifndef __COMPEL_BREAKPOINTS_H__
++#define __COMPEL_BREAKPOINTS_H__
++#define ARCH_SI_TRAP TRAP_BRKPT
++
++static inline int ptrace_set_breakpoint(pid_t pid, void *addr)
++{
++	return 0;
++}
++
++static inline int ptrace_flush_breakpoints(pid_t pid)
++{
++	return 0;
++}
++
++#endif
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/cpu.h b/compel/arch/riscv64/src/lib/include/uapi/asm/cpu.h
+new file mode 100644
+index 000000000..ac58567e3
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/cpu.h
+@@ -0,0 +1,7 @@
++#ifndef UAPI_COMPEL_ASM_CPU_H__
++#define UAPI_COMPEL_ASM_CPU_H__
++
++typedef struct {
++} compel_cpuinfo_t;
++
++#endif /* UAPI_COMPEL_ASM_CPU_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/fpu.h b/compel/arch/riscv64/src/lib/include/uapi/asm/fpu.h
+new file mode 100644
+index 000000000..a74decc23
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/fpu.h
+@@ -0,0 +1,4 @@
++#ifndef __CR_ASM_FPU_H__
++#define __CR_ASM_FPU_H__
++
++#endif /* __CR_ASM_FPU_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/infect-types.h b/compel/arch/riscv64/src/lib/include/uapi/asm/infect-types.h
+new file mode 100644
+index 000000000..192810cac
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/infect-types.h
+@@ -0,0 +1,52 @@
++#ifndef UAPI_COMPEL_ASM_TYPES_H__
++#define UAPI_COMPEL_ASM_TYPES_H__
++
++#include <stdint.h>
++#include <signal.h>
++#include <sys/mman.h>
++#include <asm/ptrace.h>
++
++#define SIGMAX	   64
++#define SIGMAX_OLD 31
++
++/*
++ * Copied from the Linux kernel header arch/riscv/include/uapi/asm/ptrace.h
++ *
++ * A thread RISC-V CPU context
++ */
++typedef struct user_regs_struct user_regs_struct_t;
++typedef struct __riscv_d_ext_state user_fpregs_struct_t;
++
++#define __compel_arch_fetch_thread_area(tid, th) 0
++#define compel_arch_fetch_thread_area(tctl)	 0
++#define compel_arch_get_tls_task(ctl, tls)
++#define compel_arch_get_tls_thread(tctl, tls)
++
++#define REG_RES(registers)	   ((uint64_t)(registers).a0)
++#define REG_IP(registers)	   ((uint64_t)(registers).pc)
++#define SET_REG_IP(registers, val) ((registers).pc = (val))
++
++/*
++ * REG_SP is also defined in riscv64-linux-gnu/include/sys/ucontext.h
++ * with a different meaning, and it's not used in CRIU. So we have to
++ * undefine it here.
++ */
++#ifdef REG_SP
++#undef REG_SP
++#endif
++
++#define REG_SP(registers) ((uint64_t)((registers).sp))
++
++#define REG_SYSCALL_NR(registers) ((uint64_t)(registers).a7)
++
++#define user_regs_native(pregs) true
++
++#define ARCH_SI_TRAP TRAP_BRKPT
++
++#define __NR(syscall, compat)   \
++	({                      \
++		(void)compat;   \
++		__NR_##syscall; \
++	})
++
++#endif /* UAPI_COMPEL_ASM_TYPES_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/instruction_formats.h b/compel/arch/riscv64/src/lib/include/uapi/asm/instruction_formats.h
+new file mode 100644
+index 000000000..e231d0465
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/instruction_formats.h
+@@ -0,0 +1,26 @@
++#ifndef COMPEL_RELOCATIONS_H__
++#define COMPEL_RELOCATIONS_H__
++
++#include <stdint.h>
++
++static inline uint32_t riscv_b_imm(uint32_t val)
++{
++	return (val & 0x00001000) << 19 | (val & 0x000007e0) << 20 | (val & 0x0000001e) << 7 | (val & 0x00000800) >> 4;
++}
++
++static inline uint32_t riscv_i_imm(uint32_t val)
++{
++	return val << 20;
++}
++
++static inline uint32_t riscv_u_imm(uint32_t val)
++{
++	return val & 0xfffff000;
++}
++
++static inline uint32_t riscv_j_imm(uint32_t val)
++{
++	return (val & 0x00100000) << 11 | (val & 0x000007fe) << 20 | (val & 0x00000800) << 9 | (val & 0x000ff000);
++}
++
++#endif /* COMPEL_RELOCATIONS_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/processor-flags.h b/compel/arch/riscv64/src/lib/include/uapi/asm/processor-flags.h
+new file mode 100644
+index 000000000..e40fb6fce
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/processor-flags.h
+@@ -0,0 +1,4 @@
++#ifndef UAPI_COMPEL_ASM_PROCESSOR_FLAGS_H__
++#define UAPI_COMPEL_ASM_PROCESSOR_FLAGS_H__
++
++#endif /* UAPI_COMPEL_ASM_PROCESSOR_FLAGS_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/include/uapi/asm/sigframe.h b/compel/arch/riscv64/src/lib/include/uapi/asm/sigframe.h
+new file mode 100644
+index 000000000..761a08f62
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/include/uapi/asm/sigframe.h
+@@ -0,0 +1,68 @@
++#ifndef UAPI_COMPEL_ASM_SIGFRAME_H__
++#define UAPI_COMPEL_ASM_SIGFRAME_H__
++
++#include <sys/ucontext.h>
++
++#include <stdint.h>
++
++#include <signal.h>
++
++/* Copied from the kernel header arch/riscv/include/uapi/asm/sigcontext.h */
++/*
++ * Signal context structure
++ *
++ * This contains the context saved before a signal handler is invoked;
++ * it is restored by sys_sigreturn / sys_rt_sigreturn.
++ */
++// struct sigcontext {
++// 	struct user_regs_struct sc_regs;
++// 	union __riscv_fp_state sc_fpregs;
++// 	/*
++// 	 * 4K + 128 reserved for vector state and future expansion.
++// 	 * This space is enough to store the vector context whose VLENB
++// 	 * is less or equal to 128.
++// 	 * (The size of the vector context is 4144 byte as VLENB is 128)
++// 	 */
++// 	__u8 __reserved[4224] __attribute__((__aligned__(16)));
++// };
++
++#define rt_sigcontext sigcontext
++
++#include <compel/sigframe-common.h>
++
++/* Copied from the kernel source arch/riscv/kernel/signal.c */
++struct rt_sigframe {
++	siginfo_t info;
++	ucontext_t uc; //ucontext_t structure holds the user context, e.g., the signal mask, GP regs
++};
++
++/*
++	generates inline assembly code for triggering the rt_sigreturn system call.
++	used to return from a signal handler back to the normal execution flow of the process.
++*/
++/* clang-format off */
++#define ARCH_RT_SIGRETURN(new_sp, rt_sigframe)					\
++	asm volatile(								\
++			"mv sp, %0\n"	\
++			"li a7,  "__stringify(__NR_rt_sigreturn)" \n"     \
++			"ecall\n"	\
++			:							\
++			: "r"(new_sp)						\
++			: "a7", "memory")
++/* clang-format on */
++
++#define RT_SIGFRAME_UC(rt_sigframe)	 (&rt_sigframe->uc)
++#define RT_SIGFRAME_REGIP(rt_sigframe)	 ((long unsigned int)(rt_sigframe)->uc.uc_mcontext.__gregs[REG_PC])
++#define RT_SIGFRAME_HAS_FPU(rt_sigframe) 1
++#define RT_SIGFRAME_OFFSET(rt_sigframe)	 0
++
++// #define RT_SIGFRAME_SIGCONTEXT(rt_sigframe)  ((struct cr_sigcontext *)&(rt_sigframe)->uc.uc_mcontext)
++// #define RT_SIGFRAME_AUX_CONTEXT(rt_sigframe) ((struct sigcontext *)&(RT_SIGFRAME_SIGCONTEXT(rt_sigframe)->__reserved))
++// #define RT_SIGFRAME_FPU(rt_sigframe)	     (&RT_SIGFRAME_AUX_CONTEXT(rt_sigframe)->fpsimd)
++
++#define rt_sigframe_erase_sigset(sigframe) \
++	memset(&sigframe->uc.uc_sigmask, 0, sizeof(k_rtsigset_t)) // erase the signal mask
++#define rt_sigframe_copy_sigset(sigframe, from) \
++	memcpy(&sigframe->uc.uc_sigmask, from, sizeof(k_rtsigset_t)) // copy the signal mask
++
++#endif /* UAPI_COMPEL_ASM_SIGFRAME_H__ */
+\ No newline at end of file
+diff --git a/compel/arch/riscv64/src/lib/infect.c b/compel/arch/riscv64/src/lib/infect.c
+new file mode 100644
+index 000000000..01395a205
+--- /dev/null
++++ b/compel/arch/riscv64/src/lib/infect.c
+@@ -0,0 +1,222 @@
++#include <stdlib.h>
++#include <sys/ptrace.h>
++#include <sys/types.h>
++#include <sys/uio.h>
++#include <linux/elf.h>
++#include <compel/plugins/std/syscall-codes.h>
++#include "common/page.h"
++#include "uapi/compel/asm/infect-types.h"
++#include "log.h"
++#include "errno.h"
++#include "infect.h"
++#include "infect-priv.h"
++
++unsigned __page_size = 0;
++unsigned __page_shift = 0;
++
++/*
++ * Injected syscall instruction
++ */
++const char code_syscall[] = {
++	0x73, 0x00, 0x00, 0x00, /* ecall */
++	0x73, 0x00, 0x10, 0x00	/* ebreak */
++};
++
++static const int code_syscall_aligned = round_up(sizeof(code_syscall), sizeof(long));
++
++static inline void __always_unused __check_code_syscall(void)
++{
++	BUILD_BUG_ON(code_syscall_aligned != BUILTIN_SYSCALL_SIZE);
++	BUILD_BUG_ON(!is_log2(sizeof(code_syscall)));
++}
++
++int sigreturn_prep_regs_plain(struct rt_sigframe *sigframe, user_regs_struct_t *regs, user_fpregs_struct_t *fpregs)
++{
++	sigframe->uc.uc_mcontext.__gregs[0] = regs->pc;
++	sigframe->uc.uc_mcontext.__gregs[1] = regs->ra;
++	sigframe->uc.uc_mcontext.__gregs[2] = regs->sp;
++	sigframe->uc.uc_mcontext.__gregs[3] = regs->gp;
++	sigframe->uc.uc_mcontext.__gregs[4] = regs->tp;
++	sigframe->uc.uc_mcontext.__gregs[5] = regs->t0;
++	sigframe->uc.uc_mcontext.__gregs[6] = regs->t1;
++	sigframe->uc.uc_mcontext.__gregs[7] = regs->t2;
++	sigframe->uc.uc_mcontext.__gregs[8] = regs->s0;
++	sigframe->uc.uc_mcontext.__gregs[9] = regs->s1;
++	sigframe->uc.uc_mcontext.__gregs[10] = regs->a0;
++	sigframe->uc.uc_mcontext.__gregs[11] = regs->a1;
++	sigframe->uc.uc_mcontext.__gregs[12] = regs->a2;
++	sigframe->uc.uc_mcontext.__gregs[13] = regs->a3;
++	sigframe->uc.uc_mcontext.__gregs[14] = regs->a4;
++	sigframe->uc.uc_mcontext.__gregs[15] = regs->a5;
++	sigframe->uc.uc_mcontext.__gregs[16] = regs->a6;
++	sigframe->uc.uc_mcontext.__gregs[17] = regs->a7;
++	sigframe->uc.uc_mcontext.__gregs[18] = regs->s2;
++	sigframe->uc.uc_mcontext.__gregs[19] = regs->s3;
++	sigframe->uc.uc_mcontext.__gregs[20] = regs->s4;
++	sigframe->uc.uc_mcontext.__gregs[21] = regs->s5;
++	sigframe->uc.uc_mcontext.__gregs[22] = regs->s6;
++	sigframe->uc.uc_mcontext.__gregs[23] = regs->s7;
++	sigframe->uc.uc_mcontext.__gregs[24] = regs->s8;
++	sigframe->uc.uc_mcontext.__gregs[25] = regs->s9;
++	sigframe->uc.uc_mcontext.__gregs[26] = regs->s10;
++	sigframe->uc.uc_mcontext.__gregs[27] = regs->s11;
++	sigframe->uc.uc_mcontext.__gregs[28] = regs->t3;
++	sigframe->uc.uc_mcontext.__gregs[29] = regs->t4;
++	sigframe->uc.uc_mcontext.__gregs[30] = regs->t5;
++	sigframe->uc.uc_mcontext.__gregs[31] = regs->t6;
++
++	memcpy(sigframe->uc.uc_mcontext.__fpregs.__d.__f, fpregs->f, sizeof(fpregs->f));
++	sigframe->uc.uc_mcontext.__fpregs.__d.__fcsr = fpregs->fcsr;
++
++	return 0;
++}
++
++int sigreturn_prep_fpu_frame_plain(struct rt_sigframe *sigframe, struct rt_sigframe *rsigframe)
++{
++	return 0;
++}
++
++int compel_get_task_regs(pid_t pid, user_regs_struct_t *regs, user_fpregs_struct_t *ext_regs, save_regs_t save,
++			 void *arg, __maybe_unused unsigned long flags)
++{
++	user_fpregs_struct_t tmp, *fpsimd = ext_regs ? ext_regs : &tmp;
++	struct iovec iov;
++	int ret = -1;
++
++	pr_info("Dumping FPU registers for %d\n", pid);
++
++	iov.iov_base = fpsimd;
++	iov.iov_len = sizeof(*fpsimd);
++	if ((ret = ptrace(PTRACE_GETREGSET, pid, NT_PRFPREG, &iov))) {
++		pr_perror("Failed to obtain FPU registers for %d", pid);
++		return -1;
++	}
++
++	ret = save(arg, regs, fpsimd);
++	return ret;
++}
++
++int compel_set_task_ext_regs(pid_t pid, user_fpregs_struct_t *ext_regs)
++{
++	struct iovec iov;
++
++	pr_info("Restoring GP/FPU registers for %d\n", pid);
++
++	iov.iov_base = ext_regs;
++	iov.iov_len = sizeof(*ext_regs);
++	if (ptrace(PTRACE_SETREGSET, pid, NT_PRFPREG, &iov)) {
++		pr_perror("Failed to set FPU registers for %d", pid);
++		return -1;
++	}
++	return 0;
++}
++
++int compel_syscall(struct parasite_ctl *ctl, int nr, long *ret, unsigned long arg1, unsigned long arg2,
++		   unsigned long arg3, unsigned long arg4, unsigned long arg5, unsigned long arg6)
++{
++	user_regs_struct_t regs = ctl->orig.regs;
++	int err;
++
++	regs.a7 = (unsigned long)nr;
++	regs.a0 = arg1;
++	regs.a1 = arg2;
++	regs.a2 = arg3;
++	regs.a3 = arg4;
++	regs.a4 = arg5;
++	regs.a5 = arg6;
++	regs.a6 = 0;
++
++	err = compel_execute_syscall(ctl, &regs, code_syscall);
++
++	*ret = regs.a0;
++	return err;
++}
++
++/*
++ * Calling the mmap system call in the context of the target (victim) process using the compel_syscall function.
++ * Used during the infection process to allocate memory for the parasite code.
++*/
++void *remote_mmap(struct parasite_ctl *ctl, void *addr, size_t length, int prot, int flags, int fd, off_t offset)
++{
++	long map;
++	int err;
++
++	err = compel_syscall(ctl, __NR_mmap, &map, (unsigned long)addr, length, prot, flags, fd, offset);
++	if (err < 0 || (long)map < 0)
++		map = 0;
++
++	return (void *)map;
++}
++
++void parasite_setup_regs(unsigned long new_ip, void *stack, user_regs_struct_t *regs)
++{
++	regs->pc = new_ip;
++	if (stack)
++		regs->sp = (unsigned long)stack;
++}
++
++bool arch_can_dump_task(struct parasite_ctl *ctl)
++{
++	/*
++	 * TODO: Add proper check here.
++	 */
++	return true;
++}
++
++/*
++ * Fetch the signal alternate stack (sigaltstack),
++ * sas is a separate memory area for the signal handler to run on,
++ * avoiding potential issues with the main process stack
++*/
++int arch_fetch_sas(struct parasite_ctl *ctl, struct rt_sigframe *s)
++{
++	long ret;
++	int err;
++
++	err = compel_syscall(ctl, __NR_sigaltstack, &ret, 0, (unsigned long)&s->uc.uc_stack, 0, 0, 0, 0);
++	return err ? err : ret;
++}
++
++/*
++ * Task size is the maximum virtual address space size that a process can occupy in the memory
++ * Refer to linux kernel arch/riscv/include/asm/pgtable.h,
++ * task size is:
++ * -     0x9fc00000 (~2.5GB) for RV32.
++ * -   0x4000000000 ( 256GB) for RV64 using SV39 mmu
++ * - 0x800000000000 ( 128TB) for RV64 using SV48 mmu
++ *
++ * Note that PGDIR_SIZE must evenly divide TASK_SIZE since "RISC-V
++ * Instruction Set Manual Volume II: Privileged Architecture" states that
++ * "load and store effective addresses, which are 64bits, must have bits
++ * 63–48 all equal to bit 47, or else a page-fault exception will occur."
++*/
++#define TASK_SIZE 0x800000000000UL // hardcoded for SV48 MMU
++
++unsigned long compel_task_size(void)
++{
++	return TASK_SIZE;
++}
++
++/*
++ * Get task registers (overwrites weak function)
++ */
++int ptrace_get_regs(int pid, user_regs_struct_t *regs)
++{
++	struct iovec iov;
++
++	iov.iov_base = regs;
++	iov.iov_len = sizeof(user_regs_struct_t);
++	return ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &iov);
++}
++
++/*
++ * Set task registers (overwrites weak function)
++ */
++int ptrace_set_regs(int pid, user_regs_struct_t *regs)
++{
++	struct iovec iov;
++
++	iov.iov_base = regs;
++	iov.iov_len = sizeof(user_regs_struct_t);
++	return ptrace(PTRACE_SETREGSET, pid, NT_PRSTATUS, &iov);
++}
+diff --git a/compel/src/main.c b/compel/src/main.c
+index bc16c0ab4..21e06d7dd 100644
+--- a/compel/src/main.c
++++ b/compel/src/main.c
+@@ -60,6 +60,9 @@ static const flags_t flags = {
+ #elif defined CONFIG_LOONGARCH64
+ 	.arch = "loongarch64",
+ 	.cflags = COMPEL_CFLAGS_PIE,
++#elif defined CONFIG_RISCV64
++	.arch = "riscv64",
++	.cflags = COMPEL_CFLAGS_PIE,
+ #else
+ #error "CONFIG_<ARCH> not defined, or unsupported ARCH"
+ #endif
+diff --git a/criu/arch/riscv64/Makefile b/criu/arch/riscv64/Makefile
+new file mode 100644
+index 000000000..d19895471
+--- /dev/null
++++ b/criu/arch/riscv64/Makefile
+@@ -0,0 +1,8 @@
++builtin-name		:= crtools.built-in.o
++
++ldflags-y		+= -r
++
++obj-y			+= cpu.o
++obj-y			+= crtools.o
++obj-y			+= sigframe.o
++obj-y			+= vdso-lookup.o
+\ No newline at end of file
+diff --git a/criu/arch/riscv64/cpu.c b/criu/arch/riscv64/cpu.c
+new file mode 100644
+index 000000000..97a883b8c
+--- /dev/null
++++ b/criu/arch/riscv64/cpu.c
+@@ -0,0 +1,40 @@
++#undef LOG_PREFIX
++#define LOG_PREFIX "cpu: "
++
++#include <errno.h>
++#include "cpu.h"
++
++int cpu_init(void)
++{
++	return 0;
++}
++
++int cpu_dump_cpuinfo(void)
++{
++	return 0;
++}
++
++int cpu_validate_cpuinfo(void)
++{
++	return 0;
++}
++
++int cpu_dump_cpuinfo_single(void)
++{
++	return -ENOTSUP;
++}
++
++int cpu_validate_image_cpuinfo_single(void)
++{
++	return -ENOTSUP;
++}
++
++int cpuinfo_dump(void)
++{
++	return -ENOTSUP;
++}
++
++int cpuinfo_check(void)
++{
++	return -ENOTSUP;
++}
+diff --git a/criu/arch/riscv64/crtools.c b/criu/arch/riscv64/crtools.c
+new file mode 100644
+index 000000000..b2d6d2951
+--- /dev/null
++++ b/criu/arch/riscv64/crtools.c
+@@ -0,0 +1,171 @@
++#include <string.h>
++#include <unistd.h>
++
++#include <linux/elf.h>
++
++#include "types.h"
++#include <compel/asm/processor-flags.h>
++
++#include <compel/asm/infect-types.h>
++#include "asm/restorer.h"
++#include "common/compiler.h"
++#include <compel/ptrace.h>
++#include "asm/dump.h"
++#include "protobuf.h"
++#include "images/core.pb-c.h"
++#include "images/creds.pb-c.h"
++#include "parasite-syscall.h"
++#include "log.h"
++#include "util.h"
++#include "cpu.h"
++#include "restorer.h"
++#include "compel/infect.h"
++
++#define assign_reg(dst, src, e) dst->e = (__typeof__(dst->e))(src)->e
++
++int save_task_regs(void *x, user_regs_struct_t *regs, user_fpregs_struct_t *fpsimd)
++{
++	int i;
++	CoreEntry *core = x;
++
++	// Save riscv64 gprs
++	assign_reg(core->ti_riscv64->gpregs, regs, pc);
++	assign_reg(core->ti_riscv64->gpregs, regs, ra);
++	assign_reg(core->ti_riscv64->gpregs, regs, sp);
++	assign_reg(core->ti_riscv64->gpregs, regs, gp);
++	assign_reg(core->ti_riscv64->gpregs, regs, tp);
++	assign_reg(core->ti_riscv64->gpregs, regs, t0);
++	assign_reg(core->ti_riscv64->gpregs, regs, t1);
++	assign_reg(core->ti_riscv64->gpregs, regs, t2);
++	assign_reg(core->ti_riscv64->gpregs, regs, s0);
++	assign_reg(core->ti_riscv64->gpregs, regs, s1);
++	assign_reg(core->ti_riscv64->gpregs, regs, a0);
++	assign_reg(core->ti_riscv64->gpregs, regs, a1);
++	assign_reg(core->ti_riscv64->gpregs, regs, a2);
++	assign_reg(core->ti_riscv64->gpregs, regs, a3);
++	assign_reg(core->ti_riscv64->gpregs, regs, a4);
++	assign_reg(core->ti_riscv64->gpregs, regs, a5);
++	assign_reg(core->ti_riscv64->gpregs, regs, a6);
++	assign_reg(core->ti_riscv64->gpregs, regs, a7);
++	assign_reg(core->ti_riscv64->gpregs, regs, s2);
++	assign_reg(core->ti_riscv64->gpregs, regs, s3);
++	assign_reg(core->ti_riscv64->gpregs, regs, s4);
++	assign_reg(core->ti_riscv64->gpregs, regs, s5);
++	assign_reg(core->ti_riscv64->gpregs, regs, s6);
++	assign_reg(core->ti_riscv64->gpregs, regs, s7);
++	assign_reg(core->ti_riscv64->gpregs, regs, s8);
++	assign_reg(core->ti_riscv64->gpregs, regs, s9);
++	assign_reg(core->ti_riscv64->gpregs, regs, s10);
++	assign_reg(core->ti_riscv64->gpregs, regs, s11);
++	assign_reg(core->ti_riscv64->gpregs, regs, t3);
++	assign_reg(core->ti_riscv64->gpregs, regs, t4);
++	assign_reg(core->ti_riscv64->gpregs, regs, t5);
++	assign_reg(core->ti_riscv64->gpregs, regs, t6);
++
++	// Save riscv64 fprs
++	for (i = 0; i < 32; ++i)
++		assign_reg(core->ti_riscv64->fpsimd, fpsimd, f[i]);
++	assign_reg(core->ti_riscv64->fpsimd, fpsimd, fcsr);
++
++	return 0;
++}
++
++int arch_alloc_thread_info(CoreEntry *core)
++{
++	ThreadInfoRiscv64 *ti_riscv64;
++	UserRiscv64RegsEntry *gpregs;
++	UserRiscv64DExtEntry *fpsimd;
++
++	ti_riscv64 = xmalloc(sizeof(*ti_riscv64));
++	if (!ti_riscv64)
++		goto err;
++	thread_info_riscv64__init(ti_riscv64);
++	core->ti_riscv64 = ti_riscv64;
++
++	gpregs = xmalloc(sizeof(*gpregs));
++	if (!gpregs)
++		goto err;
++	user_riscv64_regs_entry__init(gpregs);
++
++	ti_riscv64->gpregs = gpregs;
++
++	fpsimd = xmalloc(sizeof(*fpsimd));
++	if (!fpsimd)
++		goto err;
++	user_riscv64_d_ext_entry__init(fpsimd);
++	ti_riscv64->fpsimd = fpsimd;
++	fpsimd->f = xmalloc(32 * sizeof(fpsimd->f[0]));
++	fpsimd->n_f = 32;
++	if (!fpsimd->f)
++		goto err;
++
++	return 0;
++err:
++	return -1;
++}
++
++void arch_free_thread_info(CoreEntry *core)
++{
++	if (core->ti_riscv64) {
++		if (core->ti_riscv64->fpsimd) {
++			xfree(core->ti_riscv64->fpsimd->f);
++			xfree(core->ti_riscv64->fpsimd);
++		}
++		xfree(core->ti_riscv64->gpregs);
++		xfree(core->ti_riscv64);
++		core->ti_riscv64 = NULL;
++	}
++}
++
++int restore_fpu(struct rt_sigframe *sigframe, CoreEntry *core)
++{
++	int i;
++	UserRiscv64DExtEntry *fpsimd = core->ti_riscv64->fpsimd;
++
++	if (fpsimd->n_f != 32)
++		return 1;
++
++	for (i = 0; i < 32; ++i)
++		sigframe->uc.uc_mcontext.__fpregs.__d.__f[i] = fpsimd->f[i];
++	sigframe->uc.uc_mcontext.__fpregs.__d.__fcsr = fpsimd->fcsr;
++
++	return 0;
++}
++
++int restore_gpregs(struct rt_sigframe *f, UserRiscv64RegsEntry *r)
++{
++	f->uc.uc_mcontext.__gregs[0] = r->pc;
++	f->uc.uc_mcontext.__gregs[1] = r->ra;
++	f->uc.uc_mcontext.__gregs[2] = r->sp;
++	f->uc.uc_mcontext.__gregs[3] = r->gp;
++	f->uc.uc_mcontext.__gregs[4] = r->tp;
++	f->uc.uc_mcontext.__gregs[5] = r->t0;
++	f->uc.uc_mcontext.__gregs[6] = r->t1;
++	f->uc.uc_mcontext.__gregs[7] = r->t2;
++	f->uc.uc_mcontext.__gregs[8] = r->s0;
++	f->uc.uc_mcontext.__gregs[9] = r->s1;
++	f->uc.uc_mcontext.__gregs[10] = r->a0;
++	f->uc.uc_mcontext.__gregs[11] = r->a1;
++	f->uc.uc_mcontext.__gregs[12] = r->a2;
++	f->uc.uc_mcontext.__gregs[13] = r->a3;
++	f->uc.uc_mcontext.__gregs[14] = r->a4;
++	f->uc.uc_mcontext.__gregs[15] = r->a5;
++	f->uc.uc_mcontext.__gregs[16] = r->a6;
++	f->uc.uc_mcontext.__gregs[17] = r->a7;
++	f->uc.uc_mcontext.__gregs[18] = r->s2;
++	f->uc.uc_mcontext.__gregs[19] = r->s3;
++	f->uc.uc_mcontext.__gregs[20] = r->s4;
++	f->uc.uc_mcontext.__gregs[21] = r->s5;
++	f->uc.uc_mcontext.__gregs[22] = r->s6;
++	f->uc.uc_mcontext.__gregs[23] = r->s7;
++	f->uc.uc_mcontext.__gregs[24] = r->s8;
++	f->uc.uc_mcontext.__gregs[25] = r->s9;
++	f->uc.uc_mcontext.__gregs[26] = r->s10;
++	f->uc.uc_mcontext.__gregs[27] = r->s11;
++	f->uc.uc_mcontext.__gregs[28] = r->t3;
++	f->uc.uc_mcontext.__gregs[29] = r->t4;
++	f->uc.uc_mcontext.__gregs[30] = r->t5;
++	f->uc.uc_mcontext.__gregs[31] = r->t6;
++
++	return 0;
++}
+diff --git a/criu/arch/riscv64/include/asm/dump.h b/criu/arch/riscv64/include/asm/dump.h
+new file mode 100644
+index 000000000..c2988f9bf
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/dump.h
+@@ -0,0 +1,15 @@
++#ifndef __CR_ASM_DUMP_H__
++#define __CR_ASM_DUMP_H__
++
++extern int save_task_regs(void *, user_regs_struct_t *, user_fpregs_struct_t *);
++extern int arch_alloc_thread_info(CoreEntry *core);
++extern void arch_free_thread_info(CoreEntry *core);
++
++static inline void core_put_tls(CoreEntry *core, tls_t tls)
++{
++	core->ti_riscv64->tls = tls;
++}
++
++#define get_task_futex_robust_list_compat(pid, info) -1
++
++#endif
+diff --git a/criu/arch/riscv64/include/asm/int.h b/criu/arch/riscv64/include/asm/int.h
+new file mode 100644
+index 000000000..642804e9b
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/int.h
+@@ -0,0 +1,6 @@
++#ifndef __CR_ASM_INT_H__
++#define __CR_ASM_INT_H__
++
++#include "asm-generic/int.h"
++
++#endif /* __CR_ASM_INT_H__ */
+diff --git a/criu/arch/riscv64/include/asm/kerndat.h b/criu/arch/riscv64/include/asm/kerndat.h
+new file mode 100644
+index 000000000..bb70cf6cf
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/kerndat.h
+@@ -0,0 +1,7 @@
++#ifndef __CR_ASM_KERNDAT_H__
++#define __CR_ASM_KERNDAT_H__
++
++#define kdat_compatible_cr() 0
++#define kdat_can_map_vdso()  0
++
++#endif /* __CR_ASM_KERNDAT_H__ */
+diff --git a/criu/arch/riscv64/include/asm/parasite-syscall.h b/criu/arch/riscv64/include/asm/parasite-syscall.h
+new file mode 100644
+index 000000000..6008c3792
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/parasite-syscall.h
+@@ -0,0 +1,6 @@
++#ifndef __CR_ASM_PARASITE_SYSCALL_H__
++#define __CR_ASM_PARASITE_SYSCALL_H__
++
++struct parasite_ctl;
++
++#endif
+diff --git a/criu/arch/riscv64/include/asm/parasite.h b/criu/arch/riscv64/include/asm/parasite.h
+new file mode 100644
+index 000000000..4798cfd8a
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/parasite.h
+@@ -0,0 +1,16 @@
++#ifndef __ASM_PARASITE_H__
++#define __ASM_PARASITE_H__
++
++/*
++ * This function is used to retrieve the value of the thread pointer (tp)
++ * in RISC-V architecture, which is typically used for thread-local storage (TLS).
++ * The value is then stored in the provided tls_t pointer.
++ */
++static inline void arch_get_tls(tls_t *ptls)
++{
++	tls_t tls;
++	asm("mv %0, tp" : "=r"(tls));
++	*ptls = tls;
++}
++
++#endif
+diff --git a/criu/arch/riscv64/include/asm/restore.h b/criu/arch/riscv64/include/asm/restore.h
+new file mode 100644
+index 000000000..e4f25a57b
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/restore.h
+@@ -0,0 +1,29 @@
++#ifndef __CR_ASM_RESTORE_H__
++#define __CR_ASM_RESTORE_H__
++
++#include "asm/restorer.h"
++
++#include "images/core.pb-c.h"
++
++/* clang-format off */
++#define JUMP_TO_RESTORER_BLOB(new_sp, restore_task_exec_start,	\
++			      task_args)			\
++	asm volatile(						\
++			"and  sp, %0, ~15		\n"	\
++			"mv  a0, %2			\n"	\
++			"jr   %1 			\n"	\
++			:					\
++			: "r"(new_sp),				\
++			  "r"(restore_task_exec_start),		\
++			  "r"(task_args)			\
++			: "a0", "memory")
++/* clang-format on */
++
++static inline void core_get_tls(CoreEntry *pcore, tls_t *ptls)
++{
++	*ptls = pcore->ti_riscv64->tls;
++}
++
++int restore_fpu(struct rt_sigframe *sigframe, CoreEntry *core);
++
++#endif
+diff --git a/criu/arch/riscv64/include/asm/restorer.h b/criu/arch/riscv64/include/asm/restorer.h
+new file mode 100644
+index 000000000..45fe847a9
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/restorer.h
+@@ -0,0 +1,150 @@
++#ifndef __CR_ASM_RESTORER_H__
++#define __CR_ASM_RESTORER_H__
++
++#include <sys/ucontext.h>
++
++#include "asm/types.h"
++#include "images/core.pb-c.h"
++
++#include <compel/asm/sigframe.h>
++
++// kernel arg order for clone
++// unsigned long clone_flags,
++// unsigned long newsp,
++// int __user * parent_tidptr,
++// unsigned long tls,
++// int __user * child_tidptr
++/* clang-format off */
++#define RUN_CLONE_RESTORE_FN(ret, clone_flags, new_sp, parent_tid,		\
++			     thread_args, clone_restore_fn)			\
++	asm volatile(								\
++			"clone_emul:					\n"	\
++			"ld a1, %2					\n"	\
++			"andi a1, a1, ~15				\n"	\
++			"addi a1, a1, -16				\n"	\
++			"sd %5, 0(a1)					\n"	\
++			"sd %6, 8(a1)					\n"	\
++			"mv a0, %1					\n"	\
++			"mv a2, %3					\n"	\
++			"mv a3, %4					\n"	\
++			"li a7, "__stringify(__NR_clone)"		\n"	\
++			"ecall						\n"	\
++										\
++			"beqz a0, thread_run				\n"	\
++										\
++			"mv %0, a0					\n"	\
++			"j   clone_end					\n"	\
++										\
++			"thread_run:					\n"	\
++			"ld a1, 0(sp)					\n"	\
++			"ld a0, 8(sp)					\n"	\
++			"jr  a1						\n"	\
++										\
++			"clone_end:					\n"	\
++			: "=r"(ret)						\
++			: "r"(clone_flags),					\
++			  "m"(new_sp),						\
++			  "r"(&parent_tid),					\
++			  "r"(&thread_args[i].pid),				\
++			  "r"(clone_restore_fn),				\
++			  "r"(&thread_args[i])					\
++			: "a0", "a1", "a2", "a3", "a7", "memory")
++
++/*
++ * Based on sysdeps/unix/sysv/linux/riscv/clone.S
++ *
++ * int clone(int (*fn)(void *arg),            x0
++ *	     void *child_stack,               x1
++ *	     int flags,                       x2
++ *	     void *arg,                       x3
++ *	     pid_t *ptid,                     x4
++ *	     struct user_desc *tls,           x5
++ *	     pid_t *ctid);                    x6
++ *
++ * int clone3(struct clone_args *args,        x0
++ *	      size_t size);                   x1
++ *
++ * Always consult the CLONE3 wrappers for other architectures
++ * for additional details.
++ *
++ */
++#define RUN_CLONE3_RESTORE_FN(ret, clone_args, size, args,			\
++			      clone_restore_fn)					\
++	asm volatile(								\
++	/* In contrast to the clone() wrapper above this does not put
++	 * the thread function and its arguments on the child stack,
++	 * but uses registers to pass these parameters to the child process.
++	 * Based on the glibc clone() wrapper at
++	 * sysdeps/unix/sysv/linux/riscv/clone.S.
++	 */									\
++			"clone3_emul:					\n"	\
++	/*
++	 * Based on the glibc clone() wrapper, which uses x10 and x11
++	 * to save the arguments for the child process, this does the same.
++	 * x10 for the thread function and x11 for the thread arguments.
++	 */									\
++			"mv t0, %3	/* clone_restore_fn */		\n"	\
++			"mv t1, %4	/* args */			\n"	\
++			"mv a0, %1	/* &clone_args */		\n"	\
++			"mv a1, %2	/* size */			\n"	\
++	/* Load syscall number */						\
++			"li a7, "__stringify(__NR_clone3)"		\n"	\
++	/* Do the syscall */							\
++			"ecall						\n"	\
++										\
++			"beqz a0, clone3_thread_run			\n"	\
++										\
++			"mv %0, a0					\n"	\
++			"j   clone3_end					\n"	\
++										\
++			"clone3_thread_run:				\n"	\
++	/* Move args to a0 */							\
++			"mv a0, t1					\n"	\
++	/* Jump to clone_restore_fn */						\
++			"jr  t0						\n"	\
++										\
++			"clone3_end:					\n"	\
++			: "=r"(ret)						\
++			: "r"(&clone_args),					\
++			  "r"(size),						\
++			  "r"(clone_restore_fn),				\
++			  "r"(args)						\
++			: "a0", "a1", "a7", "t0", "t1", "memory")
++
++#define ARCH_FAIL_CORE_RESTORE					\
++	asm volatile(						\
++			"mv sp, %0			\n"	\
++			"li a0, 0			\n"	\
++			"jr   x0			\n"	\
++			:					\
++			: "r"(ret)				\
++			: "sp", "a0", "memory")
++/* clang-format on */
++
++#define arch_map_vdso(map, compat) -1
++
++int restore_gpregs(struct rt_sigframe *f, UserRiscv64RegsEntry *r);
++int restore_nonsigframe_gpregs(UserRiscv64RegsEntry *r);
++
++static inline void restore_tls(tls_t *ptls)
++{
++	asm("mv tp, %0" : : "r"(*ptls));
++}
++
++static inline void *alloc_compat_syscall_stack(void)
++{
++	return NULL;
++}
++static inline void free_compat_syscall_stack(void *stack32)
++{
++}
++static inline int arch_compat_rt_sigaction(void *stack, int sig, void *act)
++{
++	return -1;
++}
++static inline int set_compat_robust_list(uint32_t head_ptr, uint32_t len)
++{
++	return -1;
++}
++
++#endif
+\ No newline at end of file
+diff --git a/criu/arch/riscv64/include/asm/thread_pointer.h b/criu/arch/riscv64/include/asm/thread_pointer.h
+new file mode 100644
+index 000000000..f7e07066a
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/thread_pointer.h
+@@ -0,0 +1,27 @@
++/* __thread_pointer definition.  Generic version.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library.  If not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _SYS_THREAD_POINTER_H
++#define _SYS_THREAD_POINTER_H
++
++static inline void *__criu_thread_pointer(void)
++{
++	return __builtin_thread_pointer();
++}
++
++#endif /* _SYS_THREAD_POINTER_H */
+diff --git a/criu/arch/riscv64/include/asm/types.h b/criu/arch/riscv64/include/asm/types.h
+new file mode 100644
+index 000000000..83bb5f65f
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/types.h
+@@ -0,0 +1,40 @@
++#ifndef __CR_ASM_TYPES_H__
++#define __CR_ASM_TYPES_H__
++
++#include <stdbool.h>
++#include <signal.h>
++#include <asm/ptrace.h>
++#include "images/core.pb-c.h"
++
++#include "page.h"
++#include "bitops.h"
++#include "asm/int.h"
++
++#include <compel/plugins/std/asm/syscall-types.h>
++
++#define core_is_compat(core) false
++
++typedef UserRiscv64RegsEntry UserRegsEntry;
++
++#define CORE_ENTRY__MARCH CORE_ENTRY__MARCH__RISCV64
++
++#define CORE_THREAD_ARCH_INFO(core) core->ti_riscv64
++
++#define TI_SP(core) ((core)->ti_riscv64->gpregs->sp)
++
++#define TI_IP(core) ((core)->ti_riscv64->gpregs->pc)
++
++static inline void *decode_pointer(uint64_t v)
++{
++	return (void *)v;
++}
++static inline uint64_t encode_pointer(void *p)
++{
++	return (uint64_t)p;
++}
++
++#define AT_VECTOR_SIZE 64
++typedef uint64_t auxv_t;
++typedef uint64_t tls_t;
++
++#endif /* __CR_ASM_TYPES_H__ */
+diff --git a/criu/arch/riscv64/include/asm/vdso.h b/criu/arch/riscv64/include/asm/vdso.h
+new file mode 100644
+index 000000000..322149c6e
+--- /dev/null
++++ b/criu/arch/riscv64/include/asm/vdso.h
+@@ -0,0 +1,28 @@
++#ifndef __CR_ASM_VDSO_H__
++#define __CR_ASM_VDSO_H__
++
++#include "asm/int.h"
++#include "common/compiler.h"
++#include "asm-generic/vdso.h"
++
++/*
++ * This is a minimal amount of symbols
++ * we should support at the moment.
++ */
++#define VDSO_SYMBOL_MAX	 6
++#define VDSO_SYMBOL_GTOD 2
++
++#define ARCH_VDSO_SYMBOLS_LIST                                  \
++	const char *rv64_vdso_symbol1 = "__vdso_clock_getres";  \
++	const char *rv64_vdso_symbol2 = "__vdso_clock_gettime"; \
++	const char *rv64_vdso_symbol3 = "__vdso_gettimeofday";  \
++	const char *rv64_vdso_symbol4 = "__vdso_getcpu";        \
++	const char *rv64_vdso_symbol5 = "__vdso_flush_icache";  \
++	const char *rv64_vdso_symbol6 = "__vdso_rt_sigreturn";
++
++#define ARCH_VDSO_SYMBOLS \
++	rv64_vdso_symbol1, rv64_vdso_symbol2, rv64_vdso_symbol3, rv64_vdso_symbol4, rv64_vdso_symbol5, rv64_vdso_symbol6
++
++extern void write_intraprocedure_branch(unsigned long to, unsigned long from);
++
++#endif /* __CR_ASM_VDSO_H__ */
+\ No newline at end of file
+diff --git a/criu/arch/riscv64/restorer.c b/criu/arch/riscv64/restorer.c
+new file mode 100644
+index 000000000..d605f048d
+--- /dev/null
++++ b/criu/arch/riscv64/restorer.c
+@@ -0,0 +1,14 @@
++#include <unistd.h>
++
++#include "restorer.h"
++#include "asm/restorer.h"
++
++#include <compel/plugins/std/syscall.h>
++#include "log.h"
++#include <compel/asm/fpu.h>
++#include "cpu.h"
++
++int restore_nonsigframe_gpregs(UserRiscv64RegsEntry *r)
++{
++	return 0;
++}
+diff --git a/criu/arch/riscv64/sigframe.c b/criu/arch/riscv64/sigframe.c
+new file mode 100644
+index 000000000..8096fab66
+--- /dev/null
++++ b/criu/arch/riscv64/sigframe.c
+@@ -0,0 +1,8 @@
++#include "asm/types.h"
++#include <compel/asm/infect-types.h>
++#include "asm/sigframe.h"
++
++int sigreturn_prep_fpu_frame(struct rt_sigframe *sigframe, struct rt_sigframe *rsigframe)
++{
++	return 0;
++}
+diff --git a/criu/arch/riscv64/vdso-lookup.S b/criu/arch/riscv64/vdso-lookup.S
+new file mode 100644
+index 000000000..50d4ecf08
+--- /dev/null
++++ b/criu/arch/riscv64/vdso-lookup.S
+@@ -0,0 +1,15 @@
++#include "common/asm/linkage.h"
++
++.section	.text
++
++/* Expects t0 to hold the index into the lookup table. */
++GLOBAL(riscv_vdso_lookup)
++	/* Get the beginning of the lookup table */
++	la t1, riscv_vdso_lookup_end
++	/* Scale the index */
++	slli t0, t0, 3
++	add t1, t0, t1
++	ld t2, 0(t1)
++	jr t2
++
++GLOBAL(riscv_vdso_lookup_end)
+\ No newline at end of file
+diff --git a/criu/arch/riscv64/vdso-pie.c b/criu/arch/riscv64/vdso-pie.c
+new file mode 100644
+index 000000000..aa9272fb5
+--- /dev/null
++++ b/criu/arch/riscv64/vdso-pie.c
+@@ -0,0 +1,159 @@
++#include <unistd.h>
++
++#include "asm/types.h"
++
++#include <compel/asm/instruction_formats.h>
++#include <compel/plugins/std/string.h>
++#include <compel/plugins/std/syscall.h>
++#include <compel/plugins/std/syscall-codes.h>
++#include "atomic.h"
++#include "parasite-vdso.h"
++#include "log.h"
++#include "common/bug.h"
++
++#ifdef LOG_PREFIX
++#undef LOG_PREFIX
++#endif
++#define LOG_PREFIX "vdso: "
++
++/* These symbols are defined in vdso-lookup.S */
++extern char *riscv_vdso_lookup, *riscv_vdso_lookup_end;
++
++/*
++ *  li t0, INDEX
++ *  jal x0, riscv_vdso_lookup
++ */
++#define TRAMP_CALL_SIZE (2 * sizeof(uint32_t))
++
++static inline void invalidate_caches(void)
++{
++	// We're supposed to use the VDSO as the officially sanctioned ABI. But oh well.
++	int ret;
++	__smp_mb();
++	asm volatile("li a0, 0\n"
++		     "li a1, 0\n"
++		     "li a2, 1\n"   /* SYS_RISCV_FLUSH_ICACHE_ALL */
++		     "li a7, 259\n" /* __NR_arch_specific_syscall */
++		     "ecall\n"
++		     : "=r"(ret)
++		     :
++		     : "a7");
++}
++
++static inline size_t vdso_trampoline_size(void)
++{
++	return (size_t)&riscv_vdso_lookup_end - (size_t)&riscv_vdso_lookup;
++}
++
++static uint64_t put_trampoline(uint64_t at, struct vdso_symtable *sym)
++{
++	int i, j;
++	uint64_t total_size, trampoline_size;
++	uint64_t trampoline = 0;
++
++	/* First of all we have to find a place where to put the trampoline
++	 * code.
++	 */
++	trampoline_size = vdso_trampoline_size();
++	total_size = trampoline_size + VDSO_SYMBOL_MAX * sizeof(uint64_t);
++
++	for (i = 0; i < ARRAY_SIZE(sym->symbols); i++) {
++		if (vdso_symbol_empty(&sym->symbols[i]))
++			continue;
++
++		pr_debug("Checking '%s' at %lx\n", sym->symbols[i].name, sym->symbols[i].offset);
++
++		/* find the nearest following symbol we are interested in */
++		for (j = 0; j < ARRAY_SIZE(sym->symbols); j++) {
++			if (i == j || vdso_symbol_empty(&sym->symbols[j]))
++				continue;
++
++			if (sym->symbols[j].offset <= sym->symbols[i].offset)
++				/* this symbol is above the current one */
++				continue;
++
++			if ((sym->symbols[i].offset + TRAMP_CALL_SIZE) > sym->symbols[j].offset) {
++				/* we have a major issue here since we cannot
++				 * even put the trampoline call for this symbol
++				 */
++				pr_err("Can't handle small vDSO symbol %s\n", sym->symbols[i].name);
++				return 0;
++			}
++
++			if (trampoline)
++				/* no need to put it twice */
++				continue;
++
++			if ((sym->symbols[j].offset - (sym->symbols[i].offset + TRAMP_CALL_SIZE)) <= total_size)
++				/* not enough place */
++				continue;
++
++			/* We can put the trampoline there */
++			trampoline = at + sym->symbols[i].offset;
++			trampoline += TRAMP_CALL_SIZE;
++
++			pr_debug("Putting vDSO trampoline in %s at %lx\n", sym->symbols[i].name, trampoline);
++			memcpy((void *)trampoline, &riscv_vdso_lookup, trampoline_size);
++			invalidate_caches();
++			return trampoline;
++		}
++	}
++
++	return 0;
++}
++
++static inline void put_trampoline_call(uint64_t from, uint64_t to, uint64_t trampoline, unsigned int idx)
++{
++	size_t trampoline_size = vdso_trampoline_size();
++	uint64_t *lookup_table = NULL;
++	/*
++	 *  li t0, INDEX
++	 *  addi t0, x0 INDEX
++	 *  jal x0, riscv_vdso_lookup
++	 */
++	uint32_t trampoline_call[2] = {
++		0x00000293,
++		0x0000006f,
++	};
++	const size_t insts_len = ARRAY_SIZE(trampoline_call);
++	uint32_t *call_addr = (uint32_t *)from;
++	// Offset from the jal instruction to the lookup trampoline.
++	ssize_t trampoline_offset = trampoline - (from + sizeof(uint32_t));
++
++	trampoline_call[0] = trampoline_call[0] | (idx << 24);
++	trampoline_call[1] = trampoline_call[1] | riscv_j_imm(trampoline_offset);
++
++	for (unsigned int i = 0; i < insts_len; i++) {
++		call_addr[i] = trampoline_call[i];
++	}
++
++	// Set the lookup table pointer for this vdso symbol.
++	lookup_table = (uint64_t *)(trampoline + trampoline_size);
++	lookup_table[idx] = to;
++}
++
++int vdso_redirect_calls(uint64_t base_to, uint64_t base_from, struct vdso_symtable *to, struct vdso_symtable *from,
++			bool __always_unused compat_vdso)
++{
++	unsigned int i, valid_idx = 0;
++
++	uint64_t trampoline = (uint64_t)put_trampoline(base_from, from);
++	if (!trampoline)
++		return 1;
++
++	for (i = 0; i < ARRAY_SIZE(to->symbols); i++) {
++		if (vdso_symbol_empty(&from->symbols[i]))
++			continue;
++
++		pr_debug("br: %lx/%lx -> %lx/%lx (index %d) '%s'\n", base_from, from->symbols[i].offset, base_to,
++			 to->symbols[i].offset, i, from->symbols[i].name);
++
++		put_trampoline_call(base_from + from->symbols[i].offset, base_to + to->symbols[i].offset, trampoline,
++				    valid_idx);
++		valid_idx++;
++	}
++
++	invalidate_caches();
++
++	return 0;
++}
+\ No newline at end of file
+diff --git a/criu/pie/Makefile b/criu/pie/Makefile
+index 912fab24b..9fc3617e2 100644
+--- a/criu/pie/Makefile
++++ b/criu/pie/Makefile
+@@ -18,6 +18,10 @@ ifeq ($(ARCH),mips)
+ 	ccflags-y	+= -mno-abicalls -fno-pic
+ endif
+ 
++ifeq ($(ARCH),riscv64)
++	ccflags-y	+= -fno-stack-protector
++endif
++
+ # -mshstk required for CET instructions
+ ifeq ($(ARCH),x86)
+ 	ccflags-y	+= -mshstk
+@@ -43,6 +47,10 @@ ifeq ($(ARCH),ppc64)
+         restorer-obj-y	+= ./$(ARCH_DIR)/vdso-trampoline.o
+ endif
+ 
++ifeq ($(ARCH),riscv64)
++        restorer-obj-y	+= ./$(ARCH_DIR)/vdso-lookup.o
++endif
++
+ define gen-pie-rules
+ $(1)-obj-y	+= $(1).o
+ $(1)-obj-e	+= pie.lib.a
+diff --git a/criu/pie/Makefile.library b/criu/pie/Makefile.library
+index da2a2fab3..d96a7ac32 100644
+--- a/criu/pie/Makefile.library
++++ b/criu/pie/Makefile.library
+@@ -27,3 +27,7 @@ CFLAGS		+= $(CFLAGS_PIE)
+ ifeq ($(ARCH),mips)
+ CFLAGS			+= -fno-stack-protector -DCR_NOGLIBC -mno-abicalls -fno-pic
+ endif
++
++ifeq ($(ARCH),riscv64)
++	ccflags-y	+= -fno-stack-protector
++endif
+\ No newline at end of file
+diff --git a/images/Makefile b/images/Makefile
+index ca85b1a21..523cc22ea 100644
+--- a/images/Makefile
++++ b/images/Makefile
+@@ -7,6 +7,7 @@ proto-obj-y	+= core-arm.o
+ proto-obj-y	+= core-aarch64.o
+ proto-obj-y	+= core-ppc64.o
+ proto-obj-y	+= core-s390.o
++proto-obj-y	+= core-riscv64.o
+ proto-obj-y	+= cpuinfo.o
+ proto-obj-y	+= inventory.o
+ proto-obj-y	+= fdinfo.o
+diff --git a/images/core-riscv64.proto b/images/core-riscv64.proto
+new file mode 100644
+index 000000000..1ddfdd8bd
+--- /dev/null
++++ b/images/core-riscv64.proto
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: MIT
++
++syntax = "proto2";
++
++import "opts.proto";
++
++// Refer to riscv-gnu-toolchain/linux-headers/include/asm/ptrace.h
++message user_riscv64_regs_entry {
++    required uint64 pc = 1;
++    required uint64 ra = 2;
++    required uint64 sp = 3;
++    required uint64 gp = 4;
++    required uint64 tp = 5;
++    required uint64 t0 = 6;
++    required uint64 t1 = 7;
++    required uint64 t2 = 8;
++    required uint64 s0 = 9;
++    required uint64 s1 = 10;
++    required uint64 a0 = 11;
++    required uint64 a1 = 12;
++    required uint64 a2 = 13;
++    required uint64 a3 = 14;
++    required uint64 a4 = 15;
++    required uint64 a5 = 16;
++    required uint64 a6 = 17;
++    required uint64 a7 = 18;
++    required uint64 s2 = 19;
++    required uint64 s3 = 20;
++    required uint64 s4 = 21;
++    required uint64 s5 = 22;
++    required uint64 s6 = 23;
++    required uint64 s7 = 24;
++    required uint64 s8 = 25;
++    required uint64 s9 = 26;
++    required uint64 s10 = 27;
++    required uint64 s11 = 28;
++    required uint64 t3 = 29;
++    required uint64 t4 = 30;
++    required uint64 t5 = 31;
++    required uint64 t6 = 32;    
++}
++
++message user_riscv64_d_ext_entry {
++    repeated uint64 f = 1;
++    required uint32 fcsr = 2;
++}
++
++message thread_info_riscv64 {
++	required uint64				clear_tid_addr	= 1[(criu).hex = true];
++	required uint64				tls		= 2;
++	required user_riscv64_regs_entry	gpregs		= 3[(criu).hex = true];
++	required user_riscv64_d_ext_entry	fpsimd		= 4;
++}
+diff --git a/images/core.proto b/images/core.proto
+index 5b07b5c44..1fa23868b 100644
+--- a/images/core.proto
++++ b/images/core.proto
+@@ -9,6 +9,7 @@ import "core-ppc64.proto";
+ import "core-s390.proto";
+ import "core-mips.proto";
+ import "core-loongarch64.proto";
++import "core-riscv64.proto";
+ 
+ import "rlimit.proto";
+ import "timer.proto";
+@@ -126,6 +127,7 @@ message core_entry {
+ 		S390		= 5;
+ 		MIPS		= 6;
+ 		LOONGARCH64		= 7;
++		RISCV64		= 8;
+ 	}
+ 
+ 	required march			mtype		= 1;
+@@ -136,6 +138,7 @@ message core_entry {
+ 	optional thread_info_s390	ti_s390		= 10;
+ 	optional thread_info_mips	ti_mips		= 11;
+ 	optional thread_info_loongarch64	ti_loongarch64  = 12;
++	optional thread_info_riscv64	ti_riscv64	= 13;
+ 
+ 	optional task_core_entry	tc		= 3;
+ 	optional task_kobj_ids_entry	ids		= 4;
+diff --git a/include/common/arch/riscv64/asm/atomic.h b/include/common/arch/riscv64/asm/atomic.h
+new file mode 100644
+index 000000000..4b08bd9fd
+--- /dev/null
++++ b/include/common/arch/riscv64/asm/atomic.h
+@@ -0,0 +1,109 @@
++#ifndef __CR_ATOMIC_H__
++#define __CR_ATOMIC_H__
++
++typedef struct {
++	int counter;
++} atomic_t;
++
++/* Copied from the Linux header arch/riscv/include/asm/barrier.h */
++
++#define nop() __asm__ __volatile__("nop")
++
++#define RISCV_FENCE(p, s) __asm__ __volatile__("fence " #p "," #s : : : "memory")
++
++/* These barriers need to enforce ordering on both devices or memory. */
++#define mb()  RISCV_FENCE(iorw, iorw)
++#define rmb() RISCV_FENCE(ir, ir)
++#define wmb() RISCV_FENCE(ow, ow)
++
++/* These barriers do not need to enforce ordering on devices, just memory. */
++#define __smp_mb()  RISCV_FENCE(rw, rw)
++#define __smp_rmb() RISCV_FENCE(r, r)
++#define __smp_wmb() RISCV_FENCE(w, w)
++
++#define __smp_store_release(p, v)                   \
++	do {                                        \
++		compiletime_assert_atomic_type(*p); \
++		RISCV_FENCE(rw, w);                 \
++		WRITE_ONCE(*p, v);                  \
++	} while (0)
++
++#define __smp_load_acquire(p)                       \
++	({                                          \
++		typeof(*p) ___p1 = READ_ONCE(*p);   \
++		compiletime_assert_atomic_type(*p); \
++		RISCV_FENCE(r, rw);                 \
++		___p1;                              \
++	})
++
++/* Copied from the Linux kernel header arch/riscv/include/asm/atomic.h */
++
++static inline int atomic_read(const atomic_t *v)
++{
++	return (*(volatile int *)&(v)->counter);
++}
++
++static inline void atomic_set(atomic_t *v, int i)
++{
++	v->counter = i;
++}
++
++#define atomic_get atomic_read
++
++static inline int atomic_add_return(int i, atomic_t *v)
++{
++	int result;
++
++	asm volatile("amoadd.w.aqrl %1, %2, %0" : "+A"(v->counter), "=r"(result) : "r"(i) : "memory");
++	__smp_mb();
++	return result + i;
++}
++
++static inline int atomic_sub_return(int i, atomic_t *v)
++{
++	return atomic_add_return(-i, v);
++}
++
++static inline int atomic_inc(atomic_t *v)
++{
++	return atomic_add_return(1, v) - 1;
++}
++
++static inline int atomic_add(int val, atomic_t *v)
++{
++	return atomic_add_return(val, v) - val;
++}
++
++static inline int atomic_dec(atomic_t *v)
++{
++	return atomic_sub_return(1, v) + 1;
++}
++
++/* true if the result is 0, or false for all other cases. */
++#define atomic_dec_and_test(v) (atomic_sub_return(1, v) == 0)
++#define atomic_dec_return(v)   (atomic_sub_return(1, v))
++
++#define atomic_inc_return(v) (atomic_add_return(1, v))
++
++static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
++{
++	unsigned long tmp;
++	int oldval;
++
++	__smp_mb();
++
++	asm volatile("1:\n"
++		     "  lr.w %1, %2\n"
++		     "  bne %1, %3, 2f\n"
++		     "  sc.w %0, %4, %2\n"
++		     "  bnez %0, 1b\n"
++		     "2:"
++		     : "=&r"(tmp), "=&r"(oldval), "+A"(ptr->counter)
++		     : "r"(old), "r"(new)
++		     : "memory");
++
++	__smp_mb();
++	return oldval;
++}
++
++#endif /* __CR_ATOMIC_H__ */
+diff --git a/include/common/arch/riscv64/asm/bitops.h b/include/common/arch/riscv64/asm/bitops.h
+new file mode 100644
+index 000000000..eabab27c7
+--- /dev/null
++++ b/include/common/arch/riscv64/asm/bitops.h
+@@ -0,0 +1,159 @@
++#ifndef __CR_ASM_BITOPS_H__
++#define __CR_ASM_BITOPS_H__
++
++#include "common/compiler.h"
++#include "common/asm/bitsperlong.h"
++
++#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
++#define BITS_TO_LONGS(nr)  DIV_ROUND_UP(nr, BITS_PER_LONG)
++
++#define DECLARE_BITMAP(name, bits) unsigned long name[BITS_TO_LONGS(bits)]
++#define BITMAP_SIZE(name)	   (sizeof(name) * CHAR_BIT)
++
++#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1)
++/* Technically wrong, but this avoids compilation errors on some gcc
++   versions. */
++#define BITOP_ADDR(x) "=m"(*(volatile long *)(x))
++#else
++#define BITOP_ADDR(x) "+m"(*(volatile long *)(x))
++#endif
++
++#define ADDR BITOP_ADDR(addr)
++
++static inline void set_bit(int nr, volatile unsigned long *addr)
++{
++	addr += nr / BITS_PER_LONG;
++	*addr |= (1UL << (nr % BITS_PER_LONG));
++}
++
++static inline void change_bit(int nr, volatile unsigned long *addr)
++{
++	addr += nr / BITS_PER_LONG;
++	*addr ^= (1UL << (nr % BITS_PER_LONG));
++}
++
++static inline int test_bit(int nr, volatile const unsigned long *addr)
++{
++	addr += nr / BITS_PER_LONG;
++	return (*addr & (1UL << (nr % BITS_PER_LONG))) ? -1 : 0;
++}
++
++static inline void clear_bit(int nr, volatile unsigned long *addr)
++{
++	addr += nr / BITS_PER_LONG;
++	*addr &= ~(1UL << (nr % BITS_PER_LONG));
++}
++
++/**
++ * __ffs - find first set bit in word
++ * @word: The word to search
++ *
++ * Undefined if no bit exists, so code should check against 0 first.
++ */
++static inline unsigned long __ffs(unsigned long word)
++{
++	int p = 0;
++
++	for (; p < 8*sizeof(word); ++p) {
++		if (word & 1) {
++			break;
++		}
++
++		word >>= 1;
++	}
++
++	return p;
++}
++
++#define BITOP_WORD(nr) ((nr) / BITS_PER_LONG)
++
++/*
++ * Find the next set bit in a memory region.
++ */
++static inline unsigned long find_next_bit(const unsigned long *addr, unsigned long size, unsigned long offset)
++{
++	const unsigned long *p = addr + BITOP_WORD(offset);
++	unsigned long result = offset & ~(BITS_PER_LONG - 1);
++	unsigned long tmp;
++
++	if (offset >= size)
++		return size;
++	size -= result;
++	offset %= BITS_PER_LONG;
++	if (offset) {
++		tmp = *(p++);
++		tmp &= (~0UL << offset);
++		if (size < BITS_PER_LONG)
++			goto found_first;
++		if (tmp)
++			goto found_middle;
++		size -= BITS_PER_LONG;
++		result += BITS_PER_LONG;
++	}
++	while (size & ~(BITS_PER_LONG - 1)) {
++		if ((tmp = *(p++)))
++			goto found_middle;
++		result += BITS_PER_LONG;
++		size -= BITS_PER_LONG;
++	}
++	if (!size)
++		return result;
++	tmp = *p;
++
++found_first:
++	tmp &= (~0UL >> (BITS_PER_LONG - size));
++	if (tmp == 0UL)		      /* Are any bits set? */
++		return result + size; /* Nope. */
++found_middle:
++	return result + __ffs(tmp);
++}
++
++#define for_each_bit(i, bitmask)                                                            \
++	for (i = find_next_bit(bitmask, BITMAP_SIZE(bitmask), 0); i < BITMAP_SIZE(bitmask); \
++	     i = find_next_bit(bitmask, BITMAP_SIZE(bitmask), i + 1))
++
++
++#define BITS_PER_LONG 64
++
++#define BIT_MASK(nr) ((1##UL) << ((nr) % BITS_PER_LONG))
++#define BIT_WORD(nr) ((nr) / BITS_PER_LONG)
++
++#define __AMO(op) "amo" #op ".d"
++
++#define __test_and_op_bit_ord(op, mod, nr, addr, ord)                        \
++	({                                                                   \
++		unsigned long __res, __mask;                                 \
++		__mask = BIT_MASK(nr);                                       \
++		__asm__ __volatile__(__AMO(op) #ord " %0, %2, %1"            \
++				     : "=r"(__res), "+A"(addr[BIT_WORD(nr)]) \
++				     : "r"(mod(__mask))                      \
++				     : "memory");                            \
++		((__res & __mask) != 0);                                     \
++	})
++
++#define __op_bit_ord(op, mod, nr, addr, ord)                \
++	__asm__ __volatile__(__AMO(op) #ord " zero, %1, %0" \
++			     : "+A"(addr[BIT_WORD(nr)])     \
++			     : "r"(mod(BIT_MASK(nr)))       \
++			     : "memory");
++
++#define __test_and_op_bit(op, mod, nr, addr) __test_and_op_bit_ord(op, mod, nr, addr, .aqrl)
++#define __op_bit(op, mod, nr, addr)	     __op_bit_ord(op, mod, nr, addr, )
++
++/* Bitmask modifiers */
++#define __NOP(x) (x)
++#define __NOT(x) (~(x))
++
++/**
++ * test_and_set_bit - Set a bit and return its old value
++ * @nr: Bit to set
++ * @addr: Address to count from
++ *
++ * This operation may be reordered on other architectures than x86.
++ */
++static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
++{
++	return __test_and_op_bit(or, __NOP, nr, addr);
++}
++
++#endif /* __CR_ASM_BITOPS_H__ */
+diff --git a/include/common/arch/riscv64/asm/bitsperlong.h b/include/common/arch/riscv64/asm/bitsperlong.h
+new file mode 100644
+index 000000000..d95727d19
+--- /dev/null
++++ b/include/common/arch/riscv64/asm/bitsperlong.h
+@@ -0,0 +1,6 @@
++#ifndef __CR_BITSPERLONG_H__
++#define __CR_BITSPERLONG_H__
++
++#define BITS_PER_LONG 64
++
++#endif /* __CR_BITSPERLONG_H__ */
+diff --git a/include/common/arch/riscv64/asm/linkage.h b/include/common/arch/riscv64/asm/linkage.h
+new file mode 100644
+index 000000000..c6d40f750
+--- /dev/null
++++ b/include/common/arch/riscv64/asm/linkage.h
+@@ -0,0 +1,23 @@
++#ifndef __CR_LINKAGE_H__
++#define __CR_LINKAGE_H__
++
++#ifdef __ASSEMBLY__
++
++#define __ALIGN	    .align 4, 0x00
++#define __ALIGN_STR ".align 4, 0x00"
++
++#define GLOBAL(name) \
++	.globl name; \
++name:
++
++#define ENTRY(name)            \
++	.globl name;           \
++	.type name, @function; \
++	__ALIGN;               \
++name:
++
++#define END(sym) .size sym, .- sym
++
++#endif /* __ASSEMBLY__ */
++
++#endif /* __CR_LINKAGE_H__ */
+diff --git a/include/common/arch/riscv64/asm/page.h b/include/common/arch/riscv64/asm/page.h
+new file mode 100644
+index 000000000..5113cb6db
+--- /dev/null
++++ b/include/common/arch/riscv64/asm/page.h
+@@ -0,0 +1,44 @@
++#ifndef __CR_ASM_PAGE_H__
++#define __CR_ASM_PAGE_H__
++
++#define ARCH_HAS_LONG_PAGES
++
++#ifndef CR_NOGLIBC
++#include <string.h> /* ffsl() */
++#include <unistd.h> /* _SC_PAGESIZE */
++
++extern unsigned __page_size;
++extern unsigned __page_shift;
++
++static inline unsigned page_size(void)
++{
++	if (!__page_size)
++		__page_size = sysconf(_SC_PAGESIZE);
++	return __page_size;
++}
++
++static inline unsigned page_shift(void)
++{
++	if (!__page_shift)
++		__page_shift = (ffsl(page_size()) - 1);
++	return __page_shift;
++}
++
++/*
++ * Don't add ifdefs for PAGE_SIZE: if any header defines it as a constant
++ * on aarch64, then we need refrain using PAGE_SIZE in criu and use
++ * page_size() across sources (as it may differ on aarch64).
++ */
++#define PAGE_SIZE  page_size()
++#define PAGE_MASK  (~(PAGE_SIZE - 1))
++#define PAGE_SHIFT page_shift()
++
++#define PAGE_PFN(addr) ((addr) / PAGE_SIZE)
++
++#else /* CR_NOGLIBC */
++
++extern unsigned long page_size(void);
++#define PAGE_SIZE page_size()
++
++#endif /* CR_NOGLIBC */
++#endif /* __CR_ASM_PAGE_H__ */
+diff --git a/scripts/build/Dockerfile.riscv64-stable-cross.hdr b/scripts/build/Dockerfile.riscv64-stable-cross.hdr
+new file mode 100644
+index 000000000..d4c414023
+--- /dev/null
++++ b/scripts/build/Dockerfile.riscv64-stable-cross.hdr
+@@ -0,0 +1,5 @@
++FROM ubuntu:jammy
++
++ENV ARCH=riscv64
++ENV DEBIAN_ARCH=riscv64
++ENV CROSS_TRIPLET=riscv64-linux-gnu
+diff --git a/scripts/build/Dockerfile.riscv64-stable-cross.tmpl b/scripts/build/Dockerfile.riscv64-stable-cross.tmpl
+new file mode 100644
+index 000000000..39a0c33c6
+--- /dev/null
++++ b/scripts/build/Dockerfile.riscv64-stable-cross.tmpl
+@@ -0,0 +1,57 @@
++COPY scripts/ci/apt-install /bin/apt-install
++
++# Add the cross compiler sources
++RUN apt-get clean -y && apt-get update -y && apt-get install -y --no-install-recommends gnupg2
++
++RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 871920D1991BC93C 8D69674688B6CB36 B523E5F3FC4E5F2C
++
++COPY scripts/ci/riscv64-cross/amd64-sources.list /etc/apt/sources.list
++
++COPY scripts/ci/riscv64-cross/riscv64-sources.list /etc/apt/sources.list.d/
++
++RUN dpkg --add-architecture ${DEBIAN_ARCH} && \
++	apt-get update -y
++
++# Install required packages
++RUN apt-get install -y --no-install-recommends \
++	build-essential \
++	pkg-config \
++	git \
++	crossbuild-essential-${DEBIAN_ARCH}	\
++	libc6-dev-${DEBIAN_ARCH}-cross		\
++	libc6-${DEBIAN_ARCH}-cross		\
++	libbz2-dev:${DEBIAN_ARCH}		\
++	libexpat1-dev:${DEBIAN_ARCH}		\
++	ncurses-dev:${DEBIAN_ARCH}		\
++	libssl-dev:${DEBIAN_ARCH}		\
++	protobuf-c-compiler			\
++	protobuf-compiler			\
++	python3-protobuf			\
++	libnl-3-dev:${DEBIAN_ARCH}		\
++	libprotobuf-dev:${DEBIAN_ARCH}		\
++	libnet-dev:${DEBIAN_ARCH}		\
++	libprotobuf-c-dev:${DEBIAN_ARCH}	\
++	libcap-dev:${DEBIAN_ARCH}		\
++	libaio-dev:${DEBIAN_ARCH}		\
++	libnl-route-3-dev:${DEBIAN_ARCH}	\
++	libnftables-dev:${DEBIAN_ARCH}	\
++	libgnutls28-dev:${DEBIAN_ARCH}	\
++	iproute2:${DEBIAN_ARCH}
++
++ENV CROSS_COMPILE=${CROSS_TRIPLET}-				\
++	CROSS_ROOT=/usr/${CROSS_TRIPLET}			\
++	AS=/usr/bin/${CROSS_TRIPLET}-as				\
++	AR=/usr/bin/${CROSS_TRIPLET}-ar				\
++	CC=/usr/bin/${CROSS_TRIPLET}-gcc			\
++	CPP=/usr/bin/${CROSS_TRIPLET}-cpp			\
++	CXX=/usr/bin/${CROSS_TRIPLET}-g++			\
++	LD=/usr/bin/${CROSS_TRIPLET}-ld				\
++	FC=/usr/bin/${CROSS_TRIPLET}-gfortran
++
++ENV PATH="${PATH}:${CROSS_ROOT}/bin"				\
++	PKG_CONFIG_PATH=/usr/lib/${CROSS_TRIPLET}/pkgconfig
++
++COPY . /criu
++WORKDIR /criu
++
++RUN	make mrproper && date && make -j $(nproc) zdtm && date
+diff --git a/scripts/build/Makefile b/scripts/build/Makefile
+index bc4a59db1..389315227 100644
+--- a/scripts/build/Makefile
++++ b/scripts/build/Makefile
+@@ -1,5 +1,5 @@
+ ARCHES := x86_64 fedora-asan fedora-rawhide armv7hf centos8
+-STABLE_CROSS_ARCHES := armv7-stable-cross aarch64-stable-cross ppc64-stable-cross mips64el-stable-cross
++STABLE_CROSS_ARCHES := armv7-stable-cross aarch64-stable-cross ppc64-stable-cross mips64el-stable-cross riscv64-stable-cross
+ UNSTABLE_CROSS_ARCHES := armv7-unstable-cross aarch64-unstable-cross ppc64-unstable-cross mips64el-unstable-cross
+ NON_CLANG := $(UNSTABLE_CROSS_ARCHES) $(STABLE_CROSS_ARCHES)
+ CREATE_DOCKERFILES := $(ARCHES) $(NON_CLANG)
+diff --git a/scripts/ci/riscv64-cross/amd64-sources.list b/scripts/ci/riscv64-cross/amd64-sources.list
+new file mode 100644
+index 000000000..72dad920c
+--- /dev/null
++++ b/scripts/ci/riscv64-cross/amd64-sources.list
+@@ -0,0 +1,10 @@
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy universe
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates universe
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy multiverse
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates multiverse
++deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-backports main restricted universe multiverse
++deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted
++deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security universe
++deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security multiverse
+\ No newline at end of file
+diff --git a/scripts/ci/riscv64-cross/riscv64-sources.list b/scripts/ci/riscv64-cross/riscv64-sources.list
+new file mode 100644
+index 000000000..67b8067b6
+--- /dev/null
++++ b/scripts/ci/riscv64-cross/riscv64-sources.list
+@@ -0,0 +1,42 @@
++# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
++# newer versions of the distribution.
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted
++
++## Major bug fix updates produced after the final release of the
++## distribution.
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted
++
++## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
++## team. Also, please note that software in universe WILL NOT receive any
++## review or updates from the Ubuntu security team.
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy universe
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates universe
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-updates universe
++
++## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
++## team, and may not be under a free licence. Please satisfy yourself as to
++## your rights to use the software. Also, please note that software in
++## multiverse WILL NOT receive any review or updates from the Ubuntu
++## security team.
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy multiverse
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy multiverse
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates multiverse
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-updates multiverse
++
++## N.B. software from this repository may not have been tested as
++## extensively as that contained in the main release, although it includes
++## newer versions of some applications which may provide useful features.
++## Also, please note that software in backports WILL NOT receive any review
++## or updates from the Ubuntu security team.
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-backports main restricted universe multiverse
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-backports main restricted universe multiverse
++
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security universe
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-security universe
++deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security multiverse
++# deb-src http://ports.ubuntu.com/ubuntu-ports/ jammy-security multiverse
+\ No newline at end of file
+diff --git a/scripts/nmk/scripts/include.mk b/scripts/nmk/scripts/include.mk
+index 55c5be307..603c322cf 100644
+--- a/scripts/nmk/scripts/include.mk
++++ b/scripts/nmk/scripts/include.mk
+@@ -21,6 +21,7 @@ ARCH	?= $(shell echo $(SUBARCH) | sed	\
+                 -e s/mips.*/mips/		\
+                 -e s/sh[234].*/sh/		\
+                 -e s/aarch64.*/aarch64/		\
++                -e s/riscv64.*/riscv64/		\
+                 -e s/loongarch64.*/loongarch64/)
+ 
+ export SUBARCH ARCH
+diff --git a/test/zdtm/lib/arch/riscv64/include/asm/atomic.h b/test/zdtm/lib/arch/riscv64/include/asm/atomic.h
+new file mode 100644
+index 000000000..a4faf1322
+--- /dev/null
++++ b/test/zdtm/lib/arch/riscv64/include/asm/atomic.h
+@@ -0,0 +1,107 @@
++#ifndef __CR_ATOMIC_H__
++#define __CR_ATOMIC_H__
++
++typedef uint32_t atomic_t;
++
++/* Copied from the Linux header arch/riscv/include/asm/barrier.h */
++
++#define nop() __asm__ __volatile__("nop")
++
++#define RISCV_FENCE(p, s) __asm__ __volatile__("fence " #p "," #s : : : "memory")
++
++/* These barriers need to enforce ordering on both devices or memory. */
++#define mb()  RISCV_FENCE(iorw, iorw)
++#define rmb() RISCV_FENCE(ir, ir)
++#define wmb() RISCV_FENCE(ow, ow)
++
++/* These barriers do not need to enforce ordering on devices, just memory. */
++#define __smp_mb()  RISCV_FENCE(rw, rw)
++#define __smp_rmb() RISCV_FENCE(r, r)
++#define __smp_wmb() RISCV_FENCE(w, w)
++
++#define __smp_store_release(p, v)                   \
++	do {                                        \
++		compiletime_assert_atomic_type(*p); \
++		RISCV_FENCE(rw, w);                 \
++		WRITE_ONCE(*p, v);                  \
++	} while (0)
++
++#define __smp_load_acquire(p)                       \
++	({                                          \
++		typeof(*p) ___p1 = READ_ONCE(*p);   \
++		compiletime_assert_atomic_type(*p); \
++		RISCV_FENCE(r, rw);                 \
++		___p1;                              \
++	})
++
++/* Copied from the Linux kernel header arch/riscv/include/asm/atomic.h */
++
++static inline int atomic_read(const atomic_t *v)
++{
++	return (*(volatile int *)v);
++}
++
++static inline void atomic_set(atomic_t *v, int i)
++{
++	*v = i;
++}
++
++#define atomic_get atomic_read
++
++static inline int atomic_add_return(int i, atomic_t *v)
++{
++	int result;
++
++	asm volatile("amoadd.w.aqrl %1, %2, %0" : "+A"(*v), "=r"(result) : "r"(i) : "memory");
++	__smp_mb();
++	return result + i;
++}
++
++static inline int atomic_sub_return(int i, atomic_t *v)
++{
++	return atomic_add_return(-i, v);
++}
++
++static inline int atomic_inc(atomic_t *v)
++{
++	return atomic_add_return(1, v) - 1;
++}
++
++static inline int atomic_add(int val, atomic_t *v)
++{
++	return atomic_add_return(val, v) - val;
++}
++
++static inline int atomic_dec(atomic_t *v)
++{
++	return atomic_sub_return(1, v) + 1;
++}
++
++/* true if the result is 0, or false for all other cases. */
++#define atomic_dec_and_test(v) (atomic_sub_return(1, v) == 0)
++#define atomic_dec_return(v)   (atomic_sub_return(1, v))
++
++#define atomic_inc_return(v) (atomic_add_return(1, v))
++
++static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
++{
++	unsigned long tmp;
++	int oldval;
++
++	__smp_mb();
++
++	asm volatile("1:\n"
++		     "  lr.w %1, %2\n"
++		     "  bne %1, %3, 2f\n"
++		     "  sc.w %0, %4, %2\n"
++		     "  bnez %0, 1b\n"
++		     "2:"
++		     : "=&r"(tmp), "=&r"(oldval), "+A"(*ptr)
++		     : "r"(old), "r"(new)
++		     : "memory");
++
++	__smp_mb();
++	return oldval;
++}
++
++#endif /* __CR_ATOMIC_H__ */
+diff --git a/test/zdtm/lib/test.c b/test/zdtm/lib/test.c
+index a5ba38b2d..95017e42e 100644
+--- a/test/zdtm/lib/test.c
++++ b/test/zdtm/lib/test.c
+@@ -406,7 +406,7 @@ pid_t sys_clone_unified(unsigned long flags, void *child_stack, void *parent_tid
+ {
+ #ifdef __x86_64__
+ 	return (pid_t)syscall(__NR_clone, flags, child_stack, parent_tid, child_tid, newtls);
+-#elif (__i386__ || __arm__ || __aarch64__ || __powerpc64__ || __mips__ || __loongarch64)
++#elif (__i386__ || __arm__ || __aarch64__ || __powerpc64__ || __mips__ || __loongarch64 || __riscv)
+ 	return (pid_t)syscall(__NR_clone, flags, child_stack, parent_tid, newtls, child_tid);
+ #elif __s390x__
+ 	return (pid_t)syscall(__NR_clone, child_stack, flags, parent_tid, child_tid, newtls);
+diff --git a/test/zdtm/static/fanotify00.c b/test/zdtm/static/fanotify00.c
+index 69ead43e7..0400cc74b 100644
+--- a/test/zdtm/static/fanotify00.c
++++ b/test/zdtm/static/fanotify00.c
+@@ -22,7 +22,7 @@
+ #elif defined(__PPC64__)
+ #define __NR_fanotify_init 323
+ #define __NR_fanotify_mark 324
+-#elif __aarch64__
++#elif (__aarch64__ || __riscv)
+ #define __NR_fanotify_init 262
+ #define __NR_fanotify_mark 263
+ #elif __s390x__
+diff --git a/test/zdtm/static/netns-nf.desc b/test/zdtm/static/netns-nf.desc
+index e7e73b1ae..c99696d1c 100644
+--- a/test/zdtm/static/netns-nf.desc
++++ b/test/zdtm/static/netns-nf.desc
+@@ -1,6 +1,6 @@
+ {   'deps': [   '/bin/sh',
+                 '/sbin/iptables|/usr/sbin/iptables',
+-                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/iptables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so',
++                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/iptables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_standard.so',
+                 '/usr/bin/diff'],
+     'flags': 'suid',
+     'flavor': 'ns uns'}
+diff --git a/test/zdtm/static/netns-nft-ipt.desc b/test/zdtm/static/netns-nft-ipt.desc
+index 4120f74d6..6d04589b3 100644
+--- a/test/zdtm/static/netns-nft-ipt.desc
++++ b/test/zdtm/static/netns-nft-ipt.desc
+@@ -2,7 +2,7 @@
+    'deps': [   '/bin/sh',
+                '/usr/sbin/nft',
+                '/sbin/iptables|/usr/sbin/iptables',
+-               '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/iptables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so',
++               '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/iptables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_standard.so',
+                '/usr/bin/diff'],
+     'flags': 'suid',
+     'flavor': 'ns uns'}
+diff --git a/test/zdtm/static/socket-tcp-closed-last-ack.desc b/test/zdtm/static/socket-tcp-closed-last-ack.desc
+index d4cfe5064..309854fa5 100644
+--- a/test/zdtm/static/socket-tcp-closed-last-ack.desc
++++ b/test/zdtm/static/socket-tcp-closed-last-ack.desc
+@@ -1,7 +1,7 @@
+ {   'deps': [   '/bin/sh',
+                 '/sbin/iptables|/usr/sbin/iptables',
+-                '/lib/xtables/libxt_tcp.so|/usr/lib64/xtables/libxt_tcp.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_tcp.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/s390x-linux-gnu/xtables/libxt_tcp.so|/usr/lib/xtables/libxt_tcp.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_tcp.so',
+-                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so',
++                '/lib/xtables/libxt_tcp.so|/usr/lib64/xtables/libxt_tcp.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_tcp.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/s390x-linux-gnu/xtables/libxt_tcp.so|/usr/lib/xtables/libxt_tcp.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_tcp.so',
++                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_standard.so',
+ 	],
+ 	'opts': '--tcp-established',
+ 	'flags': 'suid nouser samens',
+diff --git a/test/zdtm/static/socket-tcp-reseted.desc b/test/zdtm/static/socket-tcp-reseted.desc
+index 3ebdfeef8..4aa48ad87 100644
+--- a/test/zdtm/static/socket-tcp-reseted.desc
++++ b/test/zdtm/static/socket-tcp-reseted.desc
+@@ -1,8 +1,8 @@
+ {   'deps': [   '/bin/sh',
+                 '/sbin/iptables|/usr/sbin/iptables',
+-                '/lib/xtables/libxt_tcp.so|/usr/lib64/xtables/libxt_tcp.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_tcp.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/xtables/libxt_tcp.so|/usr/lib/s390x-linux-gnu/xtables/libxt_tcp.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_tcp.so',
+-                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so',
+-		  '/lib/xtables/libipt_REJECT.so|/usr/lib64/xtables/libipt_REJECT.so|/usr/lib/powerpc64le-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/x86_64-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/xtables/libipt_REJECT.so|/usr/lib/s390x-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/aarch64-linux-gnu/xtables/libipt_REJECT.so',
++                '/lib/xtables/libxt_tcp.so|/usr/lib64/xtables/libxt_tcp.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_tcp.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/xtables/libxt_tcp.so|/usr/lib/s390x-linux-gnu/xtables/libxt_tcp.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_tcp.so',
++                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_standard.so',
++		  '/lib/xtables/libipt_REJECT.so|/usr/lib64/xtables/libipt_REJECT.so|/usr/lib/powerpc64le-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/x86_64-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/xtables/libipt_REJECT.so|/usr/lib/s390x-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/aarch64-linux-gnu/xtables/libipt_REJECT.so|/usr/lib/riscv64-linux-gnu/xtables/libipt_REJECT.so',
+        ],
+        'opts': '--tcp-established',
+        'flags': 'suid nouser samens',
+diff --git a/test/zdtm/static/socket-tcp-syn-sent.desc b/test/zdtm/static/socket-tcp-syn-sent.desc
+index 4cc23c8fc..71cd26d72 100644
+--- a/test/zdtm/static/socket-tcp-syn-sent.desc
++++ b/test/zdtm/static/socket-tcp-syn-sent.desc
+@@ -1,7 +1,7 @@
+ {   'deps': [   '/bin/sh',
+                 '/sbin/iptables|/usr/sbin/iptables',
+-                '/lib/xtables/libxt_tcp.so|/usr/lib64/xtables/libxt_tcp.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_tcp.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/xtables/libxt_tcp.so|/usr/lib/s390x-linux-gnu/xtables/libxt_tcp.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_tcp.so',
+-                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so',
++                '/lib/xtables/libxt_tcp.so|/usr/lib64/xtables/libxt_tcp.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_tcp.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/xtables/libxt_tcp.so|/usr/lib/s390x-linux-gnu/xtables/libxt_tcp.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_tcp.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_tcp.so',
++                '/lib/xtables/libxt_standard.so|/usr/lib64/xtables/libxt_standard.so|/usr/lib/powerpc64le-linux-gnu/xtables/libxt_standard.so|/usr/lib/x86_64-linux-gnu/xtables/libxt_standard.so|/usr/lib/xtables/libxt_standard.so|/usr/lib/s390x-linux-gnu/xtables/libxt_standard.so|/usr/lib/aarch64-linux-gnu/xtables/libxt_standard.so|/usr/lib/riscv64-linux-gnu/xtables/libxt_standard.so',
+ 	],
+ 	'opts': '--tcp-established',
+ 	'flags': 'suid nouser samens',
