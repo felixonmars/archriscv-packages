@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -25,6 +25,7 @@ makedepends=(
+   git
+   meson
+   rust
++  awk
+ )
+ source=("git+https://gitlab.gnome.org/World/design/emblem.git#tag=$pkgver")
+ b2sums=(64276f311dda37461cee960049e5732b3e65f9f90deb362c6066bb3831bce037b8f411176911e1cae2660185ce6e84687a155a5bb830600debe59a13b8c6c9a7)
+@@ -34,6 +35,10 @@ prepare() {
+ 
+   CARGO_HOME="$srcdir/build/cargo-home" \
+     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++
++  # increase test timeout
++  # Do not silence fail
++  awk '{ v += sub(/timeout: 300/, "timeout: 3600"); print > "src/meson.build" } END{ if(v==0) exit 1 }'  src/meson.build
+ }
+ 
+ build() {
