@@ -1,0 +1,113 @@
+From: Alexandre Ghiti <alexghiti@rivosinc.com>
+To: Paul Walmsley <paul.walmsley@sifive.com>,
+	Palmer Dabbelt <palmer@dabbelt.com>,
+	Albert Ou <aou@eecs.berkeley.edu>,
+	Heiko Stuebner <heiko@sntech.de>,
+	Alexandre Ghiti <alexghiti@rivosinc.com>,
+	=?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>,
+	linux-riscv@lists.infradead.org,
+	linux-kernel@vger.kernel.org
+Cc: Jason Montleon <jmontleo@redhat.com>,
+	stable@vger.kernel.org
+Subject: [PATCH -fixes] riscv: Do not use fortify in early code
+Date: Wed,  9 Oct 2024 09:27:49 +0200
+Message-Id: <20241009072749.45006-1-alexghiti@rivosinc.com>
+X-Mailer: git-send-email 2.39.2
+MIME-Version: 1.0
+X-CRM114-Version: 20100106-BlameMichelson ( TRE 0.8.0 (BSD) ) MR-646709E3 
+X-CRM114-CacheID: sfid-20241009_002756_623574_9A10A7EE 
+X-CRM114-Status: GOOD (  10.05  )
+X-BeenThere: linux-riscv@lists.infradead.org
+X-Mailman-Version: 2.1.34
+Precedence: list
+List-Id: <linux-riscv.lists.infradead.org>
+List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-riscv>,
+ <mailto:linux-riscv-request@lists.infradead.org?subject=unsubscribe>
+List-Archive: <http://lists.infradead.org/pipermail/linux-riscv/>
+List-Post: <mailto:linux-riscv@lists.infradead.org>
+List-Help: <mailto:linux-riscv-request@lists.infradead.org?subject=help>
+List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-riscv>,
+ <mailto:linux-riscv-request@lists.infradead.org?subject=subscribe>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Sender: "linux-riscv" <linux-riscv-bounces@lists.infradead.org>
+Errors-To: linux-riscv-bounces+linux-riscv=archiver.kernel.org@lists.infradead.org
+
+Early code designates the code executed when the MMU is not yet enabled,
+and this comes with some limitations (see
+Documentation/arch/riscv/boot.rst, section "Pre-MMU execution").
+
+FORTIFY_SOURCE must be disabled then since it can trigger kernel panics
+as reported in [1].
+
+Reported-by: Jason Montleon <jmontleo@redhat.com>
+Closes: https://lore.kernel.org/linux-riscv/CAJD_bPJes4QhmXY5f63GHV9B9HFkSCoaZjk-qCT2NGS7Q9HODg@mail.gmail.com/ [1]
+Fixes: a35707c3d850 ("riscv: add memory-type errata for T-Head")
+Fixes: 26e7aacb83df ("riscv: Allow to downgrade paging mode from the command line")
+Cc: stable@vger.kernel.org
+Signed-off-by: Alexandre Ghiti <alexghiti@rivosinc.com>
+---
+ arch/riscv/errata/Makefile    | 6 ++++++
+ arch/riscv/kernel/Makefile    | 5 +++++
+ arch/riscv/kernel/pi/Makefile | 6 +++++-
+ 3 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/arch/riscv/errata/Makefile b/arch/riscv/errata/Makefile
+index 8a2739485123..f0da9d7b39c3 100644
+--- a/arch/riscv/errata/Makefile
++++ b/arch/riscv/errata/Makefile
+@@ -2,6 +2,12 @@ ifdef CONFIG_RELOCATABLE
+ KBUILD_CFLAGS += -fno-pie
+ endif
+ 
++ifdef CONFIG_RISCV_ALTERNATIVE_EARLY
++ifdef CONFIG_FORTIFY_SOURCE
++KBUILD_CFLAGS += -D__NO_FORTIFY
++endif
++endif
++
+ obj-$(CONFIG_ERRATA_ANDES) += andes/
+ obj-$(CONFIG_ERRATA_SIFIVE) += sifive/
+ obj-$(CONFIG_ERRATA_THEAD) += thead/
+diff --git a/arch/riscv/kernel/Makefile b/arch/riscv/kernel/Makefile
+index 7f88cc4931f5..69dc8aaab3fb 100644
+--- a/arch/riscv/kernel/Makefile
++++ b/arch/riscv/kernel/Makefile
+@@ -36,6 +36,11 @@ KASAN_SANITIZE_alternative.o := n
+ KASAN_SANITIZE_cpufeature.o := n
+ KASAN_SANITIZE_sbi_ecall.o := n
+ endif
++ifdef CONFIG_FORTIFY_SOURCE
++CFLAGS_alternative.o += -D__NO_FORTIFY
++CFLAGS_cpufeature.o += -D__NO_FORTIFY
++CFLAGS_sbi_ecall.o += -D__NO_FORTIFY
++endif
+ endif
+ 
+ extra-y += vmlinux.lds
+diff --git a/arch/riscv/kernel/pi/Makefile b/arch/riscv/kernel/pi/Makefile
+index d5bf1bc7de62..81d69d45c06c 100644
+--- a/arch/riscv/kernel/pi/Makefile
++++ b/arch/riscv/kernel/pi/Makefile
+@@ -16,7 +16,11 @@ KBUILD_CFLAGS	:= $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
+ KBUILD_CFLAGS	+= -mcmodel=medany
+ 
+ CFLAGS_cmdline_early.o += -D__NO_FORTIFY
+-CFLAGS_lib-fdt_ro.o += -D__NO_FORTIFY
++# lib/string.c already defines __NO_FORTIFY
++CFLAGS_ctype.o += -D__NO_FORTIFY
++CFLAGS_lib-fdt.o += -D__NO_FORTIFY
++CFLAGS_lib-fdt_ro.o += -D__NO_FORTIFY
++CFLAGS_archrandom_early.o += -D__NO_FORTIFY
+ 
+ $(obj)/%.pi.o: OBJCOPYFLAGS := --prefix-symbols=__pi_ \
+ 			       --remove-section=.note.gnu.property \
+-- 
+2.39.2
+
+
+_______________________________________________
+linux-riscv mailing list
+linux-riscv@lists.infradead.org
+http://lists.infradead.org/mailman/listinfo/linux-riscv
+
