@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,21 +11,27 @@ depends=('qt5-base' 'bluez-libs' 'jansson')
+ makedepends=('arm-none-eabi-gcc' 'arm-none-eabi-newlib' 'lua52' 'python')
+ optdepends=('lua52: lua scripts'
+             'python: some scripts')
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+-sha512sums=('b4edce069816a9c81b11292702eb965adf9e03b666ba909a6870af135be42f8c566ee232467faa27158c773b69c21b866795d7b6889123349fdd90bb8542cff5')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
++fix-optimize-native.patch::https://github.com/RfidResearchGroup/proxmark3/pull/2577/commits/79540b1d336b229ed98af9f049e6a520768f384c.patch)
++sha512sums=('b4edce069816a9c81b11292702eb965adf9e03b666ba909a6870af135be42f8c566ee232467faa27158c773b69c21b866795d7b6889123349fdd90bb8542cff5'
++            'dd48ae1e0cec480ab39422fe037e3175bbc65fb34cad88eb11cfa712703356761fa290a86cb6abc81c06459724f4f5c36e2c7d967b9638e5ec65eb63667978ab')
+ 
+ prepare() {
++  pushd "$pkgname-$pkgver"
++  patch -Np1 -i "$srcdir/fix-optimize-native.patch"
++  popd
++
+   cp -r $pkgname-$pkgver{,-rdv4}
+ }
+ 
+ build() {
+   cd "$srcdir"/$pkgname-$pkgver
+ 
+-  make PLATFORM=PM3GENERIC SKIPQT=0 all
++  make PLATFORM=PM3GENERIC SKIPQT=0 DONT_BUILD_NATIVE=y all
+ 
+   cd "$srcdir"/$pkgname-$pkgver-rdv4
+ 
+-  make PLATFORM=PM3RDV4 FWTAG=rdv4 common bootrom recovery fullimage
++  make PLATFORM=PM3RDV4 FWTAG=rdv4 DONT_BUILD_NATIVE=y common bootrom recovery fullimage
+ }
+ 
+ package() {
