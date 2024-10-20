@@ -17,7 +17,43 @@
    libffi
    lld
    llvm
-@@ -99,9 +96,8 @@ link-shared = true
+@@ -61,6 +58,8 @@ source=(
+   0003-compiler-Change-LLVM-targets.patch
+   0004-compiler-Use-wasm-ld-for-wasm-targets.patch
+   0005-Fix-enabling-wasm-component-ld-to-match-other-tools.patch
++  disable-f16-f128.diff
++  riscv-musl-crt-default-static.diff
+ )
+ b2sums=('c95ee180622a7984d03d43bcb3dd2ae16c41f95dde88426f972f32cac6ece904ced00d90967a32829db64d8790ee042192d1102426e7a2c4f6b2ff9d14c7cf70'
+         'SKIP'
+@@ -68,7 +67,9 @@ b2sums=('c95ee180622a7984d03d43bcb3dd2ae16c41f95dde88426f972f32cac6ece904ced00d9
+         '365d53955a5ccf4b603ed39dd06384db063441477ed76fbbb31d7a0d46c6a297d86a0b306fcb616485c229ec8965eaa36a5b91b2398991b51f37ff58bd461054'
+         'b0e5c8054f5364fbbc5619674923931e5d896bf56dc1cb1b09e906b7b451d44b7af78dca848e9f8e2de4f15d014187dd25301d6e704005a1efafffe586e120de'
+         '963aa64d27763f063b9fac483a870563f5a71a49ec02d17b7ca0c14dbf67064ba56028bbc45f2ee50b16eada725cb55c2aa2ab17ceadff65ba9e40cb220f7a0c'
+-        'b99ff1689f92ac50b2f64e00150ae6959cf5350dab28e773d9256ec33457684289cef37297c66943a4aa15e0128d043676fa3e498a63bd264bdff34e165e1bcc')
++        'b99ff1689f92ac50b2f64e00150ae6959cf5350dab28e773d9256ec33457684289cef37297c66943a4aa15e0128d043676fa3e498a63bd264bdff34e165e1bcc'
++        'cc08fcde954217dd00d64f8554fa676730192209d96c8bad6444f283560c40589eeecdea4c93a596ba678ad470d49304208f1218595a900ab35588ff21f2bbe9'
++        'a49b3a586b6ed62ec19a4f84f3ef297d926ce584faa640697c71e806f74012908a84d6a87a31bc8b3e70a6ce3049c1075ab13de3581374decf19cd9ee719cc65')
+ validpgpkeys=(
+   108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
+ )
+@@ -93,6 +94,15 @@ prepare() {
+   # https://github.com/rust-lang/rust/pull/130034
+   patch -Np1 -i ../0005-Fix-enabling-wasm-component-ld-to-match-other-tools.patch
+ 
++  # Disable f16 f128 once
++  patch -Np1 -i ../disable-f16-f128.diff
++
++  # Some musl targets(like x86_64) by default crt-static, while others are not.
++  # riscv musl target gets changed to not crt-static by default and triggers
++  # https://github.com/rust-lang/rust/issues/82521
++  # Re-enable default crt-static to align with x86_64 Arch Linux and fix build.
++  patch -Np1 -i ../riscv-musl-crt-default-static.diff
++
+   cat >config.toml <<END
+ # see src/bootstrap/defaults/
+ profile = "dist"
+@@ -105,9 +115,8 @@ link-shared = true
  
  [build]
  target = [
@@ -29,9 +65,9 @@
    "wasm32-unknown-unknown",
    "wasm32-wasi",
    "wasm32-wasip1",
-@@ -148,22 +144,18 @@ jemalloc = true
- [dist]
+@@ -157,22 +166,18 @@ jemalloc = true
  compression-formats = ["gz"]
+ compression-profile = "fast"
  
 -[target.x86_64-unknown-linux-gnu]
 +[target.riscv64gc-unknown-linux-gnu]
@@ -56,7 +92,7 @@
  
  [target.wasm32-unknown-unknown]
  sanitizers = false
-@@ -229,12 +221,9 @@ build() {
+@@ -238,12 +243,9 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
