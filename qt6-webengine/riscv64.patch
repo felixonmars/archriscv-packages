@@ -1,21 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -87,6 +87,13 @@ prepare() {
-   patch -p1 -i ../qtwebengine-6.7.0-ninja1.12.patch
- # Fix build with ffmpeg 7 - Chromium patches
-   patch -d src/3rdparty/chromium -p1 -i "$srcdir"/qtwebengine-ffmpeg-7.patch
-+  for _patch in angle libgav1 sandbox base dav1d; do
+@@ -84,6 +84,13 @@ prepare() {
+   git submodule set-url src/3rdparty "$srcdir"/qtwebengine-chromium
+   git -c protocol.file.allow=always submodule update
+ 
++  for _patch in sandbox dav1d; do
 +    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
 +  done
 +  patch -d src/3rdparty/chromium    -Np1 < ../unscaledcycleclock-remove-riscv-support.patch
-+  patch -d src/3rdparty/chromium/v8 -Np1 < ../riscv-v8.patch
 +  patch -d src/3rdparty/chromium/v8 -Np1 < ../Skip-check-sv57-when-enable-pointer-compress.patch
-+  patch -d src/3rdparty/chromium/v8 -Np1 < ../avoid-cpu-probing-in-li_ptr.patch	
++  patch -d src/3rdparty/chromium/v8 -Np1 < ../avoid-cpu-probing-in-li_ptr.patch
++
+   cd src/3rdparty
+   git cherry-pick -n 3b9f0ed808a23cf5849ea3b82a61ef7ab566ad68 # Fix mp3 playback
  }
- 
- build() {
-@@ -98,7 +105,10 @@ build() {
-     -DQT_FEATURE_webengine_system_libevent=ON \
+@@ -99,7 +106,10 @@ build() {
+     -DQT_FEATURE_webengine_system_re2=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
 -    -DQT_FEATURE_webengine_webrtc_pipewire=ON
@@ -26,22 +26,18 @@
    cmake --build build
  }
  
-@@ -107,3 +117,18 @@ package() {
+@@ -108,3 +118,14 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
 +
 +makedepends+=(clang)
-+source+=(riscv-{angle,libgav1,sandbox,base,dav1d,v8}.patch
++source+=(riscv-{sandbox,dav1d}.patch
 +         "https://github.com/riscv-forks/electron/raw/1e16216b089b6aaed055d17608667e6582263cfd/patches/v8/avoid-cpu-probing-in-li_ptr.patch"
 +         "https://github.com/riscv-forks/electron/raw/1e16216b089b6aaed055d17608667e6582263cfd/patches/v8/Skip-check-sv57-when-enable-pointer-compress.patch"
 +         "https://github.com/riscv-forks/electron/raw/4eff53436a1a86ac548a107e21ca5078518833c0/patches/chromium/unscaledcycleclock-remove-riscv-support.patch")
-+sha256sums+=('d092ee05e50b4140e9b94038c3da76eceac2de498cec092ac35eb7f89273a04f'
-+             '4b2dcfdeb8ab32130d220d9827f49a930cf748bf4d6c7aef97a7b36a98316430'
-+             '8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
-+             'aab631f5b6ea316b08bd290b52f60ed7715fceabd5c8de67535271fbbe2ae794'
++sha256sums+=('8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+             '668e63bc4a388db24fc2ed519d29d6bf73c6f97e768d651adcd72378e93291f5'
 +             'faaf1af670ab202f2e531b19c0af81e97b56afffdcd9f58afd33f0f65468f119'
 +             '6a3ad2b09fe28be4bd3aa922d071b973cf52531c447b31a7415a02f467a795a0'
 +             'bea6346ab4fc88061d3a657281e46eb14c1ce7fcfe108deda02b47bee50241aa')
