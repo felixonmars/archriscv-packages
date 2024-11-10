@@ -1,0 +1,92 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -4,7 +4,7 @@
+ 
+ _pkgname=pytorch
+ pkgbase="python-${_pkgname}"
+-pkgname=("${pkgbase}" "${pkgbase}-opt" "${pkgbase}-cuda" "${pkgbase}-opt-cuda" "${pkgbase}-rocm" "${pkgbase}-opt-rocm")
++pkgname=("${pkgbase}")
+ # When updating pytorch, also check the compatibility table for torchvision
+ # https://github.com/pytorch/vision?tab=readme-ov-file#installation
+ pkgver=2.5.1
+@@ -16,12 +16,12 @@ url="https://pytorch.org"
+ license=('BSD')
+ depends=('google-glog' 'gflags' 'opencv' 'openmp' 'openmpi' 'pybind11' 'python' 'python-yaml' 'libuv'
+          'python-numpy' 'python-sympy' 'protobuf' 'ffmpeg' 'python-future' 'qt6-base' 'eigen'
+-         'intel-oneapi-mkl' 'python-typing_extensions' 'numactl' 'python-jinja'
++         'python-typing_extensions' 'numactl' 'python-jinja'
+          'python-networkx' 'python-filelock')
+ # https://github.com/ROCm/aotriton/blob/main/requirements-dev.txt
+ _aotriton_deps=('python-iniconfig' 'python-packaging' 'python-pluggy' 'python-wheel' 'python-tqdm' 'python-textual')
+-makedepends=('python' 'python-setuptools' 'python-yaml' 'python-numpy' 'cmake' 'cuda' 'gcc13'
+-             'nccl' 'cudnn' 'git' 'rocm-hip-sdk' 'hipblaslt' 'roctracer' 'miopen-hip' 'magma-cuda' 'magma-hip'
++makedepends=('python' 'python-setuptools' 'python-yaml' 'python-numpy' 'cmake' 'gcc13'
++             'git'
+              'ninja' 'pkgconfig' 'doxygen' 'vulkan-headers' 'shaderc' 'onednn' "${_aotriton_deps[@]}")
+ source=("${_pkgname}::git+https://github.com/pytorch/pytorch.git#tag=v$pkgver"
+         # generated using parse-submodules
+@@ -70,7 +70,8 @@ source=("${_pkgname}::git+https://github.com/pytorch/pytorch.git#tag=v$pkgver"
+         pytorch-rocm-jit.patch
+         pytorch-missing-iostream.patch
+         pytorch-remove-caffe2-binaries.patch
+-        fix_cmake_prefix_path.patch)
++        fix_cmake_prefix_path.patch
++        sleef-riscv-rvv.patch::https://github.com/shibatch/sleef/pull/602/commits/ca5e8a234fb8f591a5c091f6538557e4de1cc12e.diff)
+ b2sums=('84694343cf4cb55b8ce70208201426b9c8c18a500b8168cd5a57840c9d410a7ca4e0f51764ec0b7117c87405e62fdf7937abb4265508b47f2cc6213ac08ec296'
+         'SKIP'
+         'SKIP'
+@@ -117,7 +118,8 @@ b2sums=('84694343cf4cb55b8ce70208201426b9c8c18a500b8168cd5a57840c9d410a7ca4e0f51
+         'e19fbb32da5a3bdd9d1505b2ba79ff0d765b241da819c96a380a5c871be4f5a78dcad000e01a315d936cfebb7860150f8111e60aed17cbb9337896a0831df0fe'
+         '77458fa568692020ae4e437b1ebae6ebbf59f040b3414ba03e32cc829f1befb9f39dde6e0c0525e30d42dd08d482d2f213dd8294a9877476c7d0d6aabb0f08d3'
+         '4514a3b50581a35aa11daaf06c8d4b4b04dee9518bb8239667a5ef758660355f9ebf27ef6796d1369fca97c98278d05cab19ed3d8d52790325331113df65182c'
+-        '12e2f94b25d8c473f064223b120c339245fce931c835b88aa66236899909745700e59dd787474588292798a0333e321150cc00d4eb2b5530b324ad2fb143a626')
++        '12e2f94b25d8c473f064223b120c339245fce931c835b88aa66236899909745700e59dd787474588292798a0333e321150cc00d4eb2b5530b324ad2fb143a626'
++        'da3dcd01fceaf0f9423665e02dd1bd214f2fdc7d7fc25c4ba708d22fe58d3e5ec40c39abdf8d1d86c28ec5b5992bef4436c5955f2068e1a13198ebbd12df49bc')
+ options=('!lto' '!debug')
+ 
+ get_pyver () {
+@@ -168,6 +170,9 @@ prepare() {
+ 
+   git -c protocol.file.allow=always submodule update --init --recursive
+ 
++  # RISC-V fixes
++  patch -Np1 -d third_party/sleef < "${srcdir}"/sleef-riscv-rvv.patch
++
+   # Fix cmake prefix path (FS#78665)
+   patch -Np1 -i "${srcdir}"/fix_cmake_prefix_path.patch
+ 
+@@ -232,8 +237,8 @@ _prepare() {
+   export USE_SYSTEM_NCCL=ON
+   export USE_SYSTEM_PYBIND11=ON
+   export USE_SYSTEM_EIGEN_INSTALL=ON
+-  export NCCL_VERSION=$(pkg-config nccl --modversion)
+-  export NCCL_VER_CODE=$(sed -n 's/^#define NCCL_VERSION_CODE\s*\(.*\).*/\1/p' /usr/include/nccl.h)
++  # export NCCL_VERSION=$(pkg-config nccl --modversion)
++  # export NCCL_VER_CODE=$(sed -n 's/^#define NCCL_VERSION_CODE\s*\(.*\).*/\1/p' /usr/include/nccl.h)
+   # export BUILD_SPLIT_CUDA=ON  # modern preferred build, but splits libs and symbols, ABI break
+   # export USE_FAST_NVCC=ON  # parallel build with nvcc, spawns too many processes
+   export USE_CUPTI_SO=ON  # make sure cupti.so is used as shared lib
+@@ -273,12 +278,14 @@ build() {
+   export USE_CUDA=0
+   export USE_CUDNN=0
+   export USE_ROCM=0
+-  echo "add_definitions(-march=x86-64)" >> cmake/MiscCheck.cmake
++  echo "add_definitions(-march=rv64gc)" >> cmake/MiscCheck.cmake
+   # this horrible hack is necessary because the current release
+   # ships inconsistent CMake which tries to build objects before
+   # their dependencies, build twice when dependencies are available
+   python setup.py build || python setup.py build
+ 
++  : <<COMMENT
++
+   cd "${srcdir}/${_pkgname}-opt"
+   echo "Building without cuda or rocm and with non-x86-64 optimizations"
+   _prepare
+@@ -342,6 +349,7 @@ build() {
+   patch -Np1 -i "$srcdir/pytorch-rocm-jit.patch"
+   # same horrible hack as above
+   python setup.py build || python setup.py build
++COMMENT
+ }
+ 
+ _package() {
