@@ -1,31 +1,8 @@
 diff --git PKGBUILD PKGBUILD
-index 1450a9d..346f15e 100644
+index 0f3d538..11296e0 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,9 +13,11 @@ depends=('rocm-core' 'perl' 'gcc-libs' 'zlib' 'zstd' 'libffi' 'libedit'
- makedepends=('cmake' 'python' 'ninja')
- _git='https://github.com/ROCm/llvm-project'
- source=("${pkgname}-${pkgver}.tar.gz::$_git/archive/rocm-$pkgver.tar.gz"
--        "${pkgname}-fix-segfault.patch")
-+        "${pkgname}-fix-segfault.patch"
-+        "${pkgname}-riscv-uleb128.patch")
- sha256sums=('7d35acc84de1adee65406f92a369a30364703f84279241c444cd93a48c7eeb76'
--            '4d3f198c5422e9987f442c20963223c39b1548ffa00b6c9db81af5070278ce03')
-+            '4d3f198c5422e9987f442c20963223c39b1548ffa00b6c9db81af5070278ce03'
-+            'a4dc17071cfc8248f33c74dca14df715710b375e8e1aefc46c4e505334f4bf9b')
- options=(staticlibs !lto)
- _dirname="$(basename "$_git")-$(basename "${source[0]}" .tar.gz)"
- 
-@@ -23,6 +25,8 @@ prepare() {
-     cd "$_dirname"
-     # https://github.com/ROCm/ROCm/issues/2918
-     patch -Np1 -i ../"${pkgname}-fix-segfault.patch"
-+    # https://github.com/llvm/llvm-project/issues/64102
-+    patch -Np1 -i ../"${pkgname}-riscv-uleb128.patch"
- }
- 
- build() {
-@@ -42,7 +46,7 @@ build() {
+@@ -30,7 +30,7 @@ build() {
          -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi;libunwind'
          -DLIBCXX_ENABLE_STATIC=ON
          -DLIBCXXABI_ENABLE_STATIC=ON
