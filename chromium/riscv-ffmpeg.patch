@@ -1,12 +1,19 @@
-From 6a1cbad999f4fcbe8bd6267a43f38906e218614b Mon Sep 17 00:00:00 2001
+From 9af1bc01fafc8f39668fd416d8fc4999c196c81c Mon Sep 17 00:00:00 2001
 From: kxxt <rsworktech@outlook.com>
-Date: Sun, 15 Sep 2024 16:34:37 +0200
+Date: Wed, 13 Nov 2024 13:26:53 +0100
 Subject: [PATCH] ffmpeg: generate riscv64 changes
 
 ---
- CREDITS.chromium                              |   56 +
- chromium/config/Chrome/linux/riscv64/config.h |  782 ++++++
- .../Chrome/linux/riscv64/config_components.h  | 2218 +++++++++++++++++
+ CREDITS.chromium                              |  145 ++
+ chromium/config/Chrome/ios/arm64/config.h     |   21 +-
+ .../Chrome/ios/arm64/config_components.h      |   13 +
+ .../Chrome/ios/arm64/libavutil/ffversion.h    |    2 +-
+ chromium/config/Chrome/ios/x64/config.asm     |   17 +-
+ chromium/config/Chrome/ios/x64/config.h       |   21 +-
+ .../config/Chrome/ios/x64/config_components.h |   13 +
+ .../Chrome/ios/x64/libavutil/ffversion.h      |    2 +-
+ chromium/config/Chrome/linux/riscv64/config.h |  787 ++++++
+ .../Chrome/linux/riscv64/config_components.h  | 2231 +++++++++++++++++
  .../linux/riscv64/libavcodec/bsf_list.c       |    2 +
  .../linux/riscv64/libavcodec/codec_list.c     |   17 +
  .../linux/riscv64/libavcodec/parser_list.c    |    9 +
@@ -15,11 +22,18 @@ Subject: [PATCH] ffmpeg: generate riscv64 changes
  .../linux/riscv64/libavformat/protocol_list.c |    2 +
  .../Chrome/linux/riscv64/libavutil/avconfig.h |    6 +
  .../linux/riscv64/libavutil/ffversion.h       |    5 +
- chromium/config/Chrome/linux/x64/config.asm   |    8 +-
- chromium/config/Chrome/linux/x64/config.h     |   12 +-
+ chromium/config/Chrome/linux/x64/config.asm   |    4 +-
+ chromium/config/Chrome/linux/x64/config.h     |    8 +-
  .../Chrome/linux/x64/libavutil/ffversion.h    |    2 +-
- .../config/Chromium/linux/riscv64/config.h    |  782 ++++++
- .../linux/riscv64/config_components.h         | 2218 +++++++++++++++++
+ chromium/config/Chromium/ios/arm64/config.h   |   21 +-
+ .../Chromium/ios/arm64/config_components.h    |   13 +
+ .../Chromium/ios/arm64/libavutil/ffversion.h  |    2 +-
+ chromium/config/Chromium/ios/x64/config.asm   |   17 +-
+ chromium/config/Chromium/ios/x64/config.h     |   21 +-
+ .../Chromium/ios/x64/config_components.h      |   13 +
+ .../Chromium/ios/x64/libavutil/ffversion.h    |    2 +-
+ .../config/Chromium/linux/riscv64/config.h    |  787 ++++++
+ .../linux/riscv64/config_components.h         | 2231 +++++++++++++++++
  .../linux/riscv64/libavcodec/bsf_list.c       |    2 +
  .../linux/riscv64/libavcodec/codec_list.c     |   15 +
  .../linux/riscv64/libavcodec/parser_list.c    |    7 +
@@ -28,13 +42,14 @@ Subject: [PATCH] ffmpeg: generate riscv64 changes
  .../linux/riscv64/libavformat/protocol_list.c |    2 +
  .../linux/riscv64/libavutil/avconfig.h        |    6 +
  .../linux/riscv64/libavutil/ffversion.h       |    5 +
- chromium/config/Chromium/linux/x64/config.asm |    8 +-
- chromium/config/Chromium/linux/x64/config.h   |   12 +-
+ chromium/config/Chromium/linux/x64/config.asm |    4 +-
+ chromium/config/Chromium/linux/x64/config.h   |    8 +-
  .../Chromium/linux/x64/libavutil/ffversion.h  |    2 +-
  chromium/scripts/copy_config.sh               |    2 +-
- ffmpeg_generated.gni                          |  246 +-
+ ffmpeg_generated.gni                          |  258 +-
  libavcodec/autorename_libavcodec_flacdsp.c    |    2 +-
  .../autorename_libavcodec_mpegaudiodsp.c      |    2 +-
+ libavcodec/autorename_libavcodec_parser.c     |    2 +-
  libavcodec/autorename_libavcodec_sbrdsp.c     |    2 +-
  libavcodec/autorename_libavcodec_videodsp.c   |    2 +-
  libavcodec/autorename_libavcodec_vorbisdsp.c  |    2 +-
@@ -42,6 +57,8 @@ Subject: [PATCH] ffmpeg: generate riscv64 changes
  .../autorename_libavcodec_x86_flacdsp_init.c  |    2 +
  .../autorename_libavcodec_x86_h264dsp_init.c  |    2 +
  .../autorename_libavcodec_x86_sbrdsp_init.c   |    2 +
+ .../autorename_libavcodec_x86_videodsp.asm    |    2 +-
+ .../autorename_libavcodec_x86_videodsp_init.c |    2 +
  ...autorename_libavcodec_x86_vorbisdsp_init.c |    2 +-
  libavformat/autorename_libavformat_aacdec.c   |    2 +-
  libavformat/autorename_libavformat_flacdec.c  |    2 +-
@@ -59,7 +76,8 @@ Subject: [PATCH] ffmpeg: generate riscv64 changes
  libavutil/x86/autorename_libavutil_x86_cpu.c  |    2 +-
  .../autorename_libavutil_x86_fixed_dsp_init.c |    2 +
  .../autorename_libavutil_x86_float_dsp_init.c |    2 +-
- 55 files changed, 6271 insertions(+), 228 deletions(-)
+ .../x86/autorename_libavutil_x86_lls_init.c   |    2 +
+ 73 files changed, 6534 insertions(+), 272 deletions(-)
  create mode 100644 chromium/config/Chrome/linux/riscv64/config.h
  create mode 100644 chromium/config/Chrome/linux/riscv64/config_components.h
  create mode 100644 chromium/config/Chrome/linux/riscv64/libavcodec/bsf_list.c
@@ -84,16 +102,107 @@ Subject: [PATCH] ffmpeg: generate riscv64 changes
  create mode 100644 libavcodec/x86/autorename_libavcodec_x86_flacdsp_init.c
  create mode 100644 libavcodec/x86/autorename_libavcodec_x86_h264dsp_init.c
  create mode 100644 libavcodec/x86/autorename_libavcodec_x86_sbrdsp_init.c
+ create mode 100644 libavcodec/x86/autorename_libavcodec_x86_videodsp_init.c
  create mode 100644 libavutil/x86/autorename_libavutil_x86_fixed_dsp_init.c
+ create mode 100644 libavutil/x86/autorename_libavutil_x86_lls_init.c
 
 diff --git a/CREDITS.chromium b/CREDITS.chromium
-index ccd7f4afa5..c04abff37a 100644
+index ccd7f4afa5d..ff969ba527b 100644
 --- a/CREDITS.chromium
 +++ b/CREDITS.chromium
-@@ -129,6 +129,62 @@ incompatible with the GPLv2 and v3. To the best of our knowledge, they are
+@@ -129,6 +129,151 @@ incompatible with the GPLv2 and v3. To the best of our knowledge, they are
  compatible with the LGPL.
  
  
++********************************************************************************
++
++libavcodec/riscv/h264addpx_rvv.S
++
++Copyright © 2024 Rémi Denis-Courmont.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++1. Redistributions of source code must retain the above copyright notice,
++this list of conditions and the following disclaimer.
++
++2. Redistributions in binary form must reproduce the above copyright notice,
++this list of conditions and the following disclaimer in the documentation
++and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++
++********************************************************************************
++
++libavcodec/riscv/h264dsp_rvv.S
++
++SPDX-License-Identifier: BSD-2-Clause
++
++Copyright © 2024 Rémi Denis-Courmont.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++1. Redistributions of source code must retain the above copyright notice,
++this list of conditions and the following disclaimer.
++
++2. Redistributions in binary form must reproduce the above copyright notice,
++this list of conditions and the following disclaimer in the documentation
++and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++
++********************************************************************************
++
++libavcodec/riscv/h264idct_rvv.S
++
++SPDX-License-Identifier: BSD-2-Clause
++
++Copyright (c) 2024 J. Dekker <jdek@itanimul.li>
++Copyright © 2024 Rémi Denis-Courmont.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++1. Redistributions of source code must retain the above copyright notice,
++this list of conditions and the following disclaimer.
++
++2. Redistributions in binary form must reproduce the above copyright notice,
++this list of conditions and the following disclaimer in the documentation
++and/or other materials provided with the distribution.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++
 +********************************************************************************
 +
 +libavcodec/riscv/startcode_rvb.S
@@ -153,21 +262,586 @@ index ccd7f4afa5..c04abff37a 100644
  ********************************************************************************
  
  libavformat/oggparsetheora.c
+diff --git a/chromium/config/Chrome/ios/arm64/config.h b/chromium/config/Chrome/ios/arm64/config.h
+index 44bab03499c..e1f121acdc1 100644
+--- a/chromium/config/Chrome/ios/arm64/config.h
++++ b/chromium/config/Chrome/ios/arm64/config.h
+@@ -1,12 +1,12 @@
+ /* Automatically generated by configure - do not modify! */
+ #ifndef FFMPEG_CONFIG_H
+ #define FFMPEG_CONFIG_H
+-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/dalecurtis/code/chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=arm64-apple-macosx' --extra-cflags=-F/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/third_party/llvm-build/Release+Asserts/lib/clang/19/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=arm64 --extra-cflags='-arch arm64' --extra-ldflags='-arch arm64' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/sandersd/src/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=arm64-apple-macosx' --extra-cflags=-F/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/20/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=arm64 --extra-cflags='-arch arm64' --extra-ldflags='-arch arm64' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
+ #define FFMPEG_LICENSE "LGPL version 2.1 or later"
+ #define CONFIG_THIS_YEAR 2024
+ #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
+ #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
+-#define CC_IDENT "clang version 19.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project ecea8371ff03c15fb3dc27ee4108b98335fd2d63)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 6ee7e90a5d21cc0173dc5a0a344d230a80a46fd0)"
+ #define OS_NAME darwin
+ #define EXTERN_PREFIX "_"
+ #define EXTERN_ASM _
+@@ -15,12 +15,7 @@
+ #define SWS_MAX_FILTER_SIZE 256
+ #define AS_ARCH_LEVEL armv8.6-a+crc
+ #define ARCH_AARCH64 1
+-#define ARCH_ALPHA 0
+ #define ARCH_ARM 0
+-#define ARCH_AVR32 0
+-#define ARCH_AVR32_AP 0
+-#define ARCH_AVR32_UC 0
+-#define ARCH_BFIN 0
+ #define ARCH_IA64 0
+ #define ARCH_LOONGARCH 0
+ #define ARCH_LOONGARCH32 0
+@@ -33,7 +28,6 @@
+ #define ARCH_PPC64 0
+ #define ARCH_RISCV 0
+ #define ARCH_S390 0
+-#define ARCH_SH4 0
+ #define ARCH_SPARC 0
+ #define ARCH_SPARC64 0
+ #define ARCH_TILEGX 0
+@@ -59,6 +53,7 @@
+ #define HAVE_VSX 0
+ #define HAVE_RV 0
+ #define HAVE_RVV 0
++#define HAVE_RV_ZICBOP 1
+ #define HAVE_RV_ZVBB 0
+ #define HAVE_AESNI 0
+ #define HAVE_AMD3DNOW 0
+@@ -111,6 +106,7 @@
+ #define HAVE_VSX_EXTERNAL 0
+ #define HAVE_RV_EXTERNAL 0
+ #define HAVE_RVV_EXTERNAL 0
++#define HAVE_RV_ZICBOP_EXTERNAL 0
+ #define HAVE_RV_ZVBB_EXTERNAL 0
+ #define HAVE_AESNI_EXTERNAL 0
+ #define HAVE_AMD3DNOW_EXTERNAL 0
+@@ -163,6 +159,7 @@
+ #define HAVE_VSX_INLINE 0
+ #define HAVE_RV_INLINE 0
+ #define HAVE_RVV_INLINE 0
++#define HAVE_RV_ZICBOP_INLINE 0
+ #define HAVE_RV_ZVBB_INLINE 0
+ #define HAVE_AESNI_INLINE 0
+ #define HAVE_AMD3DNOW_INLINE 0
+@@ -261,6 +258,7 @@
+ #define HAVE_WINDOWS_H 0
+ #define HAVE_WINSOCK2_H 0
+ #define HAVE_INTRINSICS_NEON 1
++#define HAVE_INTRINSICS_SSE2 0
+ #define HAVE_ATANF 1
+ #define HAVE_ATAN2F 1
+ #define HAVE_CBRT 1
+@@ -303,6 +301,7 @@
+ #define HAVE_CLOCK_GETTIME 0
+ #define HAVE_CLOSESOCKET 0
+ #define HAVE_COMMANDLINETOARGVW 0
++#define HAVE_ELF_AUX_INFO 0
+ #define HAVE_FCNTL 1
+ #define HAVE_GETADDRINFO 0
+ #define HAVE_GETAUXVAL 0
+@@ -351,6 +350,7 @@
+ #define HAVE_SYSCONF 1
+ #define HAVE_SYSCTL 1
+ #define HAVE_SYSCTLBYNAME 1
++#define HAVE_TEMPNAM 1
+ #define HAVE_USLEEP 1
+ #define HAVE_UTGETOSTYPEFROMSTRING 0
+ #define HAVE_VIRTUALALLOC 0
+@@ -434,6 +434,7 @@
+ #define HAVE_OPENCL_VIDEOTOOLBOX 0
+ #define HAVE_PERL 1
+ #define HAVE_POD2MAN 1
++#define HAVE_POSIX_IOCTL 0
+ #define HAVE_TEXI2HTML 0
+ #define HAVE_XMLLINT 1
+ #define HAVE_ZLIB_GZIP 0
+@@ -523,6 +524,7 @@
+ #define CONFIG_LIBKLVANC 0
+ #define CONFIG_LIBKVAZAAR 0
+ #define CONFIG_LIBLC3 0
++#define CONFIG_LIBLCEVC_DEC 0
+ #define CONFIG_LIBMODPLUG 0
+ #define CONFIG_LIBMP3LAME 0
+ #define CONFIG_LIBMYSOFA 0
+@@ -560,6 +562,7 @@
+ #define CONFIG_LIBVMAF 0
+ #define CONFIG_LIBVORBIS 0
+ #define CONFIG_LIBVPX 0
++#define CONFIG_LIBVVENC 0
+ #define CONFIG_LIBWEBP 0
+ #define CONFIG_LIBXEVD 0
+ #define CONFIG_LIBXEVE 0
+@@ -692,6 +695,7 @@
+ #define CONFIG_CBS_MPEG2 0
+ #define CONFIG_CBS_VP8 0
+ #define CONFIG_CBS_VP9 0
++#define CONFIG_D3D12VA_ENCODE 0
+ #define CONFIG_DEFLATE_WRAPPER 0
+ #define CONFIG_DIRAC_PARSE 1
+ #define CONFIG_DNN 0
+@@ -778,6 +782,7 @@
+ #define CONFIG_VP3DSP 0
+ #define CONFIG_VP56DSP 0
+ #define CONFIG_VP8DSP 0
++#define CONFIG_VULKAN_ENCODE 0
+ #define CONFIG_WMA_FREQS 0
+ #define CONFIG_WMV2DSP 0
+ #endif /* FFMPEG_CONFIG_H */
+diff --git a/chromium/config/Chrome/ios/arm64/config_components.h b/chromium/config/Chrome/ios/arm64/config_components.h
+index 8ebce4c9b52..aaba26ad222 100644
+--- a/chromium/config/Chrome/ios/arm64/config_components.h
++++ b/chromium/config/Chrome/ios/arm64/config_components.h
+@@ -8,6 +8,7 @@
+ #define CONFIG_CHOMP_BSF 0
+ #define CONFIG_DUMP_EXTRADATA_BSF 0
+ #define CONFIG_DCA_CORE_BSF 0
++#define CONFIG_DOVI_RPU_BSF 0
+ #define CONFIG_DTS2PTS_BSF 0
+ #define CONFIG_DV_ERROR_MARKER_BSF 0
+ #define CONFIG_EAC3_CORE_BSF 0
+@@ -599,6 +600,9 @@
+ #define CONFIG_BINTEXT_DECODER 0
+ #define CONFIG_XBIN_DECODER 0
+ #define CONFIG_IDF_DECODER 0
++#define CONFIG_AAC_MEDIACODEC_DECODER 0
++#define CONFIG_AMRNB_MEDIACODEC_DECODER 0
++#define CONFIG_AMRWB_MEDIACODEC_DECODER 0
+ #define CONFIG_LIBAOM_AV1_DECODER 0
+ #define CONFIG_AV1_DECODER 0
+ #define CONFIG_AV1_CUVID_DECODER 0
+@@ -610,6 +614,7 @@
+ #define CONFIG_HEVC_MEDIACODEC_DECODER 0
+ #define CONFIG_MJPEG_CUVID_DECODER 0
+ #define CONFIG_MJPEG_QSV_DECODER 0
++#define CONFIG_MP3_MEDIACODEC_DECODER 0
+ #define CONFIG_MPEG1_CUVID_DECODER 0
+ #define CONFIG_MPEG2_CUVID_DECODER 0
+ #define CONFIG_MPEG4_CUVID_DECODER 0
+@@ -621,6 +626,7 @@
+ #define CONFIG_VP9_CUVID_DECODER 0
+ #define CONFIG_VP9_MEDIACODEC_DECODER 0
+ #define CONFIG_VP9_QSV_DECODER 0
++#define CONFIG_VVC_QSV_DECODER 0
+ #define CONFIG_VNULL_DECODER 0
+ #define CONFIG_ANULL_DECODER 0
+ #define CONFIG_A64MULTI_ENCODER 0
+@@ -828,6 +834,7 @@
+ #define CONFIG_LIBVORBIS_ENCODER 0
+ #define CONFIG_LIBVPX_VP8_ENCODER 0
+ #define CONFIG_LIBVPX_VP9_ENCODER 0
++#define CONFIG_LIBVVENC_ENCODER 0
+ #define CONFIG_LIBWEBP_ANIM_ENCODER 0
+ #define CONFIG_LIBWEBP_ENCODER 0
+ #define CONFIG_LIBX262_ENCODER 0
+@@ -855,7 +862,9 @@
+ #define CONFIG_H264_V4L2M2M_ENCODER 0
+ #define CONFIG_H264_VAAPI_ENCODER 0
+ #define CONFIG_H264_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_H264_VULKAN_ENCODER 0
+ #define CONFIG_HEVC_AMF_ENCODER 0
++#define CONFIG_HEVC_D3D12VA_ENCODER 0
+ #define CONFIG_HEVC_MEDIACODEC_ENCODER 0
+ #define CONFIG_HEVC_MF_ENCODER 0
+ #define CONFIG_HEVC_NVENC_ENCODER 0
+@@ -863,6 +872,7 @@
+ #define CONFIG_HEVC_V4L2M2M_ENCODER 0
+ #define CONFIG_HEVC_VAAPI_ENCODER 0
+ #define CONFIG_HEVC_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_HEVC_VULKAN_ENCODER 0
+ #define CONFIG_LIBKVAZAAR_ENCODER 0
+ #define CONFIG_MJPEG_QSV_ENCODER 0
+ #define CONFIG_MJPEG_VAAPI_ENCODER 0
+@@ -1357,6 +1367,7 @@
+ #define CONFIG_KIRSCH_FILTER 0
+ #define CONFIG_LAGFUN_FILTER 0
+ #define CONFIG_LATENCY_FILTER 0
++#define CONFIG_LCEVC_FILTER 0
+ #define CONFIG_LENSCORRECTION_FILTER 0
+ #define CONFIG_LENSFUN_FILTER 0
+ #define CONFIG_LIBPLACEBO_FILTER 0
+@@ -1552,6 +1563,7 @@
+ #define CONFIG_XFADE_OPENCL_FILTER 0
+ #define CONFIG_XFADE_VULKAN_FILTER 0
+ #define CONFIG_XMEDIAN_FILTER 0
++#define CONFIG_XPSNR_FILTER 0
+ #define CONFIG_XSTACK_FILTER 0
+ #define CONFIG_YADIF_FILTER 0
+ #define CONFIG_YADIF_CUDA_FILTER 0
+@@ -1588,6 +1600,7 @@
+ #define CONFIG_QRENCODESRC_FILTER 0
+ #define CONFIG_PAL75BARS_FILTER 0
+ #define CONFIG_PAL100BARS_FILTER 0
++#define CONFIG_PERLIN_FILTER 0
+ #define CONFIG_RGBTESTSRC_FILTER 0
+ #define CONFIG_SIERPINSKI_FILTER 0
+ #define CONFIG_SMPTEBARS_FILTER 0
+diff --git a/chromium/config/Chrome/ios/arm64/libavutil/ffversion.h b/chromium/config/Chrome/ios/arm64/libavutil/ffversion.h
+index 9b26d87ca8b..71bdf19217c 100644
+--- a/chromium/config/Chrome/ios/arm64/libavutil/ffversion.h
++++ b/chromium/config/Chrome/ios/arm64/libavutil/ffversion.h
+@@ -1,5 +1,5 @@
+ /* Automatically generated by version.sh, do not manually edit! */
+ #ifndef AVUTIL_FFVERSION_H
+ #define AVUTIL_FFVERSION_H
+-#define FFMPEG_VERSION "N-116575-gd941d9677b"
++#define FFMPEG_VERSION "N-118356-gdd11b92cac"
+ #endif /* AVUTIL_FFVERSION_H */
+diff --git a/chromium/config/Chrome/ios/x64/config.asm b/chromium/config/Chrome/ios/x64/config.asm
+index 61fe976c144..643baf94023 100644
+--- a/chromium/config/Chrome/ios/x64/config.asm
++++ b/chromium/config/Chrome/ios/x64/config.asm
+@@ -1,11 +1,6 @@
+ ; Automatically generated by configure - do not modify!
+ %define ARCH_AARCH64 0
+-%define ARCH_ALPHA 0
+ %define ARCH_ARM 0
+-%define ARCH_AVR32 0
+-%define ARCH_AVR32_AP 0
+-%define ARCH_AVR32_UC 0
+-%define ARCH_BFIN 0
+ %define ARCH_IA64 0
+ %define ARCH_LOONGARCH 0
+ %define ARCH_LOONGARCH32 0
+@@ -18,7 +13,6 @@
+ %define ARCH_PPC64 0
+ %define ARCH_RISCV 0
+ %define ARCH_S390 0
+-%define ARCH_SH4 0
+ %define ARCH_SPARC 0
+ %define ARCH_SPARC64 0
+ %define ARCH_TILEGX 0
+@@ -44,6 +38,7 @@
+ %define HAVE_VSX 0
+ %define HAVE_RV 0
+ %define HAVE_RVV 0
++%define HAVE_RV_ZICBOP 1
+ %define HAVE_RV_ZVBB 0
+ %define HAVE_AESNI 1
+ %define HAVE_AMD3DNOW 1
+@@ -96,6 +91,7 @@
+ %define HAVE_VSX_EXTERNAL 0
+ %define HAVE_RV_EXTERNAL 0
+ %define HAVE_RVV_EXTERNAL 0
++%define HAVE_RV_ZICBOP_EXTERNAL 0
+ %define HAVE_RV_ZVBB_EXTERNAL 0
+ %define HAVE_AESNI_EXTERNAL 1
+ %define HAVE_AMD3DNOW_EXTERNAL 1
+@@ -148,6 +144,7 @@
+ %define HAVE_VSX_INLINE 0
+ %define HAVE_RV_INLINE 0
+ %define HAVE_RVV_INLINE 0
++%define HAVE_RV_ZICBOP_INLINE 0
+ %define HAVE_RV_ZVBB_INLINE 0
+ %define HAVE_AESNI_INLINE 1
+ %define HAVE_AMD3DNOW_INLINE 1
+@@ -246,6 +243,7 @@
+ %define HAVE_WINDOWS_H 0
+ %define HAVE_WINSOCK2_H 0
+ %define HAVE_INTRINSICS_NEON 0
++%define HAVE_INTRINSICS_SSE2 1
+ %define HAVE_ATANF 1
+ %define HAVE_ATAN2F 1
+ %define HAVE_CBRT 1
+@@ -288,6 +286,7 @@
+ %define HAVE_CLOCK_GETTIME 0
+ %define HAVE_CLOSESOCKET 0
+ %define HAVE_COMMANDLINETOARGVW 0
++%define HAVE_ELF_AUX_INFO 0
+ %define HAVE_FCNTL 1
+ %define HAVE_GETADDRINFO 0
+ %define HAVE_GETAUXVAL 0
+@@ -336,6 +335,7 @@
+ %define HAVE_SYSCONF 1
+ %define HAVE_SYSCTL 1
+ %define HAVE_SYSCTLBYNAME 1
++%define HAVE_TEMPNAM 1
+ %define HAVE_USLEEP 1
+ %define HAVE_UTGETOSTYPEFROMSTRING 0
+ %define HAVE_VIRTUALALLOC 0
+@@ -419,6 +419,7 @@
+ %define HAVE_OPENCL_VIDEOTOOLBOX 0
+ %define HAVE_PERL 1
+ %define HAVE_POD2MAN 1
++%define HAVE_POSIX_IOCTL 0
+ %define HAVE_TEXI2HTML 0
+ %define HAVE_XMLLINT 1
+ %define HAVE_ZLIB_GZIP 0
+@@ -508,6 +509,7 @@
+ %define CONFIG_LIBKLVANC 0
+ %define CONFIG_LIBKVAZAAR 0
+ %define CONFIG_LIBLC3 0
++%define CONFIG_LIBLCEVC_DEC 0
+ %define CONFIG_LIBMODPLUG 0
+ %define CONFIG_LIBMP3LAME 0
+ %define CONFIG_LIBMYSOFA 0
+@@ -545,6 +547,7 @@
+ %define CONFIG_LIBVMAF 0
+ %define CONFIG_LIBVORBIS 0
+ %define CONFIG_LIBVPX 0
++%define CONFIG_LIBVVENC 0
+ %define CONFIG_LIBWEBP 0
+ %define CONFIG_LIBXEVD 0
+ %define CONFIG_LIBXEVE 0
+@@ -677,6 +680,7 @@
+ %define CONFIG_CBS_MPEG2 0
+ %define CONFIG_CBS_VP8 0
+ %define CONFIG_CBS_VP9 0
++%define CONFIG_D3D12VA_ENCODE 0
+ %define CONFIG_DEFLATE_WRAPPER 0
+ %define CONFIG_DIRAC_PARSE 1
+ %define CONFIG_DNN 0
+@@ -763,5 +767,6 @@
+ %define CONFIG_VP3DSP 0
+ %define CONFIG_VP56DSP 0
+ %define CONFIG_VP8DSP 0
++%define CONFIG_VULKAN_ENCODE 0
+ %define CONFIG_WMA_FREQS 0
+ %define CONFIG_WMV2DSP 0
+diff --git a/chromium/config/Chrome/ios/x64/config.h b/chromium/config/Chrome/ios/x64/config.h
+index 382b19fc1d5..b04ab04e366 100644
+--- a/chromium/config/Chrome/ios/x64/config.h
++++ b/chromium/config/Chrome/ios/x64/config.h
+@@ -1,12 +1,12 @@
+ /* Automatically generated by configure - do not modify! */
+ #ifndef FFMPEG_CONFIG_H
+ #define FFMPEG_CONFIG_H
+-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/dalecurtis/code/chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=x86_64-apple-macosx' --extra-cflags=-F/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/third_party/llvm-build/Release+Asserts/lib/clang/19/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=x86_64 --extra-cflags=-m64 --extra-ldflags='-arch x86_64' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/sandersd/src/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=x86_64-apple-macosx' --extra-cflags=-F/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/20/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=x86_64 --extra-cflags=-m64 --extra-ldflags='-arch x86_64' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
+ #define FFMPEG_LICENSE "LGPL version 2.1 or later"
+ #define CONFIG_THIS_YEAR 2024
+ #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
+ #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
+-#define CC_IDENT "clang version 19.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project ecea8371ff03c15fb3dc27ee4108b98335fd2d63)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 6ee7e90a5d21cc0173dc5a0a344d230a80a46fd0)"
+ #define OS_NAME darwin
+ #define EXTERN_PREFIX "_"
+ #define EXTERN_ASM _
+@@ -14,12 +14,7 @@
+ #define SLIBSUF ".dylib"
+ #define SWS_MAX_FILTER_SIZE 256
+ #define ARCH_AARCH64 0
+-#define ARCH_ALPHA 0
+ #define ARCH_ARM 0
+-#define ARCH_AVR32 0
+-#define ARCH_AVR32_AP 0
+-#define ARCH_AVR32_UC 0
+-#define ARCH_BFIN 0
+ #define ARCH_IA64 0
+ #define ARCH_LOONGARCH 0
+ #define ARCH_LOONGARCH32 0
+@@ -32,7 +27,6 @@
+ #define ARCH_PPC64 0
+ #define ARCH_RISCV 0
+ #define ARCH_S390 0
+-#define ARCH_SH4 0
+ #define ARCH_SPARC 0
+ #define ARCH_SPARC64 0
+ #define ARCH_TILEGX 0
+@@ -58,6 +52,7 @@
+ #define HAVE_VSX 0
+ #define HAVE_RV 0
+ #define HAVE_RVV 0
++#define HAVE_RV_ZICBOP 1
+ #define HAVE_RV_ZVBB 0
+ #define HAVE_AESNI 1
+ #define HAVE_AMD3DNOW 1
+@@ -110,6 +105,7 @@
+ #define HAVE_VSX_EXTERNAL 0
+ #define HAVE_RV_EXTERNAL 0
+ #define HAVE_RVV_EXTERNAL 0
++#define HAVE_RV_ZICBOP_EXTERNAL 0
+ #define HAVE_RV_ZVBB_EXTERNAL 0
+ #define HAVE_AESNI_EXTERNAL 1
+ #define HAVE_AMD3DNOW_EXTERNAL 1
+@@ -162,6 +158,7 @@
+ #define HAVE_VSX_INLINE 0
+ #define HAVE_RV_INLINE 0
+ #define HAVE_RVV_INLINE 0
++#define HAVE_RV_ZICBOP_INLINE 0
+ #define HAVE_RV_ZVBB_INLINE 0
+ #define HAVE_AESNI_INLINE 1
+ #define HAVE_AMD3DNOW_INLINE 1
+@@ -260,6 +257,7 @@
+ #define HAVE_WINDOWS_H 0
+ #define HAVE_WINSOCK2_H 0
+ #define HAVE_INTRINSICS_NEON 0
++#define HAVE_INTRINSICS_SSE2 1
+ #define HAVE_ATANF 1
+ #define HAVE_ATAN2F 1
+ #define HAVE_CBRT 1
+@@ -302,6 +300,7 @@
+ #define HAVE_CLOCK_GETTIME 0
+ #define HAVE_CLOSESOCKET 0
+ #define HAVE_COMMANDLINETOARGVW 0
++#define HAVE_ELF_AUX_INFO 0
+ #define HAVE_FCNTL 1
+ #define HAVE_GETADDRINFO 0
+ #define HAVE_GETAUXVAL 0
+@@ -350,6 +349,7 @@
+ #define HAVE_SYSCONF 1
+ #define HAVE_SYSCTL 1
+ #define HAVE_SYSCTLBYNAME 1
++#define HAVE_TEMPNAM 1
+ #define HAVE_USLEEP 1
+ #define HAVE_UTGETOSTYPEFROMSTRING 0
+ #define HAVE_VIRTUALALLOC 0
+@@ -433,6 +433,7 @@
+ #define HAVE_OPENCL_VIDEOTOOLBOX 0
+ #define HAVE_PERL 1
+ #define HAVE_POD2MAN 1
++#define HAVE_POSIX_IOCTL 0
+ #define HAVE_TEXI2HTML 0
+ #define HAVE_XMLLINT 1
+ #define HAVE_ZLIB_GZIP 0
+@@ -522,6 +523,7 @@
+ #define CONFIG_LIBKLVANC 0
+ #define CONFIG_LIBKVAZAAR 0
+ #define CONFIG_LIBLC3 0
++#define CONFIG_LIBLCEVC_DEC 0
+ #define CONFIG_LIBMODPLUG 0
+ #define CONFIG_LIBMP3LAME 0
+ #define CONFIG_LIBMYSOFA 0
+@@ -559,6 +561,7 @@
+ #define CONFIG_LIBVMAF 0
+ #define CONFIG_LIBVORBIS 0
+ #define CONFIG_LIBVPX 0
++#define CONFIG_LIBVVENC 0
+ #define CONFIG_LIBWEBP 0
+ #define CONFIG_LIBXEVD 0
+ #define CONFIG_LIBXEVE 0
+@@ -691,6 +694,7 @@
+ #define CONFIG_CBS_MPEG2 0
+ #define CONFIG_CBS_VP8 0
+ #define CONFIG_CBS_VP9 0
++#define CONFIG_D3D12VA_ENCODE 0
+ #define CONFIG_DEFLATE_WRAPPER 0
+ #define CONFIG_DIRAC_PARSE 1
+ #define CONFIG_DNN 0
+@@ -777,6 +781,7 @@
+ #define CONFIG_VP3DSP 0
+ #define CONFIG_VP56DSP 0
+ #define CONFIG_VP8DSP 0
++#define CONFIG_VULKAN_ENCODE 0
+ #define CONFIG_WMA_FREQS 0
+ #define CONFIG_WMV2DSP 0
+ #endif /* FFMPEG_CONFIG_H */
+diff --git a/chromium/config/Chrome/ios/x64/config_components.h b/chromium/config/Chrome/ios/x64/config_components.h
+index 8ebce4c9b52..aaba26ad222 100644
+--- a/chromium/config/Chrome/ios/x64/config_components.h
++++ b/chromium/config/Chrome/ios/x64/config_components.h
+@@ -8,6 +8,7 @@
+ #define CONFIG_CHOMP_BSF 0
+ #define CONFIG_DUMP_EXTRADATA_BSF 0
+ #define CONFIG_DCA_CORE_BSF 0
++#define CONFIG_DOVI_RPU_BSF 0
+ #define CONFIG_DTS2PTS_BSF 0
+ #define CONFIG_DV_ERROR_MARKER_BSF 0
+ #define CONFIG_EAC3_CORE_BSF 0
+@@ -599,6 +600,9 @@
+ #define CONFIG_BINTEXT_DECODER 0
+ #define CONFIG_XBIN_DECODER 0
+ #define CONFIG_IDF_DECODER 0
++#define CONFIG_AAC_MEDIACODEC_DECODER 0
++#define CONFIG_AMRNB_MEDIACODEC_DECODER 0
++#define CONFIG_AMRWB_MEDIACODEC_DECODER 0
+ #define CONFIG_LIBAOM_AV1_DECODER 0
+ #define CONFIG_AV1_DECODER 0
+ #define CONFIG_AV1_CUVID_DECODER 0
+@@ -610,6 +614,7 @@
+ #define CONFIG_HEVC_MEDIACODEC_DECODER 0
+ #define CONFIG_MJPEG_CUVID_DECODER 0
+ #define CONFIG_MJPEG_QSV_DECODER 0
++#define CONFIG_MP3_MEDIACODEC_DECODER 0
+ #define CONFIG_MPEG1_CUVID_DECODER 0
+ #define CONFIG_MPEG2_CUVID_DECODER 0
+ #define CONFIG_MPEG4_CUVID_DECODER 0
+@@ -621,6 +626,7 @@
+ #define CONFIG_VP9_CUVID_DECODER 0
+ #define CONFIG_VP9_MEDIACODEC_DECODER 0
+ #define CONFIG_VP9_QSV_DECODER 0
++#define CONFIG_VVC_QSV_DECODER 0
+ #define CONFIG_VNULL_DECODER 0
+ #define CONFIG_ANULL_DECODER 0
+ #define CONFIG_A64MULTI_ENCODER 0
+@@ -828,6 +834,7 @@
+ #define CONFIG_LIBVORBIS_ENCODER 0
+ #define CONFIG_LIBVPX_VP8_ENCODER 0
+ #define CONFIG_LIBVPX_VP9_ENCODER 0
++#define CONFIG_LIBVVENC_ENCODER 0
+ #define CONFIG_LIBWEBP_ANIM_ENCODER 0
+ #define CONFIG_LIBWEBP_ENCODER 0
+ #define CONFIG_LIBX262_ENCODER 0
+@@ -855,7 +862,9 @@
+ #define CONFIG_H264_V4L2M2M_ENCODER 0
+ #define CONFIG_H264_VAAPI_ENCODER 0
+ #define CONFIG_H264_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_H264_VULKAN_ENCODER 0
+ #define CONFIG_HEVC_AMF_ENCODER 0
++#define CONFIG_HEVC_D3D12VA_ENCODER 0
+ #define CONFIG_HEVC_MEDIACODEC_ENCODER 0
+ #define CONFIG_HEVC_MF_ENCODER 0
+ #define CONFIG_HEVC_NVENC_ENCODER 0
+@@ -863,6 +872,7 @@
+ #define CONFIG_HEVC_V4L2M2M_ENCODER 0
+ #define CONFIG_HEVC_VAAPI_ENCODER 0
+ #define CONFIG_HEVC_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_HEVC_VULKAN_ENCODER 0
+ #define CONFIG_LIBKVAZAAR_ENCODER 0
+ #define CONFIG_MJPEG_QSV_ENCODER 0
+ #define CONFIG_MJPEG_VAAPI_ENCODER 0
+@@ -1357,6 +1367,7 @@
+ #define CONFIG_KIRSCH_FILTER 0
+ #define CONFIG_LAGFUN_FILTER 0
+ #define CONFIG_LATENCY_FILTER 0
++#define CONFIG_LCEVC_FILTER 0
+ #define CONFIG_LENSCORRECTION_FILTER 0
+ #define CONFIG_LENSFUN_FILTER 0
+ #define CONFIG_LIBPLACEBO_FILTER 0
+@@ -1552,6 +1563,7 @@
+ #define CONFIG_XFADE_OPENCL_FILTER 0
+ #define CONFIG_XFADE_VULKAN_FILTER 0
+ #define CONFIG_XMEDIAN_FILTER 0
++#define CONFIG_XPSNR_FILTER 0
+ #define CONFIG_XSTACK_FILTER 0
+ #define CONFIG_YADIF_FILTER 0
+ #define CONFIG_YADIF_CUDA_FILTER 0
+@@ -1588,6 +1600,7 @@
+ #define CONFIG_QRENCODESRC_FILTER 0
+ #define CONFIG_PAL75BARS_FILTER 0
+ #define CONFIG_PAL100BARS_FILTER 0
++#define CONFIG_PERLIN_FILTER 0
+ #define CONFIG_RGBTESTSRC_FILTER 0
+ #define CONFIG_SIERPINSKI_FILTER 0
+ #define CONFIG_SMPTEBARS_FILTER 0
+diff --git a/chromium/config/Chrome/ios/x64/libavutil/ffversion.h b/chromium/config/Chrome/ios/x64/libavutil/ffversion.h
+index 9b26d87ca8b..71bdf19217c 100644
+--- a/chromium/config/Chrome/ios/x64/libavutil/ffversion.h
++++ b/chromium/config/Chrome/ios/x64/libavutil/ffversion.h
+@@ -1,5 +1,5 @@
+ /* Automatically generated by version.sh, do not manually edit! */
+ #ifndef AVUTIL_FFVERSION_H
+ #define AVUTIL_FFVERSION_H
+-#define FFMPEG_VERSION "N-116575-gd941d9677b"
++#define FFMPEG_VERSION "N-118356-gdd11b92cac"
+ #endif /* AVUTIL_FFVERSION_H */
 diff --git a/chromium/config/Chrome/linux/riscv64/config.h b/chromium/config/Chrome/linux/riscv64/config.h
 new file mode 100644
-index 0000000000..e91eeb4208
+index 00000000000..9054542d07f
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/config.h
-@@ -0,0 +1,782 @@
+@@ -0,0 +1,787 @@
 +/* Automatically generated by configure - do not modify! */
 +#ifndef FFMPEG_CONFIG_H
 +#define FFMPEG_CONFIG_H
-+/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/porter/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --arch=riscv64 --extra-cflags='-march=rv64gc' --enable-cross-compile --target-os=linux --sysroot=/home/porter/Workspaces/chromium/src/build/linux/debian_sid_riscv64-sysroot --extra-cflags='--target=riscv64-linux-gnu' --extra-ldflags='--target=riscv64-linux-gnu' --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/kxxt/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --arch=riscv64 --extra-cflags='-march=rv64gc' --enable-cross-compile --target-os=linux --sysroot=/home/kxxt/Workspaces/chromium/src/build/linux/debian_sid_riscv64-sysroot --extra-cflags='--target=riscv64-linux-gnu' --extra-ldflags='--target=riscv64-linux-gnu' --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
 +#define FFMPEG_LICENSE "LGPL version 2.1 or later"
 +#define CONFIG_THIS_YEAR 2024
 +#define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
 +#define AVCONV_DATADIR "/usr/local/share/ffmpeg"
-+#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/external/github.com/llvm/llvm-project 7088a5ed880f29129ec844c66068e8cb61ca98bf)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 3dbd929ea6af134650dd1d91baeb61a4fc1b0eb8)"
 +#define OS_NAME linux
 +#define EXTERN_PREFIX ""
 +#define EXTERN_ASM 
@@ -175,12 +849,7 @@ index 0000000000..e91eeb4208
 +#define SLIBSUF ".so"
 +#define SWS_MAX_FILTER_SIZE 256
 +#define ARCH_AARCH64 0
-+#define ARCH_ALPHA 0
 +#define ARCH_ARM 0
-+#define ARCH_AVR32 0
-+#define ARCH_AVR32_AP 0
-+#define ARCH_AVR32_UC 0
-+#define ARCH_BFIN 0
 +#define ARCH_IA64 0
 +#define ARCH_LOONGARCH 0
 +#define ARCH_LOONGARCH32 0
@@ -193,7 +862,6 @@ index 0000000000..e91eeb4208
 +#define ARCH_PPC64 0
 +#define ARCH_RISCV 1
 +#define ARCH_S390 0
-+#define ARCH_SH4 0
 +#define ARCH_SPARC 0
 +#define ARCH_SPARC64 0
 +#define ARCH_TILEGX 0
@@ -219,6 +887,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_VSX 0
 +#define HAVE_RV 1
 +#define HAVE_RVV 1
++#define HAVE_RV_ZICBOP 1
 +#define HAVE_RV_ZVBB 0
 +#define HAVE_AESNI 0
 +#define HAVE_AMD3DNOW 0
@@ -271,6 +940,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_VSX_EXTERNAL 0
 +#define HAVE_RV_EXTERNAL 0
 +#define HAVE_RVV_EXTERNAL 0
++#define HAVE_RV_ZICBOP_EXTERNAL 0
 +#define HAVE_RV_ZVBB_EXTERNAL 0
 +#define HAVE_AESNI_EXTERNAL 0
 +#define HAVE_AMD3DNOW_EXTERNAL 0
@@ -323,6 +993,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_VSX_INLINE 0
 +#define HAVE_RV_INLINE 0
 +#define HAVE_RVV_INLINE 0
++#define HAVE_RV_ZICBOP_INLINE 0
 +#define HAVE_RV_ZVBB_INLINE 0
 +#define HAVE_AESNI_INLINE 0
 +#define HAVE_AMD3DNOW_INLINE 0
@@ -406,7 +1077,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_OPENGL_GL3_H 0
 +#define HAVE_POLL_H 1
 +#define HAVE_PTHREAD_NP_H 0
-+#define HAVE_SYS_HWPROBE_H 1
++#define HAVE_SYS_HWPROBE_H 0
 +#define HAVE_SYS_PARAM_H 1
 +#define HAVE_SYS_RESOURCE_H 1
 +#define HAVE_SYS_SELECT_H 1
@@ -421,6 +1092,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_WINDOWS_H 0
 +#define HAVE_WINSOCK2_H 0
 +#define HAVE_INTRINSICS_NEON 0
++#define HAVE_INTRINSICS_SSE2 0
 +#define HAVE_ATANF 1
 +#define HAVE_ATAN2F 1
 +#define HAVE_CBRT 1
@@ -463,6 +1135,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_CLOCK_GETTIME 1
 +#define HAVE_CLOSESOCKET 0
 +#define HAVE_COMMANDLINETOARGVW 0
++#define HAVE_ELF_AUX_INFO 0
 +#define HAVE_FCNTL 1
 +#define HAVE_GETADDRINFO 0
 +#define HAVE_GETAUXVAL 1
@@ -511,6 +1184,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_SYSCONF 1
 +#define HAVE_SYSCTL 0 /* #define HAVE_SYSCTL 0 -- forced to 0 for Fuchsia */
 +#define HAVE_SYSCTLBYNAME 0
++#define HAVE_TEMPNAM 1
 +#define HAVE_USLEEP 1
 +#define HAVE_UTGETOSTYPEFROMSTRING 0
 +#define HAVE_VIRTUALALLOC 0
@@ -579,7 +1253,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_STRUCT_SOCKADDR_SA_LEN 0
 +#define HAVE_STRUCT_SOCKADDR_STORAGE 0
 +#define HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
-+#define HAVE_STRUCT_V4L2_FRMIVALENUM_DISCRETE 0
++#define HAVE_STRUCT_V4L2_FRMIVALENUM_DISCRETE 1
 +#define HAVE_STRUCT_MFXCONFIGINTERFACE 0
 +#define HAVE_GZIP 1
 +#define HAVE_LIBDRM_GETFB2 0
@@ -594,6 +1268,7 @@ index 0000000000..e91eeb4208
 +#define HAVE_OPENCL_VIDEOTOOLBOX 0
 +#define HAVE_PERL 1
 +#define HAVE_POD2MAN 1
++#define HAVE_POSIX_IOCTL 0
 +#define HAVE_TEXI2HTML 0
 +#define HAVE_XMLLINT 0
 +#define HAVE_ZLIB_GZIP 0
@@ -683,6 +1358,7 @@ index 0000000000..e91eeb4208
 +#define CONFIG_LIBKLVANC 0
 +#define CONFIG_LIBKVAZAAR 0
 +#define CONFIG_LIBLC3 0
++#define CONFIG_LIBLCEVC_DEC 0
 +#define CONFIG_LIBMODPLUG 0
 +#define CONFIG_LIBMP3LAME 0
 +#define CONFIG_LIBMYSOFA 0
@@ -720,6 +1396,7 @@ index 0000000000..e91eeb4208
 +#define CONFIG_LIBVMAF 0
 +#define CONFIG_LIBVORBIS 0
 +#define CONFIG_LIBVPX 0
++#define CONFIG_LIBVVENC 0
 +#define CONFIG_LIBWEBP 0
 +#define CONFIG_LIBXEVD 0
 +#define CONFIG_LIBXEVE 0
@@ -852,6 +1529,7 @@ index 0000000000..e91eeb4208
 +#define CONFIG_CBS_MPEG2 0
 +#define CONFIG_CBS_VP8 0
 +#define CONFIG_CBS_VP9 0
++#define CONFIG_D3D12VA_ENCODE 0
 +#define CONFIG_DEFLATE_WRAPPER 0
 +#define CONFIG_DIRAC_PARSE 1
 +#define CONFIG_DNN 0
@@ -938,15 +1616,16 @@ index 0000000000..e91eeb4208
 +#define CONFIG_VP3DSP 0
 +#define CONFIG_VP56DSP 0
 +#define CONFIG_VP8DSP 0
++#define CONFIG_VULKAN_ENCODE 0
 +#define CONFIG_WMA_FREQS 0
 +#define CONFIG_WMV2DSP 0
 +#endif /* FFMPEG_CONFIG_H */
 diff --git a/chromium/config/Chrome/linux/riscv64/config_components.h b/chromium/config/Chrome/linux/riscv64/config_components.h
 new file mode 100644
-index 0000000000..8ebce4c9b5
+index 00000000000..aaba26ad222
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/config_components.h
-@@ -0,0 +1,2218 @@
+@@ -0,0 +1,2231 @@
 +/* Automatically generated by configure - do not modify! */
 +#ifndef FFMPEG_CONFIG_COMPONENTS_H
 +#define FFMPEG_CONFIG_COMPONENTS_H
@@ -957,6 +1636,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_CHOMP_BSF 0
 +#define CONFIG_DUMP_EXTRADATA_BSF 0
 +#define CONFIG_DCA_CORE_BSF 0
++#define CONFIG_DOVI_RPU_BSF 0
 +#define CONFIG_DTS2PTS_BSF 0
 +#define CONFIG_DV_ERROR_MARKER_BSF 0
 +#define CONFIG_EAC3_CORE_BSF 0
@@ -1548,6 +2228,9 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_BINTEXT_DECODER 0
 +#define CONFIG_XBIN_DECODER 0
 +#define CONFIG_IDF_DECODER 0
++#define CONFIG_AAC_MEDIACODEC_DECODER 0
++#define CONFIG_AMRNB_MEDIACODEC_DECODER 0
++#define CONFIG_AMRWB_MEDIACODEC_DECODER 0
 +#define CONFIG_LIBAOM_AV1_DECODER 0
 +#define CONFIG_AV1_DECODER 0
 +#define CONFIG_AV1_CUVID_DECODER 0
@@ -1559,6 +2242,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_HEVC_MEDIACODEC_DECODER 0
 +#define CONFIG_MJPEG_CUVID_DECODER 0
 +#define CONFIG_MJPEG_QSV_DECODER 0
++#define CONFIG_MP3_MEDIACODEC_DECODER 0
 +#define CONFIG_MPEG1_CUVID_DECODER 0
 +#define CONFIG_MPEG2_CUVID_DECODER 0
 +#define CONFIG_MPEG4_CUVID_DECODER 0
@@ -1570,6 +2254,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_VP9_CUVID_DECODER 0
 +#define CONFIG_VP9_MEDIACODEC_DECODER 0
 +#define CONFIG_VP9_QSV_DECODER 0
++#define CONFIG_VVC_QSV_DECODER 0
 +#define CONFIG_VNULL_DECODER 0
 +#define CONFIG_ANULL_DECODER 0
 +#define CONFIG_A64MULTI_ENCODER 0
@@ -1777,6 +2462,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_LIBVORBIS_ENCODER 0
 +#define CONFIG_LIBVPX_VP8_ENCODER 0
 +#define CONFIG_LIBVPX_VP9_ENCODER 0
++#define CONFIG_LIBVVENC_ENCODER 0
 +#define CONFIG_LIBWEBP_ANIM_ENCODER 0
 +#define CONFIG_LIBWEBP_ENCODER 0
 +#define CONFIG_LIBX262_ENCODER 0
@@ -1804,7 +2490,9 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_H264_V4L2M2M_ENCODER 0
 +#define CONFIG_H264_VAAPI_ENCODER 0
 +#define CONFIG_H264_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_H264_VULKAN_ENCODER 0
 +#define CONFIG_HEVC_AMF_ENCODER 0
++#define CONFIG_HEVC_D3D12VA_ENCODER 0
 +#define CONFIG_HEVC_MEDIACODEC_ENCODER 0
 +#define CONFIG_HEVC_MF_ENCODER 0
 +#define CONFIG_HEVC_NVENC_ENCODER 0
@@ -1812,6 +2500,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_HEVC_V4L2M2M_ENCODER 0
 +#define CONFIG_HEVC_VAAPI_ENCODER 0
 +#define CONFIG_HEVC_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_HEVC_VULKAN_ENCODER 0
 +#define CONFIG_LIBKVAZAAR_ENCODER 0
 +#define CONFIG_MJPEG_QSV_ENCODER 0
 +#define CONFIG_MJPEG_VAAPI_ENCODER 0
@@ -2306,6 +2995,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_KIRSCH_FILTER 0
 +#define CONFIG_LAGFUN_FILTER 0
 +#define CONFIG_LATENCY_FILTER 0
++#define CONFIG_LCEVC_FILTER 0
 +#define CONFIG_LENSCORRECTION_FILTER 0
 +#define CONFIG_LENSFUN_FILTER 0
 +#define CONFIG_LIBPLACEBO_FILTER 0
@@ -2501,6 +3191,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_XFADE_OPENCL_FILTER 0
 +#define CONFIG_XFADE_VULKAN_FILTER 0
 +#define CONFIG_XMEDIAN_FILTER 0
++#define CONFIG_XPSNR_FILTER 0
 +#define CONFIG_XSTACK_FILTER 0
 +#define CONFIG_YADIF_FILTER 0
 +#define CONFIG_YADIF_CUDA_FILTER 0
@@ -2537,6 +3228,7 @@ index 0000000000..8ebce4c9b5
 +#define CONFIG_QRENCODESRC_FILTER 0
 +#define CONFIG_PAL75BARS_FILTER 0
 +#define CONFIG_PAL100BARS_FILTER 0
++#define CONFIG_PERLIN_FILTER 0
 +#define CONFIG_RGBTESTSRC_FILTER 0
 +#define CONFIG_SIERPINSKI_FILTER 0
 +#define CONFIG_SMPTEBARS_FILTER 0
@@ -3167,7 +3859,7 @@ index 0000000000..8ebce4c9b5
 +#endif /* FFMPEG_CONFIG_COMPONENTS_H */
 diff --git a/chromium/config/Chrome/linux/riscv64/libavcodec/bsf_list.c b/chromium/config/Chrome/linux/riscv64/libavcodec/bsf_list.c
 new file mode 100644
-index 0000000000..7ff70c6e2d
+index 00000000000..7ff70c6e2d6
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavcodec/bsf_list.c
 @@ -0,0 +1,2 @@
@@ -3175,7 +3867,7 @@ index 0000000000..7ff70c6e2d
 +    NULL };
 diff --git a/chromium/config/Chrome/linux/riscv64/libavcodec/codec_list.c b/chromium/config/Chrome/linux/riscv64/libavcodec/codec_list.c
 new file mode 100644
-index 0000000000..fe5adb0d92
+index 00000000000..fe5adb0d923
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavcodec/codec_list.c
 @@ -0,0 +1,17 @@
@@ -3198,7 +3890,7 @@ index 0000000000..fe5adb0d92
 +    NULL };
 diff --git a/chromium/config/Chrome/linux/riscv64/libavcodec/parser_list.c b/chromium/config/Chrome/linux/riscv64/libavcodec/parser_list.c
 new file mode 100644
-index 0000000000..3e4fa9c320
+index 00000000000..3e4fa9c320e
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavcodec/parser_list.c
 @@ -0,0 +1,9 @@
@@ -3213,7 +3905,7 @@ index 0000000000..3e4fa9c320
 +    NULL };
 diff --git a/chromium/config/Chrome/linux/riscv64/libavformat/demuxer_list.c b/chromium/config/Chrome/linux/riscv64/libavformat/demuxer_list.c
 new file mode 100644
-index 0000000000..29f1f59381
+index 00000000000..29f1f593818
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavformat/demuxer_list.c
 @@ -0,0 +1,9 @@
@@ -3228,7 +3920,7 @@ index 0000000000..29f1f59381
 +    NULL };
 diff --git a/chromium/config/Chrome/linux/riscv64/libavformat/muxer_list.c b/chromium/config/Chrome/linux/riscv64/libavformat/muxer_list.c
 new file mode 100644
-index 0000000000..ae54c39f23
+index 00000000000..ae54c39f23d
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavformat/muxer_list.c
 @@ -0,0 +1,2 @@
@@ -3236,7 +3928,7 @@ index 0000000000..ae54c39f23
 +    NULL };
 diff --git a/chromium/config/Chrome/linux/riscv64/libavformat/protocol_list.c b/chromium/config/Chrome/linux/riscv64/libavformat/protocol_list.c
 new file mode 100644
-index 0000000000..247e1e4c3a
+index 00000000000..247e1e4c3a2
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavformat/protocol_list.c
 @@ -0,0 +1,2 @@
@@ -3244,7 +3936,7 @@ index 0000000000..247e1e4c3a
 +    NULL };
 diff --git a/chromium/config/Chrome/linux/riscv64/libavutil/avconfig.h b/chromium/config/Chrome/linux/riscv64/libavutil/avconfig.h
 new file mode 100644
-index 0000000000..8558b35027
+index 00000000000..8558b35027f
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavutil/avconfig.h
 @@ -0,0 +1,6 @@
@@ -3256,30 +3948,19 @@ index 0000000000..8558b35027
 +#endif /* AVUTIL_AVCONFIG_H */
 diff --git a/chromium/config/Chrome/linux/riscv64/libavutil/ffversion.h b/chromium/config/Chrome/linux/riscv64/libavutil/ffversion.h
 new file mode 100644
-index 0000000000..beeecf3e67
+index 00000000000..4303e401160
 --- /dev/null
 +++ b/chromium/config/Chrome/linux/riscv64/libavutil/ffversion.h
 @@ -0,0 +1,5 @@
 +/* Automatically generated by version.sh, do not manually edit! */
 +#ifndef AVUTIL_FFVERSION_H
 +#define AVUTIL_FFVERSION_H
-+#define FFMPEG_VERSION "git-2024-08-15-14d16cd143"
++#define FFMPEG_VERSION "git-2024-10-01-686d6944501"
 +#endif /* AVUTIL_FFVERSION_H */
 diff --git a/chromium/config/Chrome/linux/x64/config.asm b/chromium/config/Chrome/linux/x64/config.asm
-index de56702df7..d0c062a766 100644
+index d91b9980223..92801546e19 100644
 --- a/chromium/config/Chrome/linux/x64/config.asm
 +++ b/chromium/config/Chrome/linux/x64/config.asm
-@@ -102,8 +102,8 @@
- %define HAVE_AMD3DNOWEXT_EXTERNAL 1
- %define HAVE_AVX_EXTERNAL 1
- %define HAVE_AVX2_EXTERNAL 1
--%define HAVE_AVX512_EXTERNAL 1
--%define HAVE_AVX512ICL_EXTERNAL 1
-+%define HAVE_AVX512_EXTERNAL 0
-+%define HAVE_AVX512ICL_EXTERNAL 0
- %define HAVE_FMA3_EXTERNAL 1
- %define HAVE_FMA4_EXTERNAL 1
- %define HAVE_MMX_EXTERNAL 1
 @@ -366,7 +366,7 @@
  %define HAVE_INLINE_ASM_LABELS 1
  %define HAVE_INLINE_ASM_NONLOCAL_LABELS 1
@@ -3289,9 +3970,9 @@ index de56702df7..d0c062a766 100644
  %define HAVE_SYMVER_ASM_LABEL 1
  %define HAVE_SYMVER_GNU_ASM 1
  %define HAVE_VFP_ARGS 0
-@@ -420,7 +420,7 @@
- %define HAVE_PERL 1
+@@ -421,7 +421,7 @@
  %define HAVE_POD2MAN 1
+ %define HAVE_POSIX_IOCTL 0
  %define HAVE_TEXI2HTML 0
 -%define HAVE_XMLLINT 1
 +%define HAVE_XMLLINT 0
@@ -3299,35 +3980,24 @@ index de56702df7..d0c062a766 100644
  %define HAVE_OPENVINO2 0
  %define CONFIG_DOC 0
 diff --git a/chromium/config/Chrome/linux/x64/config.h b/chromium/config/Chrome/linux/x64/config.h
-index ad40660dbb..768250e743 100644
+index 18bc0fd46a8..e7a7b276589 100644
 --- a/chromium/config/Chrome/linux/x64/config.h
 +++ b/chromium/config/Chrome/linux/x64/config.h
 @@ -1,12 +1,12 @@
  /* Automatically generated by configure - do not modify! */
  #ifndef FFMPEG_CONFIG_H
  #define FFMPEG_CONFIG_H
--/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/dalecurtis/code/chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
-+/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/porter/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
+-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/sandersd/src/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/kxxt/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld' --enable-decoder='aac,h264' --enable-demuxer=aac --enable-parser='aac,h264'" -- elide long configuration string from binary */
  #define FFMPEG_LICENSE "LGPL version 2.1 or later"
  #define CONFIG_THIS_YEAR 2024
  #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
  #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
--#define CC_IDENT "clang version 19.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project ecea8371ff03c15fb3dc27ee4108b98335fd2d63)"
-+#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/external/github.com/llvm/llvm-project 7088a5ed880f29129ec844c66068e8cb61ca98bf)"
+-#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 6ee7e90a5d21cc0173dc5a0a344d230a80a46fd0)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 3dbd929ea6af134650dd1d91baeb61a4fc1b0eb8)"
  #define OS_NAME linux
  #define EXTERN_PREFIX ""
  #define EXTERN_ASM 
-@@ -116,8 +116,8 @@
- #define HAVE_AMD3DNOWEXT_EXTERNAL 1
- #define HAVE_AVX_EXTERNAL 1
- #define HAVE_AVX2_EXTERNAL 1
--#define HAVE_AVX512_EXTERNAL 1
--#define HAVE_AVX512ICL_EXTERNAL 1
-+#define HAVE_AVX512_EXTERNAL 0
-+#define HAVE_AVX512ICL_EXTERNAL 0
- #define HAVE_FMA3_EXTERNAL 1
- #define HAVE_FMA4_EXTERNAL 1
- #define HAVE_MMX_EXTERNAL 1
 @@ -380,7 +380,7 @@
  #define HAVE_INLINE_ASM_LABELS 1
  #define HAVE_INLINE_ASM_NONLOCAL_LABELS 1
@@ -3337,9 +4007,9 @@ index ad40660dbb..768250e743 100644
  #define HAVE_SYMVER_ASM_LABEL 1
  #define HAVE_SYMVER_GNU_ASM 1
  #define HAVE_VFP_ARGS 0
-@@ -434,7 +434,7 @@
- #define HAVE_PERL 1
+@@ -435,7 +435,7 @@
  #define HAVE_POD2MAN 1
+ #define HAVE_POSIX_IOCTL 0
  #define HAVE_TEXI2HTML 0
 -#define HAVE_XMLLINT 1
 +#define HAVE_XMLLINT 0
@@ -3347,31 +4017,596 @@ index ad40660dbb..768250e743 100644
  #define HAVE_OPENVINO2 0
  #define CONFIG_DOC 0
 diff --git a/chromium/config/Chrome/linux/x64/libavutil/ffversion.h b/chromium/config/Chrome/linux/x64/libavutil/ffversion.h
-index 9b26d87ca8..beeecf3e67 100644
+index 71bdf19217c..4303e401160 100644
 --- a/chromium/config/Chrome/linux/x64/libavutil/ffversion.h
 +++ b/chromium/config/Chrome/linux/x64/libavutil/ffversion.h
 @@ -1,5 +1,5 @@
  /* Automatically generated by version.sh, do not manually edit! */
  #ifndef AVUTIL_FFVERSION_H
  #define AVUTIL_FFVERSION_H
+-#define FFMPEG_VERSION "N-118356-gdd11b92cac"
++#define FFMPEG_VERSION "git-2024-10-01-686d6944501"
+ #endif /* AVUTIL_FFVERSION_H */
+diff --git a/chromium/config/Chromium/ios/arm64/config.h b/chromium/config/Chromium/ios/arm64/config.h
+index 6e3f4a26526..8a6bd88681b 100644
+--- a/chromium/config/Chromium/ios/arm64/config.h
++++ b/chromium/config/Chromium/ios/arm64/config.h
+@@ -1,12 +1,12 @@
+ /* Automatically generated by configure - do not modify! */
+ #ifndef FFMPEG_CONFIG_H
+ #define FFMPEG_CONFIG_H
+-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/dalecurtis/code/chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=arm64-apple-macosx' --extra-cflags=-F/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/third_party/llvm-build/Release+Asserts/lib/clang/19/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=arm64 --extra-cflags='-arch arm64' --extra-ldflags='-arch arm64'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/sandersd/src/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=arm64-apple-macosx' --extra-cflags=-F/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/20/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=arm64 --extra-cflags='-arch arm64' --extra-ldflags='-arch arm64'" -- elide long configuration string from binary */
+ #define FFMPEG_LICENSE "LGPL version 2.1 or later"
+ #define CONFIG_THIS_YEAR 2024
+ #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
+ #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
+-#define CC_IDENT "clang version 19.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project ecea8371ff03c15fb3dc27ee4108b98335fd2d63)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 6ee7e90a5d21cc0173dc5a0a344d230a80a46fd0)"
+ #define OS_NAME darwin
+ #define EXTERN_PREFIX "_"
+ #define EXTERN_ASM _
+@@ -15,12 +15,7 @@
+ #define SWS_MAX_FILTER_SIZE 256
+ #define AS_ARCH_LEVEL armv8.6-a+crc
+ #define ARCH_AARCH64 1
+-#define ARCH_ALPHA 0
+ #define ARCH_ARM 0
+-#define ARCH_AVR32 0
+-#define ARCH_AVR32_AP 0
+-#define ARCH_AVR32_UC 0
+-#define ARCH_BFIN 0
+ #define ARCH_IA64 0
+ #define ARCH_LOONGARCH 0
+ #define ARCH_LOONGARCH32 0
+@@ -33,7 +28,6 @@
+ #define ARCH_PPC64 0
+ #define ARCH_RISCV 0
+ #define ARCH_S390 0
+-#define ARCH_SH4 0
+ #define ARCH_SPARC 0
+ #define ARCH_SPARC64 0
+ #define ARCH_TILEGX 0
+@@ -59,6 +53,7 @@
+ #define HAVE_VSX 0
+ #define HAVE_RV 0
+ #define HAVE_RVV 0
++#define HAVE_RV_ZICBOP 1
+ #define HAVE_RV_ZVBB 0
+ #define HAVE_AESNI 0
+ #define HAVE_AMD3DNOW 0
+@@ -111,6 +106,7 @@
+ #define HAVE_VSX_EXTERNAL 0
+ #define HAVE_RV_EXTERNAL 0
+ #define HAVE_RVV_EXTERNAL 0
++#define HAVE_RV_ZICBOP_EXTERNAL 0
+ #define HAVE_RV_ZVBB_EXTERNAL 0
+ #define HAVE_AESNI_EXTERNAL 0
+ #define HAVE_AMD3DNOW_EXTERNAL 0
+@@ -163,6 +159,7 @@
+ #define HAVE_VSX_INLINE 0
+ #define HAVE_RV_INLINE 0
+ #define HAVE_RVV_INLINE 0
++#define HAVE_RV_ZICBOP_INLINE 0
+ #define HAVE_RV_ZVBB_INLINE 0
+ #define HAVE_AESNI_INLINE 0
+ #define HAVE_AMD3DNOW_INLINE 0
+@@ -261,6 +258,7 @@
+ #define HAVE_WINDOWS_H 0
+ #define HAVE_WINSOCK2_H 0
+ #define HAVE_INTRINSICS_NEON 1
++#define HAVE_INTRINSICS_SSE2 0
+ #define HAVE_ATANF 1
+ #define HAVE_ATAN2F 1
+ #define HAVE_CBRT 1
+@@ -303,6 +301,7 @@
+ #define HAVE_CLOCK_GETTIME 0
+ #define HAVE_CLOSESOCKET 0
+ #define HAVE_COMMANDLINETOARGVW 0
++#define HAVE_ELF_AUX_INFO 0
+ #define HAVE_FCNTL 1
+ #define HAVE_GETADDRINFO 0
+ #define HAVE_GETAUXVAL 0
+@@ -351,6 +350,7 @@
+ #define HAVE_SYSCONF 1
+ #define HAVE_SYSCTL 1
+ #define HAVE_SYSCTLBYNAME 1
++#define HAVE_TEMPNAM 1
+ #define HAVE_USLEEP 1
+ #define HAVE_UTGETOSTYPEFROMSTRING 0
+ #define HAVE_VIRTUALALLOC 0
+@@ -434,6 +434,7 @@
+ #define HAVE_OPENCL_VIDEOTOOLBOX 0
+ #define HAVE_PERL 1
+ #define HAVE_POD2MAN 1
++#define HAVE_POSIX_IOCTL 0
+ #define HAVE_TEXI2HTML 0
+ #define HAVE_XMLLINT 1
+ #define HAVE_ZLIB_GZIP 0
+@@ -523,6 +524,7 @@
+ #define CONFIG_LIBKLVANC 0
+ #define CONFIG_LIBKVAZAAR 0
+ #define CONFIG_LIBLC3 0
++#define CONFIG_LIBLCEVC_DEC 0
+ #define CONFIG_LIBMODPLUG 0
+ #define CONFIG_LIBMP3LAME 0
+ #define CONFIG_LIBMYSOFA 0
+@@ -560,6 +562,7 @@
+ #define CONFIG_LIBVMAF 0
+ #define CONFIG_LIBVORBIS 0
+ #define CONFIG_LIBVPX 0
++#define CONFIG_LIBVVENC 0
+ #define CONFIG_LIBWEBP 0
+ #define CONFIG_LIBXEVD 0
+ #define CONFIG_LIBXEVE 0
+@@ -692,6 +695,7 @@
+ #define CONFIG_CBS_MPEG2 0
+ #define CONFIG_CBS_VP8 0
+ #define CONFIG_CBS_VP9 0
++#define CONFIG_D3D12VA_ENCODE 0
+ #define CONFIG_DEFLATE_WRAPPER 0
+ #define CONFIG_DIRAC_PARSE 1
+ #define CONFIG_DNN 0
+@@ -778,6 +782,7 @@
+ #define CONFIG_VP3DSP 0
+ #define CONFIG_VP56DSP 0
+ #define CONFIG_VP8DSP 0
++#define CONFIG_VULKAN_ENCODE 0
+ #define CONFIG_WMA_FREQS 0
+ #define CONFIG_WMV2DSP 0
+ #endif /* FFMPEG_CONFIG_H */
+diff --git a/chromium/config/Chromium/ios/arm64/config_components.h b/chromium/config/Chromium/ios/arm64/config_components.h
+index 9b4b898861d..fe3b62f8200 100644
+--- a/chromium/config/Chromium/ios/arm64/config_components.h
++++ b/chromium/config/Chromium/ios/arm64/config_components.h
+@@ -8,6 +8,7 @@
+ #define CONFIG_CHOMP_BSF 0
+ #define CONFIG_DUMP_EXTRADATA_BSF 0
+ #define CONFIG_DCA_CORE_BSF 0
++#define CONFIG_DOVI_RPU_BSF 0
+ #define CONFIG_DTS2PTS_BSF 0
+ #define CONFIG_DV_ERROR_MARKER_BSF 0
+ #define CONFIG_EAC3_CORE_BSF 0
+@@ -599,6 +600,9 @@
+ #define CONFIG_BINTEXT_DECODER 0
+ #define CONFIG_XBIN_DECODER 0
+ #define CONFIG_IDF_DECODER 0
++#define CONFIG_AAC_MEDIACODEC_DECODER 0
++#define CONFIG_AMRNB_MEDIACODEC_DECODER 0
++#define CONFIG_AMRWB_MEDIACODEC_DECODER 0
+ #define CONFIG_LIBAOM_AV1_DECODER 0
+ #define CONFIG_AV1_DECODER 0
+ #define CONFIG_AV1_CUVID_DECODER 0
+@@ -610,6 +614,7 @@
+ #define CONFIG_HEVC_MEDIACODEC_DECODER 0
+ #define CONFIG_MJPEG_CUVID_DECODER 0
+ #define CONFIG_MJPEG_QSV_DECODER 0
++#define CONFIG_MP3_MEDIACODEC_DECODER 0
+ #define CONFIG_MPEG1_CUVID_DECODER 0
+ #define CONFIG_MPEG2_CUVID_DECODER 0
+ #define CONFIG_MPEG4_CUVID_DECODER 0
+@@ -621,6 +626,7 @@
+ #define CONFIG_VP9_CUVID_DECODER 0
+ #define CONFIG_VP9_MEDIACODEC_DECODER 0
+ #define CONFIG_VP9_QSV_DECODER 0
++#define CONFIG_VVC_QSV_DECODER 0
+ #define CONFIG_VNULL_DECODER 0
+ #define CONFIG_ANULL_DECODER 0
+ #define CONFIG_A64MULTI_ENCODER 0
+@@ -828,6 +834,7 @@
+ #define CONFIG_LIBVORBIS_ENCODER 0
+ #define CONFIG_LIBVPX_VP8_ENCODER 0
+ #define CONFIG_LIBVPX_VP9_ENCODER 0
++#define CONFIG_LIBVVENC_ENCODER 0
+ #define CONFIG_LIBWEBP_ANIM_ENCODER 0
+ #define CONFIG_LIBWEBP_ENCODER 0
+ #define CONFIG_LIBX262_ENCODER 0
+@@ -855,7 +862,9 @@
+ #define CONFIG_H264_V4L2M2M_ENCODER 0
+ #define CONFIG_H264_VAAPI_ENCODER 0
+ #define CONFIG_H264_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_H264_VULKAN_ENCODER 0
+ #define CONFIG_HEVC_AMF_ENCODER 0
++#define CONFIG_HEVC_D3D12VA_ENCODER 0
+ #define CONFIG_HEVC_MEDIACODEC_ENCODER 0
+ #define CONFIG_HEVC_MF_ENCODER 0
+ #define CONFIG_HEVC_NVENC_ENCODER 0
+@@ -863,6 +872,7 @@
+ #define CONFIG_HEVC_V4L2M2M_ENCODER 0
+ #define CONFIG_HEVC_VAAPI_ENCODER 0
+ #define CONFIG_HEVC_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_HEVC_VULKAN_ENCODER 0
+ #define CONFIG_LIBKVAZAAR_ENCODER 0
+ #define CONFIG_MJPEG_QSV_ENCODER 0
+ #define CONFIG_MJPEG_VAAPI_ENCODER 0
+@@ -1357,6 +1367,7 @@
+ #define CONFIG_KIRSCH_FILTER 0
+ #define CONFIG_LAGFUN_FILTER 0
+ #define CONFIG_LATENCY_FILTER 0
++#define CONFIG_LCEVC_FILTER 0
+ #define CONFIG_LENSCORRECTION_FILTER 0
+ #define CONFIG_LENSFUN_FILTER 0
+ #define CONFIG_LIBPLACEBO_FILTER 0
+@@ -1552,6 +1563,7 @@
+ #define CONFIG_XFADE_OPENCL_FILTER 0
+ #define CONFIG_XFADE_VULKAN_FILTER 0
+ #define CONFIG_XMEDIAN_FILTER 0
++#define CONFIG_XPSNR_FILTER 0
+ #define CONFIG_XSTACK_FILTER 0
+ #define CONFIG_YADIF_FILTER 0
+ #define CONFIG_YADIF_CUDA_FILTER 0
+@@ -1588,6 +1600,7 @@
+ #define CONFIG_QRENCODESRC_FILTER 0
+ #define CONFIG_PAL75BARS_FILTER 0
+ #define CONFIG_PAL100BARS_FILTER 0
++#define CONFIG_PERLIN_FILTER 0
+ #define CONFIG_RGBTESTSRC_FILTER 0
+ #define CONFIG_SIERPINSKI_FILTER 0
+ #define CONFIG_SMPTEBARS_FILTER 0
+diff --git a/chromium/config/Chromium/ios/arm64/libavutil/ffversion.h b/chromium/config/Chromium/ios/arm64/libavutil/ffversion.h
+index 9b26d87ca8b..71bdf19217c 100644
+--- a/chromium/config/Chromium/ios/arm64/libavutil/ffversion.h
++++ b/chromium/config/Chromium/ios/arm64/libavutil/ffversion.h
+@@ -1,5 +1,5 @@
+ /* Automatically generated by version.sh, do not manually edit! */
+ #ifndef AVUTIL_FFVERSION_H
+ #define AVUTIL_FFVERSION_H
 -#define FFMPEG_VERSION "N-116575-gd941d9677b"
-+#define FFMPEG_VERSION "git-2024-08-15-14d16cd143"
++#define FFMPEG_VERSION "N-118356-gdd11b92cac"
+ #endif /* AVUTIL_FFVERSION_H */
+diff --git a/chromium/config/Chromium/ios/x64/config.asm b/chromium/config/Chromium/ios/x64/config.asm
+index 85470e7fa04..adb95d24add 100644
+--- a/chromium/config/Chromium/ios/x64/config.asm
++++ b/chromium/config/Chromium/ios/x64/config.asm
+@@ -1,11 +1,6 @@
+ ; Automatically generated by configure - do not modify!
+ %define ARCH_AARCH64 0
+-%define ARCH_ALPHA 0
+ %define ARCH_ARM 0
+-%define ARCH_AVR32 0
+-%define ARCH_AVR32_AP 0
+-%define ARCH_AVR32_UC 0
+-%define ARCH_BFIN 0
+ %define ARCH_IA64 0
+ %define ARCH_LOONGARCH 0
+ %define ARCH_LOONGARCH32 0
+@@ -18,7 +13,6 @@
+ %define ARCH_PPC64 0
+ %define ARCH_RISCV 0
+ %define ARCH_S390 0
+-%define ARCH_SH4 0
+ %define ARCH_SPARC 0
+ %define ARCH_SPARC64 0
+ %define ARCH_TILEGX 0
+@@ -44,6 +38,7 @@
+ %define HAVE_VSX 0
+ %define HAVE_RV 0
+ %define HAVE_RVV 0
++%define HAVE_RV_ZICBOP 1
+ %define HAVE_RV_ZVBB 0
+ %define HAVE_AESNI 1
+ %define HAVE_AMD3DNOW 1
+@@ -96,6 +91,7 @@
+ %define HAVE_VSX_EXTERNAL 0
+ %define HAVE_RV_EXTERNAL 0
+ %define HAVE_RVV_EXTERNAL 0
++%define HAVE_RV_ZICBOP_EXTERNAL 0
+ %define HAVE_RV_ZVBB_EXTERNAL 0
+ %define HAVE_AESNI_EXTERNAL 1
+ %define HAVE_AMD3DNOW_EXTERNAL 1
+@@ -148,6 +144,7 @@
+ %define HAVE_VSX_INLINE 0
+ %define HAVE_RV_INLINE 0
+ %define HAVE_RVV_INLINE 0
++%define HAVE_RV_ZICBOP_INLINE 0
+ %define HAVE_RV_ZVBB_INLINE 0
+ %define HAVE_AESNI_INLINE 1
+ %define HAVE_AMD3DNOW_INLINE 1
+@@ -246,6 +243,7 @@
+ %define HAVE_WINDOWS_H 0
+ %define HAVE_WINSOCK2_H 0
+ %define HAVE_INTRINSICS_NEON 0
++%define HAVE_INTRINSICS_SSE2 1
+ %define HAVE_ATANF 1
+ %define HAVE_ATAN2F 1
+ %define HAVE_CBRT 1
+@@ -288,6 +286,7 @@
+ %define HAVE_CLOCK_GETTIME 0
+ %define HAVE_CLOSESOCKET 0
+ %define HAVE_COMMANDLINETOARGVW 0
++%define HAVE_ELF_AUX_INFO 0
+ %define HAVE_FCNTL 1
+ %define HAVE_GETADDRINFO 0
+ %define HAVE_GETAUXVAL 0
+@@ -336,6 +335,7 @@
+ %define HAVE_SYSCONF 1
+ %define HAVE_SYSCTL 1
+ %define HAVE_SYSCTLBYNAME 1
++%define HAVE_TEMPNAM 1
+ %define HAVE_USLEEP 1
+ %define HAVE_UTGETOSTYPEFROMSTRING 0
+ %define HAVE_VIRTUALALLOC 0
+@@ -419,6 +419,7 @@
+ %define HAVE_OPENCL_VIDEOTOOLBOX 0
+ %define HAVE_PERL 1
+ %define HAVE_POD2MAN 1
++%define HAVE_POSIX_IOCTL 0
+ %define HAVE_TEXI2HTML 0
+ %define HAVE_XMLLINT 1
+ %define HAVE_ZLIB_GZIP 0
+@@ -508,6 +509,7 @@
+ %define CONFIG_LIBKLVANC 0
+ %define CONFIG_LIBKVAZAAR 0
+ %define CONFIG_LIBLC3 0
++%define CONFIG_LIBLCEVC_DEC 0
+ %define CONFIG_LIBMODPLUG 0
+ %define CONFIG_LIBMP3LAME 0
+ %define CONFIG_LIBMYSOFA 0
+@@ -545,6 +547,7 @@
+ %define CONFIG_LIBVMAF 0
+ %define CONFIG_LIBVORBIS 0
+ %define CONFIG_LIBVPX 0
++%define CONFIG_LIBVVENC 0
+ %define CONFIG_LIBWEBP 0
+ %define CONFIG_LIBXEVD 0
+ %define CONFIG_LIBXEVE 0
+@@ -677,6 +680,7 @@
+ %define CONFIG_CBS_MPEG2 0
+ %define CONFIG_CBS_VP8 0
+ %define CONFIG_CBS_VP9 0
++%define CONFIG_D3D12VA_ENCODE 0
+ %define CONFIG_DEFLATE_WRAPPER 0
+ %define CONFIG_DIRAC_PARSE 1
+ %define CONFIG_DNN 0
+@@ -763,5 +767,6 @@
+ %define CONFIG_VP3DSP 0
+ %define CONFIG_VP56DSP 0
+ %define CONFIG_VP8DSP 0
++%define CONFIG_VULKAN_ENCODE 0
+ %define CONFIG_WMA_FREQS 0
+ %define CONFIG_WMV2DSP 0
+diff --git a/chromium/config/Chromium/ios/x64/config.h b/chromium/config/Chromium/ios/x64/config.h
+index 2166b986706..da179f26484 100644
+--- a/chromium/config/Chromium/ios/x64/config.h
++++ b/chromium/config/Chromium/ios/x64/config.h
+@@ -1,12 +1,12 @@
+ /* Automatically generated by configure - do not modify! */
+ #ifndef FFMPEG_CONFIG_H
+ #define FFMPEG_CONFIG_H
+-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/dalecurtis/code/chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=x86_64-apple-macosx' --extra-cflags=-F/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/dalecurtis/code/chrome/src/third_party/llvm-build/Release+Asserts/lib/clang/19/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/dalecurtis/code/chrome/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=x86_64 --extra-cflags=-m64 --extra-ldflags='-arch x86_64'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/sandersd/src/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-pic --cc=clang --cxx=clang++ --ld=clang --enable-cross-compile --cc=clang --ld=ld64.lld --nm=llvm-nm --ar=llvm-ar --target-os=darwin --extra-cflags='--target=x86_64-apple-macosx' --extra-cflags=-F/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks --extra-cflags='-mmacosx-version-min=10.10' --extra-cflags=-fblocks --extra-cflags=-nostdinc --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include --extra-cflags=-isystem/usr/local/google/home/sandersd/src/chromium/src/third_party/llvm-build/Release+Asserts/lib/clang/20/include --extra-ldflags=-syslibroot --extra-ldflags=/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk --extra-ldflags=-L/usr/local/google/home/sandersd/src/chromium/src/build/mac_files/xcode_binaries/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib --extra-ldflags=-lSystem --extra-ldflags=-macosx_version_min --extra-ldflags=10.10 --extra-ldflags=-sdk_version --extra-ldflags=10.10 --extra-ldflags=-platform_version --extra-ldflags=macos --extra-ldflags=10.10 --extra-ldflags=10.10 --arch=x86_64 --extra-cflags=-m64 --extra-ldflags='-arch x86_64'" -- elide long configuration string from binary */
+ #define FFMPEG_LICENSE "LGPL version 2.1 or later"
+ #define CONFIG_THIS_YEAR 2024
+ #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
+ #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
+-#define CC_IDENT "clang version 19.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project ecea8371ff03c15fb3dc27ee4108b98335fd2d63)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 6ee7e90a5d21cc0173dc5a0a344d230a80a46fd0)"
+ #define OS_NAME darwin
+ #define EXTERN_PREFIX "_"
+ #define EXTERN_ASM _
+@@ -14,12 +14,7 @@
+ #define SLIBSUF ".dylib"
+ #define SWS_MAX_FILTER_SIZE 256
+ #define ARCH_AARCH64 0
+-#define ARCH_ALPHA 0
+ #define ARCH_ARM 0
+-#define ARCH_AVR32 0
+-#define ARCH_AVR32_AP 0
+-#define ARCH_AVR32_UC 0
+-#define ARCH_BFIN 0
+ #define ARCH_IA64 0
+ #define ARCH_LOONGARCH 0
+ #define ARCH_LOONGARCH32 0
+@@ -32,7 +27,6 @@
+ #define ARCH_PPC64 0
+ #define ARCH_RISCV 0
+ #define ARCH_S390 0
+-#define ARCH_SH4 0
+ #define ARCH_SPARC 0
+ #define ARCH_SPARC64 0
+ #define ARCH_TILEGX 0
+@@ -58,6 +52,7 @@
+ #define HAVE_VSX 0
+ #define HAVE_RV 0
+ #define HAVE_RVV 0
++#define HAVE_RV_ZICBOP 1
+ #define HAVE_RV_ZVBB 0
+ #define HAVE_AESNI 1
+ #define HAVE_AMD3DNOW 1
+@@ -110,6 +105,7 @@
+ #define HAVE_VSX_EXTERNAL 0
+ #define HAVE_RV_EXTERNAL 0
+ #define HAVE_RVV_EXTERNAL 0
++#define HAVE_RV_ZICBOP_EXTERNAL 0
+ #define HAVE_RV_ZVBB_EXTERNAL 0
+ #define HAVE_AESNI_EXTERNAL 1
+ #define HAVE_AMD3DNOW_EXTERNAL 1
+@@ -162,6 +158,7 @@
+ #define HAVE_VSX_INLINE 0
+ #define HAVE_RV_INLINE 0
+ #define HAVE_RVV_INLINE 0
++#define HAVE_RV_ZICBOP_INLINE 0
+ #define HAVE_RV_ZVBB_INLINE 0
+ #define HAVE_AESNI_INLINE 1
+ #define HAVE_AMD3DNOW_INLINE 1
+@@ -260,6 +257,7 @@
+ #define HAVE_WINDOWS_H 0
+ #define HAVE_WINSOCK2_H 0
+ #define HAVE_INTRINSICS_NEON 0
++#define HAVE_INTRINSICS_SSE2 1
+ #define HAVE_ATANF 1
+ #define HAVE_ATAN2F 1
+ #define HAVE_CBRT 1
+@@ -302,6 +300,7 @@
+ #define HAVE_CLOCK_GETTIME 0
+ #define HAVE_CLOSESOCKET 0
+ #define HAVE_COMMANDLINETOARGVW 0
++#define HAVE_ELF_AUX_INFO 0
+ #define HAVE_FCNTL 1
+ #define HAVE_GETADDRINFO 0
+ #define HAVE_GETAUXVAL 0
+@@ -350,6 +349,7 @@
+ #define HAVE_SYSCONF 1
+ #define HAVE_SYSCTL 1
+ #define HAVE_SYSCTLBYNAME 1
++#define HAVE_TEMPNAM 1
+ #define HAVE_USLEEP 1
+ #define HAVE_UTGETOSTYPEFROMSTRING 0
+ #define HAVE_VIRTUALALLOC 0
+@@ -433,6 +433,7 @@
+ #define HAVE_OPENCL_VIDEOTOOLBOX 0
+ #define HAVE_PERL 1
+ #define HAVE_POD2MAN 1
++#define HAVE_POSIX_IOCTL 0
+ #define HAVE_TEXI2HTML 0
+ #define HAVE_XMLLINT 1
+ #define HAVE_ZLIB_GZIP 0
+@@ -522,6 +523,7 @@
+ #define CONFIG_LIBKLVANC 0
+ #define CONFIG_LIBKVAZAAR 0
+ #define CONFIG_LIBLC3 0
++#define CONFIG_LIBLCEVC_DEC 0
+ #define CONFIG_LIBMODPLUG 0
+ #define CONFIG_LIBMP3LAME 0
+ #define CONFIG_LIBMYSOFA 0
+@@ -559,6 +561,7 @@
+ #define CONFIG_LIBVMAF 0
+ #define CONFIG_LIBVORBIS 0
+ #define CONFIG_LIBVPX 0
++#define CONFIG_LIBVVENC 0
+ #define CONFIG_LIBWEBP 0
+ #define CONFIG_LIBXEVD 0
+ #define CONFIG_LIBXEVE 0
+@@ -691,6 +694,7 @@
+ #define CONFIG_CBS_MPEG2 0
+ #define CONFIG_CBS_VP8 0
+ #define CONFIG_CBS_VP9 0
++#define CONFIG_D3D12VA_ENCODE 0
+ #define CONFIG_DEFLATE_WRAPPER 0
+ #define CONFIG_DIRAC_PARSE 1
+ #define CONFIG_DNN 0
+@@ -777,6 +781,7 @@
+ #define CONFIG_VP3DSP 0
+ #define CONFIG_VP56DSP 0
+ #define CONFIG_VP8DSP 0
++#define CONFIG_VULKAN_ENCODE 0
+ #define CONFIG_WMA_FREQS 0
+ #define CONFIG_WMV2DSP 0
+ #endif /* FFMPEG_CONFIG_H */
+diff --git a/chromium/config/Chromium/ios/x64/config_components.h b/chromium/config/Chromium/ios/x64/config_components.h
+index 9b4b898861d..fe3b62f8200 100644
+--- a/chromium/config/Chromium/ios/x64/config_components.h
++++ b/chromium/config/Chromium/ios/x64/config_components.h
+@@ -8,6 +8,7 @@
+ #define CONFIG_CHOMP_BSF 0
+ #define CONFIG_DUMP_EXTRADATA_BSF 0
+ #define CONFIG_DCA_CORE_BSF 0
++#define CONFIG_DOVI_RPU_BSF 0
+ #define CONFIG_DTS2PTS_BSF 0
+ #define CONFIG_DV_ERROR_MARKER_BSF 0
+ #define CONFIG_EAC3_CORE_BSF 0
+@@ -599,6 +600,9 @@
+ #define CONFIG_BINTEXT_DECODER 0
+ #define CONFIG_XBIN_DECODER 0
+ #define CONFIG_IDF_DECODER 0
++#define CONFIG_AAC_MEDIACODEC_DECODER 0
++#define CONFIG_AMRNB_MEDIACODEC_DECODER 0
++#define CONFIG_AMRWB_MEDIACODEC_DECODER 0
+ #define CONFIG_LIBAOM_AV1_DECODER 0
+ #define CONFIG_AV1_DECODER 0
+ #define CONFIG_AV1_CUVID_DECODER 0
+@@ -610,6 +614,7 @@
+ #define CONFIG_HEVC_MEDIACODEC_DECODER 0
+ #define CONFIG_MJPEG_CUVID_DECODER 0
+ #define CONFIG_MJPEG_QSV_DECODER 0
++#define CONFIG_MP3_MEDIACODEC_DECODER 0
+ #define CONFIG_MPEG1_CUVID_DECODER 0
+ #define CONFIG_MPEG2_CUVID_DECODER 0
+ #define CONFIG_MPEG4_CUVID_DECODER 0
+@@ -621,6 +626,7 @@
+ #define CONFIG_VP9_CUVID_DECODER 0
+ #define CONFIG_VP9_MEDIACODEC_DECODER 0
+ #define CONFIG_VP9_QSV_DECODER 0
++#define CONFIG_VVC_QSV_DECODER 0
+ #define CONFIG_VNULL_DECODER 0
+ #define CONFIG_ANULL_DECODER 0
+ #define CONFIG_A64MULTI_ENCODER 0
+@@ -828,6 +834,7 @@
+ #define CONFIG_LIBVORBIS_ENCODER 0
+ #define CONFIG_LIBVPX_VP8_ENCODER 0
+ #define CONFIG_LIBVPX_VP9_ENCODER 0
++#define CONFIG_LIBVVENC_ENCODER 0
+ #define CONFIG_LIBWEBP_ANIM_ENCODER 0
+ #define CONFIG_LIBWEBP_ENCODER 0
+ #define CONFIG_LIBX262_ENCODER 0
+@@ -855,7 +862,9 @@
+ #define CONFIG_H264_V4L2M2M_ENCODER 0
+ #define CONFIG_H264_VAAPI_ENCODER 0
+ #define CONFIG_H264_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_H264_VULKAN_ENCODER 0
+ #define CONFIG_HEVC_AMF_ENCODER 0
++#define CONFIG_HEVC_D3D12VA_ENCODER 0
+ #define CONFIG_HEVC_MEDIACODEC_ENCODER 0
+ #define CONFIG_HEVC_MF_ENCODER 0
+ #define CONFIG_HEVC_NVENC_ENCODER 0
+@@ -863,6 +872,7 @@
+ #define CONFIG_HEVC_V4L2M2M_ENCODER 0
+ #define CONFIG_HEVC_VAAPI_ENCODER 0
+ #define CONFIG_HEVC_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_HEVC_VULKAN_ENCODER 0
+ #define CONFIG_LIBKVAZAAR_ENCODER 0
+ #define CONFIG_MJPEG_QSV_ENCODER 0
+ #define CONFIG_MJPEG_VAAPI_ENCODER 0
+@@ -1357,6 +1367,7 @@
+ #define CONFIG_KIRSCH_FILTER 0
+ #define CONFIG_LAGFUN_FILTER 0
+ #define CONFIG_LATENCY_FILTER 0
++#define CONFIG_LCEVC_FILTER 0
+ #define CONFIG_LENSCORRECTION_FILTER 0
+ #define CONFIG_LENSFUN_FILTER 0
+ #define CONFIG_LIBPLACEBO_FILTER 0
+@@ -1552,6 +1563,7 @@
+ #define CONFIG_XFADE_OPENCL_FILTER 0
+ #define CONFIG_XFADE_VULKAN_FILTER 0
+ #define CONFIG_XMEDIAN_FILTER 0
++#define CONFIG_XPSNR_FILTER 0
+ #define CONFIG_XSTACK_FILTER 0
+ #define CONFIG_YADIF_FILTER 0
+ #define CONFIG_YADIF_CUDA_FILTER 0
+@@ -1588,6 +1600,7 @@
+ #define CONFIG_QRENCODESRC_FILTER 0
+ #define CONFIG_PAL75BARS_FILTER 0
+ #define CONFIG_PAL100BARS_FILTER 0
++#define CONFIG_PERLIN_FILTER 0
+ #define CONFIG_RGBTESTSRC_FILTER 0
+ #define CONFIG_SIERPINSKI_FILTER 0
+ #define CONFIG_SMPTEBARS_FILTER 0
+diff --git a/chromium/config/Chromium/ios/x64/libavutil/ffversion.h b/chromium/config/Chromium/ios/x64/libavutil/ffversion.h
+index 9b26d87ca8b..71bdf19217c 100644
+--- a/chromium/config/Chromium/ios/x64/libavutil/ffversion.h
++++ b/chromium/config/Chromium/ios/x64/libavutil/ffversion.h
+@@ -1,5 +1,5 @@
+ /* Automatically generated by version.sh, do not manually edit! */
+ #ifndef AVUTIL_FFVERSION_H
+ #define AVUTIL_FFVERSION_H
+-#define FFMPEG_VERSION "N-116575-gd941d9677b"
++#define FFMPEG_VERSION "N-118356-gdd11b92cac"
  #endif /* AVUTIL_FFVERSION_H */
 diff --git a/chromium/config/Chromium/linux/riscv64/config.h b/chromium/config/Chromium/linux/riscv64/config.h
 new file mode 100644
-index 0000000000..96c6f05b84
+index 00000000000..f7c0d4639b5
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/config.h
-@@ -0,0 +1,782 @@
+@@ -0,0 +1,787 @@
 +/* Automatically generated by configure - do not modify! */
 +#ifndef FFMPEG_CONFIG_H
 +#define FFMPEG_CONFIG_H
-+/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/porter/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --arch=riscv64 --extra-cflags='-march=rv64gc' --enable-cross-compile --target-os=linux --sysroot=/home/porter/Workspaces/chromium/src/build/linux/debian_sid_riscv64-sysroot --extra-cflags='--target=riscv64-linux-gnu' --extra-ldflags='--target=riscv64-linux-gnu' --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/kxxt/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --arch=riscv64 --extra-cflags='-march=rv64gc' --enable-cross-compile --target-os=linux --sysroot=/home/kxxt/Workspaces/chromium/src/build/linux/debian_sid_riscv64-sysroot --extra-cflags='--target=riscv64-linux-gnu' --extra-ldflags='--target=riscv64-linux-gnu' --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld'" -- elide long configuration string from binary */
 +#define FFMPEG_LICENSE "LGPL version 2.1 or later"
 +#define CONFIG_THIS_YEAR 2024
 +#define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
 +#define AVCONV_DATADIR "/usr/local/share/ffmpeg"
-+#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/external/github.com/llvm/llvm-project 7088a5ed880f29129ec844c66068e8cb61ca98bf)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 3dbd929ea6af134650dd1d91baeb61a4fc1b0eb8)"
 +#define OS_NAME linux
 +#define EXTERN_PREFIX ""
 +#define EXTERN_ASM 
@@ -3379,12 +4614,7 @@ index 0000000000..96c6f05b84
 +#define SLIBSUF ".so"
 +#define SWS_MAX_FILTER_SIZE 256
 +#define ARCH_AARCH64 0
-+#define ARCH_ALPHA 0
 +#define ARCH_ARM 0
-+#define ARCH_AVR32 0
-+#define ARCH_AVR32_AP 0
-+#define ARCH_AVR32_UC 0
-+#define ARCH_BFIN 0
 +#define ARCH_IA64 0
 +#define ARCH_LOONGARCH 0
 +#define ARCH_LOONGARCH32 0
@@ -3397,7 +4627,6 @@ index 0000000000..96c6f05b84
 +#define ARCH_PPC64 0
 +#define ARCH_RISCV 1
 +#define ARCH_S390 0
-+#define ARCH_SH4 0
 +#define ARCH_SPARC 0
 +#define ARCH_SPARC64 0
 +#define ARCH_TILEGX 0
@@ -3423,6 +4652,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_VSX 0
 +#define HAVE_RV 1
 +#define HAVE_RVV 1
++#define HAVE_RV_ZICBOP 1
 +#define HAVE_RV_ZVBB 0
 +#define HAVE_AESNI 0
 +#define HAVE_AMD3DNOW 0
@@ -3475,6 +4705,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_VSX_EXTERNAL 0
 +#define HAVE_RV_EXTERNAL 0
 +#define HAVE_RVV_EXTERNAL 0
++#define HAVE_RV_ZICBOP_EXTERNAL 0
 +#define HAVE_RV_ZVBB_EXTERNAL 0
 +#define HAVE_AESNI_EXTERNAL 0
 +#define HAVE_AMD3DNOW_EXTERNAL 0
@@ -3527,6 +4758,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_VSX_INLINE 0
 +#define HAVE_RV_INLINE 0
 +#define HAVE_RVV_INLINE 0
++#define HAVE_RV_ZICBOP_INLINE 0
 +#define HAVE_RV_ZVBB_INLINE 0
 +#define HAVE_AESNI_INLINE 0
 +#define HAVE_AMD3DNOW_INLINE 0
@@ -3610,7 +4842,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_OPENGL_GL3_H 0
 +#define HAVE_POLL_H 1
 +#define HAVE_PTHREAD_NP_H 0
-+#define HAVE_SYS_HWPROBE_H 1
++#define HAVE_SYS_HWPROBE_H 0
 +#define HAVE_SYS_PARAM_H 1
 +#define HAVE_SYS_RESOURCE_H 1
 +#define HAVE_SYS_SELECT_H 1
@@ -3625,6 +4857,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_WINDOWS_H 0
 +#define HAVE_WINSOCK2_H 0
 +#define HAVE_INTRINSICS_NEON 0
++#define HAVE_INTRINSICS_SSE2 0
 +#define HAVE_ATANF 1
 +#define HAVE_ATAN2F 1
 +#define HAVE_CBRT 1
@@ -3667,6 +4900,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_CLOCK_GETTIME 1
 +#define HAVE_CLOSESOCKET 0
 +#define HAVE_COMMANDLINETOARGVW 0
++#define HAVE_ELF_AUX_INFO 0
 +#define HAVE_FCNTL 1
 +#define HAVE_GETADDRINFO 0
 +#define HAVE_GETAUXVAL 1
@@ -3715,6 +4949,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_SYSCONF 1
 +#define HAVE_SYSCTL 0 /* #define HAVE_SYSCTL 0 -- forced to 0 for Fuchsia */
 +#define HAVE_SYSCTLBYNAME 0
++#define HAVE_TEMPNAM 1
 +#define HAVE_USLEEP 1
 +#define HAVE_UTGETOSTYPEFROMSTRING 0
 +#define HAVE_VIRTUALALLOC 0
@@ -3783,7 +5018,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_STRUCT_SOCKADDR_SA_LEN 0
 +#define HAVE_STRUCT_SOCKADDR_STORAGE 0
 +#define HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC 1
-+#define HAVE_STRUCT_V4L2_FRMIVALENUM_DISCRETE 0
++#define HAVE_STRUCT_V4L2_FRMIVALENUM_DISCRETE 1
 +#define HAVE_STRUCT_MFXCONFIGINTERFACE 0
 +#define HAVE_GZIP 1
 +#define HAVE_LIBDRM_GETFB2 0
@@ -3798,6 +5033,7 @@ index 0000000000..96c6f05b84
 +#define HAVE_OPENCL_VIDEOTOOLBOX 0
 +#define HAVE_PERL 1
 +#define HAVE_POD2MAN 1
++#define HAVE_POSIX_IOCTL 0
 +#define HAVE_TEXI2HTML 0
 +#define HAVE_XMLLINT 0
 +#define HAVE_ZLIB_GZIP 0
@@ -3887,6 +5123,7 @@ index 0000000000..96c6f05b84
 +#define CONFIG_LIBKLVANC 0
 +#define CONFIG_LIBKVAZAAR 0
 +#define CONFIG_LIBLC3 0
++#define CONFIG_LIBLCEVC_DEC 0
 +#define CONFIG_LIBMODPLUG 0
 +#define CONFIG_LIBMP3LAME 0
 +#define CONFIG_LIBMYSOFA 0
@@ -3924,6 +5161,7 @@ index 0000000000..96c6f05b84
 +#define CONFIG_LIBVMAF 0
 +#define CONFIG_LIBVORBIS 0
 +#define CONFIG_LIBVPX 0
++#define CONFIG_LIBVVENC 0
 +#define CONFIG_LIBWEBP 0
 +#define CONFIG_LIBXEVD 0
 +#define CONFIG_LIBXEVE 0
@@ -4056,6 +5294,7 @@ index 0000000000..96c6f05b84
 +#define CONFIG_CBS_MPEG2 0
 +#define CONFIG_CBS_VP8 0
 +#define CONFIG_CBS_VP9 0
++#define CONFIG_D3D12VA_ENCODE 0
 +#define CONFIG_DEFLATE_WRAPPER 0
 +#define CONFIG_DIRAC_PARSE 1
 +#define CONFIG_DNN 0
@@ -4142,15 +5381,16 @@ index 0000000000..96c6f05b84
 +#define CONFIG_VP3DSP 0
 +#define CONFIG_VP56DSP 0
 +#define CONFIG_VP8DSP 0
++#define CONFIG_VULKAN_ENCODE 0
 +#define CONFIG_WMA_FREQS 0
 +#define CONFIG_WMV2DSP 0
 +#endif /* FFMPEG_CONFIG_H */
 diff --git a/chromium/config/Chromium/linux/riscv64/config_components.h b/chromium/config/Chromium/linux/riscv64/config_components.h
 new file mode 100644
-index 0000000000..9b4b898861
+index 00000000000..fe3b62f8200
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/config_components.h
-@@ -0,0 +1,2218 @@
+@@ -0,0 +1,2231 @@
 +/* Automatically generated by configure - do not modify! */
 +#ifndef FFMPEG_CONFIG_COMPONENTS_H
 +#define FFMPEG_CONFIG_COMPONENTS_H
@@ -4161,6 +5401,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_CHOMP_BSF 0
 +#define CONFIG_DUMP_EXTRADATA_BSF 0
 +#define CONFIG_DCA_CORE_BSF 0
++#define CONFIG_DOVI_RPU_BSF 0
 +#define CONFIG_DTS2PTS_BSF 0
 +#define CONFIG_DV_ERROR_MARKER_BSF 0
 +#define CONFIG_EAC3_CORE_BSF 0
@@ -4752,6 +5993,9 @@ index 0000000000..9b4b898861
 +#define CONFIG_BINTEXT_DECODER 0
 +#define CONFIG_XBIN_DECODER 0
 +#define CONFIG_IDF_DECODER 0
++#define CONFIG_AAC_MEDIACODEC_DECODER 0
++#define CONFIG_AMRNB_MEDIACODEC_DECODER 0
++#define CONFIG_AMRWB_MEDIACODEC_DECODER 0
 +#define CONFIG_LIBAOM_AV1_DECODER 0
 +#define CONFIG_AV1_DECODER 0
 +#define CONFIG_AV1_CUVID_DECODER 0
@@ -4763,6 +6007,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_HEVC_MEDIACODEC_DECODER 0
 +#define CONFIG_MJPEG_CUVID_DECODER 0
 +#define CONFIG_MJPEG_QSV_DECODER 0
++#define CONFIG_MP3_MEDIACODEC_DECODER 0
 +#define CONFIG_MPEG1_CUVID_DECODER 0
 +#define CONFIG_MPEG2_CUVID_DECODER 0
 +#define CONFIG_MPEG4_CUVID_DECODER 0
@@ -4774,6 +6019,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_VP9_CUVID_DECODER 0
 +#define CONFIG_VP9_MEDIACODEC_DECODER 0
 +#define CONFIG_VP9_QSV_DECODER 0
++#define CONFIG_VVC_QSV_DECODER 0
 +#define CONFIG_VNULL_DECODER 0
 +#define CONFIG_ANULL_DECODER 0
 +#define CONFIG_A64MULTI_ENCODER 0
@@ -4981,6 +6227,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_LIBVORBIS_ENCODER 0
 +#define CONFIG_LIBVPX_VP8_ENCODER 0
 +#define CONFIG_LIBVPX_VP9_ENCODER 0
++#define CONFIG_LIBVVENC_ENCODER 0
 +#define CONFIG_LIBWEBP_ANIM_ENCODER 0
 +#define CONFIG_LIBWEBP_ENCODER 0
 +#define CONFIG_LIBX262_ENCODER 0
@@ -5008,7 +6255,9 @@ index 0000000000..9b4b898861
 +#define CONFIG_H264_V4L2M2M_ENCODER 0
 +#define CONFIG_H264_VAAPI_ENCODER 0
 +#define CONFIG_H264_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_H264_VULKAN_ENCODER 0
 +#define CONFIG_HEVC_AMF_ENCODER 0
++#define CONFIG_HEVC_D3D12VA_ENCODER 0
 +#define CONFIG_HEVC_MEDIACODEC_ENCODER 0
 +#define CONFIG_HEVC_MF_ENCODER 0
 +#define CONFIG_HEVC_NVENC_ENCODER 0
@@ -5016,6 +6265,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_HEVC_V4L2M2M_ENCODER 0
 +#define CONFIG_HEVC_VAAPI_ENCODER 0
 +#define CONFIG_HEVC_VIDEOTOOLBOX_ENCODER 0
++#define CONFIG_HEVC_VULKAN_ENCODER 0
 +#define CONFIG_LIBKVAZAAR_ENCODER 0
 +#define CONFIG_MJPEG_QSV_ENCODER 0
 +#define CONFIG_MJPEG_VAAPI_ENCODER 0
@@ -5510,6 +6760,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_KIRSCH_FILTER 0
 +#define CONFIG_LAGFUN_FILTER 0
 +#define CONFIG_LATENCY_FILTER 0
++#define CONFIG_LCEVC_FILTER 0
 +#define CONFIG_LENSCORRECTION_FILTER 0
 +#define CONFIG_LENSFUN_FILTER 0
 +#define CONFIG_LIBPLACEBO_FILTER 0
@@ -5705,6 +6956,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_XFADE_OPENCL_FILTER 0
 +#define CONFIG_XFADE_VULKAN_FILTER 0
 +#define CONFIG_XMEDIAN_FILTER 0
++#define CONFIG_XPSNR_FILTER 0
 +#define CONFIG_XSTACK_FILTER 0
 +#define CONFIG_YADIF_FILTER 0
 +#define CONFIG_YADIF_CUDA_FILTER 0
@@ -5741,6 +6993,7 @@ index 0000000000..9b4b898861
 +#define CONFIG_QRENCODESRC_FILTER 0
 +#define CONFIG_PAL75BARS_FILTER 0
 +#define CONFIG_PAL100BARS_FILTER 0
++#define CONFIG_PERLIN_FILTER 0
 +#define CONFIG_RGBTESTSRC_FILTER 0
 +#define CONFIG_SIERPINSKI_FILTER 0
 +#define CONFIG_SMPTEBARS_FILTER 0
@@ -6371,7 +7624,7 @@ index 0000000000..9b4b898861
 +#endif /* FFMPEG_CONFIG_COMPONENTS_H */
 diff --git a/chromium/config/Chromium/linux/riscv64/libavcodec/bsf_list.c b/chromium/config/Chromium/linux/riscv64/libavcodec/bsf_list.c
 new file mode 100644
-index 0000000000..7ff70c6e2d
+index 00000000000..7ff70c6e2d6
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavcodec/bsf_list.c
 @@ -0,0 +1,2 @@
@@ -6379,7 +7632,7 @@ index 0000000000..7ff70c6e2d
 +    NULL };
 diff --git a/chromium/config/Chromium/linux/riscv64/libavcodec/codec_list.c b/chromium/config/Chromium/linux/riscv64/libavcodec/codec_list.c
 new file mode 100644
-index 0000000000..7d9debfe61
+index 00000000000..7d9debfe612
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavcodec/codec_list.c
 @@ -0,0 +1,15 @@
@@ -6400,7 +7653,7 @@ index 0000000000..7d9debfe61
 +    NULL };
 diff --git a/chromium/config/Chromium/linux/riscv64/libavcodec/parser_list.c b/chromium/config/Chromium/linux/riscv64/libavcodec/parser_list.c
 new file mode 100644
-index 0000000000..fdc533b38f
+index 00000000000..fdc533b38ff
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavcodec/parser_list.c
 @@ -0,0 +1,7 @@
@@ -6413,7 +7666,7 @@ index 0000000000..fdc533b38f
 +    NULL };
 diff --git a/chromium/config/Chromium/linux/riscv64/libavformat/demuxer_list.c b/chromium/config/Chromium/linux/riscv64/libavformat/demuxer_list.c
 new file mode 100644
-index 0000000000..570a6441d3
+index 00000000000..570a6441d36
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavformat/demuxer_list.c
 @@ -0,0 +1,8 @@
@@ -6427,7 +7680,7 @@ index 0000000000..570a6441d3
 +    NULL };
 diff --git a/chromium/config/Chromium/linux/riscv64/libavformat/muxer_list.c b/chromium/config/Chromium/linux/riscv64/libavformat/muxer_list.c
 new file mode 100644
-index 0000000000..ae54c39f23
+index 00000000000..ae54c39f23d
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavformat/muxer_list.c
 @@ -0,0 +1,2 @@
@@ -6435,7 +7688,7 @@ index 0000000000..ae54c39f23
 +    NULL };
 diff --git a/chromium/config/Chromium/linux/riscv64/libavformat/protocol_list.c b/chromium/config/Chromium/linux/riscv64/libavformat/protocol_list.c
 new file mode 100644
-index 0000000000..247e1e4c3a
+index 00000000000..247e1e4c3a2
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavformat/protocol_list.c
 @@ -0,0 +1,2 @@
@@ -6443,7 +7696,7 @@ index 0000000000..247e1e4c3a
 +    NULL };
 diff --git a/chromium/config/Chromium/linux/riscv64/libavutil/avconfig.h b/chromium/config/Chromium/linux/riscv64/libavutil/avconfig.h
 new file mode 100644
-index 0000000000..8558b35027
+index 00000000000..8558b35027f
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavutil/avconfig.h
 @@ -0,0 +1,6 @@
@@ -6455,30 +7708,19 @@ index 0000000000..8558b35027
 +#endif /* AVUTIL_AVCONFIG_H */
 diff --git a/chromium/config/Chromium/linux/riscv64/libavutil/ffversion.h b/chromium/config/Chromium/linux/riscv64/libavutil/ffversion.h
 new file mode 100644
-index 0000000000..beeecf3e67
+index 00000000000..4303e401160
 --- /dev/null
 +++ b/chromium/config/Chromium/linux/riscv64/libavutil/ffversion.h
 @@ -0,0 +1,5 @@
 +/* Automatically generated by version.sh, do not manually edit! */
 +#ifndef AVUTIL_FFVERSION_H
 +#define AVUTIL_FFVERSION_H
-+#define FFMPEG_VERSION "git-2024-08-15-14d16cd143"
++#define FFMPEG_VERSION "git-2024-10-01-686d6944501"
 +#endif /* AVUTIL_FFVERSION_H */
 diff --git a/chromium/config/Chromium/linux/x64/config.asm b/chromium/config/Chromium/linux/x64/config.asm
-index 5b03c7308e..7722da2b79 100644
+index e53a8e2be9d..207a95eb7f8 100644
 --- a/chromium/config/Chromium/linux/x64/config.asm
 +++ b/chromium/config/Chromium/linux/x64/config.asm
-@@ -102,8 +102,8 @@
- %define HAVE_AMD3DNOWEXT_EXTERNAL 1
- %define HAVE_AVX_EXTERNAL 1
- %define HAVE_AVX2_EXTERNAL 1
--%define HAVE_AVX512_EXTERNAL 1
--%define HAVE_AVX512ICL_EXTERNAL 1
-+%define HAVE_AVX512_EXTERNAL 0
-+%define HAVE_AVX512ICL_EXTERNAL 0
- %define HAVE_FMA3_EXTERNAL 1
- %define HAVE_FMA4_EXTERNAL 1
- %define HAVE_MMX_EXTERNAL 1
 @@ -366,7 +366,7 @@
  %define HAVE_INLINE_ASM_LABELS 1
  %define HAVE_INLINE_ASM_NONLOCAL_LABELS 1
@@ -6488,9 +7730,9 @@ index 5b03c7308e..7722da2b79 100644
  %define HAVE_SYMVER_ASM_LABEL 1
  %define HAVE_SYMVER_GNU_ASM 1
  %define HAVE_VFP_ARGS 0
-@@ -420,7 +420,7 @@
- %define HAVE_PERL 1
+@@ -421,7 +421,7 @@
  %define HAVE_POD2MAN 1
+ %define HAVE_POSIX_IOCTL 0
  %define HAVE_TEXI2HTML 0
 -%define HAVE_XMLLINT 1
 +%define HAVE_XMLLINT 0
@@ -6498,35 +7740,24 @@ index 5b03c7308e..7722da2b79 100644
  %define HAVE_OPENVINO2 0
  %define CONFIG_DOC 0
 diff --git a/chromium/config/Chromium/linux/x64/config.h b/chromium/config/Chromium/linux/x64/config.h
-index 6d520db3d7..84b53424f2 100644
+index cf4682f5c09..7917e9eccf9 100644
 --- a/chromium/config/Chromium/linux/x64/config.h
 +++ b/chromium/config/Chromium/linux/x64/config.h
 @@ -1,12 +1,12 @@
  /* Automatically generated by configure - do not modify! */
  #ifndef FFMPEG_CONFIG_H
  #define FFMPEG_CONFIG_H
--/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/dalecurtis/code/chrome/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld'" -- elide long configuration string from binary */
-+/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/porter/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld'" -- elide long configuration string from binary */
+-/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/usr/local/google/home/sandersd/src/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld'" -- elide long configuration string from binary */
++/* #define FFMPEG_CONFIGURATION "--disable-everything --disable-all --disable-doc --disable-htmlpages --disable-manpages --disable-podpages --disable-txtpages --disable-static --enable-avcodec --enable-avformat --enable-avutil --enable-static --enable-libopus --disable-debug --disable-bzlib --disable-error-resilience --disable-iconv --disable-network --disable-schannel --disable-sdl2 --disable-symver --disable-xlib --disable-zlib --disable-securetransport --disable-faan --disable-alsa --disable-iamf --disable-autodetect --enable-decoder='vorbis,libopus,flac' --enable-decoder='pcm_u8,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,mp3' --enable-decoder='pcm_s16be,pcm_s24be,pcm_mulaw,pcm_alaw' --enable-demuxer='ogg,matroska,wav,flac,mp3,mov' --enable-parser='opus,vorbis,flac,mpegaudio,vp9' --extra-cflags=-I/home/kxxt/Workspaces/chromium/src/third_party/opus/src/include --disable-linux-perf --x86asmexe=nasm --optflags='\"-O2\"' --enable-lto --arch=x86_64 --target-os=linux --enable-pic --cc=clang --cxx=clang++ --ld=clang --extra-ldflags='-fuse-ld=lld'" -- elide long configuration string from binary */
  #define FFMPEG_LICENSE "LGPL version 2.1 or later"
  #define CONFIG_THIS_YEAR 2024
  #define FFMPEG_DATADIR "/usr/local/share/ffmpeg"
  #define AVCONV_DATADIR "/usr/local/share/ffmpeg"
--#define CC_IDENT "clang version 19.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project ecea8371ff03c15fb3dc27ee4108b98335fd2d63)"
-+#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/external/github.com/llvm/llvm-project 7088a5ed880f29129ec844c66068e8cb61ca98bf)"
+-#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 6ee7e90a5d21cc0173dc5a0a344d230a80a46fd0)"
++#define CC_IDENT "clang version 20.0.0git (https://chromium.googlesource.com/a/external/github.com/llvm/llvm-project 3dbd929ea6af134650dd1d91baeb61a4fc1b0eb8)"
  #define OS_NAME linux
  #define EXTERN_PREFIX ""
  #define EXTERN_ASM 
-@@ -116,8 +116,8 @@
- #define HAVE_AMD3DNOWEXT_EXTERNAL 1
- #define HAVE_AVX_EXTERNAL 1
- #define HAVE_AVX2_EXTERNAL 1
--#define HAVE_AVX512_EXTERNAL 1
--#define HAVE_AVX512ICL_EXTERNAL 1
-+#define HAVE_AVX512_EXTERNAL 0
-+#define HAVE_AVX512ICL_EXTERNAL 0
- #define HAVE_FMA3_EXTERNAL 1
- #define HAVE_FMA4_EXTERNAL 1
- #define HAVE_MMX_EXTERNAL 1
 @@ -380,7 +380,7 @@
  #define HAVE_INLINE_ASM_LABELS 1
  #define HAVE_INLINE_ASM_NONLOCAL_LABELS 1
@@ -6536,9 +7767,9 @@ index 6d520db3d7..84b53424f2 100644
  #define HAVE_SYMVER_ASM_LABEL 1
  #define HAVE_SYMVER_GNU_ASM 1
  #define HAVE_VFP_ARGS 0
-@@ -434,7 +434,7 @@
- #define HAVE_PERL 1
+@@ -435,7 +435,7 @@
  #define HAVE_POD2MAN 1
+ #define HAVE_POSIX_IOCTL 0
  #define HAVE_TEXI2HTML 0
 -#define HAVE_XMLLINT 1
 +#define HAVE_XMLLINT 0
@@ -6546,18 +7777,18 @@ index 6d520db3d7..84b53424f2 100644
  #define HAVE_OPENVINO2 0
  #define CONFIG_DOC 0
 diff --git a/chromium/config/Chromium/linux/x64/libavutil/ffversion.h b/chromium/config/Chromium/linux/x64/libavutil/ffversion.h
-index 9b26d87ca8..beeecf3e67 100644
+index 71bdf19217c..4303e401160 100644
 --- a/chromium/config/Chromium/linux/x64/libavutil/ffversion.h
 +++ b/chromium/config/Chromium/linux/x64/libavutil/ffversion.h
 @@ -1,5 +1,5 @@
  /* Automatically generated by version.sh, do not manually edit! */
  #ifndef AVUTIL_FFVERSION_H
  #define AVUTIL_FFVERSION_H
--#define FFMPEG_VERSION "N-116575-gd941d9677b"
-+#define FFMPEG_VERSION "git-2024-08-15-14d16cd143"
+-#define FFMPEG_VERSION "N-118356-gdd11b92cac"
++#define FFMPEG_VERSION "git-2024-10-01-686d6944501"
  #endif /* AVUTIL_FFVERSION_H */
 diff --git a/chromium/scripts/copy_config.sh b/chromium/scripts/copy_config.sh
-index a18048cf04..0d080211aa 100755
+index a18048cf040..0d080211aa2 100755
 --- a/chromium/scripts/copy_config.sh
 +++ b/chromium/scripts/copy_config.sh
 @@ -10,7 +10,7 @@ for os in android linux linux-noasm mac win; do
@@ -6570,7 +7801,7 @@ index a18048cf04..0d080211aa 100755
        [ ! -e "build.$arch.$os/$target/config.h" ] && continue
        for f in config.h config_components.h config.asm libavutil/avconfig.h libavutil/ffversion.h libavcodec/bsf_list.c libavcodec/codec_list.c libavcodec/parser_list.c libavformat/demuxer_list.c libavformat/muxer_list.c libavformat/protocol_list.c; do
 diff --git a/ffmpeg_generated.gni b/ffmpeg_generated.gni
-index e282aa7480..e594fe2806 100644
+index 35873184358..b5cd6fba09c 100644
 --- a/ffmpeg_generated.gni
 +++ b/ffmpeg_generated.gni
 @@ -14,10 +14,8 @@ ffmpeg_asm_sources = []
@@ -6586,7 +7817,7 @@ index e282aa7480..e594fe2806 100644
    ffmpeg_c_sources += [
      "libavcodec/ac3_channel_layout_tab.c",
      "libavcodec/ac3_parser.c",
-@@ -211,16 +209,26 @@ if (current_cpu == "arm64" || current_cpu == "x64" ||
+@@ -211,16 +209,29 @@ if (current_cpu == "arm64" || current_cpu == "x64" ||
    ]
  }
  
@@ -6601,8 +7832,11 @@ index e282aa7480..e594fe2806 100644
 +    (use_linux_config && current_cpu == "x64" && ffmpeg_branding == "Chrome")) {
    ffmpeg_c_sources += [
 +    "libavcodec/aac/aacdec.c",
++    "libavcodec/aac/aacdec_ac.c",
 +    "libavcodec/aac/aacdec_float.c",
++    "libavcodec/aac/aacdec_lpd.c",
 +    "libavcodec/aac/aacdec_tab.c",
++    "libavcodec/aac/aacdec_usac.c",
 +    "libavcodec/aac_ac3_parser.c",
 +    "libavcodec/aac_parser.c",
 +    "libavcodec/aacps_common.c",
@@ -6619,7 +7853,7 @@ index e282aa7480..e594fe2806 100644
      "libavcodec/h2645_parse.c",
      "libavcodec/h2645_sei.c",
      "libavcodec/h2645_vui.c",
-@@ -245,46 +253,27 @@ if ((current_cpu == "arm64" && ffmpeg_branding == "Chrome") ||
+@@ -245,46 +256,25 @@ if ((current_cpu == "arm64" && ffmpeg_branding == "Chrome") ||
      "libavcodec/h264pred.c",
      "libavcodec/h264qpel.c",
      "libavcodec/h274.c",
@@ -6637,8 +7871,11 @@ index e282aa7480..e594fe2806 100644
 -    (use_linux_config && ffmpeg_branding == "Chrome")) {
 -  ffmpeg_c_sources += [
 -    "libavcodec/aac/aacdec.c",
+-    "libavcodec/aac/aacdec_ac.c",
 -    "libavcodec/aac/aacdec_float.c",
+-    "libavcodec/aac/aacdec_lpd.c",
 -    "libavcodec/aac/aacdec_tab.c",
+-    "libavcodec/aac/aacdec_usac.c",
 -    "libavcodec/aac_ac3_parser.c",
 -    "libavcodec/aac_parser.c",
 -    "libavcodec/aacps_common.c",
@@ -6666,22 +7903,15 @@ index e282aa7480..e594fe2806 100644
 +    "libavcodec/x86/autorename_libavcodec_x86_aacpsdsp_init.c",
 +    "libavcodec/x86/autorename_libavcodec_x86_h264dsp_init.c",
 +    "libavcodec/x86/autorename_libavcodec_x86_sbrdsp_init.c",
++    "libavcodec/x86/autorename_libavcodec_x86_videodsp_init.c",
 +    "libavcodec/x86/h264_intrapred_init.c",
 +    "libavcodec/x86/h264_qpel.c",
 +    "libavcodec/x86/h264chroma_init.c",
-+    "libavcodec/x86/videodsp_init.c",
 +  ]
    ffmpeg_asm_sources += [
      "libavcodec/x86/aacpsdsp.asm",
--    "libavcodec/x86/autorename_libavcodec_x86_videodsp.asm",
-     "libavcodec/x86/fpel.asm",
-     "libavcodec/x86/h264_chromamc.asm",
-     "libavcodec/x86/h264_chromamc_10bit.asm",
-@@ -300,36 +289,23 @@ if ((current_cpu == "x64" && ffmpeg_branding == "Chrome") ||
-     "libavcodec/x86/h264_weight_10bit.asm",
-     "libavcodec/x86/qpel.asm",
-     "libavcodec/x86/sbrdsp.asm",
-+    "libavcodec/x86/videodsp.asm",
+     "libavcodec/x86/autorename_libavcodec_x86_videodsp.asm",
+@@ -306,33 +296,19 @@ if ((current_cpu == "x64" && ffmpeg_branding == "Chrome") ||
    ]
  }
  
@@ -6713,8 +7943,8 @@ index e282aa7480..e594fe2806 100644
 +    "libavutil/x86/autorename_libavutil_x86_cpu.c",
 +    "libavutil/x86/autorename_libavutil_x86_fixed_dsp_init.c",
 +    "libavutil/x86/autorename_libavutil_x86_float_dsp_init.c",
++    "libavutil/x86/autorename_libavutil_x86_lls_init.c",
 +    "libavutil/x86/imgutils_init.c",
-+    "libavutil/x86/lls_init.c",
 +    "libavutil/x86/tx_float_init.c",
    ]
 -}
@@ -6726,7 +7956,7 @@ index e282aa7480..e594fe2806 100644
    ffmpeg_asm_sources += [
      "libavcodec/x86/dct32.asm",
      "libavcodec/x86/flacdsp.asm",
-@@ -344,133 +320,35 @@ if (current_cpu == "x64" || (is_win && current_cpu == "x86") ||
+@@ -347,133 +323,43 @@ if (current_cpu == "x64" || (is_win && current_cpu == "x86") ||
    ]
  }
  
@@ -6827,6 +8057,7 @@ index e282aa7480..e594fe2806 100644
 +    "libavcodec/riscv/h264_chroma_init_riscv.c",
 +    "libavcodec/riscv/h264dsp_init.c",
 +    "libavcodec/riscv/sbrdsp_init.c",
++    "libavcodec/riscv/videodsp_init.c",
    ]
 -}
 -
@@ -6838,9 +8069,13 @@ index e282aa7480..e594fe2806 100644
 -    "libavutil/arm/float_dsp_neon.S",
 +    "libavcodec/riscv/aacpsdsp_rvv.S",
 +    "libavcodec/riscv/h264_mc_chroma.S",
++    "libavcodec/riscv/h264addpx_rvv.S",
++    "libavcodec/riscv/h264dsp_rvv.S",
++    "libavcodec/riscv/h264idct_rvv.S",
 +    "libavcodec/riscv/sbrdsp_rvv.S",
 +    "libavcodec/riscv/startcode_rvb.S",
 +    "libavcodec/riscv/startcode_rvv.S",
++    "libavcodec/riscv/videodsp.S",
    ]
  }
  
@@ -6856,8 +8091,10 @@ index e282aa7480..e594fe2806 100644
 +    "libavcodec/riscv/flacdsp_init.c",
 +    "libavcodec/riscv/vorbisdsp_init.c",
 +    "libavutil/riscv/cpu.c",
++    "libavutil/riscv/cpu_common.c",
 +    "libavutil/riscv/fixed_dsp_init.c",
 +    "libavutil/riscv/float_dsp_init.c",
++    "libavutil/riscv/lls_init.c",
    ]
 -}
 -
@@ -6872,6 +8109,7 @@ index e282aa7480..e594fe2806 100644
 +    "libavcodec/riscv/vorbisdsp_rvv.S",
 +    "libavutil/riscv/fixed_dsp_rvv.S",
 +    "libavutil/riscv/float_dsp_rvv.S",
++    "libavutil/riscv/lls_rvv.S",
    ]
  }
 -
@@ -6882,213 +8120,245 @@ index e282aa7480..e594fe2806 100644
 -  ffmpeg_c_sources += [ "compat/strtod.c" ]
 -}
 diff --git a/libavcodec/autorename_libavcodec_flacdsp.c b/libavcodec/autorename_libavcodec_flacdsp.c
-index 4d5438e16f..07cea2563f 100644
+index ff83e4d5172..6f060652557 100644
 --- a/libavcodec/autorename_libavcodec_flacdsp.c
 +++ b/libavcodec/autorename_libavcodec_flacdsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "flacdsp.c"
 diff --git a/libavcodec/autorename_libavcodec_mpegaudiodsp.c b/libavcodec/autorename_libavcodec_mpegaudiodsp.c
-index 1b23a0a2af..0bd6ef419f 100644
+index 0dd2dd10b75..4555c4e9162 100644
 --- a/libavcodec/autorename_libavcodec_mpegaudiodsp.c
 +++ b/libavcodec/autorename_libavcodec_mpegaudiodsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "mpegaudiodsp.c"
+diff --git a/libavcodec/autorename_libavcodec_parser.c b/libavcodec/autorename_libavcodec_parser.c
+index a02f14efa31..67fbf18f40c 100644
+--- a/libavcodec/autorename_libavcodec_parser.c
++++ b/libavcodec/autorename_libavcodec_parser.c
+@@ -1,2 +1,2 @@
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
+ #include "parser.c"
 diff --git a/libavcodec/autorename_libavcodec_sbrdsp.c b/libavcodec/autorename_libavcodec_sbrdsp.c
-index 1b315b942e..5f79c7b87e 100644
+index 7e7329ee292..f78e1e414af 100644
 --- a/libavcodec/autorename_libavcodec_sbrdsp.c
 +++ b/libavcodec/autorename_libavcodec_sbrdsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "sbrdsp.c"
 diff --git a/libavcodec/autorename_libavcodec_videodsp.c b/libavcodec/autorename_libavcodec_videodsp.c
-index 9659f201e2..f1a142f761 100644
+index 6abf2265ea5..8eea1467ac0 100644
 --- a/libavcodec/autorename_libavcodec_videodsp.c
 +++ b/libavcodec/autorename_libavcodec_videodsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "videodsp.c"
 diff --git a/libavcodec/autorename_libavcodec_vorbisdsp.c b/libavcodec/autorename_libavcodec_vorbisdsp.c
-index baa2668228..e591452605 100644
+index 615245fa4b0..85f131c378c 100644
 --- a/libavcodec/autorename_libavcodec_vorbisdsp.c
 +++ b/libavcodec/autorename_libavcodec_vorbisdsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "vorbisdsp.c"
 diff --git a/libavcodec/x86/autorename_libavcodec_x86_aacpsdsp_init.c b/libavcodec/x86/autorename_libavcodec_x86_aacpsdsp_init.c
 new file mode 100644
-index 0000000000..8554319e99
+index 00000000000..169e3254299
 --- /dev/null
 +++ b/libavcodec/x86/autorename_libavcodec_x86_aacpsdsp_init.c
 @@ -0,0 +1,2 @@
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
 +#include "aacpsdsp_init.c"
 diff --git a/libavcodec/x86/autorename_libavcodec_x86_flacdsp_init.c b/libavcodec/x86/autorename_libavcodec_x86_flacdsp_init.c
 new file mode 100644
-index 0000000000..747fae992f
+index 00000000000..b55d63f032a
 --- /dev/null
 +++ b/libavcodec/x86/autorename_libavcodec_x86_flacdsp_init.c
 @@ -0,0 +1,2 @@
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
 +#include "flacdsp_init.c"
 diff --git a/libavcodec/x86/autorename_libavcodec_x86_h264dsp_init.c b/libavcodec/x86/autorename_libavcodec_x86_h264dsp_init.c
 new file mode 100644
-index 0000000000..a816f38434
+index 00000000000..40a97156593
 --- /dev/null
 +++ b/libavcodec/x86/autorename_libavcodec_x86_h264dsp_init.c
 @@ -0,0 +1,2 @@
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
 +#include "h264dsp_init.c"
 diff --git a/libavcodec/x86/autorename_libavcodec_x86_sbrdsp_init.c b/libavcodec/x86/autorename_libavcodec_x86_sbrdsp_init.c
 new file mode 100644
-index 0000000000..cf76f6ac1a
+index 00000000000..54260957e1a
 --- /dev/null
 +++ b/libavcodec/x86/autorename_libavcodec_x86_sbrdsp_init.c
 @@ -0,0 +1,2 @@
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
 +#include "sbrdsp_init.c"
+diff --git a/libavcodec/x86/autorename_libavcodec_x86_videodsp.asm b/libavcodec/x86/autorename_libavcodec_x86_videodsp.asm
+index 5a7e435ea51..8021ff7aad6 100644
+--- a/libavcodec/x86/autorename_libavcodec_x86_videodsp.asm
++++ b/libavcodec/x86/autorename_libavcodec_x86_videodsp.asm
+@@ -1,2 +1,2 @@
+-; Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++; Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
+ %include "videodsp.asm"
+diff --git a/libavcodec/x86/autorename_libavcodec_x86_videodsp_init.c b/libavcodec/x86/autorename_libavcodec_x86_videodsp_init.c
+new file mode 100644
+index 00000000000..9e6e9a3722f
+--- /dev/null
++++ b/libavcodec/x86/autorename_libavcodec_x86_videodsp_init.c
+@@ -0,0 +1,2 @@
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
++#include "videodsp_init.c"
 diff --git a/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp_init.c b/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp_init.c
-index 0b8302fcca..d674c634eb 100644
+index 190ebbb1e87..a64d2172153 100644
 --- a/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp_init.c
 +++ b/libavcodec/x86/autorename_libavcodec_x86_vorbisdsp_init.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "vorbisdsp_init.c"
 diff --git a/libavformat/autorename_libavformat_aacdec.c b/libavformat/autorename_libavformat_aacdec.c
-index 530499f05d..22a8e984ff 100644
+index 10783242845..1b28ca7e58f 100644
 --- a/libavformat/autorename_libavformat_aacdec.c
 +++ b/libavformat/autorename_libavformat_aacdec.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "aacdec.c"
 diff --git a/libavformat/autorename_libavformat_flacdec.c b/libavformat/autorename_libavformat_flacdec.c
-index 1756d5835d..73eb31a6d7 100644
+index c3182efaaa0..be17d3565e7 100644
 --- a/libavformat/autorename_libavformat_flacdec.c
 +++ b/libavformat/autorename_libavformat_flacdec.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "flacdec.c"
 diff --git a/libavformat/autorename_libavformat_options.c b/libavformat/autorename_libavformat_options.c
-index afce82194e..aab957b1ee 100644
+index f4170795fa1..f663d317a98 100644
 --- a/libavformat/autorename_libavformat_options.c
 +++ b/libavformat/autorename_libavformat_options.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "options.c"
 diff --git a/libavformat/autorename_libavformat_pcm.c b/libavformat/autorename_libavformat_pcm.c
-index bda4f87ea3..b66136bf3b 100644
+index 52bf7231f86..c5b8d5df50f 100644
 --- a/libavformat/autorename_libavformat_pcm.c
 +++ b/libavformat/autorename_libavformat_pcm.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "pcm.c"
 diff --git a/libavformat/autorename_libavformat_utils.c b/libavformat/autorename_libavformat_utils.c
-index fbd6d7aff2..975dfdb996 100644
+index 4ffd8a131da..875aa06d73a 100644
 --- a/libavformat/autorename_libavformat_utils.c
 +++ b/libavformat/autorename_libavformat_utils.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "utils.c"
 diff --git a/libavformat/autorename_libavformat_version.c b/libavformat/autorename_libavformat_version.c
-index 440081628a..679a405b1d 100644
+index 5310985dd2f..cb861468c27 100644
 --- a/libavformat/autorename_libavformat_version.c
 +++ b/libavformat/autorename_libavformat_version.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "version.c"
 diff --git a/libavutil/autorename_libavutil_cpu.c b/libavutil/autorename_libavutil_cpu.c
-index b90c1a3272..44a6a1bf7d 100644
+index 6db5c5a823c..78634bf62c9 100644
 --- a/libavutil/autorename_libavutil_cpu.c
 +++ b/libavutil/autorename_libavutil_cpu.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "cpu.c"
 diff --git a/libavutil/autorename_libavutil_fixed_dsp.c b/libavutil/autorename_libavutil_fixed_dsp.c
-index 99603c538f..be644be08f 100644
+index 5a609e99f28..73692572a97 100644
 --- a/libavutil/autorename_libavutil_fixed_dsp.c
 +++ b/libavutil/autorename_libavutil_fixed_dsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "fixed_dsp.c"
 diff --git a/libavutil/autorename_libavutil_float_dsp.c b/libavutil/autorename_libavutil_float_dsp.c
-index ad323438ec..23db39cc91 100644
+index 0179260e8ab..47059b8b34d 100644
 --- a/libavutil/autorename_libavutil_float_dsp.c
 +++ b/libavutil/autorename_libavutil_float_dsp.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "float_dsp.c"
 diff --git a/libavutil/autorename_libavutil_imgutils.c b/libavutil/autorename_libavutil_imgutils.c
-index 1e45fc4769..62cd5b9361 100644
+index aa19b43350d..1cd7d8a1732 100644
 --- a/libavutil/autorename_libavutil_imgutils.c
 +++ b/libavutil/autorename_libavutil_imgutils.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "imgutils.c"
 diff --git a/libavutil/autorename_libavutil_tx_float.c b/libavutil/autorename_libavutil_tx_float.c
-index 98680c6e89..a4cf9d8b98 100644
+index 179d0975ead..b4fc079639c 100644
 --- a/libavutil/autorename_libavutil_tx_float.c
 +++ b/libavutil/autorename_libavutil_tx_float.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "tx_float.c"
 diff --git a/libavutil/autorename_libavutil_utils.c b/libavutil/autorename_libavutil_utils.c
-index fbd6d7aff2..975dfdb996 100644
+index 4ffd8a131da..875aa06d73a 100644
 --- a/libavutil/autorename_libavutil_utils.c
 +++ b/libavutil/autorename_libavutil_utils.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "utils.c"
 diff --git a/libavutil/autorename_libavutil_version.c b/libavutil/autorename_libavutil_version.c
-index 440081628a..679a405b1d 100644
+index 5310985dd2f..cb861468c27 100644
 --- a/libavutil/autorename_libavutil_version.c
 +++ b/libavutil/autorename_libavutil_version.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "version.c"
 diff --git a/libavutil/x86/autorename_libavutil_x86_cpu.c b/libavutil/x86/autorename_libavutil_x86_cpu.c
-index b90c1a3272..44a6a1bf7d 100644
+index 6db5c5a823c..78634bf62c9 100644
 --- a/libavutil/x86/autorename_libavutil_x86_cpu.c
 +++ b/libavutil/x86/autorename_libavutil_x86_cpu.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "cpu.c"
 diff --git a/libavutil/x86/autorename_libavutil_x86_fixed_dsp_init.c b/libavutil/x86/autorename_libavutil_x86_fixed_dsp_init.c
 new file mode 100644
-index 0000000000..5482b490cc
+index 00000000000..4472a23a666
 --- /dev/null
 +++ b/libavutil/x86/autorename_libavutil_x86_fixed_dsp_init.c
 @@ -0,0 +1,2 @@
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
 +#include "fixed_dsp_init.c"
 diff --git a/libavutil/x86/autorename_libavutil_x86_float_dsp_init.c b/libavutil/x86/autorename_libavutil_x86_float_dsp_init.c
-index 7305f1f9b5..a535e3d4c9 100644
+index 3e2cda16e0a..2bb3d09e4d9 100644
 --- a/libavutil/x86/autorename_libavutil_x86_float_dsp_init.c
 +++ b/libavutil/x86/autorename_libavutil_x86_float_dsp_init.c
 @@ -1,2 +1,2 @@
--// Automatically generated on Mon Jul 22 22:30:21 2024. See crbug.com/495833.
-+// Automatically generated on Sun Sep 15 16:34:25 2024. See crbug.com/495833.
+-// Automatically generated on Tue Sep 24 17:20:58 2024. See crbug.com/495833.
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
  #include "float_dsp_init.c"
+diff --git a/libavutil/x86/autorename_libavutil_x86_lls_init.c b/libavutil/x86/autorename_libavutil_x86_lls_init.c
+new file mode 100644
+index 00000000000..44443e6bab3
+--- /dev/null
++++ b/libavutil/x86/autorename_libavutil_x86_lls_init.c
+@@ -0,0 +1,2 @@
++// Automatically generated on Wed Nov 13 13:25:52 2024. See crbug.com/495833.
++#include "lls_init.c"
 -- 
 2.39.2
 

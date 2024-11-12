@@ -1,0 +1,26 @@
+diff --git a/components/variations/proto/study.proto b/components/variations/proto/study.proto
+index 7ef5eb238e1a..6723b257dce7 100644
+--- a/components/variations/proto/study.proto
++++ b/components/variations/proto/study.proto
+@@ -262,6 +262,7 @@ message Study {
+     // A Mac-only value, indicating an x86-64 binary running on an arm64 host
+     // via "Rosetta 2" binary translation.
+     TRANSLATED_X86_64 = 4;
++    RISCV64 = 5;
+   }
+ 
+   // Enum to pass as optional bool.
+diff --git a/components/variations/service/variations_field_trial_creator_base.cc b/components/variations/service/variations_field_trial_creator_base.cc
+index d97f5f584a8a..0f14f0b1c4de 100644
+--- a/components/variations/service/variations_field_trial_creator_base.cc
++++ b/components/variations/service/variations_field_trial_creator_base.cc
+@@ -120,6 +120,9 @@ Study::CpuArchitecture GetCurrentCpuArchitecture() {
+     }
+     return Study::X86_64;
+   }
++  if (process_arch == "RISCV_64") {
++    return Study::RISCV64;
++  }
+   NOTREACHED_IN_MIGRATION();
+   return Study::X86_64;
+ }
