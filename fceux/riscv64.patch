@@ -1,6 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,6 +17,8 @@ b2sums=('SKIP')
+@@ -15,10 +15,12 @@ optdepends=('ffmpeg: for recording')
+ source=("git+$url#commit=34eb7601c415b81901fd02afbd5cfdc84b5047ac" # tag: v2.6.6
+          x265-4.0.patch)
+ b2sums=('df1b8706f3639c52ec5905a542052ee0eb7c5a727c9ee27af7c9f53b2b9f97b0445c6c6ff9f9504cef51a90cddc97b08b7f92ee7882de1bfb2baf879eac613c1'
+-        'cba322a2d9aa02c1440dad5f91dfff219778b79f1373716f4f32b55a98198242ff191e43239d6bff2d9bcc52161b6e7b08356b11ee02c1c599578dc18ec7f8b2')
++        'f23871c599480c3ad19ecedfa611ac1c65800a65db0d65cc92113bf84aad17329bb487691a258495e38cac3302a1bd7dc49fc7de5dfb9cfa0cd92d5fc7d24a06')
  
  prepare() {
    cd $pkgname
@@ -9,3 +14,81 @@
    sed -i 's/-interim git//g' src/version.h
    setconf scripts/genGitHdr.sh GIT_URL "'""${source:4:34}""'"
    setconf scripts/genGitHdr.sh GIT_REV "${source#*=}"
+diff --git x265-4.0.patch x265-4.0.patch
+index 64cdd44..cdb87dc 100644
+--- x265-4.0.patch
++++ x265-4.0.patch
+@@ -1,31 +1,47 @@
++From 7fad5b268c41d53c73e2a64b0e94cae507180e4a Mon Sep 17 00:00:00 2001
++From: PukNgae Cryolitia <Cryolitia@gmail.com>
++Date: Tue, 12 Nov 2024 08:33:43 +0800
++Subject: [PATCH] fix: Handle API changes for scalable layers output in x265
++ 4.0
++
++Link: https://code.videolan.org/videolan/vlc/-/merge_requests/6167
++Link: https://bitbucket.org/multicoreware/x265_git/commits/c69c113960834400545bc4bce2830ff51dcb86b3
++---
++ src/drivers/Qt/AviRecord.cpp | 16 +++++++++++++++-
++ 1 file changed, 15 insertions(+), 1 deletion(-)
++
+ diff --git a/src/drivers/Qt/AviRecord.cpp b/src/drivers/Qt/AviRecord.cpp
+-index e6a695d9..0b7d4c25 100644
++index cf1086660..dcd74d01f 100644
+ --- a/src/drivers/Qt/AviRecord.cpp
+ +++ b/src/drivers/Qt/AviRecord.cpp
+-@@ -388,7 +388,7 @@ namespace X265
+- {
+- static x265_param *param = NULL;
+- static x265_picture *pic = NULL;
+--static x265_picture pic_out;
+-+static x265_picture *pic_out;
+- static x265_encoder *hdl = NULL;
+- static x265_nal *nal = NULL;
+- static unsigned int i_nal = 0;
+-@@ -471,7 +471,7 @@ static int encode_frame( unsigned char *inBuf, int width, int height )
+- 		flags = 0;
+- 		totalPayload = 0;
++@@ -461,7 +461,14 @@ static int encode_frame( unsigned char *inBuf, int width, int height )
++ 	pic->stride[1] = width/2;
++ 	pic->stride[2] = width/2;
+  
+--		if ( IS_X265_TYPE_I(pic_out.sliceType) )
+-+		if ( IS_X265_TYPE_I(pic_out->sliceType) )
+- 		{
+- 			flags |= gwavi_t::IF_KEYFRAME;
+- 		}
+-@@ -504,7 +504,7 @@ static int close(void)
+- 		totalPayload = 0;
+- 		flags = 0;
+++#ifdef MAX_SCALABLE_LAYERS
+++	/* Handle API changes for scalable layers output in x265 4.0 */
+++	x265_picture *pics[MAX_SCALABLE_LAYERS] = {NULL};
+++	pics[0] = pic;
+++	ret = x265_encoder_encode( hdl, &nal, &i_nal, pic, pics );
+++#else
++ 	ret = x265_encoder_encode( hdl, &nal, &i_nal, pic, &pic_out );
+++#endif
+  
+--		if ( IS_X265_TYPE_I(pic_out.sliceType) )
+-+		if ( IS_X265_TYPE_I(pic_out->sliceType) )
+- 		{
+- 			flags |= gwavi_t::IF_KEYFRAME;
+- 		}
++ 	if ( ret <= 0 )
++ 	{
++@@ -494,7 +501,14 @@ static int close(void)
++ 	/* Flush delayed frames */
++ 	while( hdl != NULL )
++ 	{
++-	    ret = x265_encoder_encode( hdl, &nal, &i_nal, NULL, &pic_out );
+++#ifdef MAX_SCALABLE_LAYERS
+++	    /* Handle API changes for scalable layers output in x265 4.0 */
+++	    x265_picture *pics[MAX_SCALABLE_LAYERS] = {NULL};
+++	    pics[0] = pic;
+++	    ret = x265_encoder_encode( hdl, &nal, &i_nal, pic, pics );
+++#else
+++	    ret = x265_encoder_encode( hdl, &nal, &i_nal, pic, &pic_out );
+++#endif
++ 
++ 	    if ( ret <= 0 )
++ 	    {
