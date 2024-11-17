@@ -1,0 +1,206 @@
+diff --git a/bridges/Library_cpp_uno.mk b/bridges/Library_cpp_uno.mk
+index e2de3c167..7b73c68a7 100644
+--- a/bridges/Library_cpp_uno.mk
++++ b/bridges/Library_cpp_uno.mk
+@@ -114,6 +114,15 @@ bridge_noopt_objects := cpp2uno uno2cpp
+ bridge_exception_objects := except
+ endif
+ 
++else ifeq ($(CPUNAME),RISCV64)
++
++ifneq ($(filter LINUX,$(OS)),)
++bridges_SELECTED_BRIDGE := gcc3_linux_riscv64
++bridge_asm_objects := call
++bridge_noopt_objects := abi cpp2uno uno2cpp
++bridge_exception_objects := except
++endif
++
+ else ifeq ($(CPUNAME),POWERPC)
+ 
+ ifneq ($(filter DRAGONFLY FREEBSD LINUX NETBSD OPENBSD,$(OS)),)
+diff --git a/external/firebird/UnpackedTarball_firebird.mk b/external/firebird/UnpackedTarball_firebird.mk
+index 0233ce24d..7196be74d 100644
+--- a/external/firebird/UnpackedTarball_firebird.mk
++++ b/external/firebird/UnpackedTarball_firebird.mk
+@@ -48,6 +48,7 @@ $(eval $(call gb_UnpackedTarball_add_patches,firebird,\
+     external/firebird/0001-extern-cloop-Missing-dependencies-of-compilations-on.patch.1 \
+     external/firebird/configure-c99.patch \
+     external/firebird/Wincompatible-function-pointer-types.patch \
++    external/firebird/firebird-riscv64-support.patch.1 \
+ ))
+ 
+ ifeq ($(OS),WNT)
+diff --git a/external/firebird/firebird-riscv64-support.patch.1 b/external/firebird/firebird-riscv64-support.patch.1
+new file mode 100644
+index 000000000..c42ebbc15
+--- /dev/null
++++ b/external/firebird/firebird-riscv64-support.patch.1
+@@ -0,0 +1,168 @@
++diff --git a/builds/posix/prefix.linux_riscv64 b/builds/posix/prefix.linux_riscv64
++new file mode 100644
++index 0000000..17e67e8
++--- /dev/null
+++++ b/builds/posix/prefix.linux_riscv64
++@@ -0,0 +1,28 @@
+++# The contents of this file are subject to the Interbase Public
+++# License Version 1.0 (the "License"); you may not use this file
+++# except in compliance with the License. You may obtain a copy
+++# of the License at http://www.Inprise.com/IPL.html
+++#
+++# Software distributed under the License is distributed on an
+++# "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express
+++# or implied. See the License for the specific language governing
+++# rights and limitations under the License.
+++#
+++# The Original Code was created by Inprise Corporation
+++# and its predecessors. Portions created by Inprise Corporation are
+++# Copyright (C) Inprise Corporation.
+++#
+++# All Rights Reserved.
+++# Contributor(s): ______________________________________.
+++# Start of file prefix.linux:  $(VERSION)  $(PLATFORM)
+++#      14 Apr 2008     Alan Barclay    alan AT escribe.co.uk
+++#      2018, "Manuel A. Fernandez Montecelo" <manuel.montezelo@gmail.com>
+++
+++
+++#LD=@CXX@
+++
+++#PROD_FLAGS=-ggdb -O3 -fno-omit-frame-pointer -DLINUX -pipe -MMD -fPIC
+++#DEV_FLAGS=-ggdb -DLINUX -DDEBUG_GDS_ALLOC -pipe -MMD -p -fPIC -Wall -Wno-switch
+++
+++PROD_FLAGS=-O3 -DLINUX -DRISCV64 -pipe -p -MMD -fPIC -fsigned-char -fmessage-length=0 -std=gnu++03 -fno-delete-null-pointer-checks
+++DEV_FLAGS=-ggdb -DLINUX -DRISCV64 -pipe -p -MMD -fPIC -Wall -fsigned-char -fmessage-length=0 -Wno-non-virtual-dtor
++diff --git a/configure b/configure
++index 34e0676..a287e4b 100755
++--- a/configure
+++++ b/configure
++@@ -3071,6 +3071,20 @@ $as_echo "#define LINUX 1" >>confdefs.h
++     INSTALL_PREFIX=linux
++     PLATFORM=LINUX
++ 
+++$as_echo "#define LINUX 1" >>confdefs.h
+++
+++    EDITLINE_FLG=Y
+++    SHRLIB_EXT=so
+++    STD_EDITLINE=true
+++    STD_ICU=true
+++    libdir=/usr/lib64
+++    ;;
+++
+++  riscv64*-*-linux*)
+++    MAKEFILE_PREFIX=linux_riscv64
+++    INSTALL_PREFIX=linux
+++    PLATFORM=LINUX
+++
++ $as_echo "#define LINUX 1" >>confdefs.h
++ 
++     EDITLINE_FLG=Y
++diff --git a/configure.ac b/configure.ac
++index 9412b10..ed50d32 100644
++--- a/configure.ac
+++++ b/configure.ac
++@@ -251,6 +251,18 @@ dnl CPU_TYPE=ppc64
++     libdir=/usr/lib64
++     ;;
++ 
+++  riscv64*-*-linux*)
+++    MAKEFILE_PREFIX=linux_riscv64
+++    INSTALL_PREFIX=linux
+++    PLATFORM=LINUX
+++    AC_DEFINE(LINUX, 1, [Define this if OS is Linux])
+++    EDITLINE_FLG=Y
+++    SHRLIB_EXT=so
+++    STD_EDITLINE=true
+++    STD_ICU=true
+++    libdir=/usr/lib64
+++    ;;
+++
++   powerpc64le-*-linux*)                           
++     MAKEFILE_PREFIX=linux_powerpc64el
++     INSTALL_PREFIX=linux
++diff --git a/src/common/classes/DbImplementation.cpp b/src/common/classes/DbImplementation.cpp
++index 0c2db79..112da37 100644
++--- a/src/common/classes/DbImplementation.cpp
+++++ b/src/common/classes/DbImplementation.cpp
++@@ -49,6 +49,7 @@ static const UCHAR CpuAlpha = 14;
++ static const UCHAR CpuArm64 = 15;
++ static const UCHAR CpuPowerPc64el = 16;
++ static const UCHAR CpuM68k = 17;
+++static const UCHAR CpuRiscV64 = 18;
++ 
++ static const UCHAR OsWindows = 0;
++ static const UCHAR OsLinux = 1;
++@@ -89,7 +90,8 @@ const char* hardware[] = {
++ 	"Alpha",
++ 	"ARM64",
++ 	"PowerPC64el",
++-	"M68k"
+++	"M68k",
+++	"RiscV64"
++ };
++ 
++ const char* operatingSystem[] = {
++@@ -116,22 +118,23 @@ const char* compiler[] = {
++ // This table lists pre-fb3 implementation codes
++ const UCHAR backwardTable[FB_NELEM(hardware) * FB_NELEM(operatingSystem)] =
++ {
++-//				Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PowerPC64el
++-/* Windows */	50,		68,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* Linux */		60,		66,		65,		69,		86,		71,		72,		75, 	76,		79, 	78,		80,		81,		82,		83,		84,		85,
++-/* Darwin */	70,		73,		0,		63,		77,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* Solaris */	0,		0,		30,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* HPUX */		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		31,		0,		0,		0,
++-/* AIX */			0,		0,		0,		35,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* MVS */			0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* FreeBSD */	61,		67,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
++-/* NetBSD */	62,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0
+++//				Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PPC64el	M68k	RiscV64
+++/* Windows */	50,		68,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* Linux */ 	60,		66,		65,		69,		86,		71,		72,		75, 	76,		79, 	78,		80,		81,		82,		83,		84,		85,		87,		88,
+++/* Darwin */	70,		73,		0,		63,		77,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* Solaris */	0,		0,		30,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* HPUX */		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		31,		0,		0,		0,		0,		0,
+++/* AIX */			0,		0,		0,		35,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* MVS */			0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* FreeBSD */	61,		67,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,
+++/* NetBSD */	62,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0,		0
++ };
++ 
+++
++ const UCHAR backEndianess[FB_NELEM(hardware)] =
++ {
++-//	Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PowerPC64el	M68k
++-	0,		0,		1,		1,		1,		0,		1,		0,		0,		1,		1,		0,		1,		1,		0,		0,		0,		1
+++//	Intel	AMD		Sparc	PPC		PPC64	MIPSEL	MIPS	ARM		IA64	s390	s390x	SH		SHEB	HPPA	Alpha	ARM64	PPC64el	M68k	RiscV64
+++	0,		0,		1,		1,		1,		0,		1,		0,		0,		1,		1,		0,		1,		1,		0,		0,		0,		1,		0,
++ };
++ 
++ } // anonymous namespace
++diff --git a/src/common/common.h b/src/common/common.h
++index 58abaaf..365b97e 100644
++--- a/src/common/common.h
+++++ b/src/common/common.h
++@@ -135,6 +135,10 @@
++ #define FB_CPU CpuArm64
++ #endif /* ARM64 */
++ 
+++#ifdef RISCV64
+++#define FB_CPU CpuRiscV64
+++#endif /* RISCV64 */
+++
++ #ifdef sparc
++ #define FB_CPU CpuUltraSparc
++ #define RISC_ALIGNMENT
++diff --git a/src/jrd/inf_pub.h b/src/jrd/inf_pub.h
++index 3cc0128..76469c1 100644
++--- a/src/jrd/inf_pub.h
+++++ b/src/jrd/inf_pub.h
++@@ -245,7 +245,7 @@ enum  info_db_implementations
++ 	isc_info_db_impl_linux_ppc64el = 85,
++ 	isc_info_db_impl_linux_ppc64 = 86,
++ 	isc_info_db_impl_linux_m68k = 87,
++-
+++	isc_info_db_impl_linux_riscv64 = 88,
++ 
++ 	isc_info_db_impl_last_value   // Leave this LAST!
++ };
