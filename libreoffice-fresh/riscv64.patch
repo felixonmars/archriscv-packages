@@ -1,40 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -65,7 +65,8 @@ source=(${_mirror}/libreoffice{,-help,-translations}-${_LOver}.tar.xz{,.asc}
-     623ea5c.diff
-     libreoffice-7.5.8.2-icu-74-compatibility.patch
-     soffice-template.desktop.in 
--    libreoffice-fresh.sh libreoffice-fresh.csh)
-+    libreoffice-fresh.sh libreoffice-fresh.csh
-+    "riscv64-support.patch")
- noextract=(35c94d2df8893241173de1d16b6034c0-swingExSrc.zip
-            798b2ffdc8bcfe7bca2cf92b62caf685-rhino1_5R5.zip
-            a7983f859eafb2677d7ff386a023bc40-xsltml_2.1.2.zip
-@@ -119,7 +120,8 @@ sha256sums=('c205a65042f65c94b54ea310344b851043633c3eb5259f4e567d9341aae5e45e'
-             'd7b952a51e1e40d3faf2f465b68f46d56828d8c46948748fa82fe82a29af2599'
-             'd0be8099cbee3c9dfda694a828149b881c345b204ab68826f317580aafb50879'
-             '9fb33dbc3ffeb6af2ea7341b58242142d4eca903584c21c5f4b44ff27fbf5b5f'
--            '512355b5ef646791089da8c2b35cf8b019673c0c8a58685962af3b5d9eb5d6bb')
-+            '512355b5ef646791089da8c2b35cf8b019673c0c8a58685962af3b5d9eb5d6bb'
-+            '3f05bb4d781d331c5cfa2600866be7e10c6b23406ce890c3db741a2db76e79e2')
+@@ -137,6 +137,8 @@ prepare() {
+     export CXXFLAGS="$ARCH_FLAGS"
  
- prepare() {
- 
-@@ -142,6 +144,8 @@ prepare() {
-     # fix build with icu 74
-     patch -Np1 -i "${srcdir}"/libreoffice-7.5.8.2-icu-74-compatibility.patch
- 
-+    patch -Np1 -i "${srcdir}"/riscv64-support.patch
+     patch -p1 -i ../poppler-24.10.patch # Fix build with Poppler 24.10 (KaoS patch)
 +
-     #use the CFLAGS but remove the LibO overridden ones
-     for i in $CFLAGS; do
-         case "$i" in
-@@ -198,7 +202,7 @@ build() {
-         --enable-gtk3 \
-         --enable-gtk4 \
-         --enable-introspection \
--        --enable-lto \
-+        --disable-lto \
-         --enable-openssl \
-         --enable-odk\
-         --enable-python=system \
++    patch -p1 -i ../riscv64-support.patch
+ }
+ 
+ build() {
+@@ -424,3 +426,6 @@ package_libreoffice-fresh() {
+     'sid','sk','sl','sq','sv','ta','tg','tr','ug','uk','vi','zh-CN','zh-TW'])" \
+         > "${pkgdir}"/usr/lib/libreoffice/help/languages.js
+ }
++
++source+=(riscv64-support.patch)
++sha256sums+=('c5615aa1437a2a3ac7fbba749dc7ee0c0b3406346d501e500837ed1f68878c23')
