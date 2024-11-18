@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,6 +38,7 @@
+@@ -41,6 +41,7 @@ b2sums=('78fdd9d59d9f9f5bf3d65901fa8cf44d42ffedf3bd48552575febeb3a35d24567b209e2
  case "${CARCH}" in
    'x86_64') _JARCH=amd64 ; _DOC_ARCH=x86_64 ;;
    'i686'  ) _JARCH=i386  ; _DOC_ARCH=x86    ;;
@@ -8,29 +8,29 @@
  esac
  
  _jdkname=openjdk8
-@@ -54,6 +55,10 @@
+@@ -57,6 +58,10 @@ prepare() {
  
    # Fix build with C++17 (Fedora)
    patch -Np1 -i "${srcdir}"/gcc11.patch
 +
 +  # RISC-V Support
-+  patch -Np1 -i "${srcdir}"/java8-openjdk-add-riscv-support.patch
++  patch -Np2 -i "${srcdir}"/jdk8-riscv.patch
 +  (cd common/autoconf && bash ./autogen.sh)
  }
  
  build() {
-@@ -79,7 +84,9 @@
-     --with-zlib=system \
+@@ -83,7 +88,9 @@ build() {
      --with-extra-cflags="${CFLAGS}" \
      --with-extra-cxxflags="${CXXFLAGS}" \
--    --with-extra-ldflags="${LDFLAGS}"
-+    --with-extra-ldflags="${LDFLAGS}" \
+     --with-extra-ldflags="${LDFLAGS}" \
+-    --with-vendor-name="Arch Linux"
++    --with-vendor-name="Arch Linux" \
 +    --with-jvm-variants=zero \
 +    --disable-jfr
  
    # These help to debug builds: LOG=trace HOTSPOT_BUILD_JOBS=1
    # Without 'DEBUG_BINARIES', i686 won't build: http://mail.openjdk.java.net/pipermail/core-libs-dev/2013-July/019203.html
-@@ -275,8 +282,11 @@
+@@ -279,8 +286,11 @@ package_openjdk8-doc() {
    pkgdesc='OpenJDK Java 8 documentation'
  
    install -d -m 755 "${pkgdir}/usr/share/doc/${pkgbase}/"
@@ -39,7 +39,7 @@
      "${pkgdir}/usr/share/doc/${pkgbase}/"
  }
  
-+source+=(java8-openjdk-add-riscv-support.patch::https://gitee.com/misaka00251/openjdk-1.8.0/raw/e4b9d135939e2263146905911ad100424101e305/add-riscv-support.patch)
-+b2sums+=('86cd7d1079944b29441227da00df2c4ee45ccf6c95a5c20eb9cc5e9d02e9fa6b6c8d26f69216b42d8e7832ad0f592a689464521765622f9355f4184ff87b6f06')
++source+=(jdk8-riscv.patch)
++b2sums+=('f4b11b447bc36cdd26d2b157d7c6c2311e5b98fcae0c9e8d0507345c31a8a8f20c6c2af356ae87594e4d37fd5e7ba9d93441f273ca0578132c7ffb24a9b983f9')
 +
  # vim: ts=2 sw=2 et:
