@@ -1,21 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,6 +20,8 @@ prepare() {
+@@ -22,6 +22,9 @@ prepare() {
  	export npm_config_build_from_source=true
  	export npm_config_cache="$srcdir/npm_cache"
  
 +	sed -i '/postinstall/d' apps/desktop/package.json
 +	sed -i '/electron/d' package.json
++
  	npm ci
+ 	patch -p1 -i "$srcdir/system-libargon2.patch"
  }
- 
-@@ -34,6 +36,9 @@ build() {
- package() {
- 	cd bitwarden/apps/cli
- 	npm install --production -g --prefix "$pkgdir"/usr $(npm pack . | tail -1)
-+	
-+	# Clean up the build dir of argon2 so that we won't end up packaging these rubbish.
-+	rm -rf "$pkgdir"/usr/lib/node_modules/@bitwarden/cli/node_modules/argon2/build-tmp-napi-v3/
- 
- 	# Non-deterministic race in npm gives 777 permissions to random directories.
- 	# See https://github.com/npm/npm/issues/9359 for details.
