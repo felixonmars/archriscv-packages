@@ -1,8 +1,56 @@
+diff --git a/.changeset/tasty-shrimps-flash.md b/.changeset/tasty-shrimps-flash.md
+new file mode 100644
+index 000000000..7a8431ac9
+--- /dev/null
++++ b/.changeset/tasty-shrimps-flash.md
+@@ -0,0 +1,5 @@
++---
++"@pnpm/linux-riscv64": minor
++---
++
++Initial support for linux-riscv64
+diff --git a/.meta-updater/src/index.ts b/.meta-updater/src/index.ts
+index 8163ef305..00b28dc56 100644
+--- a/.meta-updater/src/index.ts
++++ b/.meta-updater/src/index.ts
+@@ -72,7 +72,7 @@ export default async (workspaceDir: string) => { // eslint-disable-line
+       if (dir.includes('artifacts') || manifest.name === '@pnpm/exe') {
+         manifest.version = pnpmVersion
+         if (manifest.name === '@pnpm/exe') {
+-          for (const depName of ['@pnpm/linux-arm64', '@pnpm/linux-x64', '@pnpm/win-x64', '@pnpm/win-arm64', '@pnpm/macos-x64', '@pnpm/macos-arm64']) {
++          for (const depName of ['@pnpm/linux-arm64', '@pnpm/linux-riscv64', '@pnpm/linux-x64', '@pnpm/win-x64', '@pnpm/win-arm64', '@pnpm/macos-x64', '@pnpm/macos-arm64']) {
+             manifest.optionalDependencies![depName] = 'workspace:*'
+           }
+         }
+diff --git a/__utils__/scripts/src/copy-artifacts.ts b/__utils__/scripts/src/copy-artifacts.ts
+index 6ba12a7f2..171255119 100644
+--- a/__utils__/scripts/src/copy-artifacts.ts
++++ b/__utils__/scripts/src/copy-artifacts.ts
+@@ -19,6 +19,7 @@ const artifactsDir = path.join(repoRoot, 'pnpm/artifacts')
+   copyArtifact('linuxstatic-x64/pnpm', 'pnpm-linuxstatic-x64')
+   copyArtifact('linuxstatic-arm64/pnpm', 'pnpm-linuxstatic-arm64')
+   copyArtifact('linux-arm64/pnpm', 'pnpm-linux-arm64')
++  copyArtifact('linux-riscv64/pnpm', 'pnpm-linux-riscv64')
+   copyArtifact('macos-x64/pnpm', 'pnpm-macos-x64')
+   copyArtifact('macos-arm64/pnpm', 'pnpm-macos-arm64')
+   copyArtifact('win-x64/pnpm.exe', 'pnpm-win-x64.exe')
+diff --git a/cspell.json b/cspell.json
+index e4ac394ad..856d87e9a 100644
+--- a/cspell.json
++++ b/cspell.json
+@@ -213,6 +213,7 @@
+     "reka",
+     "relinks",
+     "reqheaders",
++    "riscv",
+     "rmgr",
+     "rpmdevtools",
+     "rpmlint",
 diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
-index 7a25346fb..5160d2e5f 100644
+index f862efd14..74eb85cbf 100644
 --- a/pnpm-lock.yaml
 +++ b/pnpm-lock.yaml
-@@ -4692,6 +4692,9 @@ importers:
+@@ -5971,6 +5971,9 @@ importers:
        '@pnpm/linux-arm64':
          specifier: workspace:*
          version: link:../linux-arm64
@@ -12,7 +60,7 @@ index 7a25346fb..5160d2e5f 100644
        '@pnpm/linux-x64':
          specifier: workspace:*
          version: link:../linux-x64
-@@ -4721,6 +4724,12 @@ importers:
+@@ -6003,6 +6006,12 @@ importers:
          specifier: workspace:*
          version: 'link:'
  
@@ -26,7 +74,7 @@ index 7a25346fb..5160d2e5f 100644
      devDependencies:
        '@pnpm/linux-x64':
 diff --git a/pnpm/artifacts/exe/package.json b/pnpm/artifacts/exe/package.json
-index a0427ab7f..d27fd0daa 100644
+index b30e509f4..a694475ca 100644
 --- a/pnpm/artifacts/exe/package.json
 +++ b/pnpm/artifacts/exe/package.json
 @@ -13,6 +13,7 @@
@@ -54,17 +102,11 @@ index 000000000..3a2d9d511
 +nodes
 diff --git a/pnpm/artifacts/linux-riscv64/CHANGELOG.md b/pnpm/artifacts/linux-riscv64/CHANGELOG.md
 new file mode 100644
-index 000000000..e311adc93
+index 000000000..4802615b1
 --- /dev/null
 +++ b/pnpm/artifacts/linux-riscv64/CHANGELOG.md
-@@ -0,0 +1,7 @@
+@@ -0,0 +1 @@
 +# @pnpm/linux-riscv64
-+
-+## 7.1.8
-+
-+### Patch Changes
-+
-+- 7fb1ac0e4: Fix pre-compiled pnpm binaries crashing when NODE_MODULES is set.
 diff --git a/pnpm/artifacts/linux-riscv64/README.md b/pnpm/artifacts/linux-riscv64/README.md
 new file mode 100644
 index 000000000..4802615b1
@@ -74,13 +116,13 @@ index 000000000..4802615b1
 +# @pnpm/linux-riscv64
 diff --git a/pnpm/artifacts/linux-riscv64/package.json b/pnpm/artifacts/linux-riscv64/package.json
 new file mode 100644
-index 000000000..30c63d0c5
+index 000000000..f3e35d182
 --- /dev/null
 +++ b/pnpm/artifacts/linux-riscv64/package.json
 @@ -0,0 +1,28 @@
 +{
 +  "name": "@pnpm/linux-riscv64",
-+  "version": "8.15.2",
++  "version": "9.12.3",
 +  "license": "MIT",
 +  "publishConfig": {
 +    "bin": {
@@ -94,15 +136,33 @@ index 000000000..30c63d0c5
 +    ]
 +  },
 +  "funding": "https://opencollective.com/pnpm",
-+  "repository": "https://github.com/pnpm/pnpm/blob/master/packages/artifacts/linux-riscv64",
-+  "homepage": "https://github.com/pnpm/pnpm/blob/master/packages/artifacts/linux-riscv64#readme",
++  "repository": "https://github.com/pnpm/pnpm/blob/master/packages/artifacts/linux-arm64",
++  "homepage": "https://github.com/pnpm/pnpm/blob/master/packages/artifacts/linux-arm64#readme",
 +  "bugs": {
 +    "url": "https://github.com/pnpm/pnpm/issues"
 +  },
 +  "keywords": [
-+    "pnpm8"
++    "pnpm10"
 +  ],
 +  "devDependencies": {
 +    "@pnpm/linux-riscv64": "workspace:*"
++  }
++}
+diff --git a/pnpm/package-linux-riscv64.json b/pnpm/package-linux-riscv64.json
+new file mode 100644
+index 000000000..9f1620a85
+--- /dev/null
++++ b/pnpm/package-linux-riscv64.json
+@@ -0,0 +1,12 @@
++{
++  "pkg": {
++    "assets": [
++      "dist/worker.js",
++      "dist/pnpmrc",
++      "dist/scripts/*",
++      "dist/templates/*"
++    ],
++    "targets": ["node20-linux-riscv64"],
++    "outputPath": "../linux-riscv64"
 +  }
 +}
