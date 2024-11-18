@@ -1,63 +1,21 @@
-diff --git PKGBUILD PKGBUILD
-index a2e53cb..70a91e6 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -4,7 +4,7 @@
- # Contributor: Kainoa Kanter <kainoa@t1c.dev>
+@@ -21,6 +21,11 @@ b2sums=('02154afa3129c64d2dc3365a49860748271003c25441fd663a1abfc6e7ef3b324a00576
+         '3aabf135c4f18e1ad745ae8800db782b25b15305dfeaaa031b4501408ab7e7d01f66e8ebb5be59fc813cfbff6788d08d2e48dcf24ecc480a40ec9db8dbce9fec'
+         'e8f2b19e2474f30a4f984b45787950012668bf0acb5ad1ebb25cd9776925ab4a6aa927f8131ed53e35b1c71b32c504c700fe5b5145ecd25c7a8284373bb951ed')
  
- pkgbase=ollama
--pkgname=(ollama ollama-cuda ollama-rocm)
-+pkgname=(ollama)
- pkgver=0.3.12
- _ollama_commit=e9e9bdb8d904f009e8b1e54af9f77624d481cfb2 # tag: v0.3.12
- pkgrel=1
-@@ -14,7 +14,7 @@ url='https://github.com/ollama/ollama'
- _llama_cpp_commit=$(curl -sL "https://github.com/ollama/ollama/tree/$_ollama_commit/llm" | tr ' ' '\n' | tr '"' '\n' | grep ggerganov | cut -d/ -f5 | head -1)
- license=(MIT)
- install=msg.install
--makedepends=(clblast cmake cuda git go rocm-hip-sdk rocm-opencl-sdk)
-+makedepends=(clblast cmake git go)
- source=(git+$url#commit=$_ollama_commit
-         llama.cpp::git+https://github.com/ggerganov/llama.cpp#commit=$_llama_cpp_commit
-         ollama.service
-@@ -36,6 +36,8 @@ prepare() {
-   # Set the CMake build type to "Release"
-   sed -i 's,T_CODE=on,T_CODE=on -D CMAKE_BUILD_TYPE=Release,g' $pkgbase/llm/generate/gen_linux.sh
- 
-+  patch -d $pkgbase -p1 < $pkgname-riscv-support.patch
++prepare() {
++  cd $pkgbase
++  patch -Np1 -i ../$pkgname-riscv-support.patch
++}
 +
-   # Copy the ollama directory to ollama-cuda and ollama-rocm
-   cp -r $pkgbase $pkgbase-cuda
-   cp -r $pkgbase $pkgbase-rocm
-@@ -61,6 +63,7 @@ build() {
-   cd $pkgbase
-   go generate ./...
-   go build $goflags -ldflags="$ldflags"
-+  return
- 
-   # Ollama with CUDA support
-   cd "$srcdir/$pkgbase-cuda"
-@@ -83,15 +86,9 @@ build() {
- 
- check() {
-   $pkgbase/$pkgbase --version > /dev/null
--  $pkgbase-cuda/$pkgbase --version > /dev/null
--  $pkgbase-rocm/$pkgbase --version > /dev/null
--
-+  
-   cd $pkgbase
-   go test .
--  cd ../$pkgbase-cuda
--  go test .
--  cd ../$pkgbase-rocm
--  go test .
- }
- 
- package_ollama() {
-@@ -139,3 +136,6 @@ package_ollama-rocm() {
- 
-   ln -s /var/lib/ollama "$pkgdir/usr/share/ollama"
+ build() {
+   export CFLAGS+=' -w' CXXFLAGS+=' -w'
+   export LDFLAGS+=' -L/opt/cuda/targets/x86_64-linux/lib/stubs/'
+@@ -62,3 +67,6 @@ package_ollama-docs() {
+   cp -r $pkgbase/docs "$pkgdir/usr/share/doc/$pkgbase"
+   install -Dm644 $pkgbase/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
 +
-+source+=($pkgname-riscv-support.patch::https://github.com/ollama/ollama/pull/6627.patch)
-+b2sums+=('cf0bc96cb57415c0f86d8e5d460b72339eeb7ac511d197424447dceb3795a112a8b8c13b531d412ab71757fd9ee11ff493d8bff662dfbd4977f2021227208b87')
++source+=($pkgname-riscv-support.patch)  # https://github.com/ollama/ollama/pull/6627
++b2sums+=('336d0ea08b05a3f4da075c80d79becadf72b5573cb7f74361d1a1513970e0907cc7d3d586c4b65f7b7086346bf77da3ff1234fcf9e3c1ff258fca069c33d0e1e')
