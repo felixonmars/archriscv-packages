@@ -1,23 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,12 +12,31 @@ license=('MIT')
- depends=('glibc' 'v2ray-domain-list-community' 'v2ray-geoip')
- makedepends=('go' 'git')
- backup=(etc/v2ray/config.json)
--source=("git+https://github.com/v2fly/v2ray-core.git#commit=$_commit")
--sha512sums=('SKIP')
-+source=("git+https://github.com/v2fly/v2ray-core.git#commit=$_commit"
-+        "$pkgname-InitializeServerConfig-sleep.patch::https://github.com/v2fly/v2ray-core/pull/1786.patch"
-+        "v2ray-testTCPConn2-timeout.patch"
-+        "v2ray-testVMessKCP.patch"
-+        "v2ray-kcpTest.patch")
-+
-+sha512sums=('SKIP'
-+            '36553288b92bbf7d1ae65cc9efec95f1ca695f73e17804a72270e96382c685dea1dcae69ecfd9603bf7af0cf730080ac59c61c4b91cb724191e985032d5a5a03'
-+            'd681916026c2a224097c715cf21bfa53b0d61f496de828a38c94170d1a115081917e42cf3848f94ca76bdd5491be97c56f84cb6996584f204561f8f10796ce78'
-+            '247d22813eddccca5585efa0be3f6b3a4b00e5ca31f0ace3f8ad71015b688a4b41b7b65d639ca1632bb788849ff3e7c26cf6469fa39ffd0e728f23244d2714d6'
-+            '1949b4082a7a710619b8d46c50b19f002f9dc68a77d1ccde368a7e8bac872292f14fb60d34088776fdfeef5eea800ca68a0f86e0a0454f096c1df9e73f67b76c')
- 
+@@ -18,6 +18,16 @@ sha512sums=('89743e8a6e24344a49e99f7fdfd9fc75f7931210816f2292e113d5dbcc8410e0972
  prepare() {
    cd v2ray-core
    sed -i 's|/usr/local/bin|/usr/bin|;s|/usr/local/etc|/etc|' release/config/systemd/system/*.service
@@ -26,11 +9,24 @@
 +  patch -Np1 -i $srcdir/$pkgname-InitializeServerConfig-sleep.patch
 +
 +  # reported to upstream as https://github.com/v2fly/v2ray-core/issues/1830
-+  patch -Np1 -i $srcdir/v2ray-testTCPConn2-timeout.patch
++  patch -Np1 -i $srcdir/$pkgname-testTCPConn2-timeout.patch
 +
 +  # reported to upstream as https://github.com/v2fly/v2ray-core/issues/2720
-+  patch -Np1 -i $srcdir/v2ray-testVMessKCP.patch
-+  patch -Np1 -i $srcdir/v2ray-kcpTest.patch
++  patch -Np1 -i $srcdir/$pkgname-testVMessKCP.patch
++  patch -Np1 -i $srcdir/$pkgname-kcpTest.patch
  }
  
  build() {
+@@ -42,3 +52,12 @@ package() {
+   install -Dm644 release/config/*.json -t "$pkgdir"/etc/v2ray/
+   install -Dm755 v2ray -t "$pkgdir"/usr/bin/
+ }
++
++source+=("$pkgname-InitializeServerConfig-sleep.patch"
++         "$pkgname-testTCPConn2-timeout.patch"
++         "$pkgname-testVMessKCP.patch"
++         "$pkgname-kcpTest.patch")
++sha512sums+=('659fd7822200346ccb935b8c1decbcb64acfff2e5cf65c8e95b525f982caab9f8e169970b78a077379d9ff23409550fcbd6bf7387b302d60e242b62fcc20a044'
++             'd681916026c2a224097c715cf21bfa53b0d61f496de828a38c94170d1a115081917e42cf3848f94ca76bdd5491be97c56f84cb6996584f204561f8f10796ce78'
++             '247d22813eddccca5585efa0be3f6b3a4b00e5ca31f0ace3f8ad71015b688a4b41b7b65d639ca1632bb788849ff3e7c26cf6469fa39ffd0e728f23244d2714d6'
++             '1949b4082a7a710619b8d46c50b19f002f9dc68a77d1ccde368a7e8bac872292f14fb60d34088776fdfeef5eea800ca68a0f86e0a0454f096c1df9e73f67b76c')
