@@ -30,7 +30,7 @@ index 71b747f..d111c9a 100644
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -79,6 +85,12 @@ prepare() {
+@@ -79,13 +85,20 @@ prepare() {
    make olddefconfig
    diff -u ../config .config || :
  
@@ -43,7 +43,16 @@ index 71b747f..d111c9a 100644
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
  }
-@@ -126,6 +138,9 @@ _package() {
+ 
+ build() {
+   cd $_srcname
+-  make all
++  # Generate symbols for dtbs to support overlays
++  make DTC_FLAGS="-@" all
+   make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
+   make htmldocs
+ }
+@@ -126,6 +139,9 @@ _package() {
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -53,7 +62,7 @@ index 71b747f..d111c9a 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -141,20 +156,17 @@ _package-headers() {
+@@ -141,20 +157,17 @@ _package-headers() {
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -77,7 +86,7 @@ index 71b747f..d111c9a 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -176,7 +188,7 @@ _package-headers() {
+@@ -176,7 +189,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
