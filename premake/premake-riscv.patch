@@ -1,0 +1,49 @@
+diff --git a/src/_premake_init.lua b/src/_premake_init.lua
+index c4298a1a2..b2f66903f 100644
+--- a/src/_premake_init.lua
++++ b/src/_premake_init.lua
+@@ -28,6 +28,7 @@
+ 			p.X86_64,
+ 			p.ARM,
+ 			p.ARM64,
++			p.RISCV64,
+ 		},
+ 		aliases = {
+ 			i386  = p.X86,
+diff --git a/src/base/_foundation.lua b/src/base/_foundation.lua
+index 0c19a861a..411eb5366 100644
+--- a/src/base/_foundation.lua
++++ b/src/base/_foundation.lua
+@@ -61,6 +61,7 @@
+ 	premake.X86_64      = "x86_64"
+ 	premake.ARM         = "ARM"
+ 	premake.ARM64       = "ARM64"
++	premake.RISCV64     = "RISCV64"
+ 
+ 
+ 
+diff --git a/src/host/premake.h b/src/host/premake.h
+index 9fd3298fb..1f1f0a66f 100644
+--- a/src/host/premake.h
++++ b/src/host/premake.h
+@@ -60,6 +60,8 @@
+ #elif defined(__arm__) || defined(__thumb__) || defined(__TARGET_ARCH_ARM) || defined(__TARGET_ARCH_THUMB) || \
+     defined(__ARM) || defined(_M_ARM) || defined(_M_ARM_T) || defined(__ARM_ARCH)
+ #define PLATFORM_ARCHITECTURE "ARM"
++#elif defined(_M_RISCV64) || (defined(__riscv) && __riscv_xlen == 64)
++#define PLATFORM_ARCHITECTURE "RISCV64"
+ #endif
+ 
+ /* Pull in platform-specific headers required by built-in functions */
+diff --git a/website/docs/architecture.md b/website/docs/architecture.md
+index fb530453f..d522b2d2a 100644
+--- a/website/docs/architecture.md
++++ b/website/docs/architecture.md
+@@ -13,6 +13,7 @@ architecture ("value")
+ * `x86_64`
+ * `ARM`
+ * `ARM64`
++* `RISC-V64`
+ * `armv5`: Only supported in VSAndroid projects
+ * `armv7`: Only supported in VSAndroid projects
+ * `aarch64`: Only supported in VSAndroid projects
