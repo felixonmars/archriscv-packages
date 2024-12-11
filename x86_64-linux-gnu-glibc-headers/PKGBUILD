@@ -1,0 +1,86 @@
+# Contributor: Levi Zim <rsworktech@outlook.com>
+# Contributor: Anatol Pomozov
+# Contributor: Eli Schwartz <eschwartz@archlinux.org>
+
+_target=x86_64-linux-gnu
+pkgname=$_target-glibc-headers
+pkgver=2.40
+pkgrel=1
+pkgdesc="GNU C Library headers for x86_64 target"
+provides=($_target-glibc)
+arch=(any)
+url='https://www.gnu.org/software/libc/'
+license=('GPL' 'LGPL')
+depends=($_target-linux-api-headers)
+makedepends=(python)
+options=(!buildflags !strip staticlibs)
+source=(https://ftp.gnu.org/gnu/libc/glibc-$pkgver.tar.xz{,.sig})
+sha256sums=('19a890175e9263d748f627993de6f4b1af9cd21e03f080e4bfb3a1fac10205a2'
+            'SKIP')
+validpgpkeys=(7273542B39962DF7B299931416792B4EA25340F8  # "Carlos O'Donell <carlos@systemhalted.org>"
+              BC7C7372637EC10C57D7AA6579C43DFBF1CF2187) # Siddhesh Poyarekar
+
+prepare() {
+  mkdir -p glibc-build
+}
+
+build() {
+  cd glibc-build
+
+  echo 'slibdir=/lib' >> configparms
+  echo 'rtlddir=/lib' >> configparms
+  echo 'sbindir=/bin' >> configparms
+  echo 'rootsbindir=/bin' >> configparms
+
+  # remove hardening options for building libraries
+  export CFLAGS="-U_FORTIFY_SOURCE -O2"
+  export CPPFLAGS="-U_FORTIFY_SOURCE -O2"
+  unset LD_LIBRARY_PATH
+
+  export BUILD_CC=gcc
+  export CC=${_target}-gcc
+  export CXX=${_target}-g++
+  export AR=${_target}-ar
+  export RANLIB=${_target}-ranlib
+
+  ../glibc-$pkgver/configure \
+      --prefix=/usr \
+      --target=$_target \
+      --host=$_target \
+      --build=$CHOST \
+      --includedir=/include \
+      --libdir=/lib \
+      --libexecdir=/lib \
+      --with-headers=/usr/$_target/include \
+      --enable-add-ons \
+      --enable-obsolete-rpc \
+      --enable-kernel=2.6.32 \
+      --enable-bind-now \
+      --disable-profile \
+      --enable-stackguard-randomization \
+      --enable-lock-elision \
+      --enable-multi-arch \
+      --disable-werror
+
+  echo 'build-programs=no' >> configparms
+  make csu/subdir_lib
+}
+
+package() {
+  cd glibc-build
+
+  make install_root="$pkgdir"/usr/$_target install-headers \
+    install-bootstrap-headers=yes
+
+  touch "$pkgdir/usr/$_target/include/gnu/stubs.h"
+
+  mkdir -p "$pkgdir/usr/$_target/lib"
+  cp csu/crt1.o csu/crti.o csu/crtn.o "$pkgdir/usr/$_target/lib"
+
+  # create stub lib
+  ${_target}-gcc -nostdlib -nostartfiles -shared -x c /dev/null \
+    -o "$pkgdir/usr/$_target/lib/libc.so"
+
+  mkdir -p "$pkgdir/usr/$_target/usr"
+  ln -s ../{include,lib} "$pkgdir/usr/$_target/usr"
+}
