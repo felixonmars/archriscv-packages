@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,7 +9,8 @@ url="https://github.com/DioxusLabs/dioxus"
+ license=('MIT' 'Apache-2.0')
+ arch=("x86_64")
+ depends=('gcc-libs' 'bzip2' 'zlib' 'openssl' 'xz')
+-makedepends=('cargo')
++makedepends=('cargo' 'cmake' 'clang')
++checkdepends=('libunwind')
+ provides=('dx')
+ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+ b2sums=('fe9594ad831e7c715c38b8f900326d56c58d774fab189584130e251bbf1f6d6f6021a46f961bed0e7e34f4dc4af90ede82893897cb4abf891e90fb85c1b426d5')
+@@ -27,6 +28,7 @@ build() {
+ 
+ check() {
+   cd "${pkgname%-cli}-$pkgver"
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
+   cargo test -p "$pkgname" --frozen
+ }
+ 
