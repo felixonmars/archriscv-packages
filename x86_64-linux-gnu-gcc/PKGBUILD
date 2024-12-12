@@ -5,7 +5,7 @@
 _target=x86_64-linux-gnu
 pkgname=$_target-gcc
 pkgver=14.2.0
-pkgrel=1
+pkgrel=2
 #_snapshot=8-20190111
 pkgdesc='The GNU Compiler Collection - cross compiler for x86_64 target'
 arch=(riscv64)
@@ -65,25 +65,26 @@ build() {
       --target=$_target --host=$CHOST --build=$CHOST \
       --disable-nls --enable-default-pie \
       --enable-languages=c,c++,fortran \
-      --disable-shared --disable-threads \
+      --enable-shared --enable-threads=posix \
       --with-system-zlib --with-isl --enable-__cxa_atexit \
       --disable-libunwind-exceptions --enable-clocale=gnu \
       --disable-libstdcxx-pch --disable-libssp \
       --enable-gnu-unique-object --enable-linker-build-id \
       --enable-lto --enable-plugin --enable-install-libiberty \
       --with-linker-hash-style=gnu --enable-gnu-indirect-function \
-      --disable-multilib --disable-werror
+      --enable-multilib --disable-werror \
+      --enable-checking=release
 
-  make all-gcc all-target-libgcc
+  make
 }
 
 package() {
   cd gcc-build
 
-  make DESTDIR="$pkgdir" install-gcc install-target-libgcc
+  make DESTDIR="$pkgdir" install-gcc install-target-{libgcc,libstdc++-v3,libgomp,libgfortran,libquadmath,libatomic}
 
   # strip target binaries
-  find "$pkgdir"/usr/lib/gcc/$_target/ \
+  find "$pkgdir"/usr/lib/gcc/$_target/ "$pkgdir"/usr/$_target/lib \
        -type f -and \( -name \*.a -or -name \*.o \) \
        -exec $_target-objcopy -R .comment -R .note -R .debug_info -R .debug_aranges \
            -R .debug_pubnames -R .debug_pubtypes -R .debug_abbrev -R .debug_line \
@@ -93,7 +94,7 @@ package() {
   find "$pkgdir"/usr/bin/ "$pkgdir"/usr/lib/gcc/$_target/ -type f -and \( -executable \) -exec strip '{}' \;
 
   # Remove files that conflict with host gcc package
-  rm -rf "$pkgdir"/usr/share/man/man7
-  rm -rf "$pkgdir"/usr/share/info
-  rm -rf "$pkgdir"/usr/share/gcc-$pkgver
+  rm -r "$pkgdir"/usr/share/man/man7
+  rm -r "$pkgdir"/usr/share/info
+  rm -r "$pkgdir"/usr/share/gcc-$pkgver
 }
