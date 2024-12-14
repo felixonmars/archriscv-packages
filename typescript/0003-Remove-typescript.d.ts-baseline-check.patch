@@ -1,27 +1,32 @@
-From 8a80022158ff8e7d5c6997a4e631066921b1cbb6 Mon Sep 17 00:00:00 2001
-From: Eric Long <i@hack3r.moe>
-Date: Mon, 18 Nov 2024 11:37:09 +0800
-Subject: [PATCH 3/3] Remove typescript.d.ts baseline check
-
----
- src/testRunner/unittests/publicApi.ts | 4 ----
- 1 file changed, 4 deletions(-)
-
 diff --git a/src/testRunner/unittests/publicApi.ts b/src/testRunner/unittests/publicApi.ts
-index 011f32ae285..9e5f6ca8abd 100644
+index 7b7b4ecc507..a6ca3e8918f 100644
 --- a/src/testRunner/unittests/publicApi.ts
 +++ b/src/testRunner/unittests/publicApi.ts
-@@ -23,10 +23,6 @@ describe("unittests:: Public APIs", () => {
-         });
-     }
+@@ -6,27 +6,6 @@ import * as vfs from "../_namespaces/vfs.js";
+ import { jsonToReadableText } from "./helpers.js";
+ import { TestServerHost } from "./helpers/virtualFileSystemWithWatch.js";
  
--    describe("for the language service and compiler", () => {
+-describe("unittests:: Public APIs", () => {
+-    function verifyApi(fileName: string) {
+-        const builtFile = `built/local/${fileName}`;
+-        const api = `api/${fileName}`;
+-        let fileContent: string;
+-        before(() => {
+-            fileContent = Harness.IO.readFile(builtFile)!;
+-            if (!fileContent) throw new Error(`File ${fileName} was not present in built/local`);
+-            fileContent = fileContent.replace(/\r\n/g, "\n");
+-        });
+-
+-        it("should be acknowledged when they change", () => {
+-            Harness.Baseline.runBaseline(api, fileContent, { PrintDiff: true });
+-        });
+-    }
+-
+-    describe("for typescript.d.ts", () => {
 -        verifyApi("typescript.d.ts");
 -    });
+-});
 -
-     describe("for the language server", () => {
-         verifyApi("tsserverlibrary.d.ts");
-     });
--- 
-2.47.0
-
+ describe("unittests:: Public APIs:: token to string", () => {
+     function assertDefinedTokenToString(initial: ts.SyntaxKind, last: ts.SyntaxKind) {
+         for (let t = initial; t <= last; t++) {
