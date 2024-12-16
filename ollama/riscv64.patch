@@ -1,21 +1,52 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,6 +21,11 @@ b2sums=('02154afa3129c64d2dc3365a49860748271003c25441fd663a1abfc6e7ef3b324a00576
-         '3aabf135c4f18e1ad745ae8800db782b25b15305dfeaaa031b4501408ab7e7d01f66e8ebb5be59fc813cfbff6788d08d2e48dcf24ecc480a40ec9db8dbce9fec'
-         'e8f2b19e2474f30a4f984b45787950012668bf0acb5ad1ebb25cd9776925ab4a6aa927f8131ed53e35b1c71b32c504c700fe5b5145ecd25c7a8284373bb951ed')
+@@ -37,7 +37,7 @@ build() {
  
-+prepare() {
-+  cd $pkgbase
-+  patch -Np1 -i ../$pkgname-riscv-support.patch
-+}
-+
- build() {
-   export CFLAGS+=' -w' CXXFLAGS+=' -w'
-   export LDFLAGS+=' -L/opt/cuda/targets/x86_64-linux/lib/stubs/'
-@@ -62,3 +67,6 @@ package_ollama-docs() {
+   # Unset these otherwise somehow nvcc will try to use them.
+   unset CFLAGS CXXFLAGS
+-  make dist CUDA_12_PATH=/opt/cuda
++  make dist
+   go build .
+ }
+ 
+@@ -50,7 +50,7 @@ check() {
+ package_ollama() {
+   install -Dm755 ollama/ollama "$pkgdir/usr/bin/ollama"
+   mkdir -p "$pkgdir"/usr/lib/ollama/runners
+-  cp -r ollama/dist/linux-amd64/lib/ollama/runners/cpu* "$pkgdir"/usr/lib/ollama/runners/
++  cp -r ollama/dist/linux-riscv64/lib/ollama/runners/cpu* "$pkgdir"/usr/lib/ollama/runners/
+ 
+   install -Dm755 $pkgname/$pkgbase "$pkgdir/usr/bin/$pkgbase"
+   install -dm755 "$pkgdir/var/lib/ollama"
+@@ -67,7 +67,7 @@ package_ollama-rocm() {
+   depends+=(ollama hipblas)
+ 
+   mkdir -p "$pkgdir"/usr/lib/ollama/runners
+-  cp -r ollama/dist/linux-amd64/lib/ollama/runners/rocm* "$pkgdir"/usr/lib/ollama/runners
++  cp -r ollama/dist/linux-riscv64/lib/ollama/runners/rocm* "$pkgdir"/usr/lib/ollama/runners
+ }
+ 
+ package_ollama-cuda() {
+@@ -75,7 +75,7 @@ package_ollama-cuda() {
+   depends+=(ollama cuda)
+ 
+   mkdir -p "$pkgdir"/usr/lib/ollama/runners
+-  cp -r ollama/dist/linux-amd64/lib/ollama/runners/cuda* "$pkgdir"/usr/lib/ollama/runners
++  cp -r ollama/dist/linux-riscv64/lib/ollama/runners/cuda* "$pkgdir"/usr/lib/ollama/runners
+ }
+ 
+ package_ollama-docs() {
+@@ -85,3 +85,13 @@ package_ollama-docs() {
    cp -r $pkgbase/docs "$pkgdir/usr/share/doc/$pkgbase"
    install -Dm644 $pkgbase/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
 +
-+source+=($pkgname-riscv-support.patch)  # https://github.com/ollama/ollama/pull/6627
-+b2sums+=('336d0ea08b05a3f4da075c80d79becadf72b5573cb7f74361d1a1513970e0907cc7d3d586c4b65f7b7086346bf77da3ff1234fcf9e3c1ff258fca069c33d0e1e')
++pkgname=(${pkgname[@]/ollama-cuda})
++makedepends=(${makedepends[@]/cuda})
++source+=(remove-unsupported-flags.patch)
++b2sums+=('19f2aefbc5f4c4ba3102275f6e6e5376500cadc8df609873c290b29210ddd60926fadef315b2878ba3f97591469b862b9c7dd6e797017f3bc8cbd8bccc577086')
++
++prepare() {
++  cd ollama
++  patch -Np1 -i "$srcdir"/remove-unsupported-flags.patch
++}
