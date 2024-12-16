@@ -1,19 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,7 +20,8 @@ validpgpkeys=(7B74D1299568B586BA9962B5649E4D4AF74E7DEC) # Zoltan Kochan <z@kocha
+@@ -20,6 +20,8 @@ validpgpkeys=(7B74D1299568B586BA9962B5649E4D4AF74E7DEC) # Zoltan Kochan <z@kocha
  
  prepare() {
    cd $pkgname/$pkgname
--  pnpm install --frozen-lockfile
-+  patch -Np1 -d .. -i ../add-pnpm-linux-riscv64.patch
-+  pnpm install --no-frozen-lockfile
++  rm -r artifacts
++  sed -i '/@yao-pkg\/pkg/d' ../package.json
+   pnpm install # --frozen-lockfile currently requires pre-release pnpm 10
  }
  
- build() {
-@@ -41,3 +42,6 @@ package() {
-   cd dist
-   cp -r $pkgname.cjs pnpmrc templates worker.js "$pkgdir"/$mod_dir/dist
- }
-+
-+source+=(add-pnpm-linux-riscv64.patch)
-+b2sums+=('ae2384b8db15e2c94ce2b73b7c69c1b9a0f4e81d4bd9b7749f8469961e1403c1431d9934681f5ed1e5587a37080c222a658f99f9215bc30daf016540418cc7a0')
