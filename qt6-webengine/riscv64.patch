@@ -1,19 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -84,6 +84,13 @@ prepare() {
+@@ -86,6 +86,13 @@ prepare() {
+   git submodule init
    git submodule set-url src/3rdparty "$srcdir"/qtwebengine-chromium
    git -c protocol.file.allow=always submodule update
- 
++
 +  for _patch in sandbox dav1d; do
 +    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
 +  done
 +  patch -d src/3rdparty/chromium    -Np1 < ../unscaledcycleclock-remove-riscv-support.patch
 +  patch -d src/3rdparty/chromium/v8 -Np1 < ../Skip-check-sv57-when-enable-pointer-compress.patch
 +  patch -d src/3rdparty/chromium/v8 -Np1 < ../avoid-cpu-probing-in-li_ptr.patch
-+
-   cd src/3rdparty
-   git cherry-pick -n 3b9f0ed808a23cf5849ea3b82a61ef7ab566ad68 # Fix mp3 playback
  }
+ 
+ build() {
 @@ -99,7 +106,10 @@ build() {
      -DQT_FEATURE_webengine_system_re2=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
