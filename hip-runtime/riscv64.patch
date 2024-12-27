@@ -1,0 +1,87 @@
+diff --git PKGBUILD PKGBUILD
+index 5bdaf24..38a6725 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -1,7 +1,7 @@
+ # Maintainer: Torsten Keßler <tpkessler at archlinux dot org>
+ # Contributor: acxz <akashpatel2008 at yahoo dot com>
+ pkgbase=hip-runtime
+-pkgname=(hip-runtime-amd hip-runtime-nvidia)
++pkgname=(hip-runtime-amd)
+ pkgver=6.2.4
+ pkgrel=1
+ _pkgdesc="Heterogeneous Interface for Portability"
+@@ -10,9 +10,8 @@
+ license=('MIT')
+ _amd_depends=('rocm-core' 'bash' 'perl' 'glibc' 'gcc-libs' 'numactl'
+          'mesa' 'comgr' 'rocminfo' 'rocm-llvm' 'libelf' 'rocprofiler-register')
+-_nvidia_depends=('cuda')
+ makedepends=('cmake' 'python' 'python-cppheaderparser'
+-             "${_amd_depends[@]}" "${_nvidia_depends[@]}")
++             "${_amd_depends[@]}")
+ # Common HIP dir (AMD or nVidia)
+ _hip='https://github.com/ROCm/HIP'
+ # HIPCC compiler wrapper
+@@ -39,6 +38,9 @@
+ prepare() {
+   cd "$_dirhipcc"
+   patch -Np1 -i "$srcdir/hipcc-amd-fix-include.patch"
++
++  patch -Np1 -d "$srcdir/$_dirclr" -i "$srcdir/$pkgbase-clr-riscv-hard-float.patch"
++  patch -Np1 -d "$srcdir/$_dirclr" -i "$srcdir/$pkgbase-clr-riscv-fence.patch"
+ }
+ 
+ build() {
+@@ -69,41 +71,16 @@
+     -DHIP_CATCH_TEST=0
+     -DCLR_BUILD_HIP=ON
+     -DCLR_BUILD_OCL=OFF
++    -D__HIP_ENABLE_PCH=OFF
+   )
+   cmake "${hip_amd_args[@]}"
+   cmake --build build-amd
+-
+-  local hipcc_nvidia_args=(
+-    "${hipcc_common_args[@]}"
+-    -B build-nvidia-hipcc
+-    -D CMAKE_INSTALL_PREFIX=/usr
+-  )
+-  cmake "${hipcc_nvidia_args[@]}"
+-  cmake --build build-nvidia-hipcc
+-
+-  local hip_nvidia_args=(
+-    -Wno-dev
+-    -S "$srcdir/$_dirclr"
+-    -B build-nvidia
+-    -DCMAKE_BUILD_TYPE=None
+-    -DCMAKE_INSTALL_PREFIX=/usr
+-    -DHIP_PLATFORM=nvidia
+-    -DHIP_COMMON_DIR="$srcdir/$_dirhip"
+-    -DHIPCC_BIN_DIR="$srcdir/build-nvidia-hipcc"
+-    -DHIPNV_DIR="$srcdir/$_dirhipother/hipnv"
+-    -DHIP_CATCH_TEST=0
+-    -DCLR_BUILD_HIP=ON
+-    -DCLR_BUILD_OCL=OFF
+-  )
+-  cmake "${hip_nvidia_args[@]}"
+-  cmake --build build-nvidia
+ }
+ 
+ package_hip-runtime-amd() {
+   pkgdesc="$_pkgdesc (AMD runtime)"
+   depends=("${_amd_depends[@]}")
+-  optdepends=('inetutils: Print hostname in hipconfig'
+-              'cuda: Cross compile for nvidia')
++  optdepends=('inetutils: Print hostname in hipconfig')
+   replaces=("hip")
+   provides=("hip=${pkgver}")
+   DESTDIR="$pkgdir" cmake --install build-amd
+@@ -116,3 +93,8 @@
+   DESTDIR="$pkgdir" cmake --install build-nvidia
+   install -Dm644 "$srcdir/$_dirhip/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
++
++source+=("$pkgbase-clr-riscv-hard-float.patch"
++         "$pkgbase-clr-riscv-fence.patch")
++sha256sums+=('b8d9643df110fd016796fe5e3ffda0b13bfe6ba430304322684a691bc35b84ff'
++             '1ddd118ec6f2f285adca0bd2511d7c3cff8c9cbe66d84572228957f995e9525f')
