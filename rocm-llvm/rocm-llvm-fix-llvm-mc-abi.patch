@@ -1,0 +1,14 @@
+diff --git a/clang/lib/Driver/ToolChains/HIPUtility.cpp b/clang/lib/Driver/ToolChains/HIPUtility.cpp
+index 82f56277bf..da1709c97e 100644
+--- a/clang/lib/Driver/ToolChains/HIPUtility.cpp
++++ b/clang/lib/Driver/ToolChains/HIPUtility.cpp
+@@ -465,6 +465,9 @@ void HIP::constructGenerateObjFileFromHIPFatBinary(
+   Objf << ObjBuffer;
+ 
+   ArgStringList McArgs{"-triple", Args.MakeArgString(HostTriple.normalize()),
++#if defined(__riscv) && __riscv_xlen == 64
++                       "-target-abi=lp64d","-mattr=+d",
++#endif
+                        "-o",      Output.getFilename(),
+                        McinFile,  "--filetype=obj"};
+   const char *Mc = Args.MakeArgString(TC.GetProgramPath("llvm-mc"));
