@@ -1,0 +1,18 @@
+diff --git PKGBUILD PKGBUILD
+index 67d439a..532641e 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,13 @@
+ options=(!lto)
+ _dirname="$(basename $_git)-$(basename ${source[0]} .tar.gz)"
+ 
++source+=("$pkgname-wc_store_fence-riscv.patch::https://github.com/NVIDIA/nccl/commit/0de8a4b1c1c28bafa6875569ed883deeef47c78d.diff")
++sha256sums+=('3c2991c9288543755f502d99c1c1eacb67510558b7c03b1c9e523b5ea0e29d64')
++
++prepare() {
++    patch -Np1 -d "$_dirname" -i "$srcdir/$pkgname-wc_store_fence-riscv.patch"
++}
++
+ build() {
+   # Compile source code for supported GPU archs in parallel
+   export HIPCC_COMPILE_FLAGS_APPEND="-parallel-jobs=$(nproc)"
