@@ -1,50 +1,37 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -36,8 +36,19 @@ sha256sums=('96ad5f6871bb15a9a02e23cc576bc0d6fd62a8d705a3714b641dbcd5ca774a24'
- 
- #_yarnargs="--cache-folder '$srcdir/cache' --link-folder '$srcdir/link'"
- 
-+makedepends+=(zip)
-+source+=("liblzma-fix.patch::https://github.com/addaleax/lzma-native/pull/135.patch"
-+         "electron-packager-riscv64.patch")
-+sha256sums+=('066f050457349873ff36375b547dd7de482ecce182ed9d9ad2514db8fc81c75b'
-+             '52b8f1250740402821c62d717aaf60b84acddfae456e3eeea99649c1b7c062c8')
-+
- prepare() {
--	local _electronVersion=$($_electron --version | sed -e 's/^v//')
-+	local _electronVersion=$( <"/usr/lib/$_electron/version")
-+	local _hash=$(echo -n "https://github.com/electron/electron/releases/download/v$_electronVersion" | sha256sum | cut -d ' ' -f 1)
-+	local _electron_zip="electron-v$_electronVersion-linux-riscv64.zip"
-+	cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
-+	local _cache_dir="$HOME/.cache/electron/$_hash"
-+	mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
- 	gendesk -q -f -n \
- 		--pkgname "$pkgname" \
- 		--pkgdesc "$pkgdesc" \
-@@ -51,14 +62,19 @@ prepare() {
- 	sed -i "s/\([\^ :]\)${_oldElectron[0]}/\1$_electronVersion/"  package.json yarn.lock
+@@ -50,14 +50,27 @@ prepare() {
+ 	sed -i "s/\([\^ :]\)${_oldElectron[0]}/\1$_electronVersion/" package.json yarn.lock
  	echo -ne '#!/usr/bin/env bash\n\nexit 0' > scripts/get-pandoc.sh
  	sed -e "s/@ELECTRON@/$_electron/" "../${source[1]}" > $pkgname.sh
--	yarn $_yarnargs install --immutable # postinstall script installs electron-builder deps
+-	yarn install --immutable # postinstall script installs electron-builder deps
 -	ln -sf /usr/bin/pandoc resources/pandoc-linux-x64
-+	jq ".resolutions.\"lzma-native\" = \"patch:lzma-native@npm%3A8.0.6#${srcdir}/liblzma-fix.patch\"
-+	  | .resolutions.\"electron-packager\" = \"patch:electron-packager@npm%3A17.1.1#${srcdir}/electron-packager-riscv64.patch\"
-+	   " package.json > package.json.new
++	local _hash=$(echo -n "https://github.com/electron/electron/releases/download/v$_electronVersion" | sha256sum | cut -d ' ' -f 1)
++	local _electron_zip="electron-v$_electronVersion-linux-$CARCH.zip"
++	cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
++	local _sha256="$(sha256sum "/tmp/$_electron_zip" | cut -d ' ' -f 1)"
++	local _cache_dir="$HOME/.cache/electron/$_hash"
++	mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
++	echo "$_sha256 *$_electron_zip" > "$_cache_dir/SHASUMS256.txt"
++ 	jq ".resolutions.\"lzma-native\" = \"patch:lzma-native@npm%3A8.0.6#${srcdir}/liblzma-fix.patch\"
++	| .resolutions.\"@electron/packager\" = \"patch:@electron/packager@npm%3A18.3.5#${srcdir}/electron-packager-riscv64.patch\"
++	" package.json > package.json.new
 +	mv package.json.new package.json
-+	ELECTRON_SKIP_BINARY_DOWNLOAD=1 yarn $_yarnargs install # postinstall script installs electron-builder deps
++	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
++	yarn install # postinstall script installs electron-builder deps
 +	ln -sf /usr/bin/pandoc resources/pandoc-linux-riscv64
  }
  
  build() {
  	cd "$_archive"
  	local NODE_ENV=''
--	yarn $_yarnargs package:linux-x64
+-	yarn package:linux-x64
 +	export PATH+=":$(realpath node_modules/.bin)"
 +	cross-env NODE_ENV=production npm_config_arch=riscv64 electron-forge package --platform=linux --arch=riscv64
  }
  
  package() {
-@@ -67,8 +83,8 @@ package() {
+@@ -66,11 +79,17 @@ package() {
  	install -Dm0755 "$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
  	local _destdir="usr/lib/$pkgname"
  	install -Dm0644 -t "$pkgdir/$_destdir/" \
@@ -55,3 +42,12 @@
  	for px in 16 24 32 48 64 96 128 256 512 1024; do
  		install -Dm0644 "resources/icons/png/${px}x${px}.png" \
  			"$pkgdir/usr/share/icons/hicolor/${px}x${px}/apps/$pkgname.png"
+ 	done
+ 	install -Dm0644 -t "$pkgdir/usr/share/mime/packages/" "../${source[2]}"
+ }
++
++makedepends+=(zip)
++source+=("liblzma-fix.patch::https://github.com/addaleax/lzma-native/pull/135.patch"
++         "electron-packager-riscv64.patch")
++sha256sums+=('066f050457349873ff36375b547dd7de482ecce182ed9d9ad2514db8fc81c75b'
++             '8f5cfa5f3005c7bff8267f958ebed1309c792c7bddf8f888e6cab6c6b000b19d')
