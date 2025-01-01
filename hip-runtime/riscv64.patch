@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index 5bdaf24..38a6725 100644
+index 5bdaf24..9faefbd 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -1,7 +1,7 @@
@@ -22,17 +22,18 @@ index 5bdaf24..38a6725 100644
  # Common HIP dir (AMD or nVidia)
  _hip='https://github.com/ROCm/HIP'
  # HIPCC compiler wrapper
-@@ -39,6 +38,9 @@
+@@ -39,6 +38,10 @@
  prepare() {
    cd "$_dirhipcc"
    patch -Np1 -i "$srcdir/hipcc-amd-fix-include.patch"
 +
 +  patch -Np1 -d "$srcdir/$_dirclr" -i "$srcdir/$pkgbase-clr-riscv-hard-float.patch"
 +  patch -Np1 -d "$srcdir/$_dirclr" -i "$srcdir/$pkgbase-clr-riscv-fence.patch"
++  patch -Np1 -d "$srcdir/$_dirclr" -i "$srcdir/$pkgbase-clr-riscv-currentStackPtr.patch"
  }
  
  build() {
-@@ -69,41 +71,16 @@
+@@ -69,41 +72,16 @@
      -DHIP_CATCH_TEST=0
      -DCLR_BUILD_HIP=ON
      -DCLR_BUILD_OCL=OFF
@@ -76,12 +77,14 @@ index 5bdaf24..38a6725 100644
    replaces=("hip")
    provides=("hip=${pkgver}")
    DESTDIR="$pkgdir" cmake --install build-amd
-@@ -116,3 +93,8 @@
+@@ -116,3 +94,10 @@
    DESTDIR="$pkgdir" cmake --install build-nvidia
    install -Dm644 "$srcdir/$_dirhip/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
 +
 +source+=("$pkgbase-clr-riscv-hard-float.patch"
-+         "$pkgbase-clr-riscv-fence.patch")
++         "$pkgbase-clr-riscv-fence.patch"
++         "$pkgbase-clr-riscv-currentStackPtr.patch::https://github.com/ROCm/clr/pull/117.diff")
 +sha256sums+=('b8d9643df110fd016796fe5e3ffda0b13bfe6ba430304322684a691bc35b84ff'
-+             '1ddd118ec6f2f285adca0bd2511d7c3cff8c9cbe66d84572228957f995e9525f')
++             '1ddd118ec6f2f285adca0bd2511d7c3cff8c9cbe66d84572228957f995e9525f'
++             'df7a04af6cc8fd9145f50d56e0d6b4c4eb78a569227af1f6106b61bc322ca4c7')
