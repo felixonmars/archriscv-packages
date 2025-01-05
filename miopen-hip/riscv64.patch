@@ -1,0 +1,31 @@
+diff --git PKGBUILD PKGBUILD
+index 8c88590..42dc546 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,9 +18,11 @@
+ _git='https://github.com/ROCm/MIOpen'
+ _mlir='https://github.com/ROCm/rocMLIR'
+ source=("$pkgname-$pkgver.tar.gz::$_git/archive/rocm-$pkgver.tar.gz"
+-        "$pkgname-rocmlir-$pkgver.tar.gz::$_mlir/archive/rocm-$pkgver.tar.gz")
++        "$pkgname-rocmlir-$pkgver.tar.gz::$_mlir/archive/rocm-$pkgver.tar.gz"
++        "rocmlir-fix-cmake-dependency-for-Transforms.patch::https://github.com/ROCm/rocMLIR/commit/b85ca4855e0f0214c2fd695e493c884cf08a3472.diff")
+ sha256sums=('8e4836e007e5e66fa487288887a098aaeeb95f3c63a19c2b91f6e848c023a040'
+-            '3283685431fd59e20a6ac5737df22c7c7421901779a2a0b6dbd6c1ab1f1b5adb')
++            '3283685431fd59e20a6ac5737df22c7c7421901779a2a0b6dbd6c1ab1f1b5adb'
++            '536f67a69a4ff2f5e8111bf4947dce3f21c002926bf2043862ed99ff7385d507')
+ options=(!lto)
+ _dirname="$(basename "$_git")-$(basename "${source[0]}" .tar.gz)"
+ _mlirname="$(basename "$_mlir")-$(basename "${source[1]}" .tar.gz)"
+@@ -28,6 +30,12 @@
+ prepare() {
+     # Disable tests as they require an AMD GPU at build time
+     sed -i '/add_subdirectory(test)/d' "$_dirname/CMakeLists.txt"
++
++    # Fix missing generated file Conversion/RocMLIRPasses.h.inc
++    patch -d "$_mlirname" -Np1 -i "$srcdir/rocmlir-fix-cmake-dependency-for-Transforms.patch"
++
++    # Fix char signedness error
++    sed -i 's/{as_signed(byte):+4}/static_cast<char>({byte})/' "$_mlirname/external/llvm-project/mlir/lib/Dialect/GPU/AmdDeviceLibsIncGen.py"
+ }
+ 
+ build() {
