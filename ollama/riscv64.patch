@@ -1,17 +1,28 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,7 +37,9 @@ build() {
+@@ -28,6 +28,10 @@ b2sums=('ebc146cec03f6352a1349f1c03a6fb50f274507f1d1a934117c0937f0ea5ed5f1f79cee
+ prepare() {
+   #  cuda: adjust variant based on detected runners #8121
+   git -C ollama cherry-pick -n cdaed59f279ed83d2f5244c733dcda3a4840a9a0
++
++  cd ollama
++  patch -Np1 -i "$srcdir"/remove-unsupported-flags.patch
++  patch -Np1 -i "$srcdir"/cpu-non-avx.patch
+ }
+ 
+ build() {
+@@ -42,7 +46,9 @@ build() {
  
    # Unset these otherwise somehow nvcc will try to use them.
    unset CFLAGS CXXFLAGS
--  make dist CUDA_12_PATH=/opt/cuda
+-  make dist CUDA_12_PATH=/opt/cuda CUDA_ARCHITECTURES='50;52;53;60;61;62;70;72;75;80;86;87;89;90;90a'
 +  # CPU runner is not automatically selected due to lack of optimization, but
 +  # it is required by Arch packaging
 +  make dist RUNNER_TARGETS='cpu rocm'
    go build .
  }
  
-@@ -50,7 +52,7 @@ check() {
+@@ -55,7 +61,7 @@ check() {
  package_ollama() {
    install -Dm755 ollama/ollama "$pkgdir/usr/bin/ollama"
    mkdir -p "$pkgdir"/usr/lib/ollama/runners
@@ -20,7 +31,7 @@
  
    install -Dm755 $pkgname/$pkgbase "$pkgdir/usr/bin/$pkgbase"
    install -dm755 "$pkgdir/var/lib/ollama"
-@@ -67,7 +69,7 @@ package_ollama-rocm() {
+@@ -72,7 +78,7 @@ package_ollama-rocm() {
    depends+=(ollama hipblas)
  
    mkdir -p "$pkgdir"/usr/lib/ollama/runners
@@ -29,7 +40,7 @@
  }
  
  package_ollama-cuda() {
-@@ -75,7 +77,7 @@ package_ollama-cuda() {
+@@ -80,7 +86,7 @@ package_ollama-cuda() {
    depends+=(ollama cuda)
  
    mkdir -p "$pkgdir"/usr/lib/ollama/runners
@@ -38,7 +49,7 @@
  }
  
  package_ollama-docs() {
-@@ -85,3 +87,16 @@ package_ollama-docs() {
+@@ -90,3 +96,10 @@ package_ollama-docs() {
    cp -r $pkgbase/docs "$pkgdir/usr/share/doc/$pkgbase"
    install -Dm644 $pkgbase/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
@@ -49,9 +60,3 @@
 +         cpu-non-avx.patch)
 +b2sums+=('19f2aefbc5f4c4ba3102275f6e6e5376500cadc8df609873c290b29210ddd60926fadef315b2878ba3f97591469b862b9c7dd6e797017f3bc8cbd8bccc577086'
 +         'f87f77e957c07122164e2aa791dfdbb6bb20c3b55bee485fe30e9c212789fec4ec84012542878b9404f50d3fd41c51667d1bf7ed6614fd089efcc145fe124c84')
-+
-+prepare() {
-+  cd ollama
-+  patch -Np1 -i "$srcdir"/remove-unsupported-flags.patch
-+  patch -Np1 -i "$srcdir"/cpu-non-avx.patch
-+}
