@@ -1,54 +1,31 @@
-diff --git PKGBUILD PKGBUILD
-index 394aee5..56b9dfe 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -55,13 +55,11 @@ makedepends=(
-   mariadb-libs
-   netcdf
-   opencascade
--  openimagedenoise
-   openmp
-   openmpi
-   openvdb
-   openvr
-   openxr
--  ospray
-   pdal
-   postgresql-libs
-   proj
-@@ -103,12 +101,10 @@ optdepends=(
-   mariadb-libs
-   netcdf
-   opencascade
--  openimagedenoise
+@@ -72,11 +72,9 @@ makedepends=(
+   libtheora               # libvtkIOOggTheora.so (1 direct lib, 2 total libs)
+   mariadb-libs            # libvtkIOMySQL.so (1 direct lib, 2 total libs)
+   opencascade             # libvtkIOOCCT.so (1 direct lib, 2 total libs)
+-  openimagedenoise        # libvtkRenderingRayTracing.so (1 direct lib, 2 total libs)
+   openvdb                 # libvtkIOOpenVDB.so (1 direct lib, 2 total libs)
+   openvr                  # libvtkRenderingOpenVR.so (1 direct lib, 2 total libs)
+   openxr                  # libvtkRenderingOpenXR.so (1 direct lib, 2 total libs)
+-  ospray                  # libvtkRenderingRayTracing.so (1 direct lib, 2 total libs)
+   pdal                    # libvtkIOPDAL.so (1 direct lib, 2 total libs)
+   postgresql-libs         # libvtkIOPostgreSQL.so (1 direct lib, 2 total libs)
+   unixodbc                # libvtkIOODBC.so (1 direct lib, 2 total libs)
+@@ -113,8 +111,6 @@ optdepends=(
+   'anari-sdk: ANARI rendering module'
+   'openvr: rendering for virtual reality'
+   'openxr: rendering for virtual and augmented reality'
+-  'openimagedenoise: rendering with raytracing support'
+-  'ospray: rendering with raytracing support'
    'openmpi: OpenMPI support'
-   openvdb
-   openvr
-   openxr
--  ospray
-   pdal
-   postgresql-libs
-   proj
-@@ -142,6 +138,7 @@ prepare() {
-   patch -Np1 -i ../ospray-3.patch # Fix build with ospray 3.0
-   patch -Np1 -i "$srcdir"/761aa1d15970fcb6aadb7d6152737fa9b2d4b0d0.patch # Fix OCCT 7.8.0
-   patch -p1 -i ../fmt-11.patch # Fix build with fmt 11
-+  patch -Np1 -i ../0001-Use-freshly-built-libraries-for-qmlvtkplugin.patch
- }
- 
- build() {
-@@ -174,6 +171,7 @@ build() {
-     -DVTKm_ENABLE_HDF5_IO=ON \
-     -DVTKm_ENABLE_MPI=ON \
-     -DVTKm_ENABLE_OPENMP=ON \
+   'adios2: IO module'
+   'alembic: IO module'
+@@ -165,6 +161,7 @@ build() {
+   local _tkver=$(echo 'puts $tcl_version' | tclsh)
+   cmake -B build -S ${pkgname^^}-${pkgver} \
+     -DCMAKE_BUILD_TYPE=Release \
 +    -DVTK_ENABLE_OSPRAY=OFF \
-     -DVTK_USE_EXTERNAL=ON \
-     -DVTK_MODULE_USE_EXTERNAL_VTK_exprtk=OFF \
-     -DVTK_MODULE_USE_EXTERNAL_VTK_ioss=OFF \
-@@ -207,3 +205,6 @@ package() {
-   # … as well as duplicate copies
-   rm -rv "${pkgdir}"/usr/lib/cmake/vtk/vtkm/{Find*.cmake,cmake/{Find*.cmake,3.15}}
- }
-+
-+source+=(0001-Use-freshly-built-libraries-for-qmlvtkplugin.patch::https://gitlab.kitware.com/vtk/vtk/-/commit/25a28fb1a625d0126fd8ee3f8a37f60b6868e56f.diff)
-+sha256sums+=('102457eeda790830877c2d227153f13579c5a7ad8a2cbb8827c0376e11ab47a0')
+     -DCMAKE_CXX_FLAGS="$CXXFLAGS -ffat-lto-objects" \
+     -DCMAKE_INSTALL_PREFIX=/usr \
+     -DCMAKE_INSTALL_LICENSEDIR=share/licenses/vtk \
