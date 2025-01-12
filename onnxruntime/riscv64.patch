@@ -1,19 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index 000f5fc..a7f8c50 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -3,23 +3,21 @@
- # Contributor: Chih-Hsuan Yen <yan12125@gmail.com>
- 
- pkgbase=onnxruntime
--pkgname=("${pkgbase}" "${pkgbase}-opt"  "${pkgbase}-rocm" "${pkgbase}-opt-rocm"
--         "python-${pkgbase}" "python-${pkgbase}-opt"
--         "python-${pkgbase}-rocm" "python-${pkgbase}-opt-rocm")
-+pkgname=("${pkgbase}" "${pkgbase}-opt"
-+         "python-${pkgbase}" "python-${pkgbase}-opt")
- pkgver=1.19.2
- _pkgdesc='Cross-platform, high performance scoring engine for ML models'
- pkgrel=2
+@@ -12,14 +12,14 @@ pkgrel=3
  arch=('x86_64')
  url='https://github.com/microsoft/onnxruntime'
  license=('MIT')
@@ -24,13 +11,13 @@ index 000f5fc..a7f8c50 100644
              'python-py-cpuinfo' 'python-sympy' 'python-scipy' 'python-pillow'
              'python-flatbuffers' 'python-protobuf' 'python-packaging')
  makedepends=('git' 'cmake' 'ninja' 'pybind11' 'nlohmann-json' 'chrono-date' 'cxxopts' 'openmpi'
--             'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'gcc13'
+              'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'gcc13'
 -             'cuda' 'cudnn' 'nccl' 'rocm-hip-sdk' 'hipify-clang' 'rocm-smi-lib' 'roctracer')
-+             'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'gcc13')
++             'rocm-hip-sdk' 'hipify-clang' 'rocm-smi-lib' 'roctracer')
  makedepends+=("${_pydepends[@]}")
  #TODO: Add migraphx for ROCm and tensorrt for CUDA.
  optdepends=('openmpi: Distributed memory parallelization')
-@@ -106,7 +104,7 @@ build() {
+@@ -106,7 +106,7 @@ build() {
      -DBUILD_TESTING=OFF
      -Donnxruntime_ENABLE_TRAINING=ON
      -Donnxruntime_ENABLE_LAZY_TENSOR=OFF
@@ -39,7 +26,7 @@ index 000f5fc..a7f8c50 100644
      -Donnxruntime_USE_DNNL=ON
      # Stable release of eigen is too old for onnxruntime.
      -Donnxruntime_USE_PREINSTALLED_EIGEN=OFF
-@@ -145,28 +143,30 @@ build() {
+@@ -145,22 +145,22 @@ build() {
    export CXX="$NVCC_CCBIN"
    export CC="${NVCC_CCBIN/g++/gcc}"
  
@@ -68,14 +55,21 @@ index 000f5fc..a7f8c50 100644
    cmake --build build
    cd build
    install -Dm644 ../docs/python/README.rst docs/python/README.rst
+@@ -176,11 +176,11 @@ build() {
    ln -s ../setup.py .
    python -m build --wheel --no-isolation
  
-+  return
-+
-   echo "Build onnxruntime with ROCm without optimization"
-   cd "${srcdir}/${pkgbase}-rocm"
+-  echo "Build onnxruntime with ROCm with AVX optimizations"
++  echo "Build onnxruntime with ROCm with RVV optimizations"
+   cd "${srcdir}/${pkgbase}-opt-rocm"
+-  echo 'string(APPEND CMAKE_C_FLAGS " -march=haswell")' \
++  echo 'string(APPEND CMAKE_C_FLAGS " -march=rv64gcv")' \
+     >> cmake/adjust_global_compile_flags.cmake
+-  echo 'string(APPEND CMAKE_CXX_FLAGS " -march=haswell")' \
++  echo 'string(APPEND CMAKE_CXX_FLAGS " -march=rv64gcv")' \
+     >> cmake/adjust_global_compile_flags.cmake
    cmake "${_cmake_rocm_args[@]}"
+   cmake --build build
 @@ -192,9 +192,6 @@ build() {
  
  package_onnxruntime() {
@@ -123,3 +117,12 @@ index 000f5fc..a7f8c50 100644
  
    cd "${pkgbase}-opt-cuda/build"
    python -m installer --destdir="${pkgdir}" dist/*.whl
+@@ -282,7 +270,7 @@ package_python-onnxruntime-rocm() {
+ }
+ 
+ package_python-onnxruntime-opt-rocm() {
+-  pkgdesc="$_pkgdesc (with ROCm and AVX2 CPU optimizations)"
++  pkgdesc="$_pkgdesc (with ROCm and RVV CPU optimizations)"
+   depends+=("${pkgbase}-opt-rocm" "${_pydepends[@]}")
+   provides=("python-${pkgbase}=${pkgver}")
+   conflicts=("python-${pkgbase}")
