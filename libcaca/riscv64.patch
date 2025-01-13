@@ -1,14 +1,21 @@
+diff --git PKGBUILD PKGBUILD
+index 5b00085..dc7c30f 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,3 +41,11 @@ package() {
+@@ -44,6 +44,9 @@ prepare() {
+   # https://github.com/cacalabs/libcaca/pull/66
+   git apply -3 ../libcaca-0.99.beta20-CVE-2022-0856.patch
+ 
++  # Disable LTO when checking for fsin/fcos/fldln2/...
++  git apply -3 ../libcaca-fix-instruction-detection.patch
++
+   autoreconf -fi
+ }
+ 
+@@ -67,3 +70,6 @@ package() {
    make DESTDIR="$pkgdir" install
-   install -Dm644 COPYING "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+   install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname/" COPYING
  }
 +
-+source+=("$pkgname-fix-instruction-detection.patch::https://github.com/cacalabs/libcaca/pull/76.patch")
-+sha256sums+=('2d40a2c2654369e0583f9c26653b56d6b4306d76ad12c78478de489a8f91160b')
-+prepare() {
-+  cd $pkgname-$pkgver
-+  patch -Np1 -i ../$pkgname-fix-instruction-detection.patch
-+  autoreconf -fi
-+}
++source+=("libcaca-fix-instruction-detection.patch::https://github.com/cacalabs/libcaca/pull/76.patch")
++b2sums+=("1cfd28a3777cec6cb8f2bab8ae2f6d9496452e40dd7f0f7a7cf67ebef1a4ac48390e63ce464b1283207545fe8fe050f9789cf39202b513d3d22291dc84521f10")
