@@ -1,20 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index 5ba99cb..926afba 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,13 +8,17 @@ pkgdesc="An EFI boot manager"
- arch=(any)
- url="https://www.rodsbooks.com/refind/"
- makedepends=(bash dosfstools efibootmgr gnu-efi)
--source=(https://sourceforge.net/projects/refind/files/$pkgver/$pkgname-src-$pkgver.tar.gz)
--sha512sums=('41c120c1afec37c508aa5c0ec09a6563c3047ef84932308c91701795b950431dfad17d25cf664039b490a302d475add98441b75f90ff71cadce41febedc68a9e')
--b2sums=('02019ddb872ce44d2a2119902edebd633f925d49634e3bcc6bfb2c9dedb8ce213166909395a333d3a37e95c67720e31b1f5fcf25083801c17d645372aa54a06a')
--_arch='x64'
-+source=(https://sourceforge.net/projects/refind/files/$pkgver/$pkgname-src-$pkgver.tar.gz
-+        add_riscv_support.patch)
-+sha512sums=('41c120c1afec37c508aa5c0ec09a6563c3047ef84932308c91701795b950431dfad17d25cf664039b490a302d475add98441b75f90ff71cadce41febedc68a9e'
-+            '7ca4bcd8f88315a5caa2a665e33ca837c561ec614ebe2bfe6a772f078d01dc16ae363360175a7e24f62172617ec9d66580236e24d74cea925fd146a3536db37a')
-+b2sums=('02019ddb872ce44d2a2119902edebd633f925d49634e3bcc6bfb2c9dedb8ce213166909395a333d3a37e95c67720e31b1f5fcf25083801c17d645372aa54a06a'
-+        '9f3d0591e39047471476f636d01fb4443a4fc572488398e161b05340c11553dcae4f7a720d72a330478c10012906a8e01f44c038b43802ad480c7fbacea29f28')
-+_arch='riscv64'
+@@ -20,6 +20,7 @@ _arch='x64'
  
  prepare() {
    cd $pkgbase-$pkgver
@@ -22,7 +10,7 @@
    # remove the path prefix from the css reference, so that the css can live
    # in the same directory
    sed -e 's|../Styles/||g' -i docs/$pkgbase/*.html
-@@ -28,7 +32,7 @@ build() {
+@@ -33,7 +34,7 @@ build() {
    cd $pkgname-$pkgver
    make
    make gptsync
@@ -31,3 +19,12 @@
  }
  
  package_refind() {
+@@ -103,3 +104,8 @@ package_refind-docs() {
+   install -vDm 644 docs/Styles/*.css -t "$pkgdir/usr/share/doc/$pkgbase/html/"
+   install -vDm 644 images/$pkgbase-banner.{png,svg} -t "$pkgdir/usr/share/doc/$pkgbase/html/"
+ }
++
++_arch='riscv64'
++source+=("add_riscv_support.patch")
++sha512sums+=('35bfa50a1aecd572238dcb2439286ba9ee0470c190b047fc7277baa26980e27695351f47f91d0620c5d8b49d54ae95d0d25f9716ba2e850b8476ef8c91231eef')
++b2sums+=('2bdcb1f9fcec61db9498b6befc467f9a659a7f5c2c25d4d436c6aba734968ef4e3dec4a87c5eeef9c352a5ecde7a9d3123de0488b19902f47b709767c5b14645')
