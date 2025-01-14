@@ -1,16 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 2bc2149..12f4239 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -61,7 +61,13 @@ _pick() {
-   done
- }
- 
-+source+=($pkgbase-riscv.patch::https://github.com/sfztools/sfizz/pull/1023.patch)
-+sha512sums+=('82898f4adbdc14a672d7c9be3204e965288a9aaa53ab9368a9fe39bdf9518b3b36753da2f275b06d68d320dc1c67b8a3ca581b98828cc513982f98f72c556d9f')
-+b2sums+=('d6d8678728f358c02ee1b956caaa3432f2bbb675804347f2e7dc9c8f84c6792ab19183061eadb106aaf987b8de292bc24f0c1564942847eef1cd72a93e0a6bef')
-+
- prepare() {
-+  patch -d $pkgbase-$pkgver -Np1 < $pkgbase-riscv.patch
-+
+@@ -49,6 +49,9 @@ prepare() {
    # symlink tests data to top-level location so that tests can get to them (we build out of tree)
    ln -sv $pkgbase-$pkgver/tests .
+   patch --directory="$pkgbase-$pkgver" --forward --strip=1 --input="${srcdir}/sfizz-1_2_3-absl_20240116_1-fix-build.patch"
++
++  cd "$pkgbase-$pkgver"
++  patch -Np1 -i "${srcdir}/sfizz-add-riscv-support.patch"
+ }
  
+ build() {
+@@ -130,3 +133,7 @@ package_sfizz-standalone() {
+   install -vDm 644 $pkgbase-$pkgver/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+   install -vDm 644 $pkgbase-$pkgver/{AUTHORS,CONTRIBUTING,GOVERNANCE,README}.md -t "$pkgdir/usr/share/doc/$pkgname/"
+ }
++
++source+=('sfizz-add-riscv-support.patch::https://github.com/sfztools/sfizz/pull/1248.patch')
++sha512sums+=('d4e295ed34a5643db1c8174434dfdba58170ee1c6880fc3180f1e34bc9a5d73b5af3e4a6a93f7caa8fe5d0381eb928f1623df480ea69a63a519219bc7ffdcbfa')
++b2sums+=('1034a13740c51001250c06609897e4289b8cda3774a333562998080e612f156d5ee30b48556e493d7f9031cfd42fa0541694ebed9d0353add4cc1ec6ae5313ee')
