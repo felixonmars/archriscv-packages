@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -34,14 +34,41 @@ prepare() {
+@@ -55,14 +55,36 @@ prepare() {
    # Specify electron version in launcher
    sed -i "s|@ELECTRON@|${_electron}|" element-desktop.sh
  
@@ -16,9 +16,9 @@
 -  sed -i 's|"target": "deb"|"target": "dir"|' package.json
 +  patch -Np0 -i ../element-desktop-riscv64-support.patch
 +  jq '.build.linux.target=["dir"]
-+    | .resolutions."electron-builder"="npm:@riscv-forks/electron-builder"
-+    | .resolutions."app-builder-lib"="npm:@riscv-forks/app-builder-lib"
-+    | .resolutions."builder-util"="npm:@riscv-forks/builder-util"' package.json > package.json.new
++    | .resolutions."electron-builder"="npm:@riscv-forks/electron-builder@25.1.8"
++    | .resolutions."app-builder-lib"="npm:@riscv-forks/app-builder-lib@25.1.8"
++    | .resolutions."builder-util"="npm:@riscv-forks/builder-util@25.1.7"' package.json > package.json.new
 +  mv package.json.new package.json
    sed -i 's|"https://packages.element.io/desktop/update/"|null|' element.io/release/config.json
    yarn install --no-fund
@@ -32,18 +32,13 @@
 +  mkdir -p  node_modules/7zip-bin/linux/riscv64
 +  ln -s /usr/bin/7za node_modules/7zip-bin/linux/riscv64/7za
 +
-+  local _builder_bin=node_modules/app-builder-bin/linux/riscv64
-+  mkdir "$_builder_bin"
-+  go build -C ../app-builder
-+  cp ../app-builder/app-builder "$_builder_bin"
-+
 +  local _electron_ver=$(jq -r .version node_modules/electron/package.json)
 +  local _electron_zip="electron-v$_electron_ver-linux-riscv64.zip"
 +  cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./
  }
  
  build() {
-@@ -53,7 +80,7 @@ build() {
+@@ -74,7 +96,7 @@ build() {
    export SQLCIPHER_BUNDLED=1
    export CFLAGS+=" -ffat-lto-objects"
    yarn run build:native
@@ -52,7 +47,7 @@
  }
  
  package_element-web() {
-@@ -81,7 +108,7 @@ package_element-desktop() {
+@@ -102,7 +124,7 @@ package_element-desktop() {
    install -d "${pkgdir}"{/usr/lib/element/,/etc/webapps/element}
  
    # Install the app content, replace the webapp with a symlink to the system package
@@ -61,14 +56,11 @@
    ln -s /usr/share/webapps/element "${pkgdir}"/usr/lib/element/webapp
  
    # Config file
-@@ -98,3 +125,10 @@ package_element-desktop() {
+@@ -119,3 +141,7 @@ package_element-desktop() {
      install -Dm644 build/icons/${i}x${i}.png "${pkgdir}"/usr/share/icons/hicolor/${i}x${i}/apps/io.element.Element.png
    done
  }
 +
-+makedepends+=(sentry-cli go jq zip p7zip)
-+source+=(element-desktop-riscv64-support.patch
-+         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
-+sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45'
-+             'SKIP')
-+
++makedepends+=(sentry-cli jq zip p7zip)
++source+=(element-desktop-riscv64-support.patch)
++sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45')
