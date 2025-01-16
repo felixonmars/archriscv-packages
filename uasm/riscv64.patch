@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,7 +20,7 @@ license=(
+   'Watcom-1.0'
+   'CC-BY-SA-3.0'
+ )
+-makedepends=('git' 'gcc13')
++makedepends=('git' 'gcc')
+ optdepends=('sed: for uasm-nocolor')
+ options=('!makeflags')
+ source=(
+@@ -51,12 +51,15 @@ prepare() {
+   sed \
+     -e "s/@COMMIT_DATE@/${COMMIT_DATE}/" \
+     -i H/msgdef.h
++
++  sed -i 's/\/\/#include "simd.h"/#include "simd.h"/g' assemble.c
++  patch -Np1 -i "$srcdir/uasm-fix-gcc14-build.patch"
+ }
+ 
+ build() {
+   cd "$pkgname"
+ 
+-  make -f Makefile-Linux-GCC-64.mak CC=gcc-13
++  make -f Makefile-Linux.mak
+ }
+ 
+ package() {
+@@ -75,3 +78,7 @@ package() {
+   # license
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" License.txt
+ }
++
++source+=("uasm-fix-gcc14-build.patch::https://github.com/Terraspace/UASM/pull/216.patch")
++sha512sums+=('b78dedb4ce673613ba1963682f99238c8fb5606a6f11e5f46b1332854c1643cdf2fba4cb660f65e111d569f4b7ddc4be926f9180e5baec2039aaaede994ed823')
++b2sums+=('dfa4f4e78e5758f19bd1e21863f9ef5b1492592d5b2bf221b221bf89b65f882e3cf5e1686c852454975cbc7a127a1b0694de3232cf49825dbb58d205307d9dd6')
