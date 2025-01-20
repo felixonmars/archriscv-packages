@@ -1,9 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,6 +22,11 @@ prepare() {
+@@ -37,14 +37,22 @@ source=(
+ sha256sums=('d8a26fef9f92d63258251c69af01f39073a479e48c14114dc96d285470312c83'
+             'SKIP'
+             '862cf5a0e04274f141d308a5ce3c8c52baff3804e7d34f153202e7d3fc5a32e4')
++options=(!lto)
+ 
+ prepare() {
    cd $pkgname-$pkgver
-   # https://github.com/nzbget/nzbget/pull/793
-   patch -Np1 -i ../nzbget_21.1_openssl3_update.patch
+   patch -Np1 -i ../use-par2cmdline-turbo-from-sources.patch
++  
 +  # https://github.com/nzbget/nzbget/issues/755
 +  # https://github.com/nzbget/nzbget/pull/765
 +  _sharedir=/usr/share/autoconf/build-aux
@@ -12,3 +18,8 @@
  }
  
  build() {
+   cd $pkgname-$pkgver
++  export CFLAGS+=" -fno-lto" CXXFLAGS+=" -fno-lto"
+   cmake -S . -B build \
+     -DCMAKE_BUILD_TYPE=None \
+     -DCMAKE_INSTALL_PREFIX=/usr \
