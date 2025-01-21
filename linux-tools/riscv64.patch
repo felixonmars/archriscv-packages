@@ -1,21 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -5,14 +5,10 @@ pkgname=(
+@@ -5,15 +5,10 @@ pkgname=(
    'bootconfig'
    'bpf'
    'cpupower'
 -  'hyperv'
+-  'intel-speed-select'
+-  'kcpuid'
    'linux-tools-meta'
    'perf'
    'tmon'
 -  'turbostat'
    'usbip'
 -  'x86_energy_perf_policy'
--  'intel-speed-select'
  )
  pkgver=6.12
- pkgrel=8
-@@ -66,6 +62,8 @@ sha256sums=('267bab84f30e3ce4a88b6441aeee777b114fd58041b43cabfe50fdf0c0a97321'
+ pkgrel=11
+@@ -69,6 +64,8 @@ sha256sums=('267bab84f30e3ce4a88b6441aeee777b114fd58041b43cabfe50fdf0c0a97321'
  prepare() {
    cd linux
  
@@ -24,7 +25,7 @@
    # apply patch from the source array (should be a pacman feature)
    local src
    for src in "${source[@]}"; do
-@@ -97,7 +95,8 @@ build() {
+@@ -100,7 +97,8 @@ build() {
      NO_LIBLLVM=1 \
      PYTHON_CONFIG=python-config \
      LIBPFM4=1 \
@@ -34,7 +35,7 @@
    popd
  
    echo ':: cpupower'
-@@ -105,11 +104,6 @@ build() {
+@@ -108,11 +106,6 @@ build() {
    make VERSION=$pkgver-$pkgrel
    popd
  
@@ -46,7 +47,7 @@
    echo ':: usbip'
    pushd linux/tools/usb/usbip
    # Fix gcc compilation
-@@ -124,21 +118,11 @@ build() {
+@@ -127,21 +120,11 @@ build() {
    make
    popd
  
@@ -69,7 +70,7 @@
    # runqslower, require kernel binary path to build, skip it
    make -W runqslower
    popd
-@@ -147,11 +131,6 @@ build() {
+@@ -150,16 +133,6 @@ build() {
    pushd linux/tools/bootconfig
    make
    popd
@@ -78,20 +79,26 @@
 -  pushd linux/tools/power/x86/intel-speed-select
 -  make
 -  popd
+-
+-  echo ':: kcpuid'
+-  pushd linux/tools/arch/x86/kcpuid
+-  make
+-  popd
  }
  
  package_linux-tools-meta() {
-@@ -161,13 +140,9 @@ package_linux-tools-meta() {
+@@ -169,14 +142,9 @@ package_linux-tools-meta() {
      'bootconfig'
      'bpf'
      'cpupower'
 -    'hyperv'
+-    'intel-speed-select'
+-    'kcpuid'
      'perf'
      'tmon'
 -    'turbostat'
      'usbip'
 -    'x86_energy_perf_policy'
--    'intel-speed-select'
    )
    conflicts=(
      'acpidump'
