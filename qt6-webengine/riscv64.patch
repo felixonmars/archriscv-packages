@@ -1,9 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -86,6 +86,13 @@ prepare() {
-   git submodule init
-   git submodule set-url src/3rdparty "$srcdir"/qtwebengine-chromium
-   git -c protocol.file.allow=always submodule update
+@@ -91,6 +91,13 @@ prepare() {
+ 
+ # Disable FFmpeg allow lists https://bugreports.qt.io/browse/QTBUG-132762
+   patch -d src/3rdparty -p1 < ../disable-ffmpeg-allow-lists.patch
 +
 +  for _patch in sandbox dav1d; do
 +    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
@@ -14,7 +14,7 @@
  }
  
  build() {
-@@ -99,7 +106,10 @@ build() {
+@@ -103,7 +110,10 @@ build() {
      -DQT_FEATURE_webengine_system_re2=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
@@ -26,7 +26,7 @@
    cmake --build build
  }
  
-@@ -108,3 +118,14 @@ package() {
+@@ -112,3 +122,14 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
