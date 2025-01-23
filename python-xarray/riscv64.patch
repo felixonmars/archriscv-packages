@@ -1,22 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -57,8 +57,17 @@ checkdepends=(
-     python-seaborn
- )
- #source=(https://files.pythonhosted.org/packages/source/${_pkg::1}/${_pkg}/${_pkg}-${pkgver}.tar.gz)
--source=(https://github.com/pydata/xarray/archive/refs/tags/v${pkgver}/${pkgname}-${pkgver}.tar.gz)
--sha256sums=('328ebc41581e8a0d15c9b274dfee7e14b4fb1dfde8d438eb10246a60f27b02a5')
-+source=(
-+    https://github.com/pydata/xarray/archive/refs/tags/v${pkgver}/${pkgname}-${pkgver}.tar.gz
-+    no-casting-nan-to-int.patch::https://patch-diff.githubusercontent.com/raw/pydata/xarray/pull/7098.patch
-+)
-+sha256sums=('328ebc41581e8a0d15c9b274dfee7e14b4fb1dfde8d438eb10246a60f27b02a5'
-+            '9734ac3d42ea220c239d710effe09b56a5a19ee8041c23d8000df0b1a27888dd')
+@@ -94,3 +94,11 @@ package() {
+   local site_packages=$(python -c "import site; print(site.getsitepackages()[0])")
+   rm -r "${pkgdir}/${site_packages}/xarray/tests"
+ }
 +
 +prepare() {
 +  cd ${_pkg}-${pkgver}
-+  patch -Np1 -i ../no-casting-nan-to-int.patch
++  patch -p1 < $srcdir/fix-test_roundtrip_mask_and_scale.diff
 +}
- 
- build() {
-   cd ${_pkg}-${pkgver}
++
++source+=('fix-test_roundtrip_mask_and_scale.diff::https://github.com/pydata/xarray/pull/9964.diff')
++sha256sums+=('d4830feddcc93e8aba46456bbd72c11e2a4740ced98ca76a50615c1aad006b62')
