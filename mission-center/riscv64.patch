@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,12 +31,14 @@ sha256sums=('06ab2e9199dbfe74de5925f6009971ff8c1ad655bc8cd8eedb7e6186e5d661f8')
+ 
+ prepare() {
+   cd "$pkgname"
++  patch -Np1 -i ../khronos-egl.patch
++
+   CARGO_HOME="$srcdir/build/cargo-home" \
+     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ 
+   cd src/sys_info_v2/gatherer
+   CARGO_HOME="$srcdir/build/src/sys_info_v2/gatherer/cargo-home" \
+-    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++    cargo fetch --target "$(rustc -vV | sed -n 's/host: //p')"
+ }
+ 
+ build() {
+@@ -57,3 +59,6 @@ check() {
+ package() {
+   meson install -C build --no-rebuild --destdir "$pkgdir"
+ }
++
++source+=(khronos-egl.patch)
++sha256sums+=('821777088b3090ae95be29e83a15ecd8412b31bd18f1eb2a823a10e219e7be9f')
