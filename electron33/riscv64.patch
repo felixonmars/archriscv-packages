@@ -29,10 +29,10 @@
 +        Debian-fix-rust-linking.patch
          makepkg-source-roller.py
          # BEGIN managed sources
-         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=130.0.6723.44
+         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=130.0.6723.191
 @@ -242,13 +245,14 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          )
- sha256sums=('098351c5b5fbd2903c5f4d2f4b5cf734682447673142e3ba649154e63ae0c5f5'
+ sha256sums=('99beae1c8f4f4eb4cd48cd12ddd04da8857f02bba9c975ae82a18fc846008612'
              'b5fd4b943ae307680cd5c2050a01f85ef94d3f880a157eef8d17eb9fa23864f5'
 -            'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
 +            '8e128dec0d9416029ea8124e14963c9e0caf897bf60d347a070e393edebdff1c'
@@ -44,7 +44,7 @@
              'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
              '2c8cd28cee0e1df1862e801794f210d2b7cac652f943cf94f43c2abe26f2a2f4'
-             '89a485a9b48e80e65b4bc6ea081d6738217fbfb52910d3deadf9fdf45acf853b'
+             'add3d20ad7f8014d3a34cb229f7f5fefcea485afd381c34361f71d521c210641'
              '0b7a546ee6913c49519c10c293ac530ff381641a8a465fa2e184d6dbe0fb784d'
 @@ -459,12 +463,22 @@ prepare() {
    cp -r chromium-mirror_third_party_depot_tools depot_tools
@@ -69,10 +69,16 @@
  
    echo "Running hooks..."
    # depot_tools/gclient.py runhooks
-@@ -480,6 +494,12 @@ prepare() {
-   # src/tools/update_pgo_profiles.py --target=linux update \
-   #   --gs-url-base=chromium-optimization-profiles/pgo_profiles
- 
+@@ -476,9 +490,15 @@ prepare() {
+     -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
+   src/build/util/lastchange.py \
+     -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
+-  src/tools/update_pgo_profiles.py --target=linux update \
+-    --gs-url-base=chromium-optimization-profiles/pgo_profiles
+-
++  #src/tools/update_pgo_profiles.py --target=linux update \
++  #  --gs-url-base=chromium-optimization-profiles/pgo_profiles
++
 +  pushd src/third_party/node/
 +  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
 +  local _rollup_ver="$(jq -r .dependencies.\"@rollup/wasm-node\" package.json)"
@@ -82,7 +88,7 @@
    # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
    src/third_party/node/update_npm_deps
  
-@@ -505,6 +525,8 @@ prepare() {
+@@ -504,6 +524,8 @@ prepare() {
  
    patch -Np0 -i ../blink-fix-missing-stdlib-include.patch
  
@@ -91,7 +97,7 @@
    ## Upstream fixes
  
    # Allow libclang_rt.builtins from compiler-rt >= 16 to be used
-@@ -578,6 +600,8 @@ build() {
+@@ -577,6 +599,8 @@ build() {
      'enable_hangout_services_extension=true'
      'enable_widevine=false'
      'enable_nacl=false'
@@ -100,7 +106,16 @@
    )
  
    if [[ -n ${_system_libs[icu]+set} ]]; then
-@@ -613,6 +637,10 @@ build() {
+@@ -590,7 +614,7 @@ build() {
+     'clang_base_path="/usr"'
+     'clang_use_chrome_plugins=false'
+     "clang_version=\"$_clang_version\""
+-    'chrome_pgo_phase=2'
++    'chrome_pgo_phase=0'
+   )
+ 
+   # Allow the use of nightly features with stable Rust compiler
+@@ -612,6 +636,10 @@ build() {
    CFLAGS+='   -Wno-unknown-warning-option'
    CXXFLAGS+=' -Wno-unknown-warning-option'
  
@@ -111,7 +126,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -660,3 +688,5 @@ package() {
+@@ -659,3 +687,5 @@ package() {
    install -Dm644 src/electron/default_app/icon.png \
            "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
  }
