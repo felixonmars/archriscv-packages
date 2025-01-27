@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,13 +24,18 @@ makedepends=(
+ checkdepends=(
+   python-mpi4py
+ )
+-source=("$url/-/archive/v$pkgver/$_name-v$pkgver.tar.gz")
+-b2sums=('f5d81bbbe57ccbab692935f9ed45258be72e261af5c788ee0f4601a5ff1fe74be62a94f4a2992871b14a02ed56b5b9393ad02c939174eac292dc26bfded4e2a0')
++source=("$url/-/archive/v$pkgver/$_name-v$pkgver.tar.gz"
++        char-signed-test.patch)
++b2sums=('f5d81bbbe57ccbab692935f9ed45258be72e261af5c788ee0f4601a5ff1fe74be62a94f4a2992871b14a02ed56b5b9393ad02c939174eac292dc26bfded4e2a0'
++        '51c9cecc27971b3edbd60d4cdd755a5b2113e580ecb258c5a79daa7cbdf18d9b8bf720be127b1703a34c633b443876b3a2197c3c126c447b5e111f896801eb89')
+ 
+ # LTO breaks the ABI tests
+ options=(!lto)
+ 
+ prepare() {
++  cd ${_reponame}-${pkgver}
++  patch -Np1 -i ../char-signed-test.patch
++  cd ..
+   # Building the Fortran wrappers causes the ABI test to fail due to three
+   # unexpected symbols: https://gitlab.kitware.com/paraview/catalyst/-/issues/42
+   # Adding the extra symbols tricks the test suite to pass.
