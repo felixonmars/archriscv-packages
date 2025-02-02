@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,12 +15,15 @@ depends=(
+   'glibc'
+   'xz' 'liblzma.so'
+ )
+-source=("$pkgname-$pkgver.tar.gz::$url/archive/tauri-cli-v$pkgver.tar.gz")
+-sha512sums=('338da5347fe48fa904cb64dd72f632bae31afb4e4a01daf735929fa2b8e47faf0c855edddd20d024147274362697507663ca10341c87d0ec2fd60254b5863a57')
++source=("$pkgname-$pkgver.tar.gz::$url/archive/tauri-cli-v$pkgver.tar.gz"
++        "tauri-riscv.patch::https://github.com/kxxt/tauri/commit/84520fc88a73bb3d33eadb542e755869d7eaa375.diff")
++sha512sums=('338da5347fe48fa904cb64dd72f632bae31afb4e4a01daf735929fa2b8e47faf0c855edddd20d024147274362697507663ca10341c87d0ec2fd60254b5863a57'
++            '9f0a1a5fa9c90aa64fe1d9e35fd6d4248a8ad0e0ac597528c5e33ab766f209b0c87b80afe4d7f61aa924e1298646817d6aa96656d9b5746e72963fbb6cb59194')
+ options=('!lto')
+ 
+ prepare() {
+   mv "$_pkgname-tauri-cli-v$pkgver" "$pkgname-$pkgver"
++  patch -Np1 -d "$pkgname-$pkgver" < tauri-riscv.patch
+   cd "$pkgname-$pkgver/crates/tauri-cli"
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+   mkdir -p completions
