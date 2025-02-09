@@ -1,32 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,14 +17,18 @@ makedepends=(
+@@ -15,7 +15,7 @@ license=(GPL-3.0-only)
+ depends=(vaultwarden)
+ makedepends=(
    git
-   nodejs
+-  nodejs
++  nodejs-lts-iron
    npm
-+  python
-+  python-setuptools
  )
  install=$pkgname.install
- source=(
-   "bitwarden-clients::git+https://github.com/bitwarden/clients.git#tag=web-v$_upstreamver"
-   "git+https://github.com/dani-garcia/bw_web_builds#tag=v$_pkgver"
-+  "remove-electron.patch"
- )
- b2sums=('7fd09ee856e82fb1eaf8022b6ed6846819bc3f11b7bcdd684bb8e6cd53b2e98b4cc2e46f45fcb5b6e75dae3b68a05ae887a7e49fad7a91a1f2558a88d9aa7c1a'
--        'a536986d40fb0609c51fa68fa7db265ac8f2a7599ad5560ab9d089c1a1f8f497801ac6375ad5668c5cf4bb1c8cf6fece4230bfd3239ec0d597457d3d68d9ed43')
-+        'a536986d40fb0609c51fa68fa7db265ac8f2a7599ad5560ab9d089c1a1f8f497801ac6375ad5668c5cf4bb1c8cf6fece4230bfd3239ec0d597457d3d68d9ed43'
-+        '9965bcf53083cd0e7e2a798d4dcb813a962878d21eb5e5a4200498dff88d7f6481931d1a3c29f31c6119fd029a6e551fa55373c9d218598d5faf911be96ef530')
+@@ -35,6 +35,8 @@ pkgver() {
+ prepare() {
+   cd bitwarden-clients
  
- # Appease vercmp by prepending trailing letter with a period
- # shellcheck disable=SC2001
-@@ -42,6 +46,9 @@ prepare() {
-   # Apply Vaultwarden patch
-   patch --forward --strip=1 --input=../bw_web_builds/patches/v"$_patchver".patch
- 
-+  # remove electron from npm dependencies
-+  patch --forward --strip=1 --input="$srcdir/remove-electron.patch"
++  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
 +
-   npm ci
- }
- 
+   # Copy Vaultwarden images
+   cp -vr ../bw_web_builds/resources/src/images/{logo-{dark,white}@2x,icon-white}.png \
+     apps/web/src/images
