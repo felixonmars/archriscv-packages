@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index 53e6c0b..f0bcfee 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -4,7 +4,7 @@
@@ -5,14 +7,14 @@
  _pkgname=pytorch
  pkgbase="python-${_pkgname}"
 -pkgname=("${pkgbase}" "${pkgbase}-opt" "${pkgbase}-cuda" "${pkgbase}-opt-cuda" "${pkgbase}-rocm" "${pkgbase}-opt-rocm")
-+pkgname=("${pkgbase}")
++pkgname=("${pkgbase}" "${pkgbase}-opt" "${pkgbase}-rocm" "${pkgbase}-opt-rocm")
  # When updating pytorch, also check the compatibility table for torchvision
  # https://github.com/pytorch/vision?tab=readme-ov-file#installation
- pkgver=2.5.1
-@@ -16,12 +16,12 @@ url="https://pytorch.org"
+ pkgver=2.6.0
+@@ -16,12 +16,12 @@
  license=('BSD')
  depends=('google-glog' 'gflags' 'opencv' 'openmp' 'openmpi' 'pybind11' 'python' 'python-yaml' 'libuv'
-          'python-numpy' 'python-sympy' 'protobuf' 'ffmpeg' 'python-future' 'qt6-base' 'eigen'
+          'python-numpy' 'python-sympy' 'protobuf' 'ffmpeg' 'qt6-base' 'eigen'
 -         'intel-oneapi-mkl' 'python-typing_extensions' 'numactl' 'python-jinja'
 +         'python-typing_extensions' 'numactl' 'python-jinja'
           'python-networkx' 'python-filelock')
@@ -21,52 +23,73 @@
 -makedepends=('python' 'python-setuptools' 'python-yaml' 'python-numpy' 'cmake' 'cuda' 'gcc13'
 -             'nccl' 'cudnn' 'git' 'rocm-hip-sdk' 'hipblaslt' 'roctracer' 'miopen-hip' 'magma-cuda' 'magma-hip'
 +makedepends=('python' 'python-setuptools' 'python-yaml' 'python-numpy' 'cmake' 'gcc13'
-+             'git'
++             'git' 'rocm-hip-sdk' 'hipblaslt' 'roctracer' 'miopen-hip' 'magma-hip'
               'ninja' 'pkgconfig' 'doxygen' 'vulkan-headers' 'shaderc' 'onednn' "${_aotriton_deps[@]}")
  source=("${_pkgname}::git+https://github.com/pytorch/pytorch.git#tag=v$pkgver"
          # generated using parse-submodules
-@@ -70,7 +70,8 @@ source=("${_pkgname}::git+https://github.com/pytorch/pytorch.git#tag=v$pkgver"
-         pytorch-rocm-jit.patch
-         pytorch-missing-iostream.patch
-         pytorch-remove-caffe2-binaries.patch
--        fix_cmake_prefix_path.patch)
-+        fix_cmake_prefix_path.patch
-+        sleef-riscv-rvv.patch::https://github.com/shibatch/sleef/pull/602/commits/ca5e8a234fb8f591a5c091f6538557e4de1cc12e.diff)
- b2sums=('84694343cf4cb55b8ce70208201426b9c8c18a500b8168cd5a57840c9d410a7ca4e0f51764ec0b7117c87405e62fdf7937abb4265508b47f2cc6213ac08ec296'
-         'SKIP'
-         'SKIP'
-@@ -117,7 +118,8 @@ b2sums=('84694343cf4cb55b8ce70208201426b9c8c18a500b8168cd5a57840c9d410a7ca4e0f51
-         'e19fbb32da5a3bdd9d1505b2ba79ff0d765b241da819c96a380a5c871be4f5a78dcad000e01a315d936cfebb7860150f8111e60aed17cbb9337896a0831df0fe'
-         '77458fa568692020ae4e437b1ebae6ebbf59f040b3414ba03e32cc829f1befb9f39dde6e0c0525e30d42dd08d482d2f213dd8294a9877476c7d0d6aabb0f08d3'
-         '4514a3b50581a35aa11daaf06c8d4b4b04dee9518bb8239667a5ef758660355f9ebf27ef6796d1369fca97c98278d05cab19ed3d8d52790325331113df65182c'
--        '12e2f94b25d8c473f064223b120c339245fce931c835b88aa66236899909745700e59dd787474588292798a0333e321150cc00d4eb2b5530b324ad2fb143a626')
-+        '12e2f94b25d8c473f064223b120c339245fce931c835b88aa66236899909745700e59dd787474588292798a0333e321150cc00d4eb2b5530b324ad2fb143a626'
-+        'da3dcd01fceaf0f9423665e02dd1bd214f2fdc7d7fc25c4ba708d22fe58d3e5ec40c39abdf8d1d86c28ec5b5992bef4436c5955f2068e1a13198ebbd12df49bc')
- options=('!lto' '!debug')
- 
- get_pyver () {
-@@ -168,6 +170,9 @@ prepare() {
+@@ -169,6 +169,10 @@
  
    git -c protocol.file.allow=always submodule update --init --recursive
  
 +  # RISC-V fixes
-+  patch -Np1 -d third_party/sleef < "${srcdir}"/sleef-riscv-rvv.patch
++  patch -Np1 -d third_party/sleef -i "${srcdir}"/sleef-riscv-rvv.patch
++  patch -Np1 -i "${srcdir}"/disable-aotriton-riscv64.patch
 +
    # Fix cmake prefix path (FS#78665)
    patch -Np1 -i "${srcdir}"/fix_cmake_prefix_path.patch
  
-@@ -232,8 +237,8 @@ _prepare() {
-   export USE_SYSTEM_NCCL=ON
+@@ -204,8 +208,6 @@
+   cd "${srcdir}"
+ 
+   cp -r "${_pkgname}" "${_pkgname}-opt"
+-  cp -r "${_pkgname}" "${_pkgname}-cuda"
+-  cp -r "${_pkgname}" "${_pkgname}-opt-cuda"
+   cp -r "${_pkgname}" "${_pkgname}-rocm"
+   cp -r "${_pkgname}" "${_pkgname}-opt-rocm"
+ }
+@@ -218,7 +220,6 @@
+ 
+   # Check tools/setup_helpers/cmake.py, setup.py and CMakeLists.txt for a list of flags that can be set via env vars.
+   export ATEN_NO_TEST=ON  # do not build ATen tests
+-  export USE_MKLDNN=ON
+   export BUILD_CUSTOM_PROTOBUF=OFF
+   export USE_FFMPEG=ON
+   export USE_GFLAGS=ON
+@@ -227,27 +228,11 @@
+   export USE_OBSERVERS=ON
+   export USE_OPENCV=ON
+   # export USE_SYSTEM_LIBS=ON  # experimental, not all libs present in repos
+-  export USE_SYSTEM_NCCL=ON
    export USE_SYSTEM_PYBIND11=ON
    export USE_SYSTEM_EIGEN_INSTALL=ON
+   export USE_GOLD_LINKER=ON
 -  export NCCL_VERSION=$(pkg-config nccl --modversion)
 -  export NCCL_VER_CODE=$(sed -n 's/^#define NCCL_VERSION_CODE\s*\(.*\).*/\1/p' /usr/include/nccl.h)
-+  # export NCCL_VERSION=$(pkg-config nccl --modversion)
-+  # export NCCL_VER_CODE=$(sed -n 's/^#define NCCL_VERSION_CODE\s*\(.*\).*/\1/p' /usr/include/nccl.h)
-   # export BUILD_SPLIT_CUDA=ON  # modern preferred build, but splits libs and symbols, ABI break
-   # export USE_FAST_NVCC=ON  # parallel build with nvcc, spawns too many processes
-   export USE_CUPTI_SO=ON  # make sure cupti.so is used as shared lib
-@@ -273,12 +278,14 @@ build() {
+-  # export BUILD_SPLIT_CUDA=ON  # modern preferred build, but splits libs and symbols, ABI break
+-  export USE_CUPTI_SO=ON  # make sure cupti.so is used as shared lib
+   export CC=/usr/bin/gcc-13
+   export CXX=/usr/bin/g++-13
+-  export CUDAHOSTCXX="${NVCC_CCBIN}"
+-  export CUDA_HOST_COMPILER="${CUDAHOSTCXX}"
+-  export CUDA_HOME=/opt/cuda
+-  # hide build-time CUDA devices
+-  export CUDA_VISIBLE_DEVICES=""
+-  export CUDNN_LIB_DIR=/usr/lib
+-  export CUDNN_INCLUDE_DIR=/usr/include
+-  export TORCH_NVCC_FLAGS="-Xfatbin -compress-all"
+-
+-  # This list is from ./Dockerfile
+-  export TORCH_CUDA_ARCH_LIST="7.0 7.2 7.5 8.0 8.6 8.7 8.9 9.0 9.0a"
+ 
+   export ROCM_PATH=/opt/rocm
+   export HIP_ROOT_DIR=/opt/rocm
+@@ -270,52 +255,29 @@
+ 
+ build() {
+   cd "${srcdir}/${_pkgname}"
+-  echo "Building without cuda or rocm and without non-x86-64 optimizations"
++  echo "Building without cuda or rocm and without non-riscv64 optimizations"
+   _prepare
    export USE_CUDA=0
    export USE_CUDNN=0
    export USE_ROCM=0
@@ -77,16 +100,96 @@
    # their dependencies, build twice when dependencies are available
    python setup.py build || python setup.py build
  
-+  : <<COMMENT
-+
    cd "${srcdir}/${_pkgname}-opt"
-   echo "Building without cuda or rocm and with non-x86-64 optimizations"
+-  echo "Building without cuda or rocm and with non-x86-64 optimizations"
++  echo "Building without cuda or rocm and with non-riscv64 optimizations"
    _prepare
-@@ -342,6 +349,7 @@ build() {
-   patch -Np1 -i "$srcdir/pytorch-rocm-jit.patch"
+   export USE_CUDA=0
+   export USE_CUDNN=0
+   export USE_ROCM=0
+-  echo "add_definitions(-march=x86-64-v3)" >> cmake/MiscCheck.cmake
+-  # same horrible hack as above
+-  python setup.py build || python setup.py build
+-
+-  cd "${srcdir}/${_pkgname}-cuda"
+-  echo "Building with cuda and without non-x86-64 optimizations"
+-  _prepare
+-  export USE_CUDA=1
+-  export USE_CUDNN=1
+-  export USE_ROCM=0
+-  export MAGMA_HOME=/opt/cuda/targets/x86_64-linux
+-  cd "${srcdir}/${_pkgname}-cuda"
+-  echo "add_definitions(-march=x86-64)" >> cmake/MiscCheck.cmake
+-  # same horrible hack as above
+-  python setup.py build || python setup.py build
+-
+-  cd "${srcdir}/${_pkgname}-opt-cuda"
+-  echo "Building with cuda and with non-x86-64 optimizations"
+-  export USE_CUDA=1
+-  export USE_CUDNN=1
+-  export USE_ROCM=0
+-  export MAGMA_HOME=/opt/cuda/targets/x86_64-linux
+-  _prepare
+-  echo "add_definitions(-march=x86-64-v3)" >> cmake/MiscCheck.cmake
++  echo "add_definitions(-march=rv64gcv)" >> cmake/MiscCheck.cmake
    # same horrible hack as above
    python setup.py build || python setup.py build
-+COMMENT
+ 
+   cd "${srcdir}/${_pkgname}-rocm"
+-  echo "Building with rocm and without non-x86-64 optimizations"
++  echo "Building with rocm and without non-riscv64 optimizations"
+   # -fcf-protection is not supported by HIP, see
+   # https://rocm.docs.amd.com/projects/llvm-project/en/latest/reference/rocmcc.html#support-status-of-other-clang-options
+   CXXFLAGS+=" -fcf-protection=none"
+@@ -324,7 +286,7 @@
+   export USE_CUDNN=0
+   export USE_ROCM=1
+   export MAGMA_HOME=/opt/rocm
+-  echo "add_definitions(-march=x86-64)" >> cmake/MiscCheck.cmake
++  echo "add_definitions(-march=rv64gc)" >> cmake/MiscCheck.cmake
+   # Conversion of CUDA to ROCm source files
+   python tools/amd_build/build_amd.py
+   patch -Np1 -i "$srcdir/pytorch-rocm-jit.patch"
+@@ -332,13 +294,13 @@
+   python setup.py build || python setup.py build
+ 
+   cd "${srcdir}/${_pkgname}-opt-rocm"
+-  echo "Building with rocm and with non-x86-64 optimizations"
++  echo "Building with rocm and with non-riscv64 optimizations"
+   _prepare
+   export USE_CUDA=0
+   export USE_CUDNN=0
+   export USE_ROCM=1
+   export MAGMA_HOME=/opt/rocm
+-  echo "add_definitions(-march=x86-64-v3)" >> cmake/MiscCheck.cmake
++  echo "add_definitions(-march=rv64gcv)" >> cmake/MiscCheck.cmake
+   # Conversion of CUDA to ROCm source files
+   python tools/amd_build/build_amd.py
+   patch -Np1 -i "$srcdir/pytorch-rocm-jit.patch"
+@@ -384,7 +346,7 @@
  }
  
- _package() {
+ package_python-pytorch-opt() {
+-  pkgdesc="${_pkgdesc} (with AVX2 CPU optimizations)"
++  pkgdesc="${_pkgdesc} (with RVV CPU optimizations)"
+   conflicts=(python-pytorch)
+   provides=(python-pytorch=${pkgver})
+ 
+@@ -423,7 +385,7 @@
+ }
+ 
+ package_python-pytorch-opt-rocm() {
+-  pkgdesc="${_pkgdesc} (with ROCm and AVX2 CPU optimizations)"
++  pkgdesc="${_pkgdesc} (with ROCm and RVV CPU optimizations)"
+   depends+=(rocm-hip-sdk hipblaslt roctracer miopen-hip magma-hip onednn)
+   conflicts=(python-pytorch)
+   provides=(python-pytorch=${pkgver} python-pytorch-rocm=${pkgver})
+@@ -433,3 +395,8 @@
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++source+=(sleef-riscv-rvv.patch::https://github.com/shibatch/sleef/pull/602/commits/ca5e8a234fb8f591a5c091f6538557e4de1cc12e.diff
++         disable-aotriton-riscv64.patch::https://github.com/pytorch/pytorch/pull/146406/commits/856bbf193dca30e4782acf5c350e5925a5716b98.diff)
++b2sums+=('da3dcd01fceaf0f9423665e02dd1bd214f2fdc7d7fc25c4ba708d22fe58d3e5ec40c39abdf8d1d86c28ec5b5992bef4436c5955f2068e1a13198ebbd12df49bc'
++         '043ffc720273b048621e6ef3942b53813adfcd146d7cc34ef676314e66c37ca7b3290826bb0087d4866a3ce73345512df536648007c0ef93762e10ffd8cbd29d')
