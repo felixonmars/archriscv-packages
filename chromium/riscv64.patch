@@ -9,7 +9,7 @@
  optdepends=('pipewire: WebRTC desktop sharing under Wayland'
              'kdialog: support for native dialogs in Plasma'
              'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -35,7 +35,18 @@ sha256sums=('f98315eacbf3be106feca37f8243d8c4092d4fd832c918aa36dc229eb6ab39e0'
+@@ -35,7 +35,16 @@ sha256sums=('433c8891a3d717994b0e9544334491888e835a4b813354eefacae05489c23d01'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
              'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
@@ -17,37 +17,32 @@
 +            '6de648d449159dd579e42db304aca0a36243f2ac1538f8d030473afbbc8ff475'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+            '3c6ab77fdae5771be316d391e3488e5bd8eba967de3faa7295b4ff51acb1de98'
++            'abf519219fcff70aa24c09354978549526cbdcf2e4553c1ff541efc43f79e4db'
 +            '1713cfc3c73d7f33fd7a9daba9b642869632468bc1068b727827a6b5320a7f88'
-+            '77b62bbe1fd7cc2efc5c19fddba58b41332cc68894e893ce5357f5f75b79f678'
-+            '8fd4c776c44da66133ba3d87506e9a95a08fd461d5d03f53c39cb4af8337448e'
++            '35a710ee8b7047ff4976281ea127fe33c58861f2b94d0d979798478baa7130ab'
 +            '9b03cd0430c70be9d90705f3d2ebe2d8a982b57bafb419371c0658d76f24f99e'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
 +            'abc9d2f93d9104de6f6d82c89124cfe0bb5afc291a0b10e0fa8ad827210ae62c'
-+            '53cbad1796b6ef78806b4babef8d29472895d9b23391f4259d092646173b4ccc'
-+            '68503a4875bf313ef827d9cffb09f8fff102483dcab9ead05ba9bd88924e9f0f')
++            '53cbad1796b6ef78806b4babef8d29472895d9b23391f4259d092646173b4ccc')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -111,6 +122,31 @@ prepare() {
+@@ -111,6 +120,28 @@ prepare() {
    # Increase _FORTIFY_SOURCE level to match Arch's default flags
    patch -Np1 -i ../increase-fortify-level.patch
  
 +  # RISC-V
-+  patch -Np1 -i ../riscv-chromium-variations-130.patch
++  patch -Np1 -i ../riscv-chromium-variations-133.patch
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
 +
 +  for rvpatch in riscv-{dav1d,sandbox}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
-+  patch -Np1 -d v8 < ../riscv-v8.patch
 +  patch -Np0 -i ../compiler-rt-riscv.patch
 +  patch -Np1 -i ../0001-chrome-runtime_api_delegate-add-riscv64-define.patch
 +  patch -Np1 -i ../0001-extensions-common-api-runtime.json-riscv64-support.patch
 +  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg.patch
-+  # https://trac.ffmpeg.org/ticket/11302
-+  patch -Np1 -d third_party/ffmpeg < ../0001-Enable-relocate-1-for-ff_h264_weight_funcs_8_rvv.patch
 +
 +  pushd third_party/node/
 +  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
@@ -61,7 +56,7 @@
    # Fixes for building with libstdc++ instead of libc++
  
    # Link to system tools required by the build
-@@ -181,6 +217,7 @@ build() {
+@@ -181,6 +212,7 @@ build() {
      'enable_widevine=true'
      'enable_nacl=false'
      'use_qt6=true'
@@ -69,18 +64,16 @@
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
    )
-@@ -313,4 +350,14 @@ package() {
+@@ -314,4 +346,12 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-{dav1d,ffmpeg,sandbox}.patch
-+         0001-Enable-relocate-1-for-ff_h264_weight_funcs_8_rvv.patch
-+         riscv-chromium-variations-130.patch
++         riscv-chromium-variations-133.patch
 +         compiler-rt-riscv.patch
 +         Debian-fix-rust-linking.patch
 +         https://github.com/riscv-forks/electron/raw/v32.0.1-riscv/patches/chromium/0001-extensions-common-api-runtime.json-riscv64-support.patch
-+         0001-chrome-runtime_api_delegate-add-riscv64-define.patch
-+         riscv-v8.patch::https://github.com/riscv-forks/electron/raw/01b9e5d51adecba8cbaeb1de3254cb7d22b76975/patches/v8/0001-riscv-Fix-build-failed-for-native.patch)
++         0001-chrome-runtime_api_delegate-add-riscv64-define.patch)
 +
  # vim:set ts=2 sw=2 et:
