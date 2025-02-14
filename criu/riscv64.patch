@@ -1,24 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -47,9 +47,18 @@ provides=(
-   'libcriu.so'
- )
- options=('!lto')
--source=("git+https://github.com/checkpoint-restore/criu#tag=v$pkgver")
--sha512sums=('cdfaebfe37c2e1111383444a0575499bb4a6b7618a944921d8c2bfa7c2a72831557bc568f8457c70ea0d94b0e70549ed5f4d43134e0c58baa5ffab3c1b3e40c6')
--b2sums=('4cf22e25a848007e5c7230aa1a60216f4ba98423be47442a00fd7d5c0079ac86901bfcd5c82d2ee7f4ab243bc1eb431328848317dc24c3c45d81250318bc9e21')
-+source=("git+https://github.com/checkpoint-restore/criu#tag=v$pkgver"
-+        'riscv64-support.patch')
-+sha512sums=('cdfaebfe37c2e1111383444a0575499bb4a6b7618a944921d8c2bfa7c2a72831557bc568f8457c70ea0d94b0e70549ed5f4d43134e0c58baa5ffab3c1b3e40c6'
-+            'e8ba686efde48aa1f8c8ea993151cefd31565d4746c63be6c466f1e4b6be186c325bdfb2766bdf2af872bad9505fd5ef25563074a760e17d26854d80ded800c4')
-+b2sums=('4cf22e25a848007e5c7230aa1a60216f4ba98423be47442a00fd7d5c0079ac86901bfcd5c82d2ee7f4ab243bc1eb431328848317dc24c3c45d81250318bc9e21'
-+        '5df6e1dc381fe662bf6efe08ad1071576afa1efb02f289c6d4171363f6d08f5c1d50c0aba1edc3b46da1224531a4a73ac6763d55dfb3b37729fc48e61c75eb8d')
+@@ -55,6 +55,9 @@ prepare() {
+   cd "$pkgname"
+   # https://github.com/checkpoint-restore/criu/issues/2532
+   git cherry-pick -n 058572e91dea1d8ac9c345e69e08a58e8abfacbb
 +
-+prepare() {
-+  cd "$pkgname"
-+
-+  patch -Np1 -i "$srcdir/riscv64-support.patch"
-+}
++  patch -Np1 < ${srcdir}/add-riscv64-support-2234.patch
++  patch -Np1 < ${srcdir}/add-riscv64-support-2518.patch
+ }
  
  build() {
-   cd "$pkgname"
+@@ -89,3 +92,10 @@ package() {
+   # Remove empty directory to silence namcap warning.
+   rm -r "$pkgdir/usr/include/compel/common/asm"
+ }
++
++source+=('add-riscv64-support-2234.patch::https://github.com/checkpoint-restore/criu/pull/2234.patch')
++source+=('add-riscv64-support-2518.patch::https://github.com/checkpoint-restore/criu/pull/2518.patch')
++sha512sums+=('0b04aa6571b931a09cc9d7110394c7edbf9b829a8e416bc03c56b0e8c2e3db2283d802fb094b3bd09d849a431666deccfbf516863a16bdb5b1ccbbe3ae27a929'
++             'e6828b767b35a5f70270f032de85b7d0bc18e07201898d79086ab1b965f9cc48ecc8575f5c783a0662b2a288013108609c1454f94cba3611bc0a16353a0b74f1')
++b2sums+=('74cc6a6ce0ea6de2fcac6b56db6ba4e225c66762d323ec75e5b6ff0aaa7808aaec8c0ccc55a7e201318d0b65692d11cae51ad56f4bc841ada8a6716821ab44c9'
++         'a8346ffc94288ada72633dbe4c6b2755eb6b94c9c1b08d2a22089c29592d30ae694f4f7c57d3a93b366eeb6ed13818a0eea386c00ee2b42d945c9f038715e810')
