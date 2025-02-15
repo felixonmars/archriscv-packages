@@ -1,0 +1,37 @@
+diff --git PKGBUILD PKGBUILD
+index d035c8f..860bd27 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,8 +28,6 @@
+   graphviz
+   texlive-bin
+   texlive-latexextra
+-  # -cuda
+-  cuda
+   # -hip
+   hip-runtime-amd
+   hipblas
+@@ -81,16 +79,6 @@
+     -DGINKGO_BUILD_SYCL=OFF
+   cmake --build build
+ 
+-  # -cuda package
+-  # Compile source code for supported GPU archs in parallel
+-  export CUDAFLAGS="--threads $(nproc)"
+-  cmake -B build-cuda "${common_cmake_options[@]}" \
+-    -DCMAKE_CUDA_ARCHITECTURES="$_cuda_archs" \
+-    -DGINKGO_BUILD_CUDA=ON \
+-    -DGINKGO_BUILD_HIP=OFF \
+-    -DGINKGO_BUILD_SYCL=OFF
+-  cmake --build build-cuda
+-
+   # -hip package
+   # LTO does not work with HIP
+   export HIPFLAGS="${CXXFLAGS/-flto=auto/}"
+@@ -188,4 +176,6 @@
+   _package -hip
+ }
+ 
++pkgname=(${pkgname[@]/ginkgo-hpc-cuda})
++
+ # vim:set ts=2 sw=2 et:
