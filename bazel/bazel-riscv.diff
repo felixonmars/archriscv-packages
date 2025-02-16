@@ -1,21 +1,8 @@
---- repositories.bzl.orig	2025-02-07 23:47:06.934119986 -0500
-+++ repositories.bzl	2025-02-07 23:46:35.347392689 -0500
-@@ -97,6 +97,12 @@
-         url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_ppc64le_linux_hotspot_21.0.5_11.tar.gz",
-     )
-     http_file(
-+        name = "openjdk_linux_riscv64_vanilla",
-+        integrity = "sha256-Lxs+QB423oAzmN+5gYhh+fFMqK59tlDqCUarBI/v47k=",
-+        downloaded_file_path = "adoptopenjdk-riscv64-vanilla.tar.gz",
-+        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_riscv64_linux_hotspot_21.0.5_11.tar.gz",
-+    )
-+    http_file(
-         name = "openjdk_macos_x86_64_vanilla",
-         integrity = "sha256-zXTl63OMkUWdS45eEOrJGK4qBdIan8fKXcLaZOZbzr0=",
-         downloaded_file_path = "zulu-macos-vanilla.tar.gz",
---- MODULE.bazel.orig	2025-02-07 23:43:20.230351495 -0500
-+++ MODULE.bazel	2025-02-07 23:44:09.823780023 -0500
-@@ -289,6 +289,7 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index b2d5b2d3d144b8..bae117635f702c 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -296,6 +296,7 @@ use_repo(
      "openjdk_linux_aarch64_vanilla",
      "openjdk_linux_ppc64le_vanilla",
      "openjdk_linux_s390x_vanilla",
@@ -23,9 +10,42 @@
      "openjdk_linux_vanilla",
      "openjdk_macos_aarch64_vanilla",
      "openjdk_macos_x86_64_vanilla",
---- src/minimize_jdk.sh.orig	2025-02-07 23:42:09.306882024 -0500
-+++ src/minimize_jdk.sh	2025-02-07 23:56:12.061833025 -0500
-@@ -40,8 +40,8 @@
+diff --git a/repositories.bzl b/repositories.bzl
+index 62512117f865c3..2fc4b6090fcf0d 100644
+--- a/repositories.bzl
++++ b/repositories.bzl
+@@ -100,6 +100,12 @@ def embedded_jdk_repositories():
+         downloaded_file_path = "adoptopenjdk-ppc64le-vanilla.tar.gz",
+         url = "https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jdk_ppc64le_linux_hotspot_23.0.1_11.tar.gz",
+     )
++    http_file(
++        name = "openjdk_linux_riscv64_vanilla",
++        integrity = "sha256-gNe6uflhS9+TTGvEQQMb0f6tOuqF8WdwEjvYprzcUrY=",
++        downloaded_file_path = "adoptopenjdk-riscv64-vanilla.tar.gz",
++        url = "https://github.com/adoptium/temurin23-binaries/releases/download/jdk-23.0.1%2B11/OpenJDK23U-jdk_riscv64_linux_hotspot_23.0.1_11.tar.gz",
++    )
+     http_file(
+         name = "openjdk_macos_x86_64_vanilla",
+         integrity = "sha256-Ha2a94Z+QAc367voEEMXGo8Lw92vcvvu9ilbPR2+cow=",
+diff --git a/src/BUILD b/src/BUILD
+index fe2adbb918d8bb..155ac21b6fff04 100644
+--- a/src/BUILD
++++ b/src/BUILD
+@@ -173,6 +173,9 @@ filegroup(
+         "//src/conditions:linux_s390x": [
+             "@openjdk_linux_s390x_vanilla//file",
+         ],
++        "//src/conditions:linux_riscv64": [
++            "@openjdk_linux_riscv64_vanilla//file",
++        ],
+         "//conditions:default": [
+             "@openjdk_linux_vanilla//file",
+         ],
+diff --git a/src/minimize_jdk.sh b/src/minimize_jdk.sh
+index 06e0ad17438015..691d9580f3306e 100755
+--- a/src/minimize_jdk.sh
++++ b/src/minimize_jdk.sh
+@@ -40,8 +40,8 @@ else
  fi
  fulljdk=$1
  out=$3
@@ -36,15 +56,3 @@
    FULL_JDK_DIR="jdk*"
    DOCS=""
  else
---- src/BUILD.orig	2025-02-07 23:43:09.086996772 -0500
-+++ src/BUILD	2025-02-07 23:25:57.775017168 -0500
-@@ -173,6 +173,9 @@
-         "//src/conditions:linux_s390x": [
-             "@openjdk_linux_s390x_vanilla//file",
-         ],
-+        "//src/conditions:linux_riscv64": [
-+            "@openjdk_linux_riscv64_vanilla//file",
-+        ],
-         "//conditions:default": [
-             "@openjdk_linux_vanilla//file",
-         ],
