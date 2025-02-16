@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -48,15 +48,25 @@ validpgpkeys=(
+@@ -47,8 +47,21 @@ validpgpkeys=(
    'C0D6248439F1D5604AAFFB4021D900FFDB233756' # Antoine du Hamel <duhamelantoine1995@gmail.com>
  )
  
@@ -10,31 +10,25 @@
 +  export CXX=/usr/bin/clang++
 +}
 +
- prepare() {
-   cd node
-   patch -Np1 -i ../0001-test-make-test-crypto-hash-compatible-with-OpenSSL-3.patch
-   patch -Np1 -i ../0002-test-adjust-OpenSSL-error-code-for-3.4.0.patch
-   patch -Np1 -i ../0001-test-disable-openssl-3.4.0-incompatible-tests.patch
++prepare() {
++  cd node
 +  patch -Np1 -i ../fix-trap-handler.patch
 +  patch -Np1 -i ../v8-disable-trap-handler.patch
-+  patch -Np1 -d deps/v8 < ../0001-riscv-Flush-icache-in-both-local-and-remote-harts.patch
- }
- 
++}
++
  build() {
    cd node
 +  _set_compilation_env
- 
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-@@ -82,6 +92,7 @@ build() {
+   export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+@@ -76,13 +89,20 @@ build() {
  
  check() {
    cd node
 +  _set_compilation_env
-   # Running an individual test: tools/test.py test/parallel/test-tls-psk-circuit.js
-   # OpenSSL 3.4 broke a few tests in nodejs:
-   # - https://github.com/nodejs/node/issues/56159
-@@ -92,8 +103,16 @@ check() {
+   make test-only
+ }
  
  package() {
    cd node
@@ -45,9 +39,7 @@
  
 +makedepends+=(clang)
 +source+=("fix-trap-handler.patch"
-+         "v8-disable-trap-handler.patch"
-+         "https://github.com/riscv-forks/electron/raw/d620bc038f02a412f396bc1bb84ea2bdd4c32114/patches/v8/0001-riscv-Flush-icache-in-both-local-and-remote-harts.patch")
++         "v8-disable-trap-handler.patch")
 +sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c'
-+             'b6495aefd36915969ee848cca350a565317c74864cd33e6a69a310ed9cbc71dfbd91f31e8c6176667f6f72daa1762eb4d519700a024cdbe8b18049100a9e3c80'
-+             'f25b4f57c2623f4c6d7dec2741f3e53e95f34217e012d2a330846ec73bb0d797124ec57e86aa450ba9ee7ad59d19974c81f674eb65dca0deb2ebd5b10f125824')
++             'b6495aefd36915969ee848cca350a565317c74864cd33e6a69a310ed9cbc71dfbd91f31e8c6176667f6f72daa1762eb4d519700a024cdbe8b18049100a9e3c80')
  # vim:set ts=2 sw=2 et:
