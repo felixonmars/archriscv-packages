@@ -1,0 +1,44 @@
+diff -Naur libnfs-libnfs-6.0.2/lib/pdu.c libnfs-libnfs-6.0.2_/lib/pdu.c
+--- libnfs-libnfs-6.0.2/lib/pdu.c	2024-12-14 16:03:11.000000000 +0800
++++ libnfs-libnfs-6.0.2_/lib/pdu.c	2025-02-20 00:43:23.091503352 +0800
+@@ -885,7 +885,7 @@
+                          * that finished authentication.
+                          */
+                         if (pdu->gss_seqno == 0) {
+-                                struct rpc_gss_init_res *gir = (struct rpc_gss_init_res *)pdu->zdr_decode_buf;
++                                struct rpc_gss_init_res *gir = (struct rpc_gss_init_res *)(void *)pdu->zdr_decode_buf;
+ 
+                                 rpc->context_len = gir->handle.handle_len;
+                                 free(rpc->context);
+diff -Naur libnfs-libnfs-6.0.2/lib/socket.c libnfs-libnfs-6.0.2_/lib/socket.c
+--- libnfs-libnfs-6.0.2/lib/socket.c	2024-12-14 16:03:11.000000000 +0800
++++ libnfs-libnfs-6.0.2_/lib/socket.c	2025-02-20 00:45:55.358173190 +0800
+@@ -583,8 +583,8 @@
+ 		}
+ 		if (!rpc->is_server_context) {
+ 			rpc->rm_xid[0] = count;
+-			rpc->rm_xid[1] = ntohl(*(uint32_t *)&buf[0]);
+-			rpc->pdu = rpc_find_pdu(rpc, ntohl(*(uint32_t *)&buf[0]));
++			rpc->rm_xid[1] = ntohl(*(uint32_t *)(void *)&buf[0]);
++			rpc->pdu = rpc_find_pdu(rpc, ntohl(*(uint32_t *)(void *)&buf[0]));
+ 			if (rpc->pdu == NULL) {
+ 				rpc_set_error(rpc, "Failed to match incoming PDU/XID."
+ 						" Ignoring PDU");
+@@ -796,7 +796,7 @@
+                                 }
+ 
+                                 /* Copy the next 4 bytes into inbuf */
+-                                *((uint32_t *)rpc->inbuf) = htonl(rpc->rm_xid[1]);
++                                *((uint32_t *)(void *)rpc->inbuf) = htonl(rpc->rm_xid[1]);
+ 
+                                 /* but set inpos to 0, we will update it above
+                                  * that we have already read these 4 bytes in
+@@ -858,7 +858,7 @@
+                                                  * If the READ failed, bail out here as there is no
+                                                  * data.
+                                                  */
+-                                                const READ3res *res = (READ3res *) rpc->pdu->zdr_decode_buf;
++                                                const READ3res *res = (READ3res *)(void *) rpc->pdu->zdr_decode_buf;
+                                                 if (res->status != NFS3_OK) {
+                                                         goto payload_finished;
+                                                 }
