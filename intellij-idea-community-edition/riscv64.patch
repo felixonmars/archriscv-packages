@@ -1,113 +1,68 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,7 +16,7 @@ arch=('x86_64')
- license=('Apache')
- backup=('usr/share/idea/bin/idea64.vmoptions')
- depends=('giflib' "java-runtime=${_jrever}" 'python' 'sh' 'ttf-font' 'libdbusmenu-glib' 'fontconfig' 'hicolor-icon-theme')
--makedepends=('ant' 'git' "java-environment-openjdk=${_jdkver}" maven)
-+makedepends=('ant' 'git' "java-environment-openjdk=${_jdkver}" maven cargo cmake libx11) # libx11: header only
+@@ -5,6 +5,7 @@
+ 
+ pkgname=intellij-idea-community-edition
+ pkgver=2024.3.3
++_tag=${pkgver}+0
+ _build=243.24978.46
+ _jrever=21
+ _jdkver=21
+@@ -20,49 +21,24 @@ makedepends=('ant' 'git' maven)
  optdepends=(
    'lldb: lldb frontend integration'
  )
-@@ -27,17 +27,39 @@ source=("git+https://github.com/JetBrains/intellij-community.git#tag=idea/${_bui
-         enable-no-jdr.patch
-         # The class src/com/intellij/openapi/projectRoots/ex/JavaSdkUtil.java:56 (git commit 0ea5972cdad569407078fb27070c80e2b9235c53)
-         # assumes the user's maven repo is at {$HOME}/.m2/repository and it contains junit-3.8.1.jar
+-source=("git+https://github.com/JetBrains/intellij-community.git#tag=idea/${_build}"
+-        idea-android::"git+https://github.com/JetBrains/android.git#tag=idea/${_build}"
++source=("git+https://github.com/Glavo/JetBrains-IDE-Multiarch.git#tag=idea/${_tag}"
+         idea.desktop
+         idea.sh
+-        enable-no-jdr.patch
+-        # The class src/com/intellij/openapi/projectRoots/ex/JavaSdkUtil.java:56 (git commit 0ea5972cdad569407078fb27070c80e2b9235c53)
+-        # assumes the user's maven repo is at {$HOME}/.m2/repository and it contains junit-3.8.1.jar
 -        https://repo1.maven.org/maven2/junit/junit/3.8.1/junit-3.8.1.jar)
-+        https://repo1.maven.org/maven2/junit/junit/3.8.1/junit-3.8.1.jar
-+        intellij-riscv64.patch
-+        # Who knows which commit Jetbrain is using? The following commit works anyway.
-+        git+https://github.com/JetBrains/pty4j.git#commit=673a524230c1a46782211e77b1750877b3aa71f7)
- noextract=('junit-3.8.1.jar')
- sha256sums=('SKIP'
-             'SKIP'
+-noextract=('junit-3.8.1.jar')
+-sha256sums=('519a2dd48f4804e37d89dd68c820152b5bb809b6d194f10f9e4b001280cc1056'
+-            'e1fabad30c867c3b9517cce7e9121b0c3dd5082a17ab606ddaae53833a64248f'
++)
++sha256sums=('7ef194687767ebebd59783bcb94ece91c0682c25a5a5eac26d2bb2c822882f97'
              '049c4326b6b784da0c698cf62262b591b20abb52e0dcf869f869c0c655f3ce93'
-             'd7e4a325fccd48b8c8b0a6234df337b58364e648bb9b849e85ca38a059468e71'
-             'b7858737346fb08423ee7fd177f9e59180d2173d988dd8622b84d58426fcb3a7'
+             'c5787f6777fa292c6376f3fcddc89f1d0ae4b71f3284d9bfefcea0b0ab3d8ea9'
+-            'b7858737346fb08423ee7fd177f9e59180d2173d988dd8622b84d58426fcb3a7'
 -            'b58e459509e190bed737f3592bc1950485322846cf10e78ded1d065153012d70')
-+            'b58e459509e190bed737f3592bc1950485322846cf10e78ded1d065153012d70'
-+            '002ebbcef2d9bfc734e025d2dde5e44fdf3d1de1b1a2f41ccddcd50f8cd6ff0e'
-+            'SKIP')
-+case "$CARCH" in
-+  x86_64)
-+      _arch=amd64
-+      _alt_arch=x86-64
-+      _suffix=""
-+      ;;
-+  *)
-+      _arch="$CARCH"
-+      _alt_arch="$CARCH"
-+      _suffix="-$CARCH"
-+      ;;
-+esac
-+
- 
- prepare() {
-   cd intellij-community
-+  patch -Np0 -i ../intellij-riscv64.patch
-+  pushd native/restarter
-+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
-+  popd
- 
-   # build system doesn't like symlinks
-   mv "${srcdir}"/idea-android android
-@@ -58,14 +80,45 @@ prepare() {
- }
+-
+-prepare() {
+-  cd intellij-community
+-
+-  # build system doesn't like symlinks
+-  mv "${srcdir}"/idea-android android
+-
+-  export MAVEN_REPOSITORY=${srcdir}/.m2/repository
+-  mvn install:install-file \
+-    -Dfile="${srcdir}"/junit-3.8.1.jar \
+-    -DgroupId=junit \
+-    -DartifactId=junit \
+-    -Dversion=3.8.1 \
+-    -Dpackaging=jar \
+-    -DgeneratePom=true
+-
+-  patch -Np1 < "${srcdir}/enable-no-jdr.patch"
+-}
++)
  
  build() {
-+  pushd pty4j/native
-+  # That Makefile is a mess and only intended for cross. Let's build manually
-+  _cc="gcc $CFLAGS $CPPFLAGS -I.  -D_REENTRANT -D_GNU_SOURCE -fPIC"
-+  $_cc -c -o exec_pty.o exec_pty.c
-+  $_cc -c -o openpty.o openpty.c
-+  $_cc -c -o pfind.o pfind.c
-+  gcc $LDFLAGS $CFLAGS -g -shared -Wl,-soname,libpty.so -o libpty.so *.o
-+  popd
-+
-   cd intellij-community
-+
-+  mkdir -p bin/linux/$_arch
-+
-+  pushd native/restarter
-+  cargo build --frozen --release
-+  popd
-+  export CC=gcc
-+  pushd native/fsNotifier/linux
-+  ./make.sh
-+  cp fsnotifier ../../../bin/linux/$_arch
-+  popd
-+
-+  pushd native/LinuxGlobalMenu
-+  cmake .
-+  make
-+  cp libdbm.so ../../bin/linux/$_arch
-+  popd
-+
-+  pushd platform/sqlite
-+  OS=linux ARCH=$CARCH ./make.sh
-+  popd
+-  cd intellij-community
++  cd JetBrains-IDE-Multiarch
    
    export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
    export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
-   export MAVEN_REPOSITORY=${srcdir}/.m2/repository
-   
--  ./installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux
+-  export MAVEN_REPOSITORY=${srcdir}/.m2/repository
+ 
+-  ./installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux -Dbuild.number="${_build}"
 -  tar -xf out/idea-ce/artifacts/ideaIC-${_build}-no-jbr.tar.gz -C "${srcdir}"
-+  ./installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux \
-+     -Dintellij.build.target.arch=${_arch} -Dintellij.build.linux_tar_gz_without_jre=true
-+  tar -xf out/idea-ce/artifacts/ideaIC-${_build}-no-jbr${_suffix}.tar.gz -C "${srcdir}"
++  ./gradlew transformIC-riscv64
++
++  tar -xf build/target/ideaIC-${_tag}-riscv64.tar.gz -C "${srcdir}"
  }
  
  package() {
-@@ -79,6 +132,11 @@ package() {
-   install -Dm 644 ../idea.desktop -t "${pkgdir}"/usr/share/applications/
-   install -Dm 755 ../idea.sh "${pkgdir}"/usr/bin/idea
-   install -Dm 644 build.txt -t "${pkgdir}"/usr/share/idea
-+
-+  # riscv64 missing parts
-+  install -Dm 755 ../pty4j/native/libpty.so -t "${pkgdir}"/usr/share/idea/lib/pty4j/linux/${_alt_arch}
-+  install -Dm 755 ../intellij-community/platform/sqlite/target/sqlite/linux-${CARCH}/libsqliteij.so \
-+     -t "${pkgdir}"/usr/share/idea/lib/native/linux-${CARCH}/
- }
- 
- # vim: ts=2 sw=2 et:
