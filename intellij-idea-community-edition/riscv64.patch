@@ -8,7 +8,12 @@
  _build=243.24978.46
  _jrever=21
  _jdkver=21
-@@ -20,49 +21,24 @@ makedepends=('ant' 'git' maven)
+@@ -16,53 +17,36 @@ arch=('x86_64')
+ license=('Apache-2.0')
+ backup=('usr/share/idea/bin/idea64.vmoptions')
+ depends=('giflib' "java-environment-openjdk=${_jrever}" 'python' 'sh' 'ttf-font' 'libdbusmenu-glib' 'fontconfig' 'hicolor-icon-theme')
+-makedepends=('ant' 'git' maven)
++makedepends=('ant' 'git' maven 'cargo' 'go' 'gcc')
  optdepends=(
    'lldb: lldb frontend integration'
  )
@@ -30,13 +35,15 @@
              'c5787f6777fa292c6376f3fcddc89f1d0ae4b71f3284d9bfefcea0b0ab3d8ea9'
 -            'b7858737346fb08423ee7fd177f9e59180d2173d988dd8622b84d58426fcb3a7'
 -            'b58e459509e190bed737f3592bc1950485322846cf10e78ded1d065153012d70')
--
--prepare() {
++)
+ 
+ prepare() {
 -  cd intellij-community
 -
 -  # build system doesn't like symlinks
 -  mv "${srcdir}"/idea-android android
--
++  cd JetBrains-IDE-Multiarch
+ 
 -  export MAVEN_REPOSITORY=${srcdir}/.m2/repository
 -  mvn install:install-file \
 -    -Dfile="${srcdir}"/junit-3.8.1.jar \
@@ -47,8 +54,10 @@
 -    -DgeneratePom=true
 -
 -  patch -Np1 < "${srcdir}/enable-no-jdr.patch"
--}
-+)
++  # Disable fetch prebuild natives
++  sed -i 's/^natives\.linux\.riscv64\.url.*$//g' config/natives.properties
++  sed -i 's/^jdk\.linux.*$//g' config/jdk.properties
+ }
  
  build() {
 -  cd intellij-community
