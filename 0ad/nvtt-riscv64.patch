@@ -1,0 +1,113 @@
+diff --git a/libraries/source/nvtt/build.sh b/libraries/source/nvtt/build.sh
+index 4729973..a0449b8 100755
+--- a/libraries/source/nvtt/build.sh
++++ b/libraries/source/nvtt/build.sh
+@@ -43,6 +43,7 @@ fi
+ # unpack
+ rm -Rf nvtt-${PV}
+ tar xf nvtt-${PV}.tar.xz
++patch -d nvtt-${PV} -Np1 -i "$PWD"/nvtt-add-riscv64-support.patch
+ 
+ # build
+ (
+diff --git a/libraries/source/nvtt/nvtt-add-riscv64-support.patch b/libraries/source/nvtt/nvtt-add-riscv64-support.patch
+new file mode 100644
+index 0000000..a544ee0
+--- /dev/null
++++ b/libraries/source/nvtt/nvtt-add-riscv64-support.patch
+@@ -0,0 +1,95 @@
++diff --git a/src/extern/poshlib/posh.h b/src/extern/poshlib/posh.h
++index ba12725..0411acd 100644
++--- a/src/extern/poshlib/posh.h
+++++ b/src/extern/poshlib/posh.h
++@@ -556,6 +556,17 @@ MCST LCC (eLbrus Compiler Collection):
++ #  define POSH_CPU_STRING "MCST E2K"
++ #endif
++ 
+++#if defined __riscv
+++#  define POSH_CPU_RISCV 1
+++#  if __riscv_xlen == 64
+++#    define POSH_CPU_RISCV64 1
+++#    define POSH_CPU_STRING "riscv64"
+++#  elif __riscv_xlen == 32
+++#    define POSH_CPU_RISCV32 1
+++#    define POSH_CPU_STRING "riscv32"
+++#  endif
+++#endif
+++
++ #if !defined POSH_CPU_STRING
++ #  error POSH cannot determine target CPU
++ #  define POSH_CPU_STRING "Unknown" /* this is here for Doxygen's benefit */
++diff --git a/src/src/nvcore/Debug.cpp b/src/src/nvcore/Debug.cpp
++index b6636c2..6144d41 100644
++--- a/src/src/nvcore/Debug.cpp
+++++ b/src/src/nvcore/Debug.cpp
++@@ -677,6 +677,9 @@ namespace
++ #  elif NV_CPU_E2K
++         ucontext_t * ucp = (ucontext_t *)secret;
++         return (void *) ucp->uc_mcontext.cr0_hi;
+++#    elif POSH_CPU_RISCV64
+++        ucontext_t * ucp = (ucontext_t *)secret;
+++        return (void *) ucp->uc_mcontext.__gregs[REG_PC];
++ #    else
++ #      error "Unknown CPU"
++ #    endif
++diff --git a/src/src/nvcore/Debug.h b/src/src/nvcore/Debug.h
++index 9b84c32..a2c4b7d 100644
++--- a/src/src/nvcore/Debug.h
+++++ b/src/src/nvcore/Debug.h
++@@ -166,7 +166,7 @@ NVCORE_API void NV_CDECL nvDebugPrint( const char *msg, ... ) __attribute__((for
++ namespace nv
++ {
++     inline bool isValidPtr(const void * ptr) {
++-    #if NV_CPU_X86_64 || POSH_CPU_PPC64 || NV_CPU_AARCH64 || NV_CPU_E2K
+++    #if NV_CPU_X86_64 || POSH_CPU_PPC64 || NV_CPU_AARCH64 || NV_CPU_E2K || POSH_CPU_RISCV64
++         if (ptr == NULL) return true;
++         if (reinterpret_cast<uint64>(ptr) < 0x10000ULL) return false;
++         if (reinterpret_cast<uint64>(ptr) >= 0x000007FFFFFEFFFFULL) return false;
++diff --git a/src/src/nvcore/nvcore.h b/src/src/nvcore/nvcore.h
++index b5426c1..43f55c8 100644
++--- a/src/src/nvcore/nvcore.h
+++++ b/src/src/nvcore/nvcore.h
++@@ -114,6 +114,8 @@
++ #   define NV_CPU_AARCH64 1
++ #elif defined POSH_CPU_E2K
++ #   define NV_CPU_E2K 1
+++#elif defined POSH_CPU_RISCV
+++#   define NV_CPU_RISCV 1
++ #else
++ #   error "Unsupported CPU"
++ #endif
++diff --git a/src/src/nvthread/Atomic.h b/src/src/nvthread/Atomic.h
++index 5d4a696..a6be0b2 100644
++--- a/src/src/nvthread/Atomic.h
+++++ b/src/src/nvthread/Atomic.h
++@@ -73,6 +73,16 @@ namespace nv {
++         // also utilizes a full barrier
++         // currently treating load like x86 - this could be wrong
++ 
+++        // this is the easiest but slowest way to do this
+++        nvCompilerReadWriteBarrier();
+++		uint32 ret = *ptr; // replace with ldrex?
+++        nvCompilerReadWriteBarrier();
+++        return ret;
+++#elif POSH_CPU_RISCV64
+++        // need more specific cpu type for riscv64?
+++        // also utilizes a full barrier
+++        // currently treating load like x86 - this could be wrong
+++
++         // this is the easiest but slowest way to do this
++         nvCompilerReadWriteBarrier();
++ 		uint32 ret = *ptr; // replace with ldrex?
++@@ -102,6 +112,11 @@ namespace nv {
++         nvCompilerReadWriteBarrier();
++ 		*ptr = value; //strex?
++ 		nvCompilerReadWriteBarrier();
+++#elif POSH_CPU_RISCV64
+++        // this is the easiest but slowest way to do this
+++        nvCompilerReadWriteBarrier();
+++		*ptr = value; //strex?
+++		nvCompilerReadWriteBarrier();
++ #else
++ #error "Atomics not implemented."
++ #endif

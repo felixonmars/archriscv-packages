@@ -1,0 +1,98 @@
+diff --git a/build/premake/premake5.lua b/build/premake/premake5.lua
+index 9539e2a..12dcd43 100644
+--- a/build/premake/premake5.lua
++++ b/build/premake/premake5.lua
+@@ -105,6 +105,8 @@ else
+ 		arch = "e2k"
+ 	elseif string.find(machine, "ppc64") == 1 or string.find(machine, "powerpc64") == 1 then
+ 		arch = "ppc64"
++	elseif string.find(machine, "riscv64") == 1 then
++		arch = "riscv64"
+ 	else
+ 		print("WARNING: Cannot determine architecture from GCC, assuming x86")
+ 	end
+@@ -896,6 +898,8 @@ function setup_all_libs ()
+ 		table.insert(source_dirs, "lib/sysdep/arch/e2k");
+ 	elseif arch == "ppc64" then
+ 		table.insert(source_dirs, "lib/sysdep/arch/ppc64");
++	elseif arch == "riscv64" then
++		table.insert(source_dirs, "lib/sysdep/arch/riscv64");
+ 	end
+ 
+ 	-- OS-specific
+diff --git a/source/lib/sysdep/arch.h b/source/lib/sysdep/arch.h
+index 7455097..ef22403 100644
+--- a/source/lib/sysdep/arch.h
++++ b/source/lib/sysdep/arch.h
+@@ -82,9 +82,15 @@
+ #else
+ # define ARCH_E2K 0
+ #endif
++// .. riscv64
++#if defined(__riscv) && (__riscv_xlen == 64)
++# define ARCH_RISCV64 1
++#else
++# define ARCH_RISCV64 0
++#endif
+ 
+ // ensure exactly one architecture has been detected
+-#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64) != 1
++#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64+ARCH_RISCV64) != 1
+ # error "architecture not correctly detected (either none or multiple ARCH_* defined)"
+ #endif
+ 
+diff --git a/source/lib/sysdep/arch/riscv64/riscv64.cpp b/source/lib/sysdep/arch/riscv64/riscv64.cpp
+new file mode 100644
+index 0000000..9b72e74
+--- /dev/null
++++ b/source/lib/sysdep/arch/riscv64/riscv64.cpp
+@@ -0,0 +1,49 @@
++/* Copyright (C) 2015 Wildfire Games.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining
++ * a copy of this software and associated documentation files (the
++ * "Software"), to deal in the Software without restriction, including
++ * without limitation the rights to use, copy, modify, merge, publish,
++ * distribute, sublicense, and/or sell copies of the Software, and to
++ * permit persons to whom the Software is furnished to do so, subject to
++ * the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included
++ * in all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
++ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
++ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
++ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
++ */
++
++/*
++ * routines specific to riscv64
++ */
++
++#include "precompiled.h"
++
++#include "lib/sysdep/cpu.h"
++
++intptr_t cpu_AtomicAdd(volatile intptr_t* location, intptr_t increment)
++{
++	return __sync_fetch_and_add(location, increment);
++}
++
++bool cpu_CAS(volatile intptr_t* location, intptr_t expected, intptr_t newValue)
++{
++	return __sync_bool_compare_and_swap(location, expected, newValue);
++}
++
++bool cpu_CAS64(volatile i64* location, i64 expected, i64 newValue)
++{
++	return __sync_bool_compare_and_swap(location, expected, newValue);
++}
++
++const char* cpu_IdentifierString()
++{
++	return "unknown"; // TODO
++}
