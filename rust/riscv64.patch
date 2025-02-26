@@ -36,10 +36,10 @@
    # Use our aarch64-linux-gnu-gcc
    patch -Np1 -i ../0005-compiler-Use-aarch64-linux-gnu-gcc-to-link-aarch64-t.patch
  
-+  # Some musl targets(like x86_64) by default crt-static, while others are not.
-+  # riscv musl target gets changed to not crt-static by default and triggers
-+  # https://github.com/rust-lang/rust/issues/82521
-+  # Re-enable default crt-static to align with x86_64 Arch Linux and fix build.
++  # Force `crt_static_default = true` after upstream switched to dynamic by
++  # default, which leads to https://github.com/rust-lang/rust/issues/82521.
++  # x86_64 and others' behaviours remains the same, we align with them.
++  # See https://github.com/rust-lang/rust/commit/9c37c14aa2456315bf7b3fa7b3e089bc13a43ee9
 +  patch -Np1 -i ../riscv-musl-crt-default-static.diff
 +
    cat >config.toml <<END
@@ -56,7 +56,7 @@
    "x86_64-unknown-linux-musl",
    "aarch64-unknown-linux-gnu",
    "aarch64-unknown-linux-musl",
-@@ -167,22 +176,16 @@ jemalloc = true
+@@ -166,22 +175,16 @@ jemalloc = true
  compression-formats = ["gz"]
  compression-profile = "fast"
  
@@ -82,7 +82,7 @@
  ar = "/usr/bin/gcc-ar"
  ranlib = "/usr/bin/gcc-ranlib"
  sanitizers = false
-@@ -206,6 +209,24 @@ default-linker = "aarch64-linux-gnu-gcc"
+@@ -205,6 +208,24 @@ default-linker = "aarch64-linux-gnu-gcc"
  sanitizers = false
  musl-root = "/usr/aarch64-linux-musl/lib/musl"
  
@@ -107,7 +107,7 @@
  [target.wasm32-unknown-unknown]
  cc = "/usr/bin/clang"
  cxx = "/usr/bin/clang++"
-@@ -300,12 +321,11 @@ build() {
+@@ -288,12 +309,11 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -124,7 +124,7 @@
    _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
    _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
    _pick dest-wasm usr/lib/rustlib/wasm32-*
-@@ -390,6 +410,33 @@ package_rust-aarch64-musl() {
+@@ -378,6 +398,33 @@ package_rust-aarch64-musl() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
@@ -158,10 +158,11 @@
  package_rust-wasm() {
    pkgdesc="WebAssembly targets for Rust"
    depends=(
-@@ -414,4 +461,6 @@ package_rust-src() {
+@@ -402,4 +449,7 @@ package_rust-src() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
 +source+=(riscv-musl-crt-default-static.diff)
-+b2sums+=('a49b3a586b6ed62ec19a4f84f3ef297d926ce584faa640697c71e806f74012908a84d6a87a31bc8b3e70a6ce3049c1075ab13de3581374decf19cd9ee719cc65')
++b2sums+=('c7e4849c433bba9fd69f05e6b242e94fcd229e9470e086bd93e6782ff811b418fd46596fe503b507c3cd677089f7e54fabffa5f88a98e965742e06e381619e49')
++
  # vim:set ts=2 sw=2 et:
