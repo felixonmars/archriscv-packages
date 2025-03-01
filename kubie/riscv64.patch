@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 37d13d5..9b72ce1 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,7 +8,7 @@
+ url="https://github.com/sbstp/kubie"
+ license=('custom:zlib')
+ depends=('gcc-libs')
+-makedepends=('cargo')
++makedepends=('cargo' 'cmake' 'clang')
+ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+ sha512sums=('cd195f758c9979917d17d7b5d4272fa7c0ff78a9e63ff8cd25057d8919b9f218b39c0b33f50219eb6c8d4d08f59cbba73b97243863f850865b67d5bf4e6db4d9')
+ options=('!lto')
+@@ -20,6 +20,8 @@
+ 
+ build() {
+   cd "$pkgname-$pkgver"
++  export CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
++  export CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
+   cargo build --release --frozen --no-default-features
+ }
+ 
