@@ -1,24 +1,23 @@
 diff --git PKGBUILD PKGBUILD
-index 3523ba3..d55d562 100644
+index b84308d..2fb121d 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -30,7 +30,7 @@
-         -DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi;libunwind'
-         -DLIBCXX_ENABLE_STATIC=ON
-         -DLIBCXXABI_ENABLE_STATIC=ON
--        -DLLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;X86'
-+        -DLLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;RISCV'
-         -DCLANG_DEFAULT_LINKER=lld
-         -DLLVM_INSTALL_UTILS=ON
-         -DLLVM_ENABLE_BINDINGS=OFF
-@@ -119,3 +119,10 @@
+@@ -34,7 +34,7 @@
+         -D LLVM_ENABLE_RUNTIMES='compiler-rt;libunwind;libcxx;libcxxabi'
+         -D LIBCXX_ENABLE_STATIC=ON
+         -D LIBCXXABI_ENABLE_STATIC=ON
+-        -D LLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;X86'
++        -D LLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;RISCV'
+         -D CLANG_DEFAULT_LINKER=lld
+         -D CLANG_DEFAULT_RTLIB=compiler-rt
+         -D CLANG_DEFAULT_UNWINDLIB=libgcc
+@@ -132,3 +132,9 @@
      cd "$pkgbase/amd/comgr"
      install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
 +
-+source+=("$pkgbase-fix-llvm-mc-abi.patch")
-+sha256sums+=('f87358fa2cf2528f75a37a9c1dcef6572cb631fda40a971c1efc565e47c0a533')
-+
 +prepare() {
-+    patch -d $pkgbase -Np1 -i ../$pkgbase-fix-llvm-mc-abi.patch
++  cd "$pkgbase"
++  # Fix llvm-mc abi
++  git cherry-pick -n 3acb0e9e600cbe3668b7db3956238a592ebadc0a
 +}
