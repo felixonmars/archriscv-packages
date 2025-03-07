@@ -1,0 +1,42 @@
+From 826f676cfd50040c7c9b1f1e1332b40b45bedda6 Mon Sep 17 00:00:00 2001
+From: Eric Long <i@hack3r.moe>
+Date: Thu, 27 Feb 2025 20:54:52 +0800
+Subject: [PATCH] ML-KEM: check CPU features before calling kyber_rvv_selector
+
+On RISC-V platforms without V, kyber_rvv_selector is called first in
+__attribute__((constructor)) before the normal dynamic dispatch code in
+kyber_kem_api_riscv.c, causing SIGILL. Add a condition so that
+lc_cpu_feature_available() is always first checked.
+
+Signed-off-by: Eric Long <i@hack3r.moe>
+---
+ ml-kem/src/riscv64/kyber_rvv_vlen_selector.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/ml-kem/src/riscv64/kyber_rvv_vlen_selector.c b/ml-kem/src/riscv64/kyber_rvv_vlen_selector.c
+index 04285f35..c58991d8 100644
+--- a/ml-kem/src/riscv64/kyber_rvv_vlen_selector.c
++++ b/ml-kem/src/riscv64/kyber_rvv_vlen_selector.c
+@@ -17,6 +17,7 @@
+  * DAMAGE.
+  */
+ 
++#include "cpufeatures.h"
+ #include "ext_headers_riscv.h"
+ #include "initialization.h"
+ #include "kyber_rvv_vlen_selector.h"
+@@ -28,9 +29,11 @@ static int lc_riscv_rvv_vlen = 0;
+ 
+ LC_CONSTRUCTOR(kyber_riscv_rvv_selector)
+ {
+-	LC_VECTOR_ENABLE;
+-	lc_riscv_rvv_vlen = kyber_rvv_selector();
+-	LC_VECTOR_DISABLE;
++	if (lc_cpu_feature_available() & LC_CPU_FEATURE_RISCV_ASM_RVV) {
++		LC_VECTOR_ENABLE;
++		lc_riscv_rvv_vlen = kyber_rvv_selector();
++		LC_VECTOR_DISABLE;
++	}
+ }
+ 
+ int lc_riscv_rvv_is_vlen128(void)
