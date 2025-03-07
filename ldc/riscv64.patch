@@ -1,34 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,7 +14,7 @@ pkgdesc="A D Compiler based on the LLVM Compiler Infrastructure including D runt
- arch=('x86_64')
- url="https://github.com/ldc-developers/ldc"
- license=('BSD-3-Clause AND BSL-1.0 AND Apache-2.0 WITH LLVM-exception')
--makedepends=('git' 'cmake' 'llvm' 'lld' 'ldc' 'ninja')
-+makedepends=('git' 'cmake' 'llvm' 'lld' 'ldc' 'ninja' 'llvm17-libs')
- # Disable lto as linking the ldc2 binary fails
- options=(!lto)
- 
-@@ -35,6 +35,8 @@ prepare() {
+@@ -35,6 +35,11 @@ prepare() {
  
      # Set version used for path construction in getRelativeClangCompilerRTLibPath()
      sed -i "s/ldc::llvm_version_base/\"$_clangversion\"/" driver/linker-gcc.cpp
 +
 +    patch -Np1 -d runtime/phobos -i "$srcdir/disable-static-NaN-tests.patch"
++
++    # runtime: Link libatomic on 64-bit RISC-V and LoongArch
++    git cherry-pick -n 9296fd6fccbc2a6ade38ded1358923d1a893caab
  }
  
  build() {
-@@ -50,7 +52,8 @@ build() {
+@@ -50,7 +55,7 @@ build() {
      -DBUILD_SHARED_LIBS=BOTH \
      -DBUILD_LTO_LIBS=ON \
      -DLDC_WITH_LLD=OFF \
 -    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=lld --flto=thin" \
 +    -DD_COMPILER_FLAGS="-link-defaultlib-shared=false -linker=lld" \
-+    -DLD_FLAGS="-Wl,--no-as-needed -latomic -Wl,--as-needed" \
      -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"," \
      ..
      ninja
-@@ -102,3 +105,6 @@ package_liblphobos() {
+@@ -102,3 +107,6 @@ package_liblphobos() {
      # licenses
      install -D -m644 "$srcdir/ldc/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
