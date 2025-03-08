@@ -1,34 +1,18 @@
-diff --git PKGBUILD PKGBUILD
-index 4179c7e..de3b088 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,9 +9,17 @@ arch=('x86_64')
- url='https://github.com/istio/istio'
- license=('Apache')
- makedepends=('go')
--source=("$pkgname-$pkgver.tar.gz::https://github.com/istio/istio/archive/$pkgver.tar.gz")
--sha512sums=('0e52fa3d9f33ec4515bd105724fa1478312aaf834ae574e13041b96e6a8f2a5d1b0897ca0c96976f0ef4436e6cf924d257facce70471d71170593bf8f37a0e82')
--b2sums=('fba25cc96dc920ec89d072aa0f1b23e3699cdb10fa9d2b945e41153e5214952d52af3801146734bf9dfcae1d100d5096b81ef866bd1d72b81cba2592ac3e1f91')
-+source=("$pkgname-$pkgver.tar.gz::https://github.com/istio/istio/archive/$pkgver.tar.gz"
-+        "add_riscv64_support.patch")
-+sha512sums=('0e52fa3d9f33ec4515bd105724fa1478312aaf834ae574e13041b96e6a8f2a5d1b0897ca0c96976f0ef4436e6cf924d257facce70471d71170593bf8f37a0e82'
-+            '783ab98ca7b8a5f908a615604bfef74a6928ecb70c369a3d869009469c52e205d636f4a4df894c9d32ccb125e331e9dd72abcb8fe721998d407a6de7d9242a3d')
-+b2sums=('fba25cc96dc920ec89d072aa0f1b23e3699cdb10fa9d2b945e41153e5214952d52af3801146734bf9dfcae1d100d5096b81ef866bd1d72b81cba2592ac3e1f91'
-+        '059ec840175fdee7694fd1f61f4fe7a2c22cb99686ac4055fc8a5cd4d22da20b03b19b99258a4e51a06bfd5c5fc8833a443b8aaffd450ad80f60c64a46abae9e')
-+
-+prepare() {
-+  cd $pkgname-$pkgver
-+  patch -Np1 -i "../add_riscv64_support.patch"
-+}
- 
- build() {
+@@ -20,6 +20,7 @@ b2sums=('0104e6648c482b5229f456d760e455d1de711e560597ae42a73688199261a64da970352
+ prepare() {
    cd $pkgname-$pkgver
-@@ -22,7 +30,7 @@ build() {
+   GOFLAGS="-mod=readonly" go mod vendor -v
++  patch -Np1 -i "${srcdir}/add_riscv64_support.patch"
  }
  
- package() {
--  install -Dm 755 "${srcdir}/$pkgname-$pkgver/out/linux_amd64/istioctl" "${pkgdir}/usr/bin/istioctl"
-+  install -Dm 755 "${srcdir}/$pkgname-$pkgver/out/linux_riscv64/istioctl" "${pkgdir}/usr/bin/istioctl"
- 
-   # Populate bash and zsh completions
-   install -dm 755 "${pkgdir}/usr/share/bash-completion/completions"
+ build() {
+@@ -56,3 +57,7 @@ package() {
+   install -vDm644 istioctl.bash "$pkgdir/usr/share/bash-completion/completions/istioctl"
+   install -vDm644 _istioctl "$pkgdir/usr/share/zsh/site-functions/_istioctl"
+ }
++
++source+=('add_riscv64_support.patch')
++sha512sums+=('7d51979446415a3968ef538669cf563582745960d5b90aabe85226d5fd4b34ebe5c2f31f01126de778e8fca9102e04b5bc8ff9ceec9d3c059b8c51d377170e83')
++b2sums+=('8cfde63e74c40fa6834b59b17c05974013cc2ea8c578c246b265ef696fe76e74a08e9107969677577df816b2c4a0f81a0afe2c9ab4c8b96e652beeee032ed08d')
