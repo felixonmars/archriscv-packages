@@ -1,8 +1,8 @@
 diff --git PKGBUILD PKGBUILD
-index 43a51cb..52f3f02 100644
+index e914107..f3c223c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,6 +35,7 @@ source=(
+@@ -38,6 +38,7 @@ source=(
    https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
    config  # the main kernel config file
@@ -10,24 +10,24 @@ index 43a51cb..52f3f02 100644
  )
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -46,12 +47,14 @@ sha256sums=('4a516e5ed748537a73cb42ec47fbbeb6df8b1298e8892c29c0e91de79095b297'
+@@ -49,12 +50,14 @@ sha256sums=('de0053cb413d408f20fd1d5788219951b8a4403e5dac1b1d9032090938acd199'
              'SKIP'
-             '4b8c223bba9b89337b7085b24810b9b6027d95d931b2daedd43e2c5a50477f60'
+             '366f8c26f21cb5f6a16c163aecbaff9e232dd454fbd5db5a2ee7bff90e51dd34'
              'SKIP'
--            '751d4ade810a8d480a925d6cc5e7ea8ae70b15e6738897b475cdadc674de0b21')
-+            '751d4ade810a8d480a925d6cc5e7ea8ae70b15e6738897b475cdadc674de0b21'
-+            '38397a092bc5cac41580c2d908691bf0b1100b8c927a86a81e43e5dd5d33c44f')
- b2sums=('3146bbc9075b84db4c6ad3a64cbb91e3c379d0b8e9e90029eaf6a5bd37ea2b8a0a4ac1227e73d0e8acd20cab392841e046e148523bdb206302ea6c37a934b451'
+-            '9d02a908be9f0a408af5166c245509763864b0a037e7c5b14ba3a546ca597fe9')
++            '9d02a908be9f0a408af5166c245509763864b0a037e7c5b14ba3a546ca597fe9'
++            '553d07423779cd1c0549edcf2524fee5ab3f03ba5aae4426bf382b3e8bf34f14')
+ b2sums=('5a216c56c77efaee1a3f5c9198ade9180e4640ffcde39662ccf85c2a5945a08c5f362220fb0906369c72a3ea8bdc16fdd24d3e1dbc0f51fc831f3f724ed73300'
          'SKIP'
-         '084502afe7f205949b3337ac0031da62441121e1fb4ddd64719b72f5f99451b5a56776c8dabd12678abb3e64f1a859b13f7322439045cc8994b2d2b9c57717e1'
+         '5d915626940caff2be5b70958455a5d7e63f1c31f919302a74bdc21b90c8962433980ef6287d3cfe2b0d125ff8bcfd1bfcba8a7140a53789b2ef326120607f83'
          'SKIP'
--        '6f4c208d71519ddc6ff6c8fac3754f5fd254491a5a70171cf035269e640b7ca051be605ff3c8452c7e38f7fb2d4fc65960860601e7b348fa1c3418132ba9d5e8')
-+        '6f4c208d71519ddc6ff6c8fac3754f5fd254491a5a70171cf035269e640b7ca051be605ff3c8452c7e38f7fb2d4fc65960860601e7b348fa1c3418132ba9d5e8'
-+        '0cb683dac25be043ee4f9ac9063156b212ba88186fe06fe351c6130792f58442b78bc2dd35f2bd91e8d4c60d06cb11eccd998634c13b1ffd39cb5a36d183a296')
+-        '910bb62064169ff2f8fab0cdf3b19c2881f55bccafccb650ea03771db04239e434fc49729a9baab1472e1bb036daff897bfdee36b298e93476a11461ba4450e1')
++        '910bb62064169ff2f8fab0cdf3b19c2881f55bccafccb650ea03771db04239e434fc49729a9baab1472e1bb036daff897bfdee36b298e93476a11461ba4450e1'
++        '560ceebc84359322e7e82cc5e0092e8856aa6cfb3da6a271ccaee8f6304ba5c0a125eb34bc83ea34fd4c0beb5b797f30ef3dad6d2d563378c506e30f7d91da28')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -79,13 +82,20 @@ prepare() {
+@@ -82,13 +85,20 @@ prepare() {
    make olddefconfig
    diff -u ../config .config || :
  
@@ -49,7 +49,7 @@ index 43a51cb..52f3f02 100644
    make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
    make htmldocs
  }
-@@ -127,6 +137,9 @@ _package() {
+@@ -130,6 +140,9 @@ _package() {
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -59,7 +59,7 @@ index 43a51cb..52f3f02 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -142,20 +155,17 @@ _package-headers() {
+@@ -145,20 +158,17 @@ _package-headers() {
    install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
      localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
    install -Dt "$builddir/kernel" -m644 kernel/Makefile
@@ -83,7 +83,7 @@ index 43a51cb..52f3f02 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -177,7 +187,7 @@ _package-headers() {
+@@ -180,7 +190,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
