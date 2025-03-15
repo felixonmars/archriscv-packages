@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -37,8 +37,8 @@ export CGO_CXXFLAGS="${CXXFLAGS}"
+ export GOFLAGS="-trimpath -mod=readonly -modcacherw"
+ 
+ export GOOS='linux'
+-export GOARCH='amd64'
+-export XC_OSARCH='linux/amd64'
++export GOARCH='riscv64'
++export XC_OSARCH='linux/riscv64'
+ 
+ prepare() {
+   cd "${srcdir}/${pkgname}"
+@@ -51,6 +51,10 @@ prepare() {
+   done
+ 
+   mkdir -p build
++
++  go mod edit -replace=github.com/boltdb/bolt=go.etcd.io/bbolt@v1.3.6
++  go mod edit -replace=go.etcd.io/bbolt=github.com/coreos/bbolt@v1.3.6
++  go mod tidy
+ }
+ 
+ build() {
