@@ -1,20 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -91,6 +91,13 @@ prepare() {
+@@ -87,8 +87,17 @@ prepare() {
+   git submodule set-url src/3rdparty "$srcdir"/qtwebengine-chromium
+   git -c protocol.file.allow=always submodule update
  
- # Disable FFmpeg allow lists https://bugreports.qt.io/browse/QTBUG-132762
-   patch -d src/3rdparty -p1 < ../disable-ffmpeg-allow-lists.patch
+-  cd src/3rdparty
++  pushd src/3rdparty
+   git cherry-pick -n 24e9ff7caa6aa78c1c73e7329cf1230a455d0c1b # Fix playback issues with system ffmpeg
++  popd
 +
 +  for _patch in sandbox dav1d; do
 +    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
 +  done
 +  patch -d src/3rdparty/chromium    -Np1 < ../unscaledcycleclock-remove-riscv-support.patch
++  patch -d src/3rdparty/chromium    -Np1 < ../fix-linux-syscall-ranges.patch
 +  patch -d src/3rdparty/chromium/v8 -Np1 < ../Skip-check-sv57-when-enable-pointer-compress.patch
 +  patch -d src/3rdparty/chromium/v8 -Np1 < ../avoid-cpu-probing-in-li_ptr.patch
  }
  
  build() {
-@@ -103,7 +110,10 @@ build() {
+@@ -101,7 +110,10 @@ build() {
      -DQT_FEATURE_webengine_system_re2=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
@@ -26,7 +31,7 @@
    cmake --build build
  }
  
-@@ -112,3 +122,14 @@ package() {
+@@ -110,3 +122,16 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
@@ -35,9 +40,11 @@
 +source+=(riscv-{sandbox,dav1d}.patch
 +         "https://github.com/riscv-forks/electron/raw/1e16216b089b6aaed055d17608667e6582263cfd/patches/v8/avoid-cpu-probing-in-li_ptr.patch"
 +         "https://github.com/riscv-forks/electron/raw/1e16216b089b6aaed055d17608667e6582263cfd/patches/v8/Skip-check-sv57-when-enable-pointer-compress.patch"
-+         "https://github.com/riscv-forks/electron/raw/4eff53436a1a86ac548a107e21ca5078518833c0/patches/chromium/unscaledcycleclock-remove-riscv-support.patch")
++         "https://github.com/riscv-forks/electron/raw/4eff53436a1a86ac548a107e21ca5078518833c0/patches/chromium/unscaledcycleclock-remove-riscv-support.patch"
++         "fix-linux-syscall-ranges.patch::https://github.com/rockos-riscv/chromium-129.0.6668.100/commit/f699f4ed684e413e508e1f3c5e30d806473ff13b.patch")
 +sha256sums+=('8d52d4da703c8a86059418d1a4ed63d2d6bc1134e9dfe569695a830479a9afae'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
 +             'faaf1af670ab202f2e531b19c0af81e97b56afffdcd9f58afd33f0f65468f119'
 +             '6a3ad2b09fe28be4bd3aa922d071b973cf52531c447b31a7415a02f467a795a0'
-+             'bea6346ab4fc88061d3a657281e46eb14c1ce7fcfe108deda02b47bee50241aa')
++             'bea6346ab4fc88061d3a657281e46eb14c1ce7fcfe108deda02b47bee50241aa'
++             '0ac16adaebe4e3c347ab67647ae0e1ff1db1d710d0b64b469ab77d27eb9f4192')
