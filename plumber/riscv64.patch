@@ -1,27 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,9 +9,17 @@ url="https://github.com/batchcorp/plumber"
- license=('Apache')
- depends=('glibc')
- makedepends=('go' 'git')
--source=("${pkgname}-${pkgver}.tar.gz::https://github.com/batchcorp/${pkgname}/archive/v${pkgver}.tar.gz")
--sha512sums=('fd56e506a282f7859ddaac4a9cf7460fd2b00fd518ab510fcf9df7b5339771ec5cf89a25d98ae673dc0f8c82b80bb9e7d34c92dbce42d8a3953fc39d4be85a99')
--b2sums=('f5bf2f35d2879b7bf5a0646669c6de7d08cb5a9e53741d93e279b11328ba7c892e18219596ab585539c3f374012fe6313a6f35f5f342e61774902e5eb51314b5')
-+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/batchcorp/${pkgname}/archive/v${pkgver}.tar.gz"
-+        "add_riscv_support.patch")
-+sha512sums=('fd56e506a282f7859ddaac4a9cf7460fd2b00fd518ab510fcf9df7b5339771ec5cf89a25d98ae673dc0f8c82b80bb9e7d34c92dbce42d8a3953fc39d4be85a99'
-+            '4fe7a94c6e5740cf5073129a478c8f2d9d1a6be948defb5354affa1fe53bf56629f97e5a73c2bfc78f102bf19402bb3c426f41c58ba41635a003177a784f4854')
-+b2sums=('f5bf2f35d2879b7bf5a0646669c6de7d08cb5a9e53741d93e279b11328ba7c892e18219596ab585539c3f374012fe6313a6f35f5f342e61774902e5eb51314b5'
-+        '7bef1dd55c324dbfd62407822b529f2b17309c6ef6d97624fb9a6e72a5e0b481965f0c3aecbcf913b63ce584fea83eeea06665b466cbb84544de1a5c5940fca2')
-+
+@@ -13,13 +13,18 @@ source=("${pkgname}-${pkgver}.tar.gz::https://github.com/batchcorp/${pkgname}/ar
+ sha512sums=('e320e9e0aecf9eaee07e81e99ac263cf5a57fb8e03f0e93d6f2be00d9b60c82f2d4c465c2560e5833e574d78eb52bed1c83938e308539e9ee96e58449479f075')
+ b2sums=('c2b78ece85934dbeae321ec7612c06334aecbd2e217b7e14d242c0bebd96142bae500e33556247d2c5fb99916490cedc5b6f512a0b9f80609e4f8b2033075961')
+ 
 +prepare() {
 +  cd "${pkgname}-${pkgver}"
 +  patch -Np1 -i "../add_riscv_support.patch"
 +}
- 
++
  build(){
    cd "${pkgname}-${pkgver}"
-@@ -19,7 +27,7 @@ build(){
+   export CGO_CPPFLAGS="${CPPFLAGS}"
    export CGO_CFLAGS="${CFLAGS}"
    export CGO_CXXFLAGS="${CXXFLAGS}"
    export CGO_LDFLAGS="${LDFLAGS}"
@@ -30,3 +20,10 @@
    go build -o plumber-bin .
  }
  
+@@ -33,3 +38,6 @@ package() {
+   install -Dm755 plumber-bin "${pkgdir}/usr/bin/${pkgname}"
+ }
+ 
++source+=("add_riscv_support.patch")
++sha512sums+=("4fe7a94c6e5740cf5073129a478c8f2d9d1a6be948defb5354affa1fe53bf56629f97e5a73c2bfc78f102bf19402bb3c426f41c58ba41635a003177a784f4854")
++b2sums+=("7bef1dd55c324dbfd62407822b529f2b17309c6ef6d97624fb9a6e72a5e0b481965f0c3aecbcf913b63ce584fea83eeea06665b466cbb84544de1a5c5940fca2")
