@@ -1,40 +1,52 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,7 +22,6 @@ depends=(
+@@ -23,7 +23,6 @@ depends=(
    'abseil-cpp'
  )
  makedepends=(
--  'bazel'
+-  'bazelisk'
    'cmake'
+   'git'
    'gtest'
-   'python-build'
-@@ -70,10 +69,10 @@ build() {
+@@ -57,7 +56,6 @@ _gemname=google-protobuf
+ 
+ prepare() {
+   cd "$pkgname"
+-  bazel --version
+ 
+   patch -p1 < ../protobuf-fix-build-type-none.patch # Fix cmake config compatibility mode
+   patch -p1 < ../$pkgbase-25.3-ruby-disable-LTO.patch
+@@ -81,13 +79,14 @@ build() {
    cmake "${cmake_options[@]}"
    cmake --build build --verbose
  
--  cd "$pkgbase-$pkgver"
--  bazel build //python/dist:binary_wheel
-+  cd "$pkgbase-5.$pkgver"
+-  cd "$pkgbase"
+-  bazel build //python/dist:binary_wheel --noenable_bzlmod --enable_workspace
++  cd "$pkgbase-6.$pkgver"
 +  python -m build --wheel --no-isolation
  
 -  cd ruby
-+  cd ../"$pkgbase-$pkgver"/ruby
++  cd ../"$pkgbase"/ruby
    local _gemdir="$(gem env gemdir)"
    local _gemver=4.$pkgver
  
-@@ -144,7 +143,7 @@ package_python-protobuf() {
++  export PATH="$srcdir"/build:$PATH
+   PROTOC="$srcdir"/build/protoc \
+   rake genproto
+   rake copy_third_party
+@@ -155,7 +154,7 @@ package_python-protobuf() {
      'python'
    )
  
--  python -m installer --destdir="$pkgdir" "$pkgbase-$pkgver"/bazel-bin/python/dist/*.whl
-+  python -m installer --destdir="$pkgdir" "$pkgbase-5.$pkgver"/dist/*.whl
-   install -vDm 644 $pkgbase-$pkgver/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+-  python -m installer --destdir="$pkgdir" "$pkgbase"/bazel-bin/python/dist/*.whl
++  python -m installer --destdir="$pkgdir" "$pkgbase-6.$pkgver"/dist/*.whl
+   install -vDm 644 $pkgbase/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
  }
  
-@@ -159,3 +158,6 @@ package_ruby-google-protobuf() {
-   install -vDm 644 $pkgbase-$pkgver/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
-   install -Dm 0644 $pkgbase-$pkgver/ruby/*.md -t "$pkgdir/usr/share/doc/${pkgname}"
+@@ -170,3 +169,6 @@ package_ruby-google-protobuf() {
+   install -vDm 644 $pkgbase/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+   install -Dm 0644 $pkgbase/ruby/*.md -t "$pkgdir/usr/share/doc/${pkgname}"
  }
 +
-+source+=("$pkgbase-$pkgver-python.tar.gz::https://files.pythonhosted.org/packages/source/${pkgbase::1}/${pkgbase//-/_}/${pkgbase//-/_}-5.$pkgver.tar.gz")
-+sha512sums+=('7b7a0b116f03e5c64e9342ac0f9143bf8a41fe716697bcd58e20a410fb5d1043a174e68b33209178c5e3605421a145a11a17338ca1171597194eb0a5cfd2e63d')
++source+=("$pkgbase-$pkgver-python.tar.gz::https://files.pythonhosted.org/packages/source/${pkgbase::1}/${pkgbase//-/_}/${pkgbase//-/_}-6.$pkgver.tar.gz")
++sha512sums+=('7572504714eaf19cba3e4b13e4cbbd8ea92e3a3efb92571fb03f2aa175a91626109c505277c80c1f142519b4d63ee06fac81fa8007f22c7e427b3c09746d68c1')
