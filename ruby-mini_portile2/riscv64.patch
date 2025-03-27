@@ -1,0 +1,32 @@
+diff --git PKGBUILD PKGBUILD
+index b80acdf..89cfad3 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -33,9 +33,27 @@ source=("${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
+ sha512sums=('14d4cab6e5fc12a6ad9da38dfeddf568bfc14c96b6aee24e665195aa332d10c83c2d34986f6693b7381dee9a5eab5ca3ec3584124d92d956c7bc04bb9d1aface')
+ b2sums=('83f05311f7df82a6581e8af46a3d5638b1b4266e9e612489d73f8755bd608942c4f12a0a72700f52e031505522c03e4f21e93fef01f40fdcca0758d5fff150f0')
+ 
++source+=('https://raw.githubusercontent.com/llvm/llvm-project/refs/tags/llvmorg-21-init/llvm/cmake/config.guess')
++sha512sums+=('a167d8fd201fdb9162726631110b23b61a69d0fe6a85d60c0553c936b6f9ff83b22283f0e9654d438a494ee9cbda19aeaf3616cd2c26ac537fad338f59086dcd')
++b2sums+=('40fb3e56a2f56b368a02494001f731a4ede2681d0676658e2cfe72db16fccb3f5b211f7dfdcd1f94bab58e8ae1e4ed8e0fc324fd7a753e10c5803c5dd997a3e1')
++
++_caresver='c-ares-1.7.5'
++
+ prepare() {
+   cd "mini_portile-${pkgver}"
+ 
++  # patch the config.guess
++  cd examples/
++  TEMP_DIR=$(mktemp -d)
++  _sum_old=$(md5sum $_caresver.tar.gz | awk '{print $1}')
++  tar -xf $_caresver.tar.gz -C "$TEMP_DIR"
++  cp $srcdir/config.guess "$TEMP_DIR/$_caresver/"
++  tar -cf $_caresver.tar.gz -C "$TEMP_DIR" $_caresver
++  _sum_new=$(md5sum $_caresver.tar.gz | awk '{print $1}')
++  sed -i "s/$_sum_old/$_sum_new/g" Rakefile
++  rm -r "$TEMP_DIR"
++  cd ..
++
+   # update gemspec/Gemfile to allow newer version of the dependencies
+   sed --in-place --regexp-extended 's|~>|>=|g' "${_gemname}.gemspec"
+ 
