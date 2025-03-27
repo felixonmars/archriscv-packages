@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,11 +16,17 @@ makedepends=('git' 'protobuf' 'python')
+ options=('!debug' '!strip')
+ source=(
+   "https://github.com/bazelbuild/bazel/releases/download/${pkgver}/bazel-${pkgver}-dist.zip"{,.sig}
++  bazel7-riscv.diff
+ )
+ b2sums=('e8eaa780f5f985419db81124a9d36470443e5c70eb6f8dc1d850c40c739cb0a957c1a7102d7e9c465e75d7cc03c1effe8d0373338ee45a67ba623871f8bfd54d'
+-        'SKIP')
++        'SKIP'
++        '66208f6013787f1fb1386f2f4d12291bfb10d8ee473dc99274f13e27c0512432bc08ccfae4945ae68bac45261137bb52303f7887a2b7cfbbb9581b828cc85632')
+ validpgpkeys=('71A1D0EFCFEB6281FD0437C93D5919B448457EE0')
+ 
++prepare() {
++  patch -Np1 -i bazel7-riscv.diff
++}
++
+ build() {
+   EMBED_LABEL=$pkgver EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk" ./compile.sh
+   ./output/bazel build scripts:bazel-complete.bash
