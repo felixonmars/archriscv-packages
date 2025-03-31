@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index 0010b42..a4b991b 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -82,7 +82,18 @@ _etcdir=/etc/webapps/gitlab
+@@ -85,7 +85,14 @@ _etcdir=/etc/webapps/gitlab
  _datadir=/var/lib/gitlab # directory with gitlab data and it also $HOME for 'gitlab' user
  _logdir=/var/log/gitlab
  
@@ -11,30 +13,43 @@
  prepare() {
 +	# patch extconf.rb with sys("autoreconf -fi") to update config.guess and config.sub in extension msgpack of gem rbtrace
 +	# fix problem "config.guess: unable to guess system type"
-+	cd rbtrace/ext
-+	sed -Ei "/^([[:space:]]*)Dir.chdir\(dir\) do/a \sys(\"autoreconf -fi\")" extconf.rb
-+	cd ../
-+	gem build rbtrace.gemspec
-+	cd ../
++	sed -Ei "/^([[:space:]]*)Dir.chdir\(dir\) do/a \sys(\"autoreconf -fi\")" rbtrace/ext/extconf.rb
  	cd gitlab-foss
  
  	# GitLab tries to read its revision information from a file.
-@@ -124,8 +135,17 @@ build() {
+@@ -116,6 +123,11 @@ prepare() {
+ }
+ 
+ build() {
++	# build rbtrace, see prepare()
++	cd rbtrace
++	gem build rbtrace.gemspec
++	cd ..
++
+ 	cd gitlab-foss
+ 
+ 	# https://github.com/nodejs/node/issues/48444
+@@ -137,11 +149,22 @@ build() {
  	bundle config --local force_ruby_platform true # some native gems are not available for newer ruby
  	bundle config --local deployment true
  	bundle config --local without 'development test aws kerberos'
++	# override nokogiri build flags
++	bundle config --local build.nokogiri "--use-system-libraries --enable-shared --disable-static --with-cflags='-O2'"
++
 +	# Fetch all gems into vendor/cache and replace rbtrace with patched version(and modify Gemfile.checksum)
 +	# to avoid sudo when bundle cache, change GEM_HOME
 +	export GEM_HOME=$HOME/.gem
 +	bundle config --local cache_path vendor/cache/
 +	bundle cache --no-install
-+	rm vendor/cache/rbtrace-${_rbtrace_version}.gem
 +	cp ../rbtrace/rbtrace-${_rbtrace_version}.gem vendor/cache/
 +	rbtrace_checksum=$(sha256sum vendor/cache/rbtrace-${_rbtrace_version}.gem)
 +	sed -Ei "s/(\\{\"name\":\"rbtrace\".*\"checksum\":\")([[:alnum:]]*)(\"\\},)/\\1${rbtrace_checksum:0:64}\\3/" Gemfile.checksum
  	# Disable make jobserver due to a race in prometheus-client-mmap
--	MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle install --jobs=$(nproc) --no-cache
-+	MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 bundle install --local --jobs=$(nproc) --no-cache
+ 	# Clang because of https://github.com/grpc/grpc/issues/35945
+ 	env MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 \
+ 	CC=clang CXX=clang++ \
+-	bundle install --jobs=$(nproc) --no-cache
++	bundle install --local --jobs=$(nproc) --no-cache
  
  	export CGO_CPPFLAGS="${CPPFLAGS}"
  	export CGO_CFLAGS="${CFLAGS}"
