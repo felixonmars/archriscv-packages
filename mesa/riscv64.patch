@@ -1,16 +1,14 @@
-diff --git PKGBUILD PKGBUILD
-index 2266548..8e2350c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,7 +9,6 @@ pkgname=(
-   mesa
-   opencl-clover-mesa
+@@ -11,7 +11,6 @@ pkgname=(
    opencl-rusticl-mesa
+   vulkan-dzn
+   vulkan-gfxstream
 -  vulkan-intel
-   vulkan-mesa-layers
    vulkan-nouveau
    vulkan-radeon
-@@ -192,7 +191,7 @@ build() {
+   vulkan-swrast
+@@ -188,7 +187,7 @@ build() {
    local meson_options=(
      -D android-libbacktrace=disabled
      -D b_ndebug=true
@@ -19,33 +17,24 @@ index 2266548..8e2350c 100644
      -D gallium-extra-hud=true
      -D gallium-nine=true
      -D gallium-opencl=icd
-@@ -201,15 +200,16 @@ build() {
-     -D glx=dri
-     -D html-docs=enabled
-     -D intel-clc=enabled
--    -D intel-rt=enabled
-+    -D intel-rt=disabled
-     -D libunwind=disabled
-+    -D llvm-orcjit=true
-     -D microsoft-clc=disabled
+@@ -200,8 +199,8 @@ build() {
      -D osmesa=true
-     -D platforms=x11,wayland
      -D valgrind=enabled
      -D video-codecs=all
--    -D vulkan-drivers=amd,intel,intel_hasvk,nouveau,swrast,virtio
--    -D vulkan-layers=device-select,intel-nullhw,overlay,screenshot
-+    -D vulkan-drivers=amd,nouveau,swrast,virtio
-+    -D vulkan-layers=device-select,overlay,screenshot
+-    -D vulkan-drivers=amd,gfxstream,intel,intel_hasvk,nouveau,swrast,virtio,microsoft-experimental
+-    -D vulkan-layers=device-select,intel-nullhw,overlay,screenshot,vram-report-limit
++    -D vulkan-drivers=amd,gfxstream,nouveau,swrast,virtio,microsoft-experimental
++    -D vulkan-layers=device-select,overlay,screenshot,vram-report-limit
    )
  
    # Build only minimal debug info to reduce size
-@@ -287,9 +287,6 @@ package_mesa() {
-     _pick clrust $libdir/libRusticlOpenCL*
-     _pick clrust etc/OpenCL/vendors/rusticl.icd
+@@ -287,9 +286,6 @@ package_mesa() {
+     _pick vkgfxstr $icddir/gfxstream_vk_icd.*.json
+     _pick vkgfxstr $libdir/libvulkan_gfxstream.so
  
--    _pick vkintel $icddir/intel_*.json
--    _pick vkintel $libdir/libvulkan_intel*.so
+-    _pick vkintel $icddir/intel{,_hasvk}_icd.*.json
+-    _pick vkintel $libdir/libvulkan_intel{,_hasvk}.so
 -
-     _pick vklayer $libdir/libVkLayer_*.so
-     _pick vklayer usr/bin/mesa-*-control.py
-     _pick vklayer usr/share/vulkan/{ex,im}plicit_layer.d
+     _pick vknvidia $icddir/nouveau_icd.*.json
+     _pick vknvidia $libdir/libvulkan_nouveau.so
+ 
