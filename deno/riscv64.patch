@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,6 +27,10 @@ prepare() {
+   # https://github.com/denoland/rusty_v8/issues/1587
+   patch -Np1 -i ../compiler-rt-adjust-paths.patch
+ 
++  patch -Np1 -d v8 -i ../../0001-riscv-leaptiering-Enable-leaptiering-support.patch
++  patch -Np1 -d v8 -i ../../0002-riscv-maglev-replace-wrong-Branch-instruction-by-Cal.patch
++  patch -Np1 -d v8 -i ../../0003-riscv-protect-MacroAssembler-ByteSwap-UnalignedFLoad.patch
++
+   cd ../deno
+   echo -e "\n[patch.crates-io]\nv8 = { path = '../rusty_v8' }" >> Cargo.toml
+ }
+@@ -72,3 +76,11 @@ package() {
+ 
+   install -Dm644 LICENSE.md -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++_patch_url="https://raw.githubusercontent.com/riscv-forks/electron/27a4ff46397145e1cec1ff34ebf36a5bdfa8788b/patches/v8"
++source+=($_patch_url/0001-riscv-leaptiering-Enable-leaptiering-support.patch
++         $_patch_url/0002-riscv-maglev-replace-wrong-Branch-instruction-by-Cal.patch
++         $_patch_url/0003-riscv-protect-MacroAssembler-ByteSwap-UnalignedFLoad.patch)
++sha512sums+=('a7b01d8a2005691b12b4246192ecd4a161a0dcf3fd4ee524d633a96c09256d3f14b2927b0d8ba092e75610bfa47f32e411c461b62550215801389e243d11a21b'
++             'de06fa98eaff8c601f692b1aa88477c9414cb36be3a419ea93c7d4e294e1c3098e7a9950f145bb9e3be7c9f18ac697e924389f8e0033df6c3448682f14445078'
++             'c68aa46c42f3a528d107b1ea734790c90bb7dea83243d29b8d69f4c118b0fdc4280a39ca44537d4d479eeda759c1e1f74403b844ed204bde9c0e9bc299118365')
