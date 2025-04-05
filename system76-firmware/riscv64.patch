@@ -1,0 +1,28 @@
+diff --git PKGBUILD PKGBUILD
+index 5b7a1f5..f8a9f50 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -26,14 +26,21 @@ makedepends=(
+ provides=(system76-firmware-daemon)
+ conflicts=(system76-firmware-daemon)
+ _tag=6e98acaa75c05344440d10f8fb924da0e2406238
+-source=(git+https://github.com/pop-os/system76-firmware.git#tag=${_tag})
+-b2sums=('92b90259e67c3e339ab9a93b5f850e5b0fdadbe72971c3b904218b3c60c978382adbc278c02eaf325a4c187cf4503c32b6bd909e8b099dd213774bc16b3e3923')
++source=(git+https://github.com/pop-os/system76-firmware.git#tag=${_tag}
++        fix-riscv64-io.patch)
++b2sums=('92b90259e67c3e339ab9a93b5f850e5b0fdadbe72971c3b904218b3c60c978382adbc278c02eaf325a4c187cf4503c32b6bd909e8b099dd213774bc16b3e3923'
++        'c7fac9440c9349340bac77e44b83a6b02ad1350b2947d093dc776b3b462ecbcd91f69cc68a9788087f3d9c7466a5f508a76b3207fd738d2b9376890c572ef825')
+ 
+ pkgver() {
+   cd system76-firmware
+   git describe --tags
+ }
+ 
++prepare() {
++  cd system76-firmware
++  patch -Np1 -i ../fix-riscv64-io.patch
++}
++
+ build() {
+   cd system76-firmware
+   make
