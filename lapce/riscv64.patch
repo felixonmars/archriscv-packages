@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,12 +34,13 @@ build() {
+ 	# See https://github.com/lapce/lapce/pull/2374 and https://bugs.archlinux.org/task/78922
+ 	export RELEASE_TAG_NAME="v$pkgver"
+ 	export CARGO_PROFILE_RELEASE_DEBUG=2
+-	cargo build --frozen --profile release-lto --all-features
++	export RUSTFLAGS="-C code-model=large"
++	cargo build --frozen --profile release --all-features
+ }
+ 
+ package() {
+ 	cd "$_archive"
+-	install -Dm0755 -t "$pkgdir/usr/bin/" "target/release-lto/$pkgname"{,-proxy}
++	install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$pkgname"{,-proxy}
+ 	local lname=dev.lapce.lapce
+ 	install -Dm0644 -t "$pkgdir/usr/share/applications/" extra/linux/$lname.desktop
+ 	install -Dm0644 -t "$pkgdir/usr/share/metainfo/" extra/linux/$lname.metainfo.xml
