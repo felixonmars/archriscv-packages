@@ -1,0 +1,27 @@
+From d7d5264ce8240fdbb712c110580b28b4913e38d2 Mon Sep 17 00:00:00 2001
+From: Jacob Reger <regerjacob@gmail.com>
+Date: Tue, 25 Feb 2025 09:00:40 -0800
+Subject: [PATCH] libguestfs: Rust binding build error and warning fixes
+
+Fixed break in Rust bindings where callback registering expected a
+*const i8, but were provided with a *const c_char. Changed to be both
+*const c_char in alignment with the libguestfs documentation.
+
+Signed-off-by: Jacob Reger <regerjacob@gmail.com>
+---
+ rust/src/event.rs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rust/src/event.rs b/rust/src/event.rs
+index 72afd3cf67..156968a69d 100644
+--- a/rust/src/event.rs
++++ b/rust/src/event.rs
+@@ -29,7 +29,7 @@ type GuestfsEventCallback = extern "C" fn(
+     u64,
+     i32,
+     i32,
+-    *const i8,
++    *const c_char,
+     usize,
+     *const u64,
+     usize,

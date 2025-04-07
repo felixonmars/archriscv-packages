@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -46,7 +46,6 @@ _appliancedeps=(
+   rsync
+   squashfs-tools
+   strace
+-  syslinux
+   systemd-sysvcompat
+   vim
+   xfsprogs
+@@ -132,6 +131,8 @@ prepare() {
+   # disable php tests, as missing arginfo definition makes them fail: https://github.com/libguestfs/libguestfs/issues/78
+   patch -Np1 -d $pkgname-$pkgver -i ../$pkgname-1.48.1-disable_php_tests.patch
+ 
++  patch -Np1 -d $pkgname-$pkgver -i ../fix-char-signedness.patch
++
+   cd $pkgname-$pkgver
+   autoreconf -fiv
+ }
+@@ -162,3 +163,7 @@ check() {
+ package() {
+   make INSTALLDIRS=vendor DESTDIR="$pkgdir" install -C $pkgname-$pkgver
+ }
++
++source+=(fix-char-signedness.patch)
++sha512sums+=('04df21407ab6c0b2415674f99cea4c2f17b3f62e563acd6b7201ea24f6c30369b118cca308b5b3a772cc0504d35ed558058f0a945c203290c907378a7b23b969')
++b2sums+=('4fedc82af6190e9478478d6ef9705d6e7c06a9dbfe06b5c7645edd0e66409b382248fb0efed585218ce1b241255f0cf107422f9a1bb6ca84d400d380303cd68b')
