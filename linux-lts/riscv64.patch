@@ -1,0 +1,67 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -80,6 +80,12 @@ prepare() {
+   make olddefconfig
+   diff -u ../config .config || :
+ 
++  patch -Np0 < ../riscv64.config-patch
++  mv .config .config.1
++  make mrproper
++  mv .config.1 .config
++  make olddefconfig
++
+   make -s kernelrelease > version
+   echo "Prepared $pkgbase version $(<version)"
+ }
+@@ -174,6 +180,9 @@ _package() {
+   ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
+     DEPMOD=/doesnt/exist modules_install  # Suppress depmod
+ 
++  echo "Installing dtbs..."
++  make INSTALL_DTBS_PATH="$pkgdir/usr/lib/modules/$(<version)/dtb" dtbs_install
++
+   # remove build link
+   rm "$modulesdir"/build
+ 
+@@ -246,20 +255,17 @@ _package-headers() {
+   install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
+     localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
+   install -Dt "$builddir/kernel" -m644 kernel/Makefile
+-  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
++  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
+   cp -t "$builddir" -a scripts
+   ln -srt "$builddir" "$builddir/scripts/gdb/vmlinux-gdb.py"
+ 
+-  # required when STACK_VALIDATION is enabled
+-  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
+-
+   # required when DEBUG_INFO_BTF_MODULES is enabled
+   install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
+ 
+   echo "Installing headers..."
+   cp -t "$builddir" -a include
+-  cp -t "$builddir/arch/x86" -a arch/x86/include
+-  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
++  cp -t "$builddir/arch/riscv" -a arch/riscv/include
++  install -Dt "$builddir/arch/riscv/kernel" -m644 arch/riscv/kernel/asm-offsets.s
+ 
+   install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
+   install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
+@@ -281,7 +287,7 @@ _package-headers() {
+   echo "Removing unneeded architectures..."
+   local arch
+   for arch in "$builddir"/arch/*/; do
+-    [[ $arch = */x86/ ]] && continue
++    [[ $arch = */riscv/ ]] && continue
+     echo "Removing $(basename "$arch")"
+     rm -r "$arch"
+   done
+@@ -380,4 +386,8 @@ for _p in "${pkgname[@]}"; do
+   }"
+ done
+ 
++source+=(riscv64.config-patch)
++sha256sums+=('d2b9ca46f0fbb009d5bf3f6831b091f6822427c48be140be6ddda5c94d55a460')
++b2sums+=('b797eacafe6ec1f3704282b1af0a1e9371319825178c4a43d1f7c985fc610a96ae5a19538e3dc5615b2bfab713bb52aa213ec35d825096f25d31ff7fbb16a0a0')
++
+ # vim:set ts=8 sts=2 sw=2 et:
