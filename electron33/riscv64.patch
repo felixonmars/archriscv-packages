@@ -1,19 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,10 +29,12 @@ depends=(c-ares
- makedepends=(clang
+@@ -30,8 +30,10 @@ makedepends=(clang
               git
               gn
-+             go
               gperf
-              harfbuzz-icu
-              http-parser
++             go
+              # harfbuzz-icu # disabled because ICU 76 not supported yet
               java-runtime-headless
 +             jq
               libnotify
               libva
               lld
-@@ -63,7 +65,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+@@ -62,7 +64,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
              'trash-cli: file deletion support (trash-put)'
              'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
  options=('!lto') # Electron adds its own flags for ThinLTO
@@ -21,8 +19,8 @@
 +source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
          https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
          # Chromium
-         compiler-rt-adjust-paths.patch
-@@ -74,6 +76,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+         add-more-CFI-suppressions-for-inline-PipeWire-functions.patch
+@@ -75,6 +77,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
          electron.desktop
          jinja-python-3.10.patch
          use-system-libraries-in-node.patch
@@ -30,23 +28,28 @@
          makepkg-source-roller.py
          # BEGIN managed sources
          chromium-mirror::git+https://github.com/chromium/chromium.git#tag=130.0.6723.191
-@@ -242,13 +245,14 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+@@ -241,10 +244,10 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+         chromium-mirror_third_party_openscreen_src_third_party_tinycbor_src::git+https://chromium.googlesource.com/external/github.com/intel/tinycbor.git#commit=d393c16f3eb30d0c47e6f9d92db62272f0ec4dc7
+         # END managed sources
          )
- sha256sums=('99beae1c8f4f4eb4cd48cd12ddd04da8857f02bba9c975ae82a18fc846008612'
-             'b5fd4b943ae307680cd5c2050a01f85ef94d3f880a157eef8d17eb9fa23864f5'
+-sha256sums=('1186647175bd6173c46d6baf610910c66f76465b2769725aa3d5ba32bf6c039e'
++sha256sums=('52f0f3bf42f15a813b76de9120b6f7d9ea819e5a09211667bd9ffdd0b467bc34'
+             'c966110d60dbefe048c2cd854e847ff3cae0a66e474d68535fec23947d292a20'
+             'd3dd9b4132c9748b824f3dcf730ec998c0087438db902bc358b3c391658bebf5'
 -            'b3de01b7df227478687d7517f61a777450dca765756002c80c4915f271e2d961'
 +            '8e128dec0d9416029ea8124e14963c9e0caf897bf60d347a070e393edebdff1c'
              'a4a822e135b253c93089a80c679842cc470c6936742767ae09d952646889abd6'
+             '74a2d428f7f09132c4a923e816a5a9333803f842003d650cd4a95a35e5457253'
              'dd2d248831dd4944d385ebf008426e66efe61d6fdf66f8932c963a12167947b4'
-             '13fcf26193f4417fd5dfbc82a3f24e5c7a1cce82f729f6a73f1b1d3a7b580b34'
+@@ -252,6 +255,7 @@ sha256sums=('1186647175bd6173c46d6baf610910c66f76465b2769725aa3d5ba32bf6c039e'
              '4484200d90b76830b69eea3a471c103999a3ce86bb2c29e6c14c945bf4102bae'
              '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
              'ff588a8a4fd2f79eb8a4f11cf1aa151298ffb895be566c57cc355d47f161f53f'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
-             '2c8cd28cee0e1df1862e801794f210d2b7cac652f943cf94f43c2abe26f2a2f4'
+             'c75dbcb394a56065909e0bc4480e0d60461369403797945de0ec11da20b7780a'
              'add3d20ad7f8014d3a34cb229f7f5fefcea485afd381c34361f71d521c210641'
              '0b7a546ee6913c49519c10c293ac530ff381641a8a465fa2e184d6dbe0fb784d'
-@@ -459,12 +463,22 @@ prepare() {
+@@ -462,12 +466,22 @@ prepare() {
    cp -r chromium-mirror_third_party_depot_tools depot_tools
    export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
    #export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
@@ -69,7 +72,7 @@
  
    echo "Running hooks..."
    # depot_tools/gclient.py runhooks
-@@ -476,9 +490,15 @@ prepare() {
+@@ -479,9 +493,15 @@ prepare() {
      -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
    src/build/util/lastchange.py \
      -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
@@ -88,16 +91,16 @@
    # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
    src/third_party/node/update_npm_deps
  
-@@ -504,6 +524,8 @@ prepare() {
+@@ -507,6 +527,8 @@ prepare() {
  
    patch -Np0 -i ../blink-fix-missing-stdlib-include.patch
  
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
 +
    ## Upstream fixes
- 
-   # Allow libclang_rt.builtins from compiler-rt >= 16 to be used
-@@ -577,6 +599,8 @@ build() {
+   patch -Np1 -d third_party/webrtc <../webrtc-fix-build-with-pipewire-1.4.patch
+   patch -Np1 -i ../add-more-CFI-suppressions-for-inline-PipeWire-functions.patch
+@@ -582,6 +604,8 @@ build() {
      'enable_hangout_services_extension=true'
      'enable_widevine=false'
      'enable_nacl=false'
@@ -106,7 +109,7 @@
    )
  
    if [[ -n ${_system_libs[icu]+set} ]]; then
-@@ -590,7 +614,7 @@ build() {
+@@ -595,7 +619,7 @@ build() {
      'clang_base_path="/usr"'
      'clang_use_chrome_plugins=false'
      "clang_version=\"$_clang_version\""
@@ -115,7 +118,7 @@
    )
  
    # Allow the use of nightly features with stable Rust compiler
-@@ -612,6 +636,10 @@ build() {
+@@ -617,6 +641,10 @@ build() {
    CFLAGS+='   -Wno-unknown-warning-option'
    CXXFLAGS+=' -Wno-unknown-warning-option'
  
@@ -126,7 +129,7 @@
    # Let Chromium set its own symbol level
    CFLAGS=${CFLAGS/-g }
    CXXFLAGS=${CXXFLAGS/-g }
-@@ -659,3 +687,5 @@ package() {
+@@ -664,3 +692,5 @@ package() {
    install -Dm644 src/electron/default_app/icon.png \
            "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
  }
