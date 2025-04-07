@@ -1,10 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -47,8 +47,21 @@ validpgpkeys=(
-   'C0D6248439F1D5604AAFFB4021D900FFDB233756' # Antoine du Hamel <duhamelantoine1995@gmail.com>
- )
- 
-+_set_compilation_env() {
+@@ -56,6 +56,14 @@ _set_flags() {
+   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
+   CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+   CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
 +  # https://github.com/riscv-forks/electron/issues/7
 +  export CC=/usr/bin/clang
 +  export CXX=/usr/bin/clang++
@@ -13,33 +12,15 @@
 +prepare() {
 +  cd node
 +  patch -Np1 -i ../fix-trap-handler.patch
-+  patch -Np1 -i ../v8-disable-trap-handler.patch
-+}
-+
- build() {
-   cd node
-+  _set_compilation_env
-   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
-   export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-   export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-@@ -76,13 +89,20 @@ build() {
- 
- check() {
-   cd node
-+  _set_compilation_env
-   make test-only
  }
  
- package() {
-   cd node
-+  _set_compilation_env
-   make DESTDIR="$pkgdir" install
+ build() {
+@@ -96,4 +104,8 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
  }
  
++
 +makedepends+=(clang)
-+source+=("fix-trap-handler.patch"
-+         "v8-disable-trap-handler.patch")
-+sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c'
-+             'b6495aefd36915969ee848cca350a565317c74864cd33e6a69a310ed9cbc71dfbd91f31e8c6176667f6f72daa1762eb4d519700a024cdbe8b18049100a9e3c80')
++source+=("fix-trap-handler.patch")
++sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c')
  # vim:set ts=2 sw=2 et:
