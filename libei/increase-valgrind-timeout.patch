@@ -1,0 +1,27 @@
+diff --git a/test/meson.build b/test/meson.build
+index 294d18e..3623b3f 100644
+--- a/test/meson.build
++++ b/test/meson.build
+@@ -195,7 +195,8 @@ if enable_pytest
+             args: pytest_args + ['-k', 'TestEiProtocol'],
+             suite: 'python',
+             workdir: meson.project_build_root(),
+-            env: env
++            env: env,
++            timeout: 3000
+         )
+     endif
+ 
+diff --git a/test/test_protocol.py b/test/test_protocol.py
+index 1f9949b..9f25eef 100644
+--- a/test/test_protocol.py
++++ b/test/test_protocol.py
+@@ -337,7 +337,7 @@ class Eis:
+         stdout, stderr = None, None
+         for _ in kill_gently(self.process):
+             try:
+-                stdout, stderr = self.process.communicate(timeout=1)
++                stdout, stderr = self.process.communicate(timeout=3)
+                 break
+             except subprocess.TimeoutExpired:
+                 pass
