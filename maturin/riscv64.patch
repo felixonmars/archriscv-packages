@@ -1,15 +1,18 @@
-diff --git PKGBUILD PKGBUILD
-index ee884de..62afbd0 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,7 +38,9 @@ b2sums=('98f7f159c28d7b773a8daa103c1d2280a6ceab979d3d564d3c3ae47f9540c6307cfbde0
- 
+@@ -39,6 +39,7 @@ b2sums=('4851db537466b5b78ff4c591575b2ae58aa56d37942220b928902c4afeb8c22b777e2cd
  prepare() {
    cd $pkgbase
--  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
-+  cargo fetch --locked
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++  patch -Np1 -i ../extend-develop_pyo3_ffi_pure-test-timeout.patch
  }
  
  build() {
+@@ -89,3 +90,7 @@ package_python-maturin() {
+   rm -vr "$pkgdir/usr/bin"
+   install -vDm 644 -t "$pkgdir/usr/share/licenses/$pkgname/" license-mit
+ }
++
++source+=(extend-develop_pyo3_ffi_pure-test-timeout.patch)
++sha512sums+=('25950af759d4bf9359448fa5224be7e5bacbc9813cb86bb23562dbd61304349e4188d0978752ee82c3663ff6ca39550ec69df31f50b794ee2d9e24c59e8f6651')
++b2sums+=('f53437cabb81a9d1ba2068b7dbd41a4ef9547ae25754a260423bb68b0755e6ad364ed17aaec5499730f4939bc3392ad52c1ad85c183b9e8babf1d905557e5b0d')
