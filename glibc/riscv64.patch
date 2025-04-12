@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index a4c6cf3..8cbda8e 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -14,22 +14,22 @@ pkgrel=1
+@@ -14,22 +14,22 @@
  arch=(x86_64)
  url='https://www.gnu.org/software/libc'
  license=(GPL-2.0-or-later LGPL-2.1-or-later)
@@ -27,7 +29,7 @@
  
  pkgver() {
    cd glibc
-@@ -37,10 +37,13 @@ pkgver() {
+@@ -37,21 +37,23 @@
  }
  
  prepare() {
@@ -42,7 +44,11 @@
  }
  
  build() {
-@@ -51,7 +54,6 @@ build() {
+   local _configure_flags=(
+       --prefix=/usr
+       --with-headers=/usr/include
+-      --with-bugurl=https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/issues
++      --with-bugurl=https://github.com/felixonmars/archriscv-packages/issues
        --enable-bind-now
        --enable-fortify-source
        --enable-kernel=4.4
@@ -50,7 +56,7 @@
        --enable-stack-protector=strong
        --enable-systemtap
        --disable-nscd
-@@ -83,29 +85,6 @@ build() {
+@@ -83,29 +85,6 @@
      make info
    )
  
@@ -80,7 +86,7 @@
    # pregenerate locales here instead of in package
    # functions because localedef does not like fakeroot
    make -C "${srcdir}"/glibc/localedata objdir="${srcdir}"/glibc-build \
-@@ -140,7 +119,7 @@ check() (
+@@ -140,7 +119,7 @@
    _skip_test tst-shstk-legacy-1g     sysdeps/x86_64/Makefile
    _skip_test tst-adjtime             time/Makefile
  
@@ -89,7 +95,7 @@
  )
  
  package_glibc() {
-@@ -189,31 +168,6 @@ package_glibc() {
+@@ -189,31 +168,6 @@
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
  
@@ -121,7 +127,7 @@
  package_glibc-locales() {
    pkgdesc='Pregenerated locales for GNU C Library'
    depends=("glibc=$pkgver")
-@@ -224,3 +178,10 @@ package_glibc-locales() {
+@@ -224,3 +178,10 @@
    # deduplicate locale data
    hardlink -c "${pkgdir}"/usr/lib/locale
  }
