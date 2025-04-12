@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index 1be6613..5c02948 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,11 +18,8 @@ url='https://gcc.gnu.org'
+@@ -18,11 +18,8 @@
  makedepends=(
    binutils
    doxygen
@@ -12,7 +14,7 @@
    libisl
    libmpc
    python
-@@ -41,6 +38,7 @@ _libdir=usr/lib/gcc/$CHOST/${pkgver%%+*}
+@@ -41,6 +38,7 @@
  source=(git+https://sourceware.org/git/gcc.git#commit=${_commit}
          c89 c99
          gcc-ada-repro.patch
@@ -20,7 +22,7 @@
  )
  validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.org
                86CFFCA918CF3AF47147588051E8B148A9999C34  # foutrelis@archlinux.org
-@@ -49,12 +47,20 @@ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.
+@@ -49,12 +47,20 @@
  sha256sums=('33378643f1c72686181f9d3fcd09caf9b06815324467f5dc9b9a3ea41cfba4b4'
              '7b09ec947f90b98315397af675369a1e3dfc527fa70013062e6e85c4be0275ab'
              '44ea973558842f3f4bd666bdaf6e810fd7b7c7bd36b5cc4c69f93d2cd0124fc7'
@@ -42,7 +44,7 @@
  prepare() {
    [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
    cd gcc
-@@ -68,6 +74,18 @@ prepare() {
+@@ -68,6 +74,18 @@
    # Reproducible gcc-ada
    patch -Np0 < "$srcdir/gcc-ada-repro.patch"
  
@@ -61,7 +63,16 @@
    mkdir -p "$srcdir/gcc-build"
    mkdir -p "$srcdir/libgccjit-build"
  }
-@@ -95,7 +113,7 @@ build() {
+@@ -79,7 +97,7 @@
+       --libexecdir=/usr/lib
+       --mandir=/usr/share/man
+       --infodir=/usr/share/info
+-      --with-bugurl=https://gitlab.archlinux.org/archlinux/packaging/packages/gcc/-/issues \
++      --with-bugurl=https://github.com/felixonmars/archriscv-packages/issues \
+       --with-build-config=bootstrap-lto
+       --with-linker-hash-style=gnu
+       --with-system-zlib
+@@ -95,7 +113,7 @@
        --enable-link-serialization=1
        --enable-linker-build-id
        --enable-lto
@@ -70,7 +81,7 @@
        --enable-plugin
        --enable-shared
        --enable-threads=posix
-@@ -113,7 +131,7 @@ build() {
+@@ -113,7 +131,7 @@
    CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
  
    "$srcdir/gcc/configure" \
@@ -79,7 +90,7 @@
      --enable-bootstrap \
      "${_confflags[@]:?_confflags unset}"
  
-@@ -161,9 +179,9 @@ check() {
+@@ -161,9 +179,9 @@
  package_gcc-libs() {
    pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
@@ -91,7 +102,7 @@
    replaces=($pkgname-multilib libgphobos)
  
    cd gcc-build
-@@ -176,9 +194,8 @@ package_gcc-libs() {
+@@ -176,9 +194,8 @@
               libgomp \
               libitm \
               libquadmath \
@@ -103,7 +114,7 @@
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -195,18 +212,17 @@ package_gcc-libs() {
+@@ -195,18 +212,17 @@
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-info
    done
  
@@ -125,7 +136,7 @@
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs)
-@@ -220,22 +236,18 @@ package_gcc() {
+@@ -220,22 +236,18 @@
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -150,7 +161,7 @@
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -250,16 +262,11 @@ package_gcc() {
+@@ -250,16 +262,11 @@
    make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
    make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
    make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
@@ -168,7 +179,7 @@
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -270,7 +277,7 @@ package_gcc() {
+@@ -270,7 +277,7 @@
    # create cc-rs compatible symlinks
    # https://github.com/rust-lang/cc-rs/blob/1.0.73/src/lib.rs#L2578-L2581
    for binary in {c++,g++,gcc,gcc-ar,gcc-nm,gcc-ranlib}; do
@@ -177,7 +188,7 @@
    done
  
    # POSIX conformance launcher scripts for c89 and c99
-@@ -280,9 +287,6 @@ package_gcc() {
+@@ -280,9 +287,6 @@
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -187,7 +198,7 @@
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -302,8 +306,6 @@ package_gcc-fortran() {
+@@ -302,8 +306,6 @@
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -196,7 +207,7 @@
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -381,7 +383,6 @@ package_gcc-go() {
+@@ -381,7 +383,6 @@
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
