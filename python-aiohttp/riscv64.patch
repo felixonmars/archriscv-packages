@@ -1,16 +1,11 @@
-diff --git PKGBUILD PKGBUILD
-index dc761d5..55f9a37 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -84,8 +84,10 @@ check() {
+@@ -88,6 +88,8 @@ check() {
+   --ignore tests/test_benchmarks_cookiejar.py
+   --ignore tests/test_benchmarks_http_websocket.py
+   --ignore tests/test_benchmarks_http_writer.py
++  # skip import time test for slow riscv64
++  --deselect 'tests/test_imports.py::test_import_time'
+   )
    local python_version=$(python -c 'import sys; print("".join(map(str, sys.version_info[:2])))')
-   mv tests/autobahn/test_autobahn.py{,.bak} # Docker tests
-   # https://github.com/aio-libs/aiohttp/issues/8234
-+  # and skip import time test for slow riscv64
-   PYTHONPATH="$PWD/build/lib.linux-$CARCH-cpython-$python_version" pytest \
--    --deselect 'tests/test_pytest_plugin.py::test_aiohttp_plugin'
-+    --deselect 'tests/test_pytest_plugin.py::test_aiohttp_plugin' \
-+    --deselect 'tests/test_imports.py::test_import_time'
-   mv tests/autobahn/test_autobahn.py{.bak,}
- }
  
