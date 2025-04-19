@@ -1,32 +1,30 @@
 diff --git a/hipamd/src/hip_graph_internal.cpp b/hipamd/src/hip_graph_internal.cpp
-index ebcf4c91e..33a9ad898 100644
+index 794293b7f..10e5b1de1 100644
 --- a/hipamd/src/hip_graph_internal.cpp
 +++ b/hipamd/src/hip_graph_internal.cpp
-@@ -443,9 +443,17 @@ hipError_t GraphExec::CaptureAQLPackets() {
-                  kernarg_pool_size_graph_ != 0) {
-         address dev_ptr = kernarg_pool_graph_ + kernarg_pool_size_graph_;
-         auto kSentinel = *reinterpret_cast<volatile unsigned char*>(dev_ptr - 1);
--        _mm_sfence();
+@@ -979,9 +979,17 @@ void GraphKernelArgManager::ReadBackOrFlush() {
+       address dev_ptr =
+           kernarg_graph_.back().kernarg_pool_addr_ + kernarg_graph_.back().kernarg_pool_size_;
+       auto kSentinel = *reinterpret_cast<volatile unsigned char*>(dev_ptr - 1);
 +#if defined(__x86_64__)
-+          _mm_sfence();
+       _mm_sfence();
 +#elif defined(__riscv)
-+          asm volatile("fence rw, rw");
++      asm volatile("fence rw, rw");
 +#endif
-         *(dev_ptr - 1) = kSentinel;
--        _mm_mfence();
+       *(dev_ptr - 1) = kSentinel;
 +#if defined(__x86_64__)
-+          _mm_mfence();
+       _mm_mfence();
 +#elif defined(__riscv)
-+          asm volatile("fence rw, rw");
++      asm volatile("fence rw, rw");
 +#endif
-         kSentinel = *reinterpret_cast<volatile unsigned char*>(dev_ptr - 1);
-       }
+       kSentinel = *reinterpret_cast<volatile unsigned char*>(dev_ptr - 1);
      }
+   }
 diff --git a/rocclr/device/rocm/rocvirtual.cpp b/rocclr/device/rocm/rocvirtual.cpp
-index 169e81e65..2d8924de4 100644
+index 722450a14..a58ba908c 100644
 --- a/rocclr/device/rocm/rocvirtual.cpp
 +++ b/rocclr/device/rocm/rocvirtual.cpp
-@@ -3247,9 +3247,17 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes,
+@@ -3282,9 +3282,17 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes,
            auto kSentinel = *reinterpret_cast<volatile int*>(dev().info().hdpMemFlushCntl);
          } else if (kernArgImpl == KernelArgImpl::DeviceKernelArgsReadback &&
                     argSize != 0) {
