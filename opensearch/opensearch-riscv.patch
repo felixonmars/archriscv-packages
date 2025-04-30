@@ -1,0 +1,360 @@
+From 5166e8c46ff5a6f33e0854365487041057ea5df5 Mon Sep 17 00:00:00 2001
+From: Levi Zim <rsworktech@outlook.com>
+Date: Wed, 30 Apr 2025 00:27:43 +0000
+Subject: [PATCH] [2.19 backport] Add support for linux riscv64 platform
+
+Signed-off-by: Levi Zim <rsworktech@outlook.com>
+---
+ .../java/org/opensearch/gradle/Architecture.java  |  5 ++++-
+ .../gradle/DistributionDownloadPlugin.java        |  3 +++
+ .../java/org/opensearch/gradle/JavaVariant.java   |  2 +-
+ .../org/opensearch/gradle/VersionProperties.java  |  4 ++++
+ .../InternalDistributionBwcSetupPlugin.java       |  1 +
+ .../org/opensearch/gradle/ArchitectureTests.java  |  1 +
+ .../opensearch/gradle/JdkDownloadPluginTests.java |  2 +-
+ distribution/archives/build.gradle                | 14 ++++++++++++++
+ .../archives/linux-riscv64-tar/build.gradle       | 15 +++++++++++++++
+ .../no-jdk-linux-riscv64-tar/build.gradle         | 15 +++++++++++++++
+ distribution/build.gradle                         |  8 ++++----
+ distribution/docker/build.gradle                  |  8 ++++++++
+ .../docker/docker-riscv64-export/build.gradle     | 14 ++++++++++++++
+ .../opensearch/bootstrap/SystemCallFilter.java    |  1 +
+ settings.gradle                                   |  3 +++
+ 15 files changed, 89 insertions(+), 7 deletions(-)
+ create mode 100644 distribution/archives/linux-riscv64-tar/build.gradle
+ create mode 100644 distribution/archives/no-jdk-linux-riscv64-tar/build.gradle
+ create mode 100644 distribution/docker/docker-riscv64-export/build.gradle
+
+diff --git a/buildSrc/src/main/java/org/opensearch/gradle/Architecture.java b/buildSrc/src/main/java/org/opensearch/gradle/Architecture.java
+index b16f35a9ad0..93daa29aa88 100644
+--- a/buildSrc/src/main/java/org/opensearch/gradle/Architecture.java
++++ b/buildSrc/src/main/java/org/opensearch/gradle/Architecture.java
+@@ -37,7 +37,8 @@ public enum Architecture {
+     X64,
+     ARM64,
+     S390X,
+-    PPC64LE;
++    PPC64LE,
++    RISCV64;
+ 
+     public static Architecture current() {
+         final String architecture = System.getProperty("os.arch", "");
+@@ -51,6 +52,8 @@ public enum Architecture {
+                 return S390X;
+             case "ppc64le":
+                 return PPC64LE;
++            case "riscv64":
++                return RISCV64;
+             default:
+                 throw new IllegalArgumentException("can not determine architecture from [" + architecture + "]");
+         }
+diff --git a/buildSrc/src/main/java/org/opensearch/gradle/DistributionDownloadPlugin.java b/buildSrc/src/main/java/org/opensearch/gradle/DistributionDownloadPlugin.java
+index 0732845f329..0dd610d436f 100644
+--- a/buildSrc/src/main/java/org/opensearch/gradle/DistributionDownloadPlugin.java
++++ b/buildSrc/src/main/java/org/opensearch/gradle/DistributionDownloadPlugin.java
+@@ -276,6 +276,9 @@ public class DistributionDownloadPlugin implements Plugin<Project> {
+                     case PPC64LE:
+                         classifier = ":" + distribution.getPlatform() + "-ppc64le";
+                         break;
++                    case RISCV64:
++                        classifier = ":" + distribution.getPlatform() + "-riscv64";
++                        break;
+                     default:
+                         throw new IllegalArgumentException("Unsupported architecture: " + distribution.getArchitecture());
+                 }
+diff --git a/buildSrc/src/main/java/org/opensearch/gradle/JavaVariant.java b/buildSrc/src/main/java/org/opensearch/gradle/JavaVariant.java
+index 5f576984627..0fb217b4831 100644
+--- a/buildSrc/src/main/java/org/opensearch/gradle/JavaVariant.java
++++ b/buildSrc/src/main/java/org/opensearch/gradle/JavaVariant.java
+@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
+ abstract class JavaVariant implements Buildable, Iterable<File> {
+ 
+     private static final List<String> ALLOWED_ARCHITECTURES = Collections.unmodifiableList(
+-        Arrays.asList("aarch64", "x64", "s390x", "ppc64le")
++        Arrays.asList("aarch64", "x64", "s390x", "ppc64le", "riscv64")
+     );
+     private static final List<String> ALLOWED_VENDORS = Collections.unmodifiableList(Arrays.asList("adoptium", "adoptopenjdk", "openjdk"));
+     private static final List<String> ALLOWED_PLATFORMS = Collections.unmodifiableList(
+diff --git a/buildSrc/src/main/java/org/opensearch/gradle/VersionProperties.java b/buildSrc/src/main/java/org/opensearch/gradle/VersionProperties.java
+index 4d8b62d95df..d2f77afbe57 100644
+--- a/buildSrc/src/main/java/org/opensearch/gradle/VersionProperties.java
++++ b/buildSrc/src/main/java/org/opensearch/gradle/VersionProperties.java
+@@ -98,6 +98,7 @@ public class VersionProperties {
+     private static final String bundledJdkLinux_x64;
+     private static final String bundledJdkLinux_s390x;
+     private static final String bundledJdkLinux_ppc64le;
++    private static final String bundledJdkLinux_riscv64;
+     private static final String bundledJdkVendor;
+     private static final Map<String, String> versions = new HashMap<String, String>();
+ 
+@@ -117,6 +118,7 @@ public class VersionProperties {
+         bundledJdkLinux_x64 = props.getProperty("bundled_jdk_linux_x64", bundledJdkLinux);
+         bundledJdkLinux_s390x = props.getProperty("bundled_jdk_linux_s390x", bundledJdkLinux);
+         bundledJdkLinux_ppc64le = props.getProperty("bundled_jdk_linux_ppc64le", bundledJdkLinux);
++        bundledJdkLinux_riscv64 = props.getProperty("bundled_jdk_linux_riscv64", bundledJdkLinux);
+ 
+         for (String property : props.stringPropertyNames()) {
+             versions.put(property, props.getProperty(property));
+@@ -155,6 +157,8 @@ public class VersionProperties {
+                 return bundledJdkLinux_s390x;
+             case "ppc64le":
+                 return bundledJdkLinux_ppc64le;
++            case "riscv64":
++                return bundledJdkLinux_riscv64;
+             default:
+                 throw new IllegalArgumentException("unknown platform [" + arch + "] for 'linux' platform");
+         }
+diff --git a/buildSrc/src/main/java/org/opensearch/gradle/internal/InternalDistributionBwcSetupPlugin.java b/buildSrc/src/main/java/org/opensearch/gradle/internal/InternalDistributionBwcSetupPlugin.java
+index 846c7e0d46b..62b865bb069 100644
+--- a/buildSrc/src/main/java/org/opensearch/gradle/internal/InternalDistributionBwcSetupPlugin.java
++++ b/buildSrc/src/main/java/org/opensearch/gradle/internal/InternalDistributionBwcSetupPlugin.java
+@@ -166,6 +166,7 @@ public class InternalDistributionBwcSetupPlugin implements Plugin<Project> {
+                     "linux-arm64-tar",
+                     "linux-ppc64le-tar",
+                     "linux-s390x-tar",
++                    "linux-riscv64-tar",
+                     "windows-zip"
+                 )
+             );
+diff --git a/buildSrc/src/test/java/org/opensearch/gradle/ArchitectureTests.java b/buildSrc/src/test/java/org/opensearch/gradle/ArchitectureTests.java
+index 2df8c1995c8..dd6e359aabd 100644
+--- a/buildSrc/src/test/java/org/opensearch/gradle/ArchitectureTests.java
++++ b/buildSrc/src/test/java/org/opensearch/gradle/ArchitectureTests.java
+@@ -20,6 +20,7 @@ public class ArchitectureTests extends GradleUnitTestCase {
+         assertEquals(Architecture.ARM64, currentArchitecture("aarch64"));
+         assertEquals(Architecture.S390X, currentArchitecture("s390x"));
+         assertEquals(Architecture.PPC64LE, currentArchitecture("ppc64le"));
++        assertEquals(Architecture.RISCV64, currentArchitecture("riscv64"));
+     }
+ 
+     public void testInvalidCurrentArchitecture() {
+diff --git a/buildSrc/src/test/java/org/opensearch/gradle/JdkDownloadPluginTests.java b/buildSrc/src/test/java/org/opensearch/gradle/JdkDownloadPluginTests.java
+index bb394cf5142..826dcab28a7 100644
+--- a/buildSrc/src/test/java/org/opensearch/gradle/JdkDownloadPluginTests.java
++++ b/buildSrc/src/test/java/org/opensearch/gradle/JdkDownloadPluginTests.java
+@@ -110,7 +110,7 @@ public class JdkDownloadPluginTests extends GradleUnitTestCase {
+             "11.0.2+33",
+             "linux",
+             "unknown",
+-            "unknown architecture [unknown] for jdk [testjdk], must be one of [aarch64, x64, s390x, ppc64le]"
++            "unknown architecture [unknown] for jdk [testjdk], must be one of [aarch64, x64, s390x, ppc64le, riscv64]"
+         );
+     }
+ 
+diff --git a/distribution/archives/build.gradle b/distribution/archives/build.gradle
+index 792b1ab57dd..3bef0f62433 100644
+--- a/distribution/archives/build.gradle
++++ b/distribution/archives/build.gradle
+@@ -205,6 +205,20 @@ distribution_archives {
+     }
+   }
+ 
++  linuxRiscv64Tar {
++    archiveClassifier = 'linux-riscv64'
++    content {
++      archiveFiles(modulesFiles('linux-riscv64'), 'tar', 'linux', 'riscv64', JavaPackageType.JDK)
++    }
++  }
++
++  noJdkLinuxRiscv64Tar {
++    archiveClassifier = 'no-jdk-linux-riscv64'
++    content {
++      archiveFiles(modulesFiles('linux-riscv64'), 'tar', 'linux', 'riscv64', JavaPackageType.NONE)
++    }
++  }
++
+   windowsZip {
+     archiveClassifier = 'windows-x64'
+     content {
+diff --git a/distribution/archives/linux-riscv64-tar/build.gradle b/distribution/archives/linux-riscv64-tar/build.gradle
+new file mode 100644
+index 00000000000..385d5ff2743
+--- /dev/null
++++ b/distribution/archives/linux-riscv64-tar/build.gradle
+@@ -0,0 +1,15 @@
++/*
++ * SPDX-License-Identifier: Apache-2.0
++ *
++ * The OpenSearch Contributors require contributions made to
++ * this file be licensed under the Apache-2.0 license or a
++ * compatible open source license.
++ *
++ * Modifications Copyright OpenSearch Contributors. See
++ * GitHub history for details.
++ */
++
++// This file is intentionally blank. All configuration of the
++// distribution is done in the parent project.
++
++// See please https://docs.gradle.org/8.5/userguide/upgrading_version_8.html#deprecated_missing_project_directory
+diff --git a/distribution/archives/no-jdk-linux-riscv64-tar/build.gradle b/distribution/archives/no-jdk-linux-riscv64-tar/build.gradle
+new file mode 100644
+index 00000000000..385d5ff2743
+--- /dev/null
++++ b/distribution/archives/no-jdk-linux-riscv64-tar/build.gradle
+@@ -0,0 +1,15 @@
++/*
++ * SPDX-License-Identifier: Apache-2.0
++ *
++ * The OpenSearch Contributors require contributions made to
++ * this file be licensed under the Apache-2.0 license or a
++ * compatible open source license.
++ *
++ * Modifications Copyright OpenSearch Contributors. See
++ * GitHub history for details.
++ */
++
++// This file is intentionally blank. All configuration of the
++// distribution is done in the parent project.
++
++// See please https://docs.gradle.org/8.5/userguide/upgrading_version_8.html#deprecated_missing_project_directory
+diff --git a/distribution/build.gradle b/distribution/build.gradle
+index 572000d64d5..ec57069f71d 100644
+--- a/distribution/build.gradle
++++ b/distribution/build.gradle
+@@ -282,7 +282,7 @@ configure(subprojects.findAll { ['archives', 'packages'].contains(it.name) }) {
+   // Setup all required JDKs
+   project.jdks {
+     ['darwin', 'linux', 'windows'].each { platform ->
+-      (platform == 'linux' || platform == 'darwin' ? ['x64', 'aarch64', 's390x', 'ppc64le'] : ['x64']).each { architecture ->
++      (platform == 'linux' || platform == 'darwin' ? ['x64', 'aarch64', 's390x', 'ppc64le', 'riscv64'] : ['x64']).each { architecture ->
+         "bundled_jdk_${platform}_${architecture}" {
+           it.platform = platform
+           it.version = VersionProperties.getBundledJdk(platform, architecture)
+@@ -296,7 +296,7 @@ configure(subprojects.findAll { ['archives', 'packages'].contains(it.name) }) {
+   // Setup all required JREs
+   project.jres {
+     ['darwin', 'linux', 'windows'].each { platform ->
+-      (platform == 'linux' || platform == 'darwin' ? ['x64', 'aarch64', 's390x', 'ppc64le'] : ['x64']).each { architecture ->
++      (platform == 'linux' || platform == 'darwin' ? ['x64', 'aarch64', 's390x', 'ppc64le', 'riscv64'] : ['x64']).each { architecture ->
+         "bundled_jre_${platform}_${architecture}" {
+           it.platform = platform
+           it.version = VersionProperties.getBundledJre(platform, architecture)
+@@ -369,7 +369,7 @@ configure(subprojects.findAll { ['archives', 'packages'].contains(it.name) }) {
+           }
+         }
+         def buildModules = buildModulesTaskProvider
+-        List excludePlatforms = ['darwin-x64', 'freebsd-x64', 'linux-x64', 'linux-arm64', 'linux-s390x', 'linux-ppc64le', 'windows-x64', 'darwin-arm64']
++        List excludePlatforms = ['darwin-x64', 'freebsd-x64', 'linux-x64', 'linux-arm64', 'linux-s390x', 'linux-ppc64le', 'linux-riscv64', 'windows-x64', 'darwin-arm64']
+         if (platform != null) {
+           excludePlatforms.remove(excludePlatforms.indexOf(platform))
+         } else {
+@@ -383,7 +383,7 @@ configure(subprojects.findAll { ['archives', 'packages'].contains(it.name) }) {
+         if (BuildParams.isSnapshotBuild()) {
+           from(buildExternalTestModulesTaskProvider)
+         }
+-        if (project.path.startsWith(':distribution:packages') || ['freebsd-x64','linux-x64', 'linux-arm64'].contains(platform)) {
++        if (project.path.startsWith(':distribution:packages') || ['freebsd-x64','linux-x64', 'linux-arm64', 'linux-riscv64'].contains(platform)) {
+           from(buildSystemdModuleTaskProvider)
+         }
+       }
+diff --git a/distribution/docker/build.gradle b/distribution/docker/build.gradle
+index fa753623ce2..09c92459b34 100644
+--- a/distribution/docker/build.gradle
++++ b/distribution/docker/build.gradle
+@@ -29,6 +29,7 @@ configurations {
+   arm64DockerSource
+   s390xDockerSource
+   ppc64leDockerSource
++  riscv64DockerSource
+   dockerSource
+ }
+ 
+@@ -36,6 +37,7 @@ dependencies {
+   arm64DockerSource project(path: ":distribution:archives:linux-arm64-tar", configuration:"default")
+   s390xDockerSource project(path: ":distribution:archives:linux-s390x-tar", configuration:"default")
+   ppc64leDockerSource project(path: ":distribution:archives:linux-ppc64le-tar", configuration:"default")
++  riscv64DockerSource project(path: ":distribution:archives:linux-riscv64-tar", configuration:"default")
+   dockerSource project(path: ":distribution:archives:linux-tar", configuration:"default")
+ }
+ 
+@@ -50,6 +52,8 @@ ext.expansions = { Architecture architecture, DockerBase base, boolean local ->
+       classifier = "linux-s390x"
+     } else if (architecture == Architecture.PPC64LE) {
+       classifier = "linux-ppc64le"
++    } else if (architecture == Architecture.RISCV64) {
++      classifier = "linux-riscv64"
+     } else {
+       throw new IllegalArgumentException("Unsupported architecture [" + architecture + "]")
+     }
+@@ -95,6 +99,7 @@ private static String buildPath(Architecture architecture, DockerBase base) {
+     (architecture == Architecture.ARM64 ? 'arm64-' : '') +
+     (architecture == Architecture.S390X ? 's390x-' : '') +
+     (architecture == Architecture.PPC64LE ? 'ppc64le-' : '') +
++    (architecture == Architecture.RISCV64 ? 'riscv64-' : '') +
+     'docker'
+ }
+ 
+@@ -103,6 +108,7 @@ private static String taskName(String prefix, Architecture architecture, DockerB
+     (architecture == Architecture.ARM64 ? 'Arm64' : '') +
+     (architecture == Architecture.S390X ? 'S390x' : '') +
+     (architecture == Architecture.PPC64LE ? 'Ppc64le' : '') +
++    (architecture == Architecture.RISCV64 ? 'Riscv64' : '') +
+     suffix
+ }
+ 
+@@ -143,6 +149,8 @@ void addCopyDockerContextTask(Architecture architecture, DockerBase base) {
+       from configurations.s390xDockerSource
+     } else if (architecture == Architecture.PPC64LE) {
+       from configurations.ppc64leDockerSource
++    } else if (architecture == Architecture.RISCV64) {
++      from configurations.riscv64DockerSource
+     } else {
+       from configurations.dockerSource
+     }
+diff --git a/distribution/docker/docker-riscv64-export/build.gradle b/distribution/docker/docker-riscv64-export/build.gradle
+new file mode 100644
+index 00000000000..ae7def32c4d
+--- /dev/null
++++ b/distribution/docker/docker-riscv64-export/build.gradle
+@@ -0,0 +1,14 @@
++/*
++ * Copyright OpenSearch Contributors
++ * SPDX-License-Identifier: Apache-2.0
++ *
++ * The OpenSearch Contributors require contributions made to
++ * this file be licensed under the Apache-2.0 license or a
++ * compatible open source license.
++ *
++*/
++
++// This file is intentionally blank. All configuration of the
++// export is done in the parent project.
++
++// See please https://docs.gradle.org/8.5/userguide/upgrading_version_8.html#deprecated_missing_project_directory
+diff --git a/server/src/main/java/org/opensearch/bootstrap/SystemCallFilter.java b/server/src/main/java/org/opensearch/bootstrap/SystemCallFilter.java
+index 6347c37a7c7..114a83cc843 100644
+--- a/server/src/main/java/org/opensearch/bootstrap/SystemCallFilter.java
++++ b/server/src/main/java/org/opensearch/bootstrap/SystemCallFilter.java
+@@ -261,6 +261,7 @@ final class SystemCallFilter {
+         m.put("aarch64", new Arch(0xC00000B7, 0xFFFFFFFF, 1079, 1071, 221, 281, 277));
+         m.put("s390x", new Arch(0x80000016, 0xFFFFFFFF, 2, 190, 11, 354, 348));
+         m.put("ppc64le", new Arch(0xC0000015, 0xFFFFFFFF, 2, 189, 11, 362, 358));
++        m.put("riscv64", new Arch(0xC00000F3, 0xFFFFFFFF, 1079, 1071, 221, 281, 277));
+         ARCHITECTURES = Collections.unmodifiableMap(m);
+     }
+ 
+diff --git a/settings.gradle b/settings.gradle
+index a24da40069b..6ac6f78d1eb 100644
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -52,6 +52,8 @@ List projects = [
+   'distribution:archives:linux-s390x-tar',
+   'distribution:archives:linux-ppc64le-tar',
+   'distribution:archives:no-jdk-linux-ppc64le-tar',
++  'distribution:archives:linux-riscv64-tar',
++  'distribution:archives:no-jdk-linux-riscv64-tar',
+   'distribution:archives:linux-tar',
+   'distribution:archives:no-jdk-linux-tar',
+   'distribution:archives:jre-linux-tar',
+@@ -60,6 +62,7 @@ List projects = [
+   'distribution:docker:docker-arm64-export',
+   'distribution:docker:docker-s390x-export',
+   'distribution:docker:docker-ppc64le-export',
++  'distribution:docker:docker-riscv64-export',
+   'distribution:docker:docker-build-context',
+   'distribution:docker:docker-export',
+   'distribution:packages:arm64-deb',
+-- 
+2.49.0
+
