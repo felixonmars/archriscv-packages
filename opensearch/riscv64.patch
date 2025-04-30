@@ -1,0 +1,64 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,10 +32,11 @@ pkgrel=1
+ # See https://github.com/opensearch-project/OpenSearch/blob/main/.ci/java-versions.properties
+ _jrever=17
+ _jdkver=17
++_protobuf_ver=3.25.5
+ arch=('x86_64')
+ url="https://opensearch.org/docs/opensearch/index/"
+ license=('Apache-2.0')
+-makedepends=("java-environment-openjdk=${_jdkver}" 'unzip')
++makedepends=("java-environment-openjdk=${_jdkver}" 'unzip' 'cmake' 'abseil-cpp')
+ source=(
+   "OpenSearch-${pkgver}.tar.gz::https://github.com/opensearch-project/OpenSearch/archive/${pkgver}.tar.gz"
+   opensearch.service
+@@ -46,6 +47,8 @@ source=(
+   opensearch-user.conf
+   opensearch-tmpfile.conf
+   opensearch.default
++  opensearch-riscv.patch
++  "protobuf-${_protobuf_ver}.tar.gz::https://github.com/protocolbuffers/protobuf/archive/v${_protobuf_ver}.tar.gz"
+ )
+ sha256sums=('99999a392dcf90bafebfa143ed071b45662fb022dcbcfa77df802248338d3a63'
+             'b59d064ce8e348f22b969cc2b7522a1c7b64d4b4e3fd98d9ad1f01d842e94d46'
+@@ -55,7 +58,20 @@ sha256sums=('99999a392dcf90bafebfa143ed071b45662fb022dcbcfa77df802248338d3a63'
+             'b3feb1e9c7e7ce6b33cea6c727728ed700332aae942ca475c3bcc1d56b9f113c'
+             '515e509f811a367cfd0a6cbafb3f8f472276410d53df7957aa878d8047a3cfc6'
+             'eb1ea6146d2bd16eeb63061dfcdb7ebed55da556397c7d6c924941b1564f1f72'
+-            '66401172f710e80e1f715c89bc6ed5a6d0ad567c58ad03101e59556c52245158')
++            '66401172f710e80e1f715c89bc6ed5a6d0ad567c58ad03101e59556c52245158'
++            'a560d253649c6fdddf8509bc0a506bb8209487b2502e319bbabc005a9cd1b898'
++            '4356e78744dfb2df3890282386c8568c85868116317d9b3ad80eb11c2aecf2ff')
++
++prepare() {
++  cd "protobuf-${_protobuf_ver}"
++  cmake . -DCMAKE_CXX_STANDARD=17 -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_ABSL_PROVIDER=package
++  make $MAKEFLAGS
++  cd "${srcdir}/OpenSearch-${pkgver}"
++  patch -Np1 -i ../opensearch-riscv.patch
++  sed -i -e '/artifact = "com.google.protobuf:protoc/d' \
++    -e "\|protoc {|apath = '$(realpath ${srcdir}/protobuf-${_protobuf_ver}/protoc)'" \
++    server/build.gradle
++}
+ 
+ build() {
+   cd "OpenSearch-${pkgver}"
+@@ -67,7 +83,7 @@ build() {
+ 
+   # OpenSearch
+   ./gradlew :distribution:buildSystemdModule
+-  ./gradlew :distribution:archives:no-jdk-linux-tar:build
++  ./gradlew :distribution:archives:no-jdk-linux-riscv64-tar:build
+ 
+   # Plugins
+   for p in \
+@@ -154,7 +170,7 @@ package_opensearch() {
+   install -dm755 "${pkgdir}"/{usr/share,var/lib,var/log}/opensearch
+   install -dm755 "${pkgdir}/usr/bin"
+ 
+-  tar xf distribution/archives/no-jdk-linux-tar/build/distributions/opensearch-min-$pkgver-no-jdk-linux-x64.tar.gz \
++  tar xf distribution/archives/no-jdk-linux-riscv64-tar/build/distributions/opensearch-min-$pkgver-no-jdk-linux-riscv64.tar.gz \
+     --strip 1 -C "${pkgdir}/usr/share/opensearch"
+   rm -r "${pkgdir}"/usr/share/opensearch/logs
+ 
