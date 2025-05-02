@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index 896b5ea..7cb2d88 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -7,7 +7,7 @@
@@ -7,9 +9,9 @@
 -pkgname=(magma-cuda magma-hip)
 +pkgname=(magma-hip)
  pkgver=2.9.0
- pkgrel=1
+ pkgrel=2
  _pkgdesc="Matrix Algebra on GPU and Multicore Architectures"
-@@ -16,7 +16,6 @@ url="https://icl.utk.edu/magma/"
+@@ -16,7 +16,6 @@
  license=('BSD-3-Clause')
  depends=('blas' 'lapack')
  makedepends=('git' 'cmake' 'ninja' 'python' 'gcc-fortran'
@@ -17,21 +19,22 @@
               'rocm-core' 'hip-runtime-amd' 'hipblas' 'hipsparse')
  optdepends=('python: for examples and tests'
              'gcc-fortran: Fortran interface')
-@@ -42,13 +41,8 @@ prepare() {
+@@ -42,12 +41,9 @@
  
    cd "${srcdir}"
  
 -  cp -r "${_pkgname}" "${_pkgname}-${pkgver}-cuda"
-   cp -r "${_pkgname}" "${_pkgname}-${pkgver}-hip"
+-  cp -r "${_pkgname}" "${_pkgname}-${pkgver}-hip"
++  sed -i '/cmake_policy( SET CMP0037 OLD)/d' "${_pkgname}"/CMakeLists.txt
  
 -  cd "${_pkgname}-${pkgver}-cuda"
 -  echo -e "BACKEND = cuda\nFORT = true\nGPU_TARGET=$(_valid_sm)" > make.inc
 -  make generate
--
++  cp -r "${_pkgname}" "${_pkgname}-${pkgver}-hip"
+ 
    cd "${srcdir}"
  
-   cd "${_pkgname}-${pkgver}-hip"
-@@ -57,18 +51,6 @@ prepare() {
+@@ -57,18 +53,6 @@
  }
  
  build() {
