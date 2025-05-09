@@ -1,0 +1,191 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,9 +29,11 @@ depends=(c-ares
+ makedepends=(clang
+              git
+              gn
++             go
+              gperf
+              # harfbuzz-icu # disabled because ICU 76 not supported yet
+              java-runtime-headless
++             jq
+              libnotify
+              libva
+              lld
+@@ -59,7 +61,7 @@ optdepends=('kde-cli-tools: file deletion support (kioclient5)'
+             'trash-cli: file deletion support (trash-put)'
+             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
+ options=('!lto') # Electron adds its own flags for ThinLTO
+-source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
++source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
+         https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+         # Chromium
+         chromium-136-drop-nodejs-ver-check.patch
+@@ -71,6 +73,7 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+         electron.desktop
+         jinja-python-3.10.patch
+         use-system-libraries-in-node.patch
++        Debian-fix-rust-linking.patch
+         makepkg-source-roller.py
+         # BEGIN managed sources
+         chromium-mirror::git+https://github.com/chromium/chromium.git#tag=136.0.7103.49
+@@ -231,13 +234,14 @@ source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
+ sha256sums=('aab5318b977720a093854b21376d1846e8626bdbbbb92200b17a60c0df94fe46'
+             '7226c0ff3ecde0d66207295d28c9ca9c2063508d97d0d406a1cae9aae71187f5'
+             '32f0080282fc0b2795a342bf17fcb3db4028c5d02619c7e304222230ba99d5fe'
+-            'cc8a71a312e9314743c289b7b8fddcc80350a31445d335f726bb2e68edf916d1'
++            '7aa9710637d15776da2d2622002eb49824b0912f60c61a8b4855ed94a36a1eb7'
+             'd6f3914c6adadaf061e7e2b1430c96d32b0cad05244b5cfaf58cf5344006a169'
+             'dd2d248831dd4944d385ebf008426e66efe61d6fdf66f8932c963a12167947b4'
+             '13fcf26193f4417fd5dfbc82a3f24e5c7a1cce82f729f6a73f1b1d3a7b580b34'
+             '4484200d90b76830b69eea3a471c103999a3ce86bb2c29e6c14c945bf4102bae'
+             '55dbe71dbc1f3ab60bf1fa79f7aea7ef1fe76436b1d7df48728a1f8227d2134e'
+             '991e54f4490cdbb5e52c9a4a4f6e0e32f2fc95979f18a4736016d065da229c2e'
++            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
+             'b0a024a71833bc1c96adbc796d31da24bb4a3e6d189e031fa8ac23d918f33ea0'
+             '84f9bf8dbcea457dec5ca07d8025a0e6101e0031e4538b60eb75742084fb20d9'
+             '0b7a546ee6913c49519c10c293ac530ff381641a8a465fa2e184d6dbe0fb784d'
+@@ -439,12 +443,22 @@ prepare() {
+   cp -r chromium-mirror_third_party_depot_tools depot_tools
+   export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+   #export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
++  # Use a known commit that supports riscv64
++  git -C depot_tools checkout --detach 2a18f6d3245450d8c96c843a6584aaea561ef873
++  # Python 3.12 breaks gsutils
++  # Bundled wheels are not available for riscv64
++  sed -i '/wheel: </,$d' depot_tools/.vpython3
++  sed -i '/wheel: </,$d' depot_tools/gsutil.vpython3
++  # Manually install required wheels
++  vpython3 -m pip install httplib2==0.13.1 six==1.10.0 requests==2.31.0
+ 
+   echo "Putting together electron sources"
+   # Generate gclient gn args file and prepare-electron-source-tree.sh
+   python makepkg-source-roller.py generate electron/DEPS $pkgname
++  sed -i '/esbuild/d' prepare-electron-source-tree.sh
+   rbash prepare-electron-source-tree.sh "$CARCH"
+   mv electron src/electron
++  GOBIN=$(realpath src/third_party/devtools-frontend/src/third_party/esbuild/) go install "github.com/evanw/esbuild/cmd/esbuild@v0.25.1"
+ 
+   echo "Running hooks..."
+   # depot_tools/gclient.py runhooks
+@@ -456,11 +470,44 @@ prepare() {
+     -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
+   src/build/util/lastchange.py \
+     -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
+-  src/tools/update_pgo_profiles.py --target=linux update \
+-    --gs-url-base=chromium-optimization-profiles/pgo_profiles
++  #src/tools/update_pgo_profiles.py --target=linux update \
++  #  --gs-url-base=chromium-optimization-profiles/pgo_profiles
+ 
++  # Link to system tools required by the build
++  pushd src
++  mkdir -p third_party/node/linux/node-linux-x64/bin
++  ln -sfn /usr/bin/node third_party/node/linux/node-linux-x64/bin/
++  mkdir -p third_party/jdk/current/bin
++  ln -sfn /usr/bin/java third_party/jdk/current/bin/
++  ln -sfn /usr/bin/clang-format buildtools/linux64
++  popd
++
++  pushd src/third_party/node/
++  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
++  local _rollup_ver="$(jq -r .dependencies.\"@rollup/wasm-node\" package.json)"
++  jq ".dependencies.rollup=\"$_rollup_ver\"" package.json > package.json.new
++  mv package.json{.new,}
++  popd
+   # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
+   src/third_party/node/update_npm_deps
++  pushd src/third_party/devtools-frontend/src
++  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" scripts/devtools_paths.py
++  local _rollup_ver="$(jq -r .devDependencies.\"@rollup/wasm-node\" package.json)"
++  jq ".devDependencies.rollup=\"$_rollup_ver\" | .devDependencies.\"@rollup/rollup-linux-riscv64-gnu\"=\"$_rollup_ver\""  package.json > package.json.new
++  mv package.json{.new,}
++  # Chromium hosts a custom registry at https://npm.skia.org/chrome-devtools/
++  # and rejects some packages:
++  # Package fs-extra with version 11.3.0 was created 108h0m0s time ago. This is less than 1 week and so failed the audit.
++  sed -i /registry/d .npmrc
++  # Replace direct invocation of wasm rollup
++  sed -i 's\@rollup/wasm-node\rollup\' \
++    inspector_overlay/BUILD.gn \
++    front_end/models/live-metrics/web-vitals-injected/BUILD.gn \
++    front_end/Images/BUILD.gn \
++    front_end/panels/recorder/injected/BUILD.gn \
++    scripts/build/ninja/bundle.gni
++  popd
++  python src/third_party/devtools-frontend/src/scripts/deps/manage_node_deps.py
+ 
+   src/electron/script/apply_all_patches.py \
+       src/electron/patches/config.json
+@@ -482,6 +529,7 @@ prepare() {
+     third_party/blink/renderer/core/xml/parser/xml_document_parser.cc \
+     third_party/libxml/chromium/*.cc
+ 
++  patch -Np0 -i ../Debian-fix-rust-linking.patch
+ 
+   # Upstream fixes
+ 
+@@ -560,6 +608,8 @@ build() {
+     'enable_hangout_services_extension=true'
+     'enable_widevine=false'
+     'enable_nacl=false'
++    'is_clang=true'
++    "override_electron_version=\"$pkgver\""
+   )
+ 
+   if [[ -n ${_system_libs[icu]+set} ]]; then
+@@ -573,7 +623,7 @@ build() {
+     'clang_base_path="/usr"'
+     'clang_use_chrome_plugins=false'
+     "clang_version=\"$_clang_version\""
+-    'chrome_pgo_phase=2'
++    'chrome_pgo_phase=0'
+   )
+ 
+   # Allow the use of nightly features with stable Rust compiler
+@@ -595,6 +645,10 @@ build() {
+   CFLAGS+='   -Wno-unknown-warning-option'
+   CXXFLAGS+=' -Wno-unknown-warning-option'
+ 
++  # Remove flags that are causing weird bugs on riscv64
++  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++  CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=2}
++
+   # Let Chromium set its own symbol level
+   CFLAGS=${CFLAGS/-g }
+   CXXFLAGS=${CXXFLAGS/-g }
+@@ -642,3 +696,5 @@ package() {
+   install -Dm644 src/electron/default_app/icon.png \
+           "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
+ }
++
++sha256sums[0]=SKIP
+diff --git compiler-rt-adjust-paths.patch compiler-rt-adjust-paths.patch
+index 5d4e5d5..a947c66 100644
+--- compiler-rt-adjust-paths.patch
++++ compiler-rt-adjust-paths.patch
+@@ -1,8 +1,6 @@
+-diff --git a/build/config/clang/BUILD.gn b/build/config/clang/BUILD.gn
+-index d4de2e0cca0..57359c32121 100644
+---- a/build/config/clang/BUILD.gn
+-+++ b/build/config/clang/BUILD.gn
+-@@ -130,12 +130,15 @@ template("clang_lib") {
++--- a/build/config/clang/BUILD.gn	2024-03-09 04:32:07.577338262 +0100
+++++ b/build/config/clang/BUILD.gn	2024-03-09 04:55:29.376410067 +0100
++@@ -124,14 +124,18 @@
+        } else if (is_linux || is_chromeos) {
+          if (current_cpu == "x64") {
+            _dir = "x86_64-unknown-linux-gnu"
+@@ -15,10 +13,13 @@ index d4de2e0cca0..57359c32121 100644
+          } else if (current_cpu == "arm64") {
+            _dir = "aarch64-unknown-linux-gnu"
+ +          _suffix = "-aarch64"
++         } else if (current_cpu == "riscv64") {
++           _dir = "riscv64-unknown-linux-gnu"
+++          _suffix = "-riscv64"
+          } else {
+            assert(false)  # Unhandled cpu type
+          }
+-@@ -166,6 +169,11 @@ template("clang_lib") {
++@@ -162,6 +166,11 @@
+          assert(false)  # Unhandled target platform
+        }
+  
