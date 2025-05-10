@@ -1,3 +1,5 @@
+diff --git PKGBUILD PKGBUILD
+index c7828b0..d763b43 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -19,7 +19,7 @@ url='https://www.haskell.org/ghc/'
@@ -7,41 +9,14 @@
 -             'ttf-dejavu' 'alex' 'happy' 'time' 'numactl' 'python-sphinx_rtd_theme')
 +             'ttf-dejavu' 'alex' 'happy' 'time' 'numactl' 'python-sphinx_rtd_theme' 'llvm14')
  source=("https://downloads.haskell.org/~ghc/$pkgver/$pkgbase-${pkgver}-src.tar.xz"
-         ghc-sphinx-6.patch::https://gitlab.haskell.org/ghc/ghc/-/commit/00dc51060881df81258ba3b3bdf447294618a4de.patch
          ghc-rebuild-doc-index.hook ghc-register.hook ghc-unregister.hook)
-@@ -33,16 +33,26 @@ prepare() {
-   cd ghc-$pkgver
-   patch -p1 -i ../ghc-sphinx-6.patch
- 
-+  # Suppress warnings for newer LLVM. LlvmMaxVersion is non-inclusive and currently GHC
-+  # doesn't work with LLVM 15: https://gitlab.haskell.org/ghc/ghc/-/merge_requests/8999
-+  sed -i 's/LlvmMaxVersion=13/LlvmMaxVersion=15/' configure.ac
-+
-   # devendor rtd-theme for sphinx compatibility
-   rm -r docs/users_guide/rtd-theme
-   sed -i 's/rtd-theme/sphinx_rtd_theme/' docs/users_guide/conf.py
- 
-+  # Temporary hack to use LLVM 14 for bootstrapping during LLVM 15 rebuild.
-+  export PATH="/usr/lib/llvm14/bin/:$PATH"
-+
-   # detects GCC correctly
-   sed -i 's/grep -q gcc/grep -qi gcc/' m4/fp_gcc_version.m4
- 
-   cp mk/build.mk{.sample,}
-   sed -i '1iBuildFlavour = perf' mk/build.mk
- 
-+  mkdir _build
-+  echo "stage0.*.ghc.link.opts += -latomic" >> _build/hadrian.settings
-+
-   ./boot
- }
- 
-@@ -82,7 +92,7 @@ package_ghc-static() {
+ sha512sums=('e5cfb30adc73dc0054f5db2921e5f255c8a980e005798882a2e9daa8df2409ddbe1ec6403e1f6862efc9e4700db4b68d5cae36999d77c7d3fd2fe0ab51cb9923'
+@@ -75,7 +75,7 @@ package_ghc-static() {
  
  package_ghc() {
    pkgdesc='The Glasgow Haskell Compiler'
 -  depends=('gcc' 'ghc-libs')
 +  depends=('gcc' 'ghc-libs' 'llvm14')
-   provides=('haskell-haddock=2.26.0'
+   provides=('haskell-haddock=2.27.0'
              'haskell-hp2ps=0.1'
              'haskell-hpc-bin=0.68'
