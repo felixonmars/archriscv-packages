@@ -1,20 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 871db01..b7d6a5b 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -105,6 +105,13 @@ prepare() {
-   git -C src/3rdparty cherry-pick -n 416c7ff1efbb6565b109ff1462bc84a6870e13b9
- 
-   patch -d src/3rdparty/chromium/third_party/webrtc -p1 < ../pipewire-1.4.patch
+@@ -111,6 +111,13 @@ prepare() {
+   # Bump chromium to head of stable branch
+   cd src/3rdparty
+   [[ -n $_chromium ]] && git checkout $_chromium
 +
 +  for _patch in sandbox dav1d; do
-+    patch -d src/3rdparty/chromium -Np1 < ../riscv-$_patch.patch
++    patch -d chromium -Np1 < "$srcdir"/riscv-$_patch.patch
 +  done
-+  patch -d src/3rdparty/chromium/v8 -Np1 < ../0001-riscv-Flush-icache-in-both-local-and-remote-harts.patch
-+  patch -d src/3rdparty/chromium -Np0 < ../compiler-rt-riscv.patch
-+  patch -d src/3rdparty/chromium -Np1 < ../fix-linux-syscall-ranges.patch
++  patch -d chromium/v8 -Np1 < "$srcdir"/0001-riscv-Flush-icache-in-both-local-and-remote-harts.patch
++  patch -d chromium -Np0 < "$srcdir"/compiler-rt-riscv.patch
++  patch -d chromium -Np1 < "$srcdir"/fix-linux-syscall-ranges.patch
  }
  
  build() {
-@@ -117,7 +124,10 @@ build() {
+@@ -123,7 +130,10 @@ build() {
      -DQT_FEATURE_webengine_system_re2=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
@@ -26,7 +28,7 @@
    cmake --build build
  }
  
-@@ -126,3 +136,14 @@ package() {
+@@ -132,3 +142,14 @@ package() {
  
    install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
