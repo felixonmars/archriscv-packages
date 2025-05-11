@@ -1,0 +1,32 @@
+diff --git PKGBUILD PKGBUILD
+index c3ae06b..1e0b978 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -4,7 +4,7 @@ _hkgname=hadrian
+ pkgname=haskell-hadrian
+ _ghcver=9.4.8
+ pkgver=0.1.0.0+$_ghcver
+-pkgrel=97
++pkgrel=97.1
+ pkgdesc="GHC build system"
+ url="https://gitlab.haskell.org/ghc/ghc"
+ license=("BSD")
+@@ -12,8 +12,16 @@ arch=('x86_64')
+ depends=('ghc-libs' 'haskell-quickcheck' 'haskell-extra' 'haskell-shake'
+          'haskell-unordered-containers')
+ makedepends=('ghc')
+-source=("https://downloads.haskell.org/~ghc/$_ghcver/ghc-${_ghcver}-src.tar.xz")
+-sha256sums=('0bf407eb67fe3e3c24b0f4c8dea8cb63e07f63ca0f76cf2058565143507ab85e')
++source=("https://downloads.haskell.org/~ghc/$_ghcver/ghc-${_ghcver}-src.tar.xz"
++        ghc-enable-ghci-for-riscv64.patch::https://gitlab.haskell.org/ghc/ghc/-/commit/dd38aca95ac25adc9888083669b32ff551151259.patch)
++sha256sums=('0bf407eb67fe3e3c24b0f4c8dea8cb63e07f63ca0f76cf2058565143507ab85e'
++            '705c79d713e7344b5300c1b87eeb7faad31fa6bf65d5c164eb588606d58e803e')
++
++prepare() {
++  cd ghc-$_ghcver
++  # apply patch to enable ghci for riscv64
++  patch -p1 < "$srcdir"/ghc-enable-ghci-for-riscv64.patch
++}
+ 
+ build() {
+   cd ghc-$_ghcver/hadrian
