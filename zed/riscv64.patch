@@ -1,0 +1,51 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,11 +31,19 @@ depends=(alsa-lib libasound.so
+          zlib libz.so
+          zstd libzstd.so)
+ makedepends=(cargo
++             cargo-about
+              clang
+              cmake
+              protobuf
+              vulkan-headers
+-             vulkan-validation-layers)
++             vulkan-validation-layers
++             # needed when building libwebrtc
++             cpio
++             git
++             gn
++             ninja
++             pulseaudio # not required at runtime
++             python-httplib2)
+ optdepends=('clang: improved C/C++ language support'
+             'eslint: improved Javascript language support'
+             'pyright: improved Python language support'
+@@ -67,10 +75,20 @@ _srcenv() {
+ 	CFLAGS+=' -ffat-lto-objects'
+ 	CXXFLAGS+=' -ffat-lto-objects'
+ 	RUSTFLAGS+=" --remap-path-prefix $PWD=/"
++	CFLAGS="${CFLAGS/-fstack-clash-protection}"
++	CXXFLAGS="${CXXFLAGS/-fstack-clash-protection}"
+ }
+ 
+ build() {
+ 	_srcenv
++
++	pushd "$srcdir/livekit-rust-sdks/webrtc-sys/libwebrtc"
++	export CC=clang CXX=clang++ AR=ar NM=nm
++	sed -i '2i set -e' build_linux.sh
++	./build_linux.sh --arch riscv64 --toolchain host
++	export LK_CUSTOM_WEBRTC="$(pwd)/linux-riscv64-release"
++	popd
++
+ 	export ZED_UPDATE_EXPLANATION='Updates are handled by pacman'
+ 	export RELEASE_VERSION="$pkgver"
+ 	export PROTOC=/usr/bin/protoc
+@@ -93,3 +111,6 @@ package() {
+ 	install -Dm0644 -t "$pkgdir/usr/share/applications/" "$_appid.desktop"
+ 	install -Dm0644 crates/zed/resources/app-icon.png "$pkgdir/usr/share/icons/$pkgname.png"
+ }
++
++source+=("git+https://github.com/hack3ric/livekit-rust-sdks.git#commit=3119b6ac0ef5e705b3e92630c8e558648f0892ed")
++sha256sums+=('df044bce7dc5af8adbc3ca29225a62f8cee7a71535d704988abc8b372ea600e7')
