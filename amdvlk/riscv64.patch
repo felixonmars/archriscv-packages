@@ -1,24 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -32,6 +32,9 @@ prepare() {
-       popd
-     (( nrepos-- ))
-   done
+@@ -41,6 +41,9 @@ prepare() {
+   cd ${srcdir}/pal/shared/devdriver/third_party/rapidjson/
+   patch -Np1 -i ${srcdir}/0001-Avoid-inheritance-from-std-iterator.patch
+   patch -Np1 -i ${srcdir}/0001-Removed-non-compiling-assignment-operator.-Fixed-718.patch
 +
-+  cd pal/shared/devdriver/third_party/stb_sprintf/inc/
++  cd ${srcdir}/pal/shared/devdriver/third_party/stb_sprintf/inc/
 +  patch -Np1 -i $srcdir/fix-stb_sprintf.patch
  }
  
  build() {
-@@ -39,6 +42,7 @@ build() {
-   cmake -H. -Bbuilds/Release64 \
-     -DCMAKE_BUILD_TYPE=Release \
-     -DBUILD_WAYLAND_SUPPORT=On \
-+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-     -G Ninja
-     
-   ninja -C builds/Release64
-@@ -60,3 +64,5 @@ package() {
+@@ -69,3 +72,5 @@ package() {
    sed -i "s#/lib64#/lib#g" "${pkgdir}"/usr/share/vulkan/icd.d/amd_icd64.json
    sed -i "s#/lib64#/lib#g" "${pkgdir}"/usr/share/vulkan/implicit_layer.d/amd_icd64.json
  }
