@@ -1,12 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,31 +20,27 @@
+@@ -20,15 +20,12 @@
  license=('GPL-2.0-or-later')
  url='https://valgrind.org/'
  depends=('glibc' 'perl' 'debuginfod')
 -makedepends=('gdb' 'lib32-glibc' 'lib32-gcc-libs' 'docbook-xml'
--             'docbook-xsl' 'docbook-sgml')
-+makedepends=('gdb' 'docbook-xml' 'docbook-xsl' 'docbook-sgml')
++makedepends=('gdb' 'docbook-xml'
+              'docbook-xsl' 'docbook-sgml')
  checkdepends=('procps-ng')
  optdepends=(
 -  'lib32-glibc: 32-bit ABI support'
@@ -15,26 +15,5 @@
 -provides=('valgrind-multilib')
 -replaces=('valgrind-multilib')
  options=('!emptydirs' '!strip')
--source=(https://sourceware.org/pub/valgrind/valgrind-${pkgver}.tar.bz2{,.asc}
-+_commit='d087725c0d68908bdebe57c528ac86d3dc11418b'
-+source=(https://github.com/petrpavlu/valgrind-riscv64/archive/${_commit}.tar.gz
+ source=(https://sourceware.org/pub/valgrind/valgrind-${pkgver}.tar.bz2{,.asc}
          valgrind-3.7.0-respect-flags.patch)
- validpgpkeys=(
-   0E9FFD0C16A1856CF9C7C690BA0166E698FA6035 # Julian Seward <jseward@acm.org>
-   EC3CFE88F6CA0788774F5C1D1AA44BE649DE760A # Mark Wielaard <mjw@gnu.org>
- )
--sha512sums=('27d038faaaf6154cace2df18c3573291393548ba0738dbb6aba58eab6324c5beaa95fc5f3c0271663ca071baf829b15d806f7e81074f7cf087bef20ea0ed3117'
--            'SKIP'
-+sha512sums=('07f7e8e2e313eeecfde28930817fc63d1c1eeb7124c39d335ff1e90ef1d69a3934353869952057b1372bdbf3c3474480de19d4ec0adc0a0d78e380c6c3b55d51'
-             'e0cec39381cefeca09ae4794cca309dfac7c8693e6315e137e64f5c33684598726d41cfbb4edf764fe985503b13ff596184ca5fc32b159d500ec092e4cf8838c')
--b2sums=('9312761b0531006725f13270984b26c48f71ebe66e355b04410d7c01773c9b78ec21db3259cab398e58b3b68f93f5f074db06efe1f359bd7cf423515576191a4'
--        'SKIP'
-+b2sums=('2ac636e9b8161f0b3535a122cb62000202116d4e9650f13c58f9c7cb407fc4db5be889a0f6f493a2f5509e620be4e32cf0e6b32e1cfd2a5b937a3fc64acdf4e9'
-         'af556fdf3c02e37892bfe9afebc954cf2f1b2fa9b75c1caacfa9f3b456ebc02bf078475f9ee30079b3af5d150d41415a947c3d04235c1ea8412cf92b959c484a')
- options=(!lto) # https://bugs.kde.org/show_bug.cgi?id=338252
- 
- prepare() {
-+  mv valgrind-riscv64-${_commit} valgrind-${pkgver}
-   cd valgrind-${pkgver}
-   patch -Np1 < ../valgrind-3.7.0-respect-flags.patch
-   sed -i 's|sgml/docbook/xsl-stylesheets|xml/docbook/xsl-stylesheets-1.79.2-nons|' docs/Makefile.am
