@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index a569888..eb6aafe 100644
+index 74d2c46..c3aefce 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -38,6 +38,7 @@ source=(
@@ -10,20 +10,20 @@ index a569888..eb6aafe 100644
  )
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -49,12 +50,14 @@ sha256sums=('91c6c322c32568f09922a02ed35f46372ca8526714c6555b3115b9e9c156652a'
+@@ -49,12 +50,14 @@ sha256sums=('21817f1998e2230f81f7e4f605fa6fdcb040e14fa27d99c27ddb16ce749797a9'
              'SKIP'
-             'e7550286aa36ec85b005cb75664aafc581f30274dc1b845f05c27cc557ca29c9'
+             'e9bac19174ffcab45c0db7d054bb42b3a6a1f8e7f81ec7610d7b5a9cf5946108'
              'SKIP'
--            '570542f69c1e4625972c50c392aa710dace12aed2544c20c0258602163f24b26')
-+            '570542f69c1e4625972c50c392aa710dace12aed2544c20c0258602163f24b26'
-+            'd69c97efc3f4c97b6ab20b62e251215ae3b7bed7647c4b96195a66f70cdd0950')
- b2sums=('ea23ad9a9ce34ce652f0c159215c1f6612b312f13eb802f77c2962af7397e21a3b8459c389b546c780886fba91e3932b1b17a2d1e103111379fdc97511067de6'
+-            '15df67e5d931b0b2b26dafa40f6ecfb64d8e3bf0fb15840bf3fe225c7285ad77')
++            '15df67e5d931b0b2b26dafa40f6ecfb64d8e3bf0fb15840bf3fe225c7285ad77'
++            'ca86b15decae11a298d1b2844cb11db7f5c77443798d879518b1237a2fa44e36')
+ b2sums=('dedcadc0b7506f620da3ac849446539e83d694f0955d5417e063b6680d53ef8993eeef40562ae8dae9249a21bea9746093f8873a360dd74f6b139fbafdd7b9ac'
          'SKIP'
-         '8c15534586ae475e918cab2deec3de479ad31f0113b044de2b269890fd4b7843c4305d683efa21e675f789fbd06b68d6b5138b0e7d23b1b4a5d39c0f677b1b17'
+         'ef3cdc4558949c0694f362cc68880c5c067ef3f9633aff4f6c9ed2e5017a75b00aac7e2ad45b33371b341efb6423430d5446ff4024ff0a5542663107d17b219a'
          'SKIP'
--        '9f1e2cb8489d843fbad248d6cc312ec06495bb9f04943365b7084c11d8e728c5271f4121eb7a501370b3720cadea3db189182f458bcfc89f879c7d14fbf2c0ce')
-+        '9f1e2cb8489d843fbad248d6cc312ec06495bb9f04943365b7084c11d8e728c5271f4121eb7a501370b3720cadea3db189182f458bcfc89f879c7d14fbf2c0ce'
-+        'cf04de079f5d716e613861c63c99329e058050b4978b692d591c6a418dd787698c51d5249e15c218a79a100657c057801568d36f5eb15d6cdf5566f15653b864')
+-        'ddd747ef366fc040e08ed1bcf0d04222b67d4396eb45a3f0dfaa9f4eba1e113061deba1978646147e7345ac2e76af099f6ed19c505b883aeecdae9615358da6a')
++        'ddd747ef366fc040e08ed1bcf0d04222b67d4396eb45a3f0dfaa9f4eba1e113061deba1978646147e7345ac2e76af099f6ed19c505b883aeecdae9615358da6a'
++        'b30f135cde1788663c0b03e8d237cb4756bb65f667937d99c6157877441adb9c459f9ea9798351188bfd32eb561f97410f1de320de1fe12d4dcbeccb921cd979')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
@@ -83,7 +83,18 @@ index a569888..eb6aafe 100644
  
    install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
    install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -189,7 +199,7 @@ _package-headers() {
+@@ -178,10 +188,6 @@ _package-headers() {
+   echo "Installing KConfig files..."
+   find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
+ 
+-  echo "Installing Rust files..."
+-  install -Dt "$builddir/rust" -m644 rust/*.rmeta
+-  install -Dt "$builddir/rust" rust/*.so
+-
+   echo "Installing unstripped VDSO..."
+   make INSTALL_MOD_PATH="$pkgdir/usr" vdso_install \
+     link=  # Suppress build-id symlinks
+@@ -189,7 +195,7 @@ _package-headers() {
    echo "Removing unneeded architectures..."
    local arch
    for arch in "$builddir"/arch/*/; do
