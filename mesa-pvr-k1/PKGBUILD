@@ -1,0 +1,97 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+
+pkgname=mesa-pvr-k1
+pkgdesc="Mesa wrapper and PVR DDK 24.2 blobs for SpacemiT K1"
+pkgver=24.2.6603887+bianbu2.0.4
+pkgrel=4
+arch=('riscv64')
+url="https://github.com/Icenowy/aosc-os-pvr/blob/master/ddk242"
+license=('custom')
+depends=(libglvnd libdrm wayland libx11 libxfixes libxrandr expat systemd xorg-server mesa libdrm libepoxy)
+makedepends=(git python-mako python-packaging wayland-protocols xorg-server-devel meson)
+source=(git+https://github.com/Icenowy/aosc-os-pvr.git#commit=c586450a5cfed41f812f5f180f3c99e35dac993b
+        git+https://gitlab.freedesktop.org/StaticRocket/mesa.git#commit=82e6a9293c476267417c5b6b906b01fb73a34e38
+        git+https://gitee.com/bianbu-linux/img-gpu-powervr.git#tag=v2.0.4
+        git+https://github.com/Icenowy/xf86-video-pvrdri.git#commit=1bc1f7df48ceb51f9910976dc85932302cc02d73)
+sha512sums=('9af02409d0291198941a88f0883ca4d80ba64945a52047eb02451a29cf74e2e72e7aed7d1906c965a454b6203def664d174fa8597b76be911e61a2d0d47f3e05'
+            'bb24b7c09c021c1bb240f07c56a7cad2997bba999cd4c96d534040efbf5c77e5af58a06fd8acaded571b0b005bbe3d5bd4c86818a3ebe0bc861d08b84a2cf46c'
+            '2997a98cd33c22b34a3bbd95373f9def1ff34be0f5f038183d6efd9085ffd5ad8f6a8c2d9be153f041fbe44452f960c957dffd56607d024ade9990a3a844cbb3'
+            '7253435b4aa228b48a5acf708bd45dfca33e843c478aa9311e22eda52f9919d8c518e7144282e25243eacc99f2bf187317a411c8e575dbe01fef0ef975bbefef')
+
+prepare() {
+    cd mesa
+    for _patch in ../aosc-os-pvr/ddk242/mesa-pvr-ddk242/autobuild/patches/*.patch; do
+        patch -Np1 < "$_patch"
+    done
+
+    # Include package release in version string so Chromium invalidates
+    # its GPU cache; otherwise it can cause pages to render incorrectly.
+    # https://bugs.launchpad.net/ubuntu/+source/chromium-browser/+bug/2020604
+    echo "$pkgver-arch$epoch.$pkgrel" >VERSION
+}
+
+build() {
+    meson_options=(
+        -D dri-drivers-path=/usr/lib/pvr-dri
+        -D glvnd=true
+        -D glvnd-vendor-name=pvr
+        -D gallium-drivers=pvr,zink
+        -D vulkan-drivers=pvr
+        -D glx=dri
+        -D llvm=disabled
+        -D gbm=enabled
+        -D gallium-vdpau=disabled
+        -D gallium-va=disabled
+        -D gallium-xa=disabled
+        -D microsoft-clc=disabled
+        -D android-libbacktrace=disabled
+        -D valgrind=disabled
+        -D libunwind=disabled
+    )
+    arch-meson mesa build "${meson_options[@]}"
+    meson compile -C build
+
+    arch-meson xf86-video-pvrdri build-ddx
+    meson compile -C build-ddx
+}
+
+package() {
+    # pvr blobs
+    cd img-gpu-powervr/target
+    for i in libGLESv1_CM_PVR_MESA libGLESv2_PVR_MESA libglslcompiler \
+         libpvr_dri_support libPVROCL libPVRScopeServices libsrv_um \
+         libsutu_display libufwriter libusc libVK_IMG
+    do
+        install -Dm755 usr/lib/$i.so -t "$pkgdir"/usr/lib/
+    done
+
+    cp -rv lib/firmware "$pkgdir"/usr/lib/
+    install -dm755 "$pkgdir"/usr/share/
+    cp -rv etc/vulkan "$pkgdir"/usr/share/
+    mv -v "$pkgdir"/usr/share/vulkan/icd.d/{powervr_icd,pvr}.json
+
+    # patched mesa
+    cd ../..
+    meson install -C build --destdir tmp
+    cp -a build/tmp/usr/lib/*pvr* -t "$pkgdir"/usr/lib/
+    cp -r build/tmp/usr/lib/gbm "$pkgdir"/usr/lib/
+    ln -sfv pvr_gbm.so "$pkgdir"/usr/lib/gbm/spacemit_gbm.so
+    ln -sfv pvr_gbm.so "$pkgdir"/usr/lib/gbm/es_drm_gbm.so
+    install -Dm644 build/tmp/usr/share/glvnd/egl_vendor.d/50_pvr.json "$pkgdir"/usr/share/glvnd/egl_vendor.d/40_pvr.json
+
+    # powervr ddx
+    meson install -C build-ddx --destdir "$pkgdir"
+
+    # pvr-env
+    install -Dm644 aosc-os-pvr/common/pvr-env/autobuild/overrides/etc/powervr.ini -t "$pkgdir"/etc/
+    install -dm755 "$pkgdir"/usr/lib/systemd/user/plasma-kwin_{x11,wayland}.service.d
+    cat <<EOF >"$pkgdir"/usr/lib/systemd/user/plasma-kwin_x11.service.d/50-force-gles.conf
+[Service]
+Environment=KWIN_COMPOSE=O2ES
+Environment=QT_XCB_GL_INTEGRATION=xcb_egl
+EOF
+    cat <<EOF >"$pkgdir"/usr/lib/systemd/user/plasma-kwin_wayland.service.d/50-force-gles.conf
+[Service]
+Environment=KWIN_COMPOSE=O2ES
+EOF
+}
