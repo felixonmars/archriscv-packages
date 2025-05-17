@@ -1,0 +1,106 @@
+From 96a3727f4a26844b0081861e426e5a66e44fe279 Mon Sep 17 00:00:00 2001
+From: Yao Zi <ziyao@disroot.org>
+Date: Sat, 17 May 2025 08:02:08 -0400
+Subject: [PATCH] rts: posix: OSMem: Shrinking allocation size when it's
+ unresonable
+
+On architectures with a small virtual address spaces like RISC-V systems
+utilizing SV39 configuration, osReserveHeapMemory() may successfully
+mmap a memory chunk whose size just fits in the whole userspace address
+space, in which case the hint isn't respected.
+
+If the randomized address layout occasionally allows the allocated
+memory to start below minimumAddress (typically 8GiB),
+osReserveHeapMemory() will adjust the mmap hint towards high-end without
+shrinking the desired allocated size.
+
+Since the only possible region covers almost the whole address space,
+subsequent trials of allocation with only hint increased and size left
+unchanged will always result in the same memory region, never
+satisifying the requirement of minimumAddress, and finally leading to a
+dead loop.
+
+This patch improves the logic when mmapping succeeds but minimumAddress
+isn't satisified. In this case, we first check whether the combination
+of hint and size is reasonable on the system by requesting a page at the
+end of the desired allocated region with MAP_FIXED_NO_REPLACE.
+
+If the checking request fails with an errno other than EEXIST, we could
+know that the system isn't able to handle the desired allocation. This
+patch will decrease the size a little and retry, avoiding the dead loop
+of allocate -> requirements not satisified -> increase hint -> allocate
+and get the same memory region again.
+
+Signed-off-by: Yao Zi <ziyao@disroot.org>
+---
+ rts/posix/OSMem.c | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/rts/posix/OSMem.c b/rts/posix/OSMem.c
+index 822546d..a1c94ca 100644
+--- a/rts/posix/OSMem.c
++++ b/rts/posix/OSMem.c
+@@ -508,8 +508,30 @@ osTryReserveHeapMemory (W_ len, void *hint)
+     return start;
+ }
+ 
++static int check_allocation_reasonable(W_ start, size_t size, size_t pageSize)
++{
++    /*
++     * Allocate only one page with MAP_FIXED_NOREPLACE. Failures with errnos
++     * different from EEXIST suggests the allocation isn't reasonable on the
++     * system.
++     */
++    void *addr = (void *)(start + size);
++    void *ptr = mmap(addr, pageSize, PROT_READ,
++                     MAP_PRIVATE | MAP_FIXED_NOREPLACE | MAP_ANONYMOUS, -1, 0);
++    if (ptr == MAP_FAILED && errno != EEXIST) {
++        return 0;
++    }
++
++    if (munmap(ptr, pageSize) < 0) {
++        sysErrorBelch("unable to release mapped page");
++    }
++
++    return 1;
++}
++
+ void *osReserveHeapMemory(void *startAddressPtr, W_ *len)
+ {
++    size_t pageSize = getPageSize();
+     int attempt;
+     void *at;
+ 
+@@ -580,7 +602,6 @@ void *osReserveHeapMemory(void *startAddressPtr, W_ *len)
+             stg_exit(EXIT_FAILURE);
+         }
+ 
+-        size_t pageSize = getPageSize();
+         // 2/3rds of limit, round down to multiple of PAGE_SIZE
+         *len = (W_) (asLimit.rlim_cur * 0.666) & ~(pageSize - 1);
+ 
+@@ -630,11 +651,20 @@ void *osReserveHeapMemory(void *startAddressPtr, W_ *len)
+             break;
+         } else {
+             // We got addressing space but it wasn't above the 8GB mark.
+-            // Try again.
+             if (munmap(at, *len) < 0) {
+                 sysErrorBelch("unable to release reserved heap");
+             }
++
++            // If we're performing an allocation with unreasonble size, shrink
++            // the size instead of moving the base address up.
++            if (!check_allocation_reasonable((W_)hint, *len, pageSize)) {
++                *len -= *len / 8;
++                continue;
++            }
++
++            // Otherwise, try again with hint adjusted.
+         }
++
+         attempt++;
+     }
+ 
+-- 
+2.49.0
+
