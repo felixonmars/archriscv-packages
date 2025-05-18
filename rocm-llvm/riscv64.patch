@@ -1,23 +1,26 @@
 diff --git PKGBUILD PKGBUILD
-index b84308d..2fb121d 100644
+index ff5b5c5..ae2d03c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -34,7 +34,7 @@
-         -D LLVM_ENABLE_RUNTIMES='compiler-rt;libunwind;libcxx;libcxxabi'
-         -D LIBCXX_ENABLE_STATIC=ON
+@@ -37,6 +37,12 @@ prepare() {
+   # Add fix for missing function overload (openat)
+   # https://github.com/llvm/llvm-project/issues/100754
+   git cherry-pick -n 155b7a12820ec45095988b6aa6e057afaf2bc892
++
++  # Fix llvm-mc abi
++  git cherry-pick -n 3acb0e9e600cbe3668b7db3956238a592ebadc0a
++
++  # Fix libraries_sha.inc:1:42: error: narrowing conversion of ‘-30’ from ‘int’ to ‘char’
++  git cherry-pick -n 74c3df6cb5540c937ad8b58f95275901efae8669
+ }
+ 
+ build() {
+@@ -65,7 +71,7 @@ build() {
+         -D LIBCXXABI_ENABLE_SHARED=OFF
          -D LIBCXXABI_ENABLE_STATIC=ON
+         -D LIBCXXABI_INSTALL_STATIC_LIBRARY=OFF
 -        -D LLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;X86'
 +        -D LLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;RISCV'
          -D CLANG_DEFAULT_LINKER=lld
          -D CLANG_DEFAULT_RTLIB=compiler-rt
          -D CLANG_DEFAULT_UNWINDLIB=libgcc
-@@ -132,3 +132,9 @@
-     cd "$pkgbase/amd/comgr"
-     install -Dm644 LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
- }
-+
-+prepare() {
-+  cd "$pkgbase"
-+  # Fix llvm-mc abi
-+  git cherry-pick -n 3acb0e9e600cbe3668b7db3956238a592ebadc0a
-+}
