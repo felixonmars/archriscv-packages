@@ -1,25 +1,19 @@
 diff --git PKGBUILD PKGBUILD
-index b01c921..15bc87b 100644
+index 9f7989e..a685789 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,11 +18,18 @@ depends=('rocm-core' 'glibc' 'gcc-libs' 'numactl' 'pciutils' 'libelf' 'libdrm'
- provides=("hsakmt-roct=$pkgver")
- replaces=('hsakmt-roct')
- makedepends=('cmake' 'rocm-llvm' 'xxd')
--source=("${pkgname}-${pkgver}.tar.gz::$url/archive/rocm-$pkgver.tar.gz")
--sha256sums=('aa2e30d3d68707d6df4840e954bb08cc13cd312cec1a98a64d97adbe07262f50')
-+source=("${pkgname}-${pkgver}.tar.gz::$url/archive/rocm-$pkgver.tar.gz"
-+        "https://raw.githubusercontent.com/loongarch-moe/rocm-loongarch/refs/tags/6.3.1a3/stage2/2.rocm-rocr-runtime/rocr-unsupport.patch")
-+sha256sums=('aa2e30d3d68707d6df4840e954bb08cc13cd312cec1a98a64d97adbe07262f50'
-+            '1cc3f733e8f2a8bc2669d75019aebfa5c50923562a83b2b86065506c9720321f')
- _dirname="$(basename "$url")-$(basename "${source[0]}" .tar.gz)"
- options=(!lto)
+@@ -27,6 +27,7 @@ options=(!lto)
  
-+prepare() {
-+  cd "$_dirname"
-+  patch -Np1 -i ../rocr-unsupport.patch
-+}
-+
+ prepare() {
+     patch -d "${_dirname}" -Np1 < "${srcdir}/hsa-rocr-6.4-fix-missing-include.patch"
++    patch -d "${_dirname}" -Np1 < "${srcdir}/rocr-unsupport.patch"
+ }
+ 
  build() {
-   # Silence warnings on optional libraries with -DNDEBUG,
-   # https://github.com/RadeonOpenCompute/ROCR-Runtime/issues/89#issuecomment-613788944
+@@ -49,3 +50,6 @@ package() {
+   DESTDIR="$pkgdir" cmake --install build
+   install -Dm644 "$_dirname/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
++
++source+=(rocr-unsupport.patch)
++sha256sums+=('1abb08ae47ee0a6a18cecee962624f4e0c2d9e26701385d23f5e413b4daf4390')
