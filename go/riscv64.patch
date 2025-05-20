@@ -1,9 +1,26 @@
 diff --git PKGBUILD PKGBUILD
-index b175d00..bff3e5a 100644
+index 1463ddd..d5cccbe 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -30,8 +30,8 @@
-             'SKIP')
+@@ -24,20 +24,23 @@ makedepends=(git go)
+ replaces=(go-pie)
+ provides=(go-pie)
+ options=(!strip staticlibs)
+-source=("https://go.dev/dl/go${pkgver}.src.tar.gz"{,.asc})
++source=("https://go.dev/dl/go${pkgver}.src.tar.gz"{,.asc}
++        go-cmd-link-fix-cgo-on-riscv64-when-building-with-gcc-15.patch::https://github.com/golang/go/commit/12e5efd71011fbb5816a1d815e91b5c865fa9a83.patch)
+ validpgpkeys=('EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796')
+ sha256sums=('229c08b600b1446798109fae1f569228102c8473caba8104b6418cb5bc032878'
+-            'SKIP')
++            'SKIP'
++            '5d3fea71d76811629eb43df658c20b614e12ef949bcb97aa2135c6682d3721a8')
+ 
+ prepare() {
+   cd $pkgname
++  patch -p1 -i ../go-cmd-link-fix-cgo-on-riscv64-when-building-with-gcc-15.patch
+   # It leaves some traces...
+   rm -vf src/runtime/{os_plan9.go.orig,os_windows.go.orig,proc.go.orig,vgetrandom_linux.go.orig}
+ }
  
  build() {
 -  export GOARCH=amd64
@@ -13,7 +30,7 @@ index b175d00..bff3e5a 100644
    export GOROOT_FINAL=/usr/lib/go
    export GOROOT_BOOTSTRAP=/usr/lib/go
  
-@@ -50,7 +50,7 @@
+@@ -56,7 +59,7 @@ package() {
    cd "$pkgname"
  
    install -d "$pkgdir/usr/bin" "$pkgdir/usr/lib/go" "$pkgdir/usr/share/doc/go" \
