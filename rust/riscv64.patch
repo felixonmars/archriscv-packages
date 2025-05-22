@@ -32,9 +32,9 @@
    ninja
    perl
    python
-@@ -100,6 +102,12 @@ prepare() {
+@@ -105,6 +107,12 @@ prepare() {
    # Use our aarch64-linux-gnu-gcc
-   patch -Np1 -i ../0005-compiler-Use-aarch64-linux-gnu-gcc-to-link-aarch64-t.patch
+   patch -Np1 -i ../0006-compiler-Use-aarch64-linux-gnu-gcc-to-link-aarch64-t.patch
  
 +  # Force `crt_static_default = true` after upstream switched to dynamic by
 +  # default, which leads to https://github.com/rust-lang/rust/issues/82521.
@@ -42,12 +42,12 @@
 +  # See https://github.com/rust-lang/rust/commit/9c37c14aa2456315bf7b3fa7b3e089bc13a43ee9
 +  patch -Np1 -i ../riscv-musl-crt-default-static.diff
 +
-   cat >config.toml <<END
+   cat >bootstrap.toml <<END
  # see src/bootstrap/defaults/
  profile = "dist"
-@@ -113,8 +121,9 @@ link-shared = true
- 
+@@ -119,8 +127,9 @@ link-shared = true
  [build]
+ description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
  target = [
 +  "riscv64gc-unknown-linux-gnu",
 +  "riscv64gc-unknown-linux-musl",
@@ -56,7 +56,7 @@
    "x86_64-unknown-linux-musl",
    "aarch64-unknown-linux-gnu",
    "aarch64-unknown-linux-musl",
-@@ -166,22 +175,16 @@ jemalloc = true
+@@ -172,22 +181,16 @@ jemalloc = true
  compression-formats = ["gz"]
  compression-profile = "fast"
  
@@ -82,7 +82,7 @@
  ar = "/usr/bin/gcc-ar"
  ranlib = "/usr/bin/gcc-ranlib"
  sanitizers = false
-@@ -205,6 +208,24 @@ default-linker = "aarch64-linux-gnu-gcc"
+@@ -211,6 +214,24 @@ default-linker = "aarch64-linux-gnu-gcc"
  sanitizers = false
  musl-root = "/usr/aarch64-linux-musl/lib/musl"
  
@@ -107,7 +107,7 @@
  [target.wasm32-unknown-unknown]
  cc = "/usr/bin/clang"
  cxx = "/usr/bin/clang++"
-@@ -288,12 +309,11 @@ build() {
+@@ -304,12 +325,11 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -123,8 +123,8 @@
 +  _pick dest-x86_64-musl usr/lib/rustlib/x86_64-unknown-linux-musl
    _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
    _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
-   _pick dest-wasm usr/lib/rustlib/wasm32-*
-@@ -378,6 +398,33 @@ package_rust-aarch64-musl() {
+   _pick dest-wasm usr/lib/rustlib/wasm32{,v1}-*
+@@ -394,6 +414,33 @@ package_rust-aarch64-musl() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
@@ -158,7 +158,7 @@
  package_rust-wasm() {
    pkgdesc="WebAssembly targets for Rust"
    depends=(
-@@ -402,4 +449,7 @@ package_rust-src() {
+@@ -418,4 +465,7 @@ package_rust-src() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
