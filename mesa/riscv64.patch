@@ -1,103 +1,36 @@
-diff --git PKGBUILD PKGBUILD
-index 9e4df98..d1603f3 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,7 +11,6 @@ pkgname=(
-   opencl-rusticl-mesa
+@@ -10,7 +10,6 @@ pkgname=(
+   opencl-mesa
    vulkan-dzn
    vulkan-gfxstream
 -  vulkan-intel
    vulkan-nouveau
    vulkan-radeon
    vulkan-swrast
-@@ -91,6 +90,8 @@ options=(
- source=(
-   "https://archive.mesa3d.org/mesa-$pkgver.tar.xz"{,.sig}
-   0001-docs-Fix-HTML-build-with-Sphinx-8.2.patch
-+  mesa-zink-do-not-use-demote-on-img-blobs.patch::https://gitlab.freedesktop.org/mesa/mesa/-/commit/82dda2180624dea25887af405840297b593af71f.patch
-+  mesa-zink-workarounds-for-powervr-rogue-vulkan-blobs.patch::https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/34183.patch
- )
- validpgpkeys=(
-   946D09B5E4C9845E63075FF1D961C596A7203456 # Andres Gomez <tanty@igalia.com>
-@@ -127,9 +128,31 @@ for _crate in "${!_crates[@]}"; do
-   )
- done
- 
-+sha256sums=('c0d245dea0aa4b49f74b3d474b16542e4a8799791cd33d676c69f650ad4378d0'
-+            'SKIP'
-+            '279a54c7c531fa89a491b38f4467530c44d2f8d4e84e903ef5e460e05d283532'
-+            '88af2611624229ea1ddda0ea28e8581e2ab78dc88d1e2077cb69e43577478bfa'
-+            '9a482fde2172cfd3f989d260590ba1e836dfc8bf63e52441991ff8773930e4be'
-+            'ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9'
-+            'a941429fea7e08bedec25e4f6785b6ffaacc6b755da98df5ef3e7dcf4a124c4f'
-+            '168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26'
-+            '7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12'
-+            '5e719e8df665df0d1c8fbfd238015744736151d4445ec0836b8e628aae103b77'
-+            '2a548d2beca6773b1c244554d36fcf8548a8a58e74156968211567250e48e49a'
-+            '3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b'
-+            '5267fca4496028628a95160fc423a33e8b2e6af8a5302579e322e4b520293cae'
-+            '6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97'
-+            'de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c'
-+            'cd53dff83f26735fdc1ca837098ccf133605d794cdae66acfc2bfac3ec809d95'
-+            '5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5'
-+            '3c93a82e8d145725dcbaf44e5ea887c8a869efdcc28706df2d08c69e17077183'
-+            '692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56'
-+            '901fa70d88b9d6c98022e23b4136f9f3e54e4662c3bc1bd1d84a42a9a0f0c1e9')
- b2sums=('f17f8c2a733fd3c37f346b9304241dc1d13e01df9c8c723b73b10279dd3c2ebed062ec1f15cdbc8b9936bae840a087b23ac38cae7d8982228d582d468ab8c9c9'
-         'SKIP'
-         'cd708e65f7d46cfda58017b11968fe8142402807ba93a7972213d2bef9fca7c29d3fc048731cb551f2fd0dfc82411bd78f023e1a5a370184113a5d04fdc23865'
-+        'c7fbb0701255dbe15b16e11778ffb33c6f31612192ab6cfa05f5beffeaa998bc088654e6ff436da47d2684e5a09b8f294f08b712dd1d8a14928e6c0ada7219d3'
-+        '5d8be90df4e3f9b27007e7c7791abc7012409de2ad50db6ef1cacd82777f02b8c6fac6deef7c595dba2591c60c2dc4cc2c6e6c09f59b9e6e1f1afbc64449ec99'
-         'a6d47c903be6094423d89b8ec3ca899d0a84df6dbd6e76632bb6c9b9f40ad9c216f8fa400310753d392f85072756b43ac3892e0a2c4d55f87ab6463002554823'
-         '9c34f1ab14ad5ae124882513e0f14b1d731d06a43203bdc37fa3b202dd3ce93dbe8ebb554d01bab475689fe6ffd3ec0cbc0d5365c9b984cb83fb34ea3e9e732e'
-         'fac5cf6339dc3c0a40b100035a5c874cc7b2efeafeb31c51488d25156e392dc9db86a497e76eead351d2126f69d060422faa9c55d73407a0de9f5be18d234123'
-@@ -147,30 +170,14 @@ b2sums=('f17f8c2a733fd3c37f346b9304241dc1d13e01df9c8c723b73b10279dd3c2ebed062ec1
-         '8bc6f68ed286bea617a2cfaf3949bb699d3a0466faeca735314a51596ce950e4ee57eda88154bd562c1728cfaff4cdb5bc1ba701b9d47a9c50d4c4f011bee975')
- 
- # https://docs.mesa3d.org/relnotes.html
--sha256sums=('c0d245dea0aa4b49f74b3d474b16542e4a8799791cd33d676c69f650ad4378d0'
--            'SKIP'
--            '279a54c7c531fa89a491b38f4467530c44d2f8d4e84e903ef5e460e05d283532'
--            'ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9'
--            'a941429fea7e08bedec25e4f6785b6ffaacc6b755da98df5ef3e7dcf4a124c4f'
--            '168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26'
--            '7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12'
--            '5e719e8df665df0d1c8fbfd238015744736151d4445ec0836b8e628aae103b77'
--            '2a548d2beca6773b1c244554d36fcf8548a8a58e74156968211567250e48e49a'
--            '3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b'
--            '5267fca4496028628a95160fc423a33e8b2e6af8a5302579e322e4b520293cae'
--            '6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97'
--            'de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c'
--            'cd53dff83f26735fdc1ca837098ccf133605d794cdae66acfc2bfac3ec809d95'
--            '5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5'
--            '3c93a82e8d145725dcbaf44e5ea887c8a869efdcc28706df2d08c69e17077183'
--            '692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56'
--            '901fa70d88b9d6c98022e23b4136f9f3e54e4662c3bc1bd1d84a42a9a0f0c1e9')
- 
- prepare() {
-   cd mesa-$pkgver
--
--  # Fix build with Sphinx 8.2
--  patch -Np1 -i ../0001-docs-Fix-HTML-build-with-Sphinx-8.2.patch
+@@ -169,13 +168,19 @@ prepare() {
+   # its GPU cache; otherwise it can cause pages to render incorrectly.
+   # https://bugs.launchpad.net/ubuntu/+source/chromium-browser/+bug/2020604
+   echo "$pkgver-arch$epoch.$pkgrel" >VERSION
++
 +  # Apply patches
 +  for _patch in "$srcdir"/*.patch; do
 +    echo "Applying patch: $_patch"
 +    patch -Np1 < "$_patch"
 +  done
+ }
  
-   # Include package release in version string so Chromium invalidates
-   # its GPU cache; otherwise it can cause pages to render incorrectly.
-@@ -182,7 +189,7 @@ build() {
+ build() {
    local meson_options=(
      -D android-libbacktrace=disabled
      -D b_ndebug=true
 -    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,svga,llvmpipe,softpipe,iris,crocus,i915,zink,d3d12
 +    -D gallium-drivers=r300,r600,radeonsi,nouveau,virgl,svga,llvmpipe,softpipe,zink,d3d12
      -D gallium-extra-hud=true
-     -D gallium-nine=true
-     -D gallium-opencl=icd
-@@ -194,8 +201,8 @@ build() {
-     -D osmesa=true
+     -D gallium-rusticl=true
+     -D gallium-xa=disabled
+@@ -185,8 +190,8 @@ build() {
+     -D microsoft-clc=disabled
      -D valgrind=enabled
      -D video-codecs=all
 -    -D vulkan-drivers=amd,gfxstream,intel,intel_hasvk,nouveau,swrast,virtio,microsoft-experimental
@@ -107,7 +40,7 @@ index 9e4df98..d1603f3 100644
    )
  
    # Build only minimal debug info to reduce size
-@@ -281,9 +288,6 @@ package_mesa() {
+@@ -268,9 +273,6 @@ package_mesa() {
      _pick vkgfxstr $icddir/gfxstream_vk_icd.*.json
      _pick vkgfxstr $libdir/libvulkan_gfxstream.so
  
@@ -117,3 +50,15 @@ index 9e4df98..d1603f3 100644
      _pick vknvidia $icddir/nouveau_icd.*.json
      _pick vknvidia $libdir/libvulkan_nouveau.so
  
+@@ -541,4 +543,11 @@ package_mesa-docs() {
+   install -Dm644 mesa-$pkgver/docs/license.rst -t "$pkgdir/usr/share/licenses/$pkgname"
+ }
+ 
++source+=(mesa-zink-do-not-use-demote-on-img-blobs.patch::https://gitlab.freedesktop.org/mesa/mesa/-/commit/82dda2180624dea25887af405840297b593af71f.patch
++         mesa-zink-workarounds-for-powervr-rogue-vulkan-blobs.patch::https://gitlab.freedesktop.org/mesa/mesa/-/merge_requests/34183.patch)
++sha256sums+=('88af2611624229ea1ddda0ea28e8581e2ab78dc88d1e2077cb69e43577478bfa'
++             '9a482fde2172cfd3f989d260590ba1e836dfc8bf63e52441991ff8773930e4be')
++b2sums+=('c7fbb0701255dbe15b16e11778ffb33c6f31612192ab6cfa05f5beffeaa998bc088654e6ff436da47d2684e5a09b8f294f08b712dd1d8a14928e6c0ada7219d3'
++         '5d8be90df4e3f9b27007e7c7791abc7012409de2ad50db6ef1cacd82777f02b8c6fac6deef7c595dba2591c60c2dc4cc2c6e6c09f59b9e6e1f1afbc64449ec99')
++
+ # vim:set sw=2 sts=-1 et:
