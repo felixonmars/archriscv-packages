@@ -1,40 +1,34 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -51,7 +51,19 @@ prepare() {
-   # Disable auto-updates
-   sed -i 's/return false;/return true;/' src/main/disableUpdate.js
+@@ -81,7 +81,15 @@ prepare() {
+   )
+   rm -r "${to_remove[@]}"
  
 -  yarn install --frozen-lockfile
 +  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-+  jq '.devDependencies."electron-builder"="npm:@riscv-forks/electron-builder@24.13.3"
-+   |  .overrides."app-builder-lib"="npm:@riscv-forks/app-builder-lib@24.13.3"
-+   |  .overrides."builder-util"="npm:@riscv-forks/builder-util@24.13.1"' package.json > package.json.new
++  jq '.devDependencies."electron-builder"="npm:@riscv-forks/electron-builder@25.1.8"
++   |  .overrides."app-builder-lib"="npm:@riscv-forks/app-builder-lib@25.1.8"
++   |  .overrides."builder-util"="npm:@riscv-forks/builder-util@25.1.7"' package.json > package.json.new
 +  mv package.json{.new,}
 +
 +  yarn install
-+  local _builder_bin=node_modules/app-builder-bin/linux/riscv64
-+  mkdir "$_builder_bin"
-+  go build -C ../app-builder
-+  cp ../app-builder/app-builder "$_builder_bin"
 +  mkdir -p  node_modules/7zip-bin/linux/riscv64
 +  ln -s /usr/bin/7za node_modules/7zip-bin/linux/riscv64/7za
  }
  
  build() {
-@@ -63,7 +75,7 @@ build() {
+@@ -93,7 +101,7 @@ build() {
  
  package() {
-   cd "$srcdir/$pkgname"
+   cd $pkgname
 -  install -vDm644 -t "$pkgdir/usr/lib/$pkgname" dist/linux-unpacked/resources/app.asar
 +  install -vDm644 -t "$pkgdir/usr/lib/$pkgname" dist/linux-riscv64-unpacked/resources/app.asar
    install -vDm755 "$srcdir/drawio.sh" "$pkgdir/usr/bin/drawio"
  
    install -vDm644 "$srcdir/drawio.xml" "$pkgdir/usr/share/mime/packages/drawio.xml"
-@@ -74,3 +86,7 @@ package() {
+@@ -104,3 +112,5 @@ package() {
      install -vDm644 "build/$size.png" "$pkgdir/usr/share/icons/hicolor/$size/apps/drawio.png"
    done
  }
 +
-+makedepends+=(jq p7zip go)
-+source+=(git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
-+sha256sums+=('cb099d499b91b466917e20f962db7badbfd7e3b1b185b67d82cfbaab8ec54ebd')
++makedepends+=(jq p7zip)
