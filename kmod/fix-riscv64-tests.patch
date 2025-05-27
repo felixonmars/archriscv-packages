@@ -1,0 +1,25 @@
+Description: wrap riscv_hwprobe(2)
+Author: Aurelien Jarno <aurel32@debian.org>
+
+--- a/testsuite/init_module.c
++++ b/testsuite/init_module.c
+@@ -364,6 +364,19 @@ TS_EXPORT long int syscall(long int __sy
+ 		return nextlib_syscall(__NR_gettid);
+ 	}
+ 
++#ifdef __NR_riscv_hwprobe
++	if (__sysno == __NR_riscv_hwprobe) {
++		/*
++		 * RISC-V Hardware Probing Interface. This might be used by
++		 * some libraries (e.g. openssl) to probe the hardware
++		 * capabilities. Just pretend the syscall doesn't exist, this
++		 * will just fallback to less optimized code.
++		 */
++		errno = ENOSYS;
++		return -1;
++	}
++#endif
++
+ 	/*
+ 	 * FIXME: no way to call the libc function due since this is a
+ 	 * variadic argument function and we don't have a vsyscall() variant
