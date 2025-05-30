@@ -9,7 +9,7 @@
  optdepends=('pipewire: WebRTC desktop sharing under Wayland'
              'kdialog: support for native dialogs in Plasma'
              'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -41,7 +41,18 @@ sha256sums=('a124a9bc3f6f3e24fa97c5ec59d94a040b774a8fbca2e1196bf39b240f0d42f2'
+@@ -43,7 +43,19 @@ sha256sums=('359326ad87abf163ed6c021da4feba06106e09a361b71b1a40343b9bf1c16f7f'
              'cc8a71a312e9314743c289b7b8fddcc80350a31445d335f726bb2e68edf916d1'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
              'd6f3914c6adadaf061e7e2b1430c96d32b0cad05244b5cfaf58cf5344006a169'
@@ -17,10 +17,11 @@
 +            'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+            '407f3b7fc060565b77ef836ea9ea3a338ad160353d6d0ea25971098b075ecb24'
-+            '0b2f0442ac109669959c342df20afdff61b50231c8541d4c1a1f5262b4751de0'
++            '3b4b783f96abcdc64df6df97074bb5ec21cabeb076387859c58917c1ecce926b'
++            'cc3e184ee849f565f2a1e8a0ab6e11eaf2fe54a4fc38bf3a4de858db6379ef46'
 +            'e670453e11b1b6dea17e1a9bd8fd0f81b7c98e35d750599ba082bd4f8f15c026'
-+            '5b2a0a43f4d9eb3515a24930d27981b3019c5a27cedb6ee05b7974805580d5d1'
++            'a74fb1bcf6360491955f4477b5fa3cd87b7c3f2c1dcf8d459dcb6202059dd079'
++            '9c634cb2c10400e21c90b0afbb3be045d48372c7d8648f5f502c7a86592002eb'
 +            '35a710ee8b7047ff4976281ea127fe33c58861f2b94d0d979798478baa7130ab'
 +            '9b03cd0430c70be9d90705f3d2ebe2d8a982b57bafb419371c0658d76f24f99e'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
@@ -29,7 +30,7 @@
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -124,6 +135,31 @@ prepare() {
+@@ -127,6 +139,31 @@ prepare() {
    # Disable usage of --warning-suppression-mappings flag which needs clang 20
    patch -Np1 -i ../disable-clang-warning-suppression-flag.patch
  
@@ -38,17 +39,17 @@
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
 +  patch -Np1 -i ../highway-disable-rvv.patch
-+  pushd v8
-+  patch -Np1 -i "${srcdir}"/0001-riscv-Fix-the-RISC-V-build.patch
-+  popd
++  # pushd v8
++  # patch -Np1 -i "${srcdir}"/0001-riscv-Fix-the-RISC-V-build.patch
++  # popd
 +
-+  for rvpatch in riscv-{dav1d,sandbox-136}.patch; do
++  for rvpatch in riscv-{dav1d,sandbox-137,cpuinfo-137,xnnpack-137}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
 +  patch -Np0 -i ../compiler-rt-riscv.patch
 +  patch -Np1 -i ../0001-chrome-runtime_api_delegate-add-riscv64-define.patch
 +  patch -Np1 -i ../0001-extensions-common-api-runtime.json-riscv64-support.patch
-+  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-136.patch
++  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-137.patch
 +
 +  pushd third_party/node/
 +  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
@@ -61,7 +62,7 @@
    # Fixes for building with libstdc++ instead of libc++
  
    # Link to system tools required by the build
-@@ -140,6 +176,25 @@ prepare() {
+@@ -143,6 +180,25 @@ prepare() {
      ./tools/clang/scripts/update.py
    fi
  
@@ -87,7 +88,7 @@
    # Remove bundled libraries for which we will use the system copies; this
    # *should* do what the remove_bundled_libraries.py script does, with the
    # added benefit of not having to list all the remaining libraries
-@@ -195,6 +250,7 @@ build() {
+@@ -198,6 +254,7 @@ build() {
      'enable_nacl=false'
      'use_qt5=true'
      'use_qt6=true'
@@ -95,17 +96,31 @@
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
    )
-@@ -328,4 +384,17 @@ package() {
+@@ -255,6 +312,11 @@ build() {
+   # https://crbug.com/957519#c122
+   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
+ 
++  # Chromium already targets rv64gc. Manually setting it in CFLAGS overrides some objects
++  # that should be complied with rv64gcv
++  CFLAGS=${CFLAGS/-march=rv64gc }
++  CXXFLAGS=${CXXFLAGS/-march=rv64gc }
++
+   gn gen out/Release --args="${_flags[*]}"
+   ninja -C out/Release chrome chrome_sandbox chromedriver.unstripped
+ }
+@@ -331,4 +393,19 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
-+_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/abf9343fc68bf384126837e72da9fa9670784690/patches/'
++_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/a62e15f11639fd9871b54cf4ba3ead7d93af9355/patches/'
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-dav1d.patch
-+         riscv-sandbox-136.patch::${_riscv_fork_patches}/chromium/0002-Add-support-for-riscv64-linux.patch
-+         riscv-ffmpeg-136.patch::${_riscv_fork_patches}/ffmpeg/0001-ffmpeg-generate-riscv64-changes.patch
++         riscv-sandbox-137.patch::${_riscv_fork_patches}/chromium/0002-Add-support-for-riscv64-linux.patch
++         riscv-ffmpeg-137.patch::${_riscv_fork_patches}/ffmpeg/0001-ffmpeg-generate-riscv64-changes.patch
 +         highway-disable-rvv.patch::${_riscv_fork_patches}/chromium/0001-disable-rvv-in-highway-due-to-broken-runtime-dispatc.patch
-+         ${_riscv_fork_patches}/v8/0001-riscv-Fix-the-RISC-V-build.patch
++         riscv-cpuinfo-137.patch::${_riscv_fork_patches}/chromium/0001-cpuinfo-enable-for-riscv64-linux.patch
++         riscv-xnnpack-137.patch::${_riscv_fork_patches}/chromium/0002-xnnpack-enable-riscv64-support.patch
++         #${_riscv_fork_patches}/v8/0001-riscv-Fix-the-RISC-V-build.patch
 +         riscv-chromium-variations-133.patch
 +         compiler-rt-riscv.patch
 +         Debian-fix-rust-linking.patch
