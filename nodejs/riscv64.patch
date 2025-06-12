@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -56,6 +56,14 @@ _set_flags() {
+@@ -51,6 +51,15 @@ _set_flags() {
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -12,15 +12,18 @@
 +prepare() {
 +  cd node
 +  patch -Np1 -i ../fix-trap-handler.patch
++  patch -Np1 -i ../hwy-broken-rvv.diff
  }
  
  build() {
-@@ -96,4 +104,8 @@ package() {
+@@ -95,4 +104,10 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
  }
  
 +
 +makedepends+=(clang)
-+source+=("fix-trap-handler.patch")
-+sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c')
++source+=("fix-trap-handler.patch"
++         "hwy-broken-rvv.diff")
++sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c'
++             'de07b0d9c3481036ee97a22941ff444fee86c78abbc26afef36f17508bb479ce3ab83ca160109fbf4f0b9b3266dcce30860873dc8ffbcac1a70e98d17638ca55')
  # vim:set ts=2 sw=2 et:
