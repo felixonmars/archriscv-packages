@@ -1,0 +1,20 @@
+diff --git system76-firmware/daemon/src/main.rs system76-firmware/daemon/src/main.rs
+index 59ee5bf..fe5372e 100644
+--- system76-firmware/daemon/src/main.rs
++++ system76-firmware/daemon/src/main.rs
+@@ -1,10 +1,14 @@
+ use dbus::blocking::Connection;
+ use dbus_crossroads::{Context, Crossroads, MethodErr};
+-use std::{io, process};
++use std::{process};
+ 
+ use system76_firmware::*;
+ use system76_firmware_daemon::*;
+ 
++#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
++use std::{io};
++// RISC-V architectures usually do not have similar iopl permission control mechanisms and do not use I/O access rights.
++
+ fn dmi_vendor() -> Result<String, String> {
+     match util::read_string("/sys/class/dmi/id/sys_vendor") {
+         Ok(ok) => Ok(ok.trim().to_string()),
