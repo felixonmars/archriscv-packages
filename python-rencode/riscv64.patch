@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index 7910bf7..e2d6dd2 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,11 +12,15 @@
+ depends=('python')
+ makedepends=('git' 'cython' 'python-build' 'python-installer' 'python-poetry-core' 'python-setuptools')
+ checkdepends=('python-pytest')
+-source=("git+https://github.com/aresch/rencode.git#tag=v$pkgver")
+-sha512sums=('974d3efb1e1f7a54902c3772663a5d122399b2e825592634cc88ba1f1a51ebf97470c368e6891d9e52af8a700a50749d428d273de2c5b21b6334fa456f664443')
++source=("git+https://github.com/aresch/rencode.git#tag=v$pkgver"
++        "$pkgname-disable-sse.patch::https://github.com/aresch/rencode/pull/37/commits/7acc8fab6637b9a9b5722a95f59018bf3da5e7fb.diff")
++sha512sums=('974d3efb1e1f7a54902c3772663a5d122399b2e825592634cc88ba1f1a51ebf97470c368e6891d9e52af8a700a50749d428d273de2c5b21b6334fa456f664443'
++            '55e768140129abd4bbfa8428306b85a5326b84d8c502d517574cb07da2b65a322269f4f7034093f9969ba14fe34265b8d8c9a05925a56741154f8f4a4f289af1')
+ 
+ prepare() {
+   cd rencode
++  # https://github.com/aresch/rencode/pull/37
++  patch -Np1 -i ../"$pkgname-disable-sse.patch"
+   # build.py seems to be a special name, and it prevents building of a wheel
+   mv build.py cython_build.py
+   sed -i 's/build.py/cython_build.py/' pyproject.toml
