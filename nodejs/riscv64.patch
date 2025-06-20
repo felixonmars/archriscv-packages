@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -51,6 +51,17 @@ _set_flags() {
+@@ -51,6 +51,16 @@ _set_flags() {
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -11,25 +11,22 @@
 +
 +prepare() {
 +  cd node
-+  patch -Np1 -i ../fix-trap-handler.patch
 +  patch -Np1 -i ../hwy-broken-rvv.diff
 +  patch -Np1 -i ../v8-riscv-fix-trampoline.patch
 +  patch -Np1 -i ../v8-riscv-fix-trampoline-release.patch
  }
  
  build() {
-@@ -95,4 +106,14 @@ package() {
+@@ -95,4 +105,12 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/nodejs/
  }
  
 +
 +makedepends+=(clang)
-+source+=("fix-trap-handler.patch"
-+         "hwy-broken-rvv.diff"
++source+=("hwy-broken-rvv.diff"
 +         "v8-riscv-fix-trampoline.patch"
 +         "v8-riscv-fix-trampoline-release.patch")
-+sha512sums+=('f2ff6da8cf5dcc994a7a20342e2928dc1821fbbf42891009a6234b6051277e0200d7e3fbba63b9a2773887591d0ad5ceb1bb3d25e5efeb557f6d00109a80253c'
-+             'de07b0d9c3481036ee97a22941ff444fee86c78abbc26afef36f17508bb479ce3ab83ca160109fbf4f0b9b3266dcce30860873dc8ffbcac1a70e98d17638ca55'
++sha512sums+=('de07b0d9c3481036ee97a22941ff444fee86c78abbc26afef36f17508bb479ce3ab83ca160109fbf4f0b9b3266dcce30860873dc8ffbcac1a70e98d17638ca55'
 +             '625507d38eb6c14e9a502aa85d6a265bf14444987b6a62da40cf63cdbb027ef530adafbae55e89266f2077715a3c94f77f32037c793340dd2b192c99ebd5abed'
 +             'fcb6226fae37958d3b0566a6e30e1ef6d8a434baa1d0850133c4c2aedf98108c6033de6a81858a5e84b04d8524c7d09080a965b00a9f6f9e13fc7825cb348ea5')
  # vim:set ts=2 sw=2 et:
