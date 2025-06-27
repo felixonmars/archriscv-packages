@@ -9,30 +9,31 @@
  optdepends=('pipewire: WebRTC desktop sharing under Wayland'
              'kdialog: support for native dialogs in Plasma'
              'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -43,7 +43,19 @@ sha256sums=('359326ad87abf163ed6c021da4feba06106e09a361b71b1a40343b9bf1c16f7f'
-             'cc8a71a312e9314743c289b7b8fddcc80350a31445d335f726bb2e68edf916d1'
+@@ -37,7 +37,20 @@ sha256sums=('bcbc0f25cdebfb1b485ef9941689435957c9795d25ea2a414ac0315b8eef608f'
+             '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
+             'bafb04282db0ae19d4e42e022fdccfafb424f18406e5b893475dc18bf4bd8f9e'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
-             'd6f3914c6adadaf061e7e2b1430c96d32b0cad05244b5cfaf58cf5344006a169'
 -            'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374')
 +            'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+            '3b4b783f96abcdc64df6df97074bb5ec21cabeb076387859c58917c1ecce926b'
-+            'cc3e184ee849f565f2a1e8a0ab6e11eaf2fe54a4fc38bf3a4de858db6379ef46'
++            '2fa2e2427883e3f9d5409df7bb84f793b206f598abe6b146975f359598152eb5'
++            'ff6c9bebdcfd593a158c0c7fd82c7494c5ae6d1bed5de7e16fb61f1471a1380f'
 +            'e670453e11b1b6dea17e1a9bd8fd0f81b7c98e35d750599ba082bd4f8f15c026'
-+            'a74fb1bcf6360491955f4477b5fa3cd87b7c3f2c1dcf8d459dcb6202059dd079'
-+            '9c634cb2c10400e21c90b0afbb3be045d48372c7d8648f5f502c7a86592002eb'
++            'b9d7cb352647638cbee4dac53348a1f6adc00f81094450ef681eece6183248ba'
++            'feeed68631385022bf28f9a5fc59f62c4d7c911816cc1f3593c38f5d22f7392e'
++            'a830227ac0332af8f61e5eb9c74065f3a366147f2ca54c106179e5c02c0dd463'
 +            '35a710ee8b7047ff4976281ea127fe33c58861f2b94d0d979798478baa7130ab'
-+            '9b03cd0430c70be9d90705f3d2ebe2d8a982b57bafb419371c0658d76f24f99e'
++            '65add5f449c5becf24b02c12b742da55fad43cd57f189f35ebac097c88da6539'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
 +            'abc9d2f93d9104de6f6d82c89124cfe0bb5afc291a0b10e0fa8ad827210ae62c'
 +            '53cbad1796b6ef78806b4babef8d29472895d9b23391f4259d092646173b4ccc')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -127,6 +139,31 @@ prepare() {
-   # Disable usage of --warning-suppression-mappings flag which needs clang 20
-   patch -Np1 -i ../disable-clang-warning-suppression-flag.patch
+@@ -116,6 +129,32 @@ prepare() {
+   # Increase _FORTIFY_SOURCE level to match Arch's default flags
+   patch -Np1 -i ../increase-fortify-level.patch
  
 +  # RISC-V
 +  patch -Np1 -i ../riscv-chromium-variations-133.patch
@@ -43,13 +44,14 @@
 +  # patch -Np1 -i "${srcdir}"/0001-riscv-Fix-the-RISC-V-build.patch
 +  # popd
 +
-+  for rvpatch in riscv-{dav1d,sandbox-137,cpuinfo-137,xnnpack-137}.patch; do
++  for rvpatch in riscv-{dav1d,sandbox-138,cpuinfo-138,xnnpack-138}.patch; do
 +    patch -Np1 -i ../$rvpatch
 +  done
-+  patch -Np0 -i ../compiler-rt-riscv.patch
++  patch -Np1 -i ../compiler-rt-riscv.patch
++  patch -Np1 -i ../riscv-updater-138.patch
 +  patch -Np1 -i ../0001-chrome-runtime_api_delegate-add-riscv64-define.patch
 +  patch -Np1 -i ../0001-extensions-common-api-runtime.json-riscv64-support.patch
-+  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-137.patch
++  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-138.patch
 +
 +  pushd third_party/node/
 +  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
@@ -62,7 +64,7 @@
    # Fixes for building with libstdc++ instead of libc++
  
    # Link to system tools required by the build
-@@ -143,6 +180,25 @@ prepare() {
+@@ -132,6 +171,25 @@ prepare() {
      ./tools/clang/scripts/update.py
    fi
  
@@ -88,7 +90,7 @@
    # Remove bundled libraries for which we will use the system copies; this
    # *should* do what the remove_bundled_libraries.py script does, with the
    # added benefit of not having to list all the remaining libraries
-@@ -198,6 +254,7 @@ build() {
+@@ -188,6 +246,7 @@ build() {
      'enable_nacl=false'
      'use_qt5=true'
      'use_qt6=true'
@@ -96,7 +98,7 @@
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
    )
-@@ -255,6 +312,11 @@ build() {
+@@ -245,6 +304,11 @@ build() {
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
  
@@ -108,18 +110,19 @@
    gn gen out/Release --args="${_flags[*]}"
    ninja -C out/Release chrome chrome_sandbox chromedriver.unstripped
  }
-@@ -331,4 +393,19 @@ package() {
+@@ -321,4 +385,20 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
-+_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/a62e15f11639fd9871b54cf4ba3ead7d93af9355/patches/'
++_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/3da72f2/patches/'
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-dav1d.patch
-+         riscv-sandbox-137.patch::${_riscv_fork_patches}/chromium/0002-Add-support-for-riscv64-linux.patch
-+         riscv-ffmpeg-137.patch::${_riscv_fork_patches}/ffmpeg/0001-ffmpeg-generate-riscv64-changes.patch
++         riscv-sandbox-138.patch::${_riscv_fork_patches}/chromium/0002-Add-support-for-riscv64-linux.patch
++         riscv-ffmpeg-138.patch::${_riscv_fork_patches}/ffmpeg/0001-ffmpeg-generate-riscv64-changes.patch
 +         highway-disable-rvv.patch::${_riscv_fork_patches}/chromium/0001-disable-rvv-in-highway-due-to-broken-runtime-dispatc.patch
-+         riscv-cpuinfo-137.patch::${_riscv_fork_patches}/chromium/0001-cpuinfo-enable-for-riscv64-linux.patch
-+         riscv-xnnpack-137.patch::${_riscv_fork_patches}/chromium/0002-xnnpack-enable-riscv64-support.patch
++         riscv-cpuinfo-138.patch::${_riscv_fork_patches}/chromium/0001-cpuinfo-enable-for-riscv64-linux.patch
++         riscv-xnnpack-138.patch::${_riscv_fork_patches}/chromium/0002-xnnpack-enable-riscv64-support.patch
++         riscv-updater-138.patch::${_riscv_fork_patches}/chromium/0001-Updater-Use-ProcessCPUArchitecture.patch
 +         #${_riscv_fork_patches}/v8/0001-riscv-Fix-the-RISC-V-build.patch
 +         riscv-chromium-variations-133.patch
 +         compiler-rt-riscv.patch
