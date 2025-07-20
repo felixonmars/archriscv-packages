@@ -1,0 +1,47 @@
+diff --git PKGBUILD PKGBUILD
+index 215d6e1..e59fee2 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -54,8 +54,12 @@
+     git -C llvm-project cherry-pick 7e44305041d96b064c197216b931ae3917a34ac1
+     
+     patch -d "intel-graphics-compiler-${pkgver}" -Np1 -i "${srcdir}/010-intel-graphics-compiler-disable-werror.patch"
++    patch -d "intel-graphics-compiler-${pkgver}" -Np1 -i "${srcdir}/intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch"
+ }
+ 
++source+=('intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch::https://github.com/intel/intel-graphics-compiler/commit/0228c3cac90e35f094e6409ecdbb2787240f0b1b.diff')
++sha256sums+=('075de70c8f654ef750c4b191fc44ef268c04b3a3eb678b95800ae84fa4806e73')
++
+ build() {
+     # Prevent IGC to load LLVM 15+ symbols
+     CFLAGS+=' -fno-semantic-interposition'
+@@ -67,6 +71,20 @@
+     export CFLAGS="${CFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
+     export CXXFLAGS="${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
+ 
++    # fix error: ‘cdecl’ attribute directive ignored [-Werror=attributes]
++    # note: https://github.com/intel/intel-graphics-compiler/pull/370
++    CFLAGS+=' -Wno-error=attributes'
++    CXXFLAGS+=' -Wno-error=attributes'
++
++    # fix error: ‘void operator delete(void*, std::size_t)’ called on pointer ‘<unknown>’ with nonzero offset 40 [-Werror]
++    # note: False positive? in STL
++    CFLAGS+=' -Wno-error=free-nonheap-object'
++    CXXFLAGS+=' -Wno-error=free-nonheap-object'
++
++    # fix error: #warning "<ciso646> is deprecated in C++17 [-Werror]
++    CFLAGS+=' -Wno-error=cpp'
++    CXXFLAGS+=' -Wno-error=cpp'
++
+     EMAIL='builduser@archlinux.org' \
+     cmake -B build -S "${pkgname}-${pkgver}" \
+         -G 'Unix Makefiles' \
+@@ -75,7 +93,7 @@
+         -DCMAKE_INSTALL_LIBDIR=lib \
+         -DCMAKE_INSTALL_PREFIX=/usr \
+         -DCMAKE_POLICY_VERSION_MINIMUM=3.5.0 \
+-        -DIGC_OPTION__ARCHITECTURE_TARGET=Linux64 \
++        -DIGC_OPTION__ARCHITECTURE_TARGET=LinuxRISCV \
+         -DIGC_OPTION__CLANG_MODE=Source \
+         -DIGC_OPTION__LINK_KHRONOS_SPIRV_TRANSLATOR=ON \
+         -DIGC_OPTION__LLD_MODE=Source \
