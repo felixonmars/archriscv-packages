@@ -1,11 +1,38 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -67,7 +67,7 @@ build() {
+@@ -51,6 +51,10 @@ validpgpkeys=(D0362DB01844E0433ADBBFBAC174B1018C40710E) # Vas Crabb <vas@vasthem
+ prepare() {
+   cd mame
+ 
++# Only link asmjit if native DRCs are built
++# Placed on top due to git complaining about scripts/src/main.lua being changed
++  git cherry-pick -n b4e1f5f1b50fd3402232dd0385cac021ba488db6
++
+ # Use system libraries
+   sed -e 's|\# USE_SYSTEM_LIB|USE_SYSTEM_LIB|g' -i makefile
+ # Use C++ LUA
+@@ -63,6 +67,8 @@ prepare() {
+ # Fixes MAME deadlocks with controller disconnects
+ # See https://github.com/mamedev/mame/issues/12825
+   git cherry-pick -n 59363d3d3f3fe9c1fe8f53ed4b3ca79f8fb6065d
++
++  patch -Np1 -i ../mame-riscv64-no-m64.patch
+ }
+ 
+ build() {
+@@ -75,7 +81,7 @@ build() {
      OPTIMIZE=2 \
      TOOLS=1 \
      QT_HOME=/usr/lib/qt6 \
 -    ARCHOPTS=-flifetime-dse=1 \
-+    ARCHOPTS='-flifetime-dse=1 -fPIC'\
++    ARCHOPTS='-flifetime-dse=1 -fPIC' \
      USE_WAYLAND=1
  }
  
+@@ -173,3 +179,6 @@ package_mame-tools() {
+   # Install the license
+   install -Dm644 docs/LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+ }
++
++source+=(mame-riscv64-no-m64.patch)
++sha256sums+=('560010933be4a90d6af6dc0c43f3821fce72cc28cedeeacd8a639cc0a7429743')
