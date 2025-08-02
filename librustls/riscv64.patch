@@ -7,5 +7,35 @@
 +  cmake
 +  clang
  )
- provides=('librustls.so')
- options=(!lto)
+ provides=(
+   librustls.so
+@@ -27,16 +29,29 @@ b2sums=('1b45c492fdbb79527d97e8a84143e4435198af095117ba5bdabe8d72d77adf65ba3b599
+ 
+ prepare() {
+   cd rustls-ffi-${pkgver}
++  cat > cmake-wrapper << "EOF"
++#!/bin/bash
++_extra_args='-DCMAKE_POLICY_VERSION_MINIMUM=3.5'
++if [[ "$1" != "--version" ]] && [[ "$1" != "--build" ]]; then
++    cmake $_extra_args  "$@"
++else
++    cmake "$@"
++fi
++EOF
++
++  chmod u+x cmake-wrapper
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ }
+ 
+ build() {
+   cd rustls-ffi-${pkgver}
++  export CMAKE="$PWD/cmake-wrapper"
+   cargo cbuild --release --frozen --prefix=/usr
+ }
+ 
+ package() {
+   cd rustls-ffi-${pkgver}
++  export CMAKE="$PWD/cmake-wrapper"
+   cargo cinstall --release --frozen --prefix /usr --destdir "${pkgdir}"
+   install -Dm644 -t "${pkgdir}/usr/share/licenses/${pkgname}" LICENSE-*
+ }
