@@ -1,22 +1,23 @@
-From b3aacdac89ce806c1d6c68851e49e93f0b1a0c76 Mon Sep 17 00:00:00 2001
+From 88425ea976cbb4a71da5b062d0bd35705b641b87 Mon Sep 17 00:00:00 2001
 From: Andreas Schwab <schwab@suse.de>
 Date: Fri, 4 Mar 2022 15:27:35 +0100
 Subject: [PATCH] Add support for riscv64-linux
 
 Change-Id: Ibcdaaba1b0c92a1cd85361b9859370c686832c49
 ---
- sandbox/features.gni                          |    9 +-
+ sandbox/features.gni                          |    3 +-
+ sandbox/linux/BUILD.gn                        |    1 +
  sandbox/linux/bpf_dsl/linux_syscall_ranges.h  |    6 +
  sandbox/linux/bpf_dsl/seccomp_macros.h        |   42 +
- .../bpf_dsl_seccomp_unittest.cc               |   21 +
- .../seccomp-bpf-helpers/baseline_policy.cc    |   11 +-
- .../baseline_policy_unittest.cc               |    8 +-
- .../syscall_parameters_restrictions.cc        |   19 +-
+ .../bpf_dsl_seccomp_unittest.cc               |   22 +
+ .../seccomp-bpf-helpers/baseline_policy.cc    |    5 +-
+ .../baseline_policy_unittest.cc               |    6 +-
+ .../syscall_parameters_restrictions.cc        |    7 +-
  ...scall_parameters_restrictions_unittests.cc |    1 +
- .../linux/seccomp-bpf-helpers/syscall_sets.cc |   65 +-
+ .../linux/seccomp-bpf-helpers/syscall_sets.cc |   67 +-
  .../linux/seccomp-bpf-helpers/syscall_sets.h  |   14 +-
  sandbox/linux/seccomp-bpf/syscall.cc          |   34 +-
- sandbox/linux/seccomp-bpf/trap.cc             |    8 +
+ sandbox/linux/seccomp-bpf/trap.cc             |   12 +
  sandbox/linux/services/credentials.cc         |    2 +-
  sandbox/linux/services/syscall_wrappers.cc    |    2 +-
  .../linux/syscall_broker/broker_process.cc    |   20 +-
@@ -33,26 +34,32 @@ Change-Id: Ibcdaaba1b0c92a1cd85361b9859370c686832c49
  .../policy/linux/bpf_renderer_policy_linux.cc |    2 +-
  .../policy/linux/bpf_service_policy_linux.cc  |    2 +-
  .../policy/linux/bpf_utility_policy_linux.cc  |    2 +-
- 28 files changed, 1514 insertions(+), 70 deletions(-)
+ 29 files changed, 1507 insertions(+), 59 deletions(-)
  create mode 100644 sandbox/linux/system_headers/riscv64_linux_syscalls.h
 
 diff --git a/sandbox/features.gni b/sandbox/features.gni
-index 8c5db2c6fa6cf..d97a314bb52fa 100644
+index 8c5db2c6fa6cf..5338be2700445 100644
 --- a/sandbox/features.gni
 +++ b/sandbox/features.gni
-@@ -6,7 +6,8 @@
- # currently.
- # Do not disable seccomp_bpf anywhere without talking to
- # security@chromium.org!
--use_seccomp_bpf = (is_linux || is_chromeos || is_android) &&
--                  (current_cpu == "x86" || current_cpu == "x64" ||
--                   current_cpu == "arm" || current_cpu == "arm64" ||
+@@ -9,4 +9,5 @@
+ use_seccomp_bpf = (is_linux || is_chromeos || is_android) &&
+                   (current_cpu == "x86" || current_cpu == "x64" ||
+                    current_cpu == "arm" || current_cpu == "arm64" ||
 -                   current_cpu == "mipsel" || current_cpu == "mips64el")
-+use_seccomp_bpf =
-+    (is_linux || is_chromeos || is_android) &&
-+    (current_cpu == "x86" || current_cpu == "x64" || current_cpu == "arm" ||
-+     current_cpu == "arm64" || current_cpu == "mipsel" ||
-+     current_cpu == "mips64el" || current_cpu == "riscv64")
++                   current_cpu == "mipsel" || current_cpu == "mips64el" ||
++                   current_cpu == "riscv64")
+diff --git a/sandbox/linux/BUILD.gn b/sandbox/linux/BUILD.gn
+index e56c142324caf..e603552dab55d 100644
+--- a/sandbox/linux/BUILD.gn
++++ b/sandbox/linux/BUILD.gn
+@@ -389,6 +389,7 @@ source_set("sandbox_services_headers") {
+     "system_headers/linux_time.h",
+     "system_headers/mips64_linux_syscalls.h",
+     "system_headers/mips_linux_syscalls.h",
++    "system_headers/riscv64_linux_syscalls.h",
+     "system_headers/x86_32_linux_syscalls.h",
+     "system_headers/x86_64_linux_syscalls.h",
+   ]
 diff --git a/sandbox/linux/bpf_dsl/linux_syscall_ranges.h b/sandbox/linux/bpf_dsl/linux_syscall_ranges.h
 index 1d0590b7dd6ce..3bf3cb2571ec6 100644
 --- a/sandbox/linux/bpf_dsl/linux_syscall_ranges.h
@@ -71,7 +78,7 @@ index 1d0590b7dd6ce..3bf3cb2571ec6 100644
  #error "Unsupported architecture"
  #endif
 diff --git a/sandbox/linux/bpf_dsl/seccomp_macros.h b/sandbox/linux/bpf_dsl/seccomp_macros.h
-index 87d5825aa3ddb..004dad1914a61 100644
+index 87d5825aa3ddb..49fc9a67011a2 100644
 --- a/sandbox/linux/bpf_dsl/seccomp_macros.h
 +++ b/sandbox/linux/bpf_dsl/seccomp_macros.h
 @@ -343,6 +343,48 @@ struct regs_struct {
@@ -89,15 +96,15 @@ index 87d5825aa3ddb..004dad1914a61 100644
 +#define SECCOMP_REG(_ctx, _reg) ((_ctx)->uc_mcontext.__gregs[_reg])
 +
 +#define SECCOMP_RESULT(_ctx) SECCOMP_REG(_ctx, REG_A0)
-+#define SECCOMP_SYSCALL(_ctx) SECCOMP_REG(_ctx, REG_A0 + 7)
++#define SECCOMP_SYSCALL(_ctx) SECCOMP_REG(_ctx, REG_A0+7)
 +#define SECCOMP_IP(_ctx) (_ctx)->uc_mcontext.__gregs[REG_PC]
 +#define SECCOMP_PARM1(_ctx) SECCOMP_REG(_ctx, REG_A0)
-+#define SECCOMP_PARM2(_ctx) SECCOMP_REG(_ctx, REG_A0 + 1)
-+#define SECCOMP_PARM3(_ctx) SECCOMP_REG(_ctx, REG_A0 + 2)
-+#define SECCOMP_PARM4(_ctx) SECCOMP_REG(_ctx, REG_A0 + 3)
-+#define SECCOMP_PARM5(_ctx) SECCOMP_REG(_ctx, REG_A0 + 4)
-+#define SECCOMP_PARM6(_ctx) SECCOMP_REG(_ctx, REG_A0 + 5)
-+#define SECCOMP_PARM7(_ctx) SECCOMP_REG(_ctx, REG_A0 + 6)
++#define SECCOMP_PARM2(_ctx) SECCOMP_REG(_ctx, REG_A0+1)
++#define SECCOMP_PARM3(_ctx) SECCOMP_REG(_ctx, REG_A0+2)
++#define SECCOMP_PARM4(_ctx) SECCOMP_REG(_ctx, REG_A0+3)
++#define SECCOMP_PARM5(_ctx) SECCOMP_REG(_ctx, REG_A0+4)
++#define SECCOMP_PARM6(_ctx) SECCOMP_REG(_ctx, REG_A0+5)
++#define SECCOMP_PARM7(_ctx) SECCOMP_REG(_ctx, REG_A0+6)
 +
 +#define SECCOMP_NR_IDX (offsetof(struct arch_seccomp_data, nr))
 +#define SECCOMP_ARCH_IDX (offsetof(struct arch_seccomp_data, arch))
@@ -111,30 +118,30 @@ index 87d5825aa3ddb..004dad1914a61 100644
 +  (offsetof(struct arch_seccomp_data, args) + 8 * (nr) + 0)
 +
 +#define SECCOMP_PT_RESULT(_regs) (_regs).regs[REG_A0]
-+#define SECCOMP_PT_SYSCALL(_regs) (_regs).regs[REG_A0 + 7]
++#define SECCOMP_PT_SYSCALL(_regs) (_regs).regs[REG_A0+7]
 +#define SECCOMP_PT_IP(_regs) (_regs).regs[REG_PC]
 +#define SECCOMP_PT_PARM1(_regs) (_regs).regs[REG_A0]
-+#define SECCOMP_PT_PARM2(_regs) (_regs).regs[REG_A0 + 1]
-+#define SECCOMP_PT_PARM3(_regs) (_regs).regs[REG_A0 + 2]
-+#define SECCOMP_PT_PARM4(_regs) (_regs).regs[REG_A0 + 3]
-+#define SECCOMP_PT_PARM5(_regs) (_regs).regs[REG_A0 + 4]
-+#define SECCOMP_PT_PARM6(_regs) (_regs).regs[REG_A0 + 5]
-+#define SECCOMP_PT_PARM7(_regs) (_regs).regs[REG_A0 + 6]
++#define SECCOMP_PT_PARM2(_regs) (_regs).regs[REG_A0+1]
++#define SECCOMP_PT_PARM3(_regs) (_regs).regs[REG_A0+2]
++#define SECCOMP_PT_PARM4(_regs) (_regs).regs[REG_A0+3]
++#define SECCOMP_PT_PARM5(_regs) (_regs).regs[REG_A0+4]
++#define SECCOMP_PT_PARM6(_regs) (_regs).regs[REG_A0+5]
++#define SECCOMP_PT_PARM7(_regs) (_regs).regs[REG_A0+6]
  #else
  #error Unsupported target platform
  
 diff --git a/sandbox/linux/integration_tests/bpf_dsl_seccomp_unittest.cc b/sandbox/linux/integration_tests/bpf_dsl_seccomp_unittest.cc
-index bfe8ad585c387..64c97aa89def2 100644
+index bfe8ad585c387..806cca27b9922 100644
 --- a/sandbox/linux/integration_tests/bpf_dsl_seccomp_unittest.cc
 +++ b/sandbox/linux/integration_tests/bpf_dsl_seccomp_unittest.cc
-@@ -9,6 +9,7 @@
- 
- #include <errno.h>
- #include <fcntl.h>
+@@ -22,6 +22,7 @@
+ #include <sys/types.h>
+ #include <sys/utsname.h>
+ #include <unistd.h>
 +#include <linux/elf.h>
- #include <pthread.h>
- #include <sched.h>
- #include <signal.h>
+ 
+ #include <memory>
+ #include <vector>
 @@ -2031,7 +2032,15 @@ SANDBOX_TEST(SandboxBPF, DISABLE_ON_TSAN(SeccompRetTrace)) {
      BPF_ASSERT_EQ(kTraceData, data);
  
@@ -151,21 +158,22 @@ index bfe8ad585c387..64c97aa89def2 100644
      switch (SECCOMP_PT_SYSCALL(regs)) {
        case __NR_write:
          // Skip writes to stdout, make it return kExpectedReturnValue.  Allow
-@@ -2039,7 +2048,13 @@ SANDBOX_TEST(SandboxBPF, DISABLE_ON_TSAN(SeccompRetTrace)) {
+@@ -2039,7 +2048,14 @@ SANDBOX_TEST(SandboxBPF, DISABLE_ON_TSAN(SeccompRetTrace)) {
          if (SECCOMP_PT_PARM1(regs) == STDOUT_FILENO) {
            BPF_ASSERT_NE(-1, SetSyscall(pid, &regs, -1));
            SECCOMP_PT_RESULT(regs) = kExpectedReturnValue;
 +#if defined(__riscv)
 +          iov.iov_len = sizeof(regs);
 +          BPF_ASSERT_NE(-1, ptrace(PTRACE_SETREGSET, pid,
-+                                   reinterpret_cast<void*>(NT_PRSTATUS), &iov));
++                                   reinterpret_cast<void*>(NT_PRSTATUS),
++                                   &iov));
 +#else
            BPF_ASSERT_NE(-1, ptrace(PTRACE_SETREGS, pid, NULL, &regs));
 +#endif
          }
          break;
  
-@@ -2047,7 +2062,13 @@ SANDBOX_TEST(SandboxBPF, DISABLE_ON_TSAN(SeccompRetTrace)) {
+@@ -2047,7 +2063,13 @@ SANDBOX_TEST(SandboxBPF, DISABLE_ON_TSAN(SeccompRetTrace)) {
          // Rewrite to exit(kExpectedReturnValue).
          BPF_ASSERT_NE(-1, SetSyscall(pid, &regs, __NR_exit));
          SECCOMP_PT_PARM1(regs) = kExpectedReturnValue;
@@ -180,7 +188,7 @@ index bfe8ad585c387..64c97aa89def2 100644
  
        default:
 diff --git a/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc b/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
-index 81877f27f5897..545d4d0f6dc9d 100644
+index 314e53906a2c9..a50348688c03d 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
 @@ -59,6 +59,9 @@ bool IsBaselinePolicyAllowed(int sysno) {
@@ -193,67 +201,38 @@ index 81877f27f5897..545d4d0f6dc9d 100644
  #endif
           SyscallSets::IsAllowedOperationOnFd(sysno);
    // clang-format on
-@@ -197,7 +200,7 @@ ResultExpr EvaluateSyscallImpl(int fs_denied_errno,
-     return RestrictFcntlCommands();
- #endif
+@@ -258,7 +261,7 @@ ResultExpr EvaluateSyscallImpl(int fs_denied_errno,
  
--#if !defined(__aarch64__)
-+#if !defined(__aarch64__) && !defined(__riscv)
-   // fork() is never used as a system call (clone() is used instead), but we
-   // have seen it in fallback code on Android.
-   if (sysno == __NR_fork) {
-@@ -259,7 +262,7 @@ ResultExpr EvaluateSyscallImpl(int fs_denied_errno,
-   }
- 
+   // TODO(crbug.com/40528912): should i386 really be in this list?
  #if defined(__i386__) || defined(__x86_64__) || defined(__mips__) || \
 -    defined(__aarch64__)
 +    defined(__aarch64__) || defined(__riscv)
    if (sysno == __NR_mmap)
      return RestrictMmapFlags();
  #endif
-@@ -280,7 +283,7 @@ ResultExpr EvaluateSyscallImpl(int fs_denied_errno,
-     return RestrictPrctl();
- 
- #if defined(__x86_64__) || defined(__arm__) || defined(__mips__) || \
--    defined(__aarch64__)
-+    defined(__aarch64__) || defined(__riscv)
-   if (sysno == __NR_socketpair) {
-     // Only allow AF_UNIX, PF_UNIX. Crash if anything else is seen.
-     static_assert(AF_UNIX == PF_UNIX,
-@@ -370,7 +373,7 @@ ResultExpr EvaluateSyscallImpl(int fs_denied_errno,
-   // Allow creating pipes, but don't allow weird flags to pipe2().
-   // O_NOTIFICATION_PIPE (== O_EXCL) can be used to create
-   // "notification pipes", which are rarely used.
--#if !defined(__aarch64__)
-+#if !defined(__aarch64__) && !defined(__riscv)
-   if (sysno == __NR_pipe) {
-     return Allow();
-   }
 diff --git a/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc b/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc
-index 5e219275840d4..47bbc18ac0ed6 100644
+index ba5eced67176f..58cedec72e04e 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc
-@@ -278,7 +278,8 @@ BPF_TEST_C(BaselinePolicy, GetRandom, BaselinePolicy) {
+@@ -275,7 +275,7 @@ BPF_TEST_C(BaselinePolicy, GetRandom, BaselinePolicy) {
  }
  
  // Not all architectures can restrict the domain for socketpair().
 -#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__)
-+#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || \
-+    defined(__riscv)
++#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv)
  BPF_DEATH_TEST_C(BaselinePolicy,
                   SocketpairWrongDomain,
                   DEATH_SEGV_MESSAGE(GetErrorMessageContentForTests()),
-@@ -287,7 +288,8 @@ BPF_DEATH_TEST_C(BaselinePolicy,
+@@ -284,7 +284,7 @@ BPF_DEATH_TEST_C(BaselinePolicy,
    std::ignore = socketpair(AF_INET, SOCK_STREAM, 0, sv);
    _exit(1);
  }
 -#endif  // defined(__x86_64__) || defined(__arm__) || defined(__aarch64__)
-+#endif  // defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) ||
-+        // defined(__riscv)
++#endif  // defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv)
  
  BPF_TEST_C(BaselinePolicy, EPERM_open, BaselinePolicy) {
    errno = 0;
-@@ -351,7 +353,7 @@ TEST_BASELINE_SIGSYS(__NR_sysinfo)
+@@ -348,7 +348,7 @@ TEST_BASELINE_SIGSYS(__NR_sysinfo)
  TEST_BASELINE_SIGSYS(__NR_syslog)
  TEST_BASELINE_SIGSYS(__NR_timer_create)
  
@@ -263,45 +242,30 @@ index 5e219275840d4..47bbc18ac0ed6 100644
  TEST_BASELINE_SIGSYS(__NR_vserver)
  #endif
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
-index 4c3bd57aef455..c1207431f3d50 100644
+index bdb1f4071f2ed..7ee86a6897b7a 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
-@@ -39,7 +39,7 @@
+@@ -40,6 +40,7 @@
  #include "sandbox/linux/system_headers/linux_time.h"
  
  #if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && \
--    !defined(PTRACE_GET_THREAD_AREA)
-+    !defined(__riscv) && !defined(PTRACE_GET_THREAD_AREA)
++    !defined(__riscv) &&                                      \
+     !defined(PTRACE_GET_THREAD_AREA)
  // Also include asm/ptrace-abi.h since ptrace.h in older libc (for instance
  // the one in Ubuntu 16.04 LTS) is missing PTRACE_GET_THREAD_AREA.
- // asm/ptrace-abi.h doesn't exist on arm32 and PTRACE_GET_THREAD_AREA isn't
-@@ -474,16 +474,19 @@ ResultExpr RestrictPtrace() {
-   const Arg<uintptr_t> addr(2);
+@@ -473,8 +474,10 @@ ResultExpr RestrictPtrace() {
  #endif
    return Switch(request)
--      .Cases({
-+      .Cases(
-+          {
+       .Cases({
+-#if !defined(__aarch64__)
 +#if !defined(__aarch64__) && !defined(__riscv)
-+              PTRACE_GETREGS, PTRACE_GETFPREGS, PTRACE_GET_THREAD_AREA,
+                  PTRACE_GETREGS, PTRACE_GETFPREGS, PTRACE_GET_THREAD_AREA,
 +#endif
- #if !defined(__aarch64__)
--                 PTRACE_GETREGS, PTRACE_GETFPREGS, PTRACE_GET_THREAD_AREA,
--                 PTRACE_GETREGSET,
-+              PTRACE_GETREGSET,
++#if !defined(__aarch64__)
+                  PTRACE_GETREGSET,
  #endif
  #if defined(__arm__)
--                 PTRACE_GETVFPREGS,
-+              PTRACE_GETVFPREGS,
- #endif
--                 PTRACE_PEEKDATA, PTRACE_ATTACH, PTRACE_DETACH},
--             Allow())
-+              PTRACE_PEEKDATA, PTRACE_ATTACH, PTRACE_DETACH},
-+          Allow())
- #if defined(__aarch64__)
-       .Case(
-           PTRACE_GETREGSET,
-@@ -521,7 +524,7 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno) {
+@@ -519,7 +522,7 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno) {
        break;
  #endif
  #if defined(__i386__) || defined(__x86_64__) || defined(__arm__) || \
@@ -311,19 +275,19 @@ index 4c3bd57aef455..c1207431f3d50 100644
        argIndex = 3;
        break;
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
-index 10e64a2c07fbe..5714412536f6a 100644
+index 10e64a2c07fbe..ddfd6a7c34465 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
-@@ -4,6 +4,7 @@
- 
- #include "sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.h"
- 
-+#include <asm/ptrace.h>
+@@ -7,6 +7,7 @@
  #include <errno.h>
  #include <fcntl.h>
  #include <linux/elf.h>
++#include <asm/ptrace.h>
+ #include <sched.h>
+ #include <sys/prctl.h>
+ #include <sys/ptrace.h>
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
-index 8fba4bb88739a..394dcbda75c52 100644
+index 8fba4bb88739a..5f63b3a55cee1 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
 @@ -103,7 +103,7 @@ bool SyscallSets::IsUmask(int sysno) {
@@ -335,7 +299,15 @@ index 8fba4bb88739a..394dcbda75c52 100644
      case __NR_access:  // EPERM not a valid errno.
      case __NR_chmod:
      case __NR_chown:
-@@ -136,7 +136,7 @@ bool SyscallSets::IsFileSystem(int sysno) {
+@@ -129,14 +129,14 @@ bool SyscallSets::IsFileSystem(int sysno) {
+ #endif
+     case __NR_ustat:   // Same as above. Deprecated.
+     case __NR_utimes:
+-#endif  // !defined(__aarch64__)
++#endif  // !defined(__aarch64__) && !defined(__riscv)
+ 
+     case __NR_execve:
+     case __NR_faccessat:  // EPERM not a valid errno.
      case __NR_faccessat2:
      case __NR_fchmodat:
      case __NR_fchownat:  // Should be called chownat ?
@@ -592,7 +564,7 @@ index 8fba4bb88739a..394dcbda75c52 100644
    switch (sysno) {
      case __NR_getitimer:
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
-index fa49942cb8a9e..441da9fa5d0c4 100644
+index fa49942cb8a9e..af841baac9ae5 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.h
 @@ -52,7 +52,7 @@ class SANDBOX_EXPORT SyscallSets {
@@ -609,7 +581,7 @@ index fa49942cb8a9e..441da9fa5d0c4 100644
    static bool IsKeyManagement(int sysno);
  #if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || \
 -    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_64_BITS))
-+    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_64_BITS)) ||    \
++    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_64_BITS)) || \
 +    defined(__riscv)
    static bool IsSystemVSemaphores(int sysno);
  #endif
@@ -624,7 +596,7 @@ index fa49942cb8a9e..441da9fa5d0c4 100644
  
  #if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || \
 -    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_64_BITS))
-+    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_64_BITS)) ||    \
++    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_64_BITS)) || \
 +    defined(__riscv)
    static bool IsSystemVMessageQueue(int sysno);
  #endif
@@ -713,10 +685,10 @@ index b0cdc71b8f972..ab72f9d697ba9 100644
  #error "Unimplemented architecture"
  #endif
 diff --git a/sandbox/linux/seccomp-bpf/trap.cc b/sandbox/linux/seccomp-bpf/trap.cc
-index 9fbefe3e8b7bc..852cd119ed383 100644
+index 9fbefe3e8b7bc..bca98f0a4ba23 100644
 --- a/sandbox/linux/seccomp-bpf/trap.cc
 +++ b/sandbox/linux/seccomp-bpf/trap.cc
-@@ -221,6 +221,14 @@ void Trap::SigSys(int nr, LinuxSigInfo* info, ucontext_t* ctx) {
+@@ -221,6 +221,18 @@ void Trap::SigSys(int nr, LinuxSigInfo* info, ucontext_t* ctx) {
                         SECCOMP_PARM6(ctx),
                         SECCOMP_PARM7(ctx),
                         SECCOMP_PARM8(ctx));
@@ -724,10 +696,14 @@ index 9fbefe3e8b7bc..852cd119ed383 100644
 +    // RISC-V supports up to seven arguments for syscall.
 +    // However, seccomp bpf can filter only up to six arguments, so using seven
 +    // arguments has sense only when using UnsafeTrap() handler.
-+    rc = Syscall::Call(SECCOMP_SYSCALL(ctx), SECCOMP_PARM1(ctx),
-+                       SECCOMP_PARM2(ctx), SECCOMP_PARM3(ctx),
-+                       SECCOMP_PARM4(ctx), SECCOMP_PARM5(ctx),
-+                       SECCOMP_PARM6(ctx), SECCOMP_PARM7(ctx));
++    rc = Syscall::Call(SECCOMP_SYSCALL(ctx),
++                       SECCOMP_PARM1(ctx),
++                       SECCOMP_PARM2(ctx),
++                       SECCOMP_PARM3(ctx),
++                       SECCOMP_PARM4(ctx),
++                       SECCOMP_PARM5(ctx),
++                       SECCOMP_PARM6(ctx),
++                       SECCOMP_PARM7(ctx));
  #else
      rc = Syscall::Call(SECCOMP_SYSCALL(ctx),
                         SECCOMP_PARM1(ctx),
@@ -834,7 +810,7 @@ index 9845f875091c6..23945954a7216 100644
        return !fast_check || policy_->allowed_command_set.test(COMMAND_UNLINK);
  #endif
 diff --git a/sandbox/linux/system_headers/linux_seccomp.h b/sandbox/linux/system_headers/linux_seccomp.h
-index 8690a96eb01b1..cc5087e65daa3 100644
+index 8690a96eb01b1..dec2afc744985 100644
 --- a/sandbox/linux/system_headers/linux_seccomp.h
 +++ b/sandbox/linux/system_headers/linux_seccomp.h
 @@ -39,6 +39,10 @@
@@ -853,7 +829,7 @@ index 8690a96eb01b1..cc5087e65daa3 100644
  #endif
  
 +#ifndef AUDIT_ARCH_RISCV64
-+#define AUDIT_ARCH_RISCV64 (EM_RISCV | __AUDIT_ARCH_64BIT | __AUDIT_ARCH_LE)
++#define AUDIT_ARCH_RISCV64 (EM_RISCV|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
 +#endif
 +
  // For prctl.h
@@ -2248,7 +2224,7 @@ index b624069526972..7def9fea999af 100644
  #endif
      case __NR_getdents64:
 diff --git a/sandbox/policy/linux/bpf_print_compositor_policy_linux.cc b/sandbox/policy/linux/bpf_print_compositor_policy_linux.cc
-index bff338a903e58..1bfb30afed5a4 100644
+index bff338a903e58..36acee528ce6f 100644
 --- a/sandbox/policy/linux/bpf_print_compositor_policy_linux.cc
 +++ b/sandbox/policy/linux/bpf_print_compositor_policy_linux.cc
 @@ -33,7 +33,7 @@ ResultExpr PrintCompositorProcessPolicy::EvaluateSyscall(int sysno) const {
@@ -2256,15 +2232,15 @@ index bff338a903e58..1bfb30afed5a4 100644
      case __NR_fsync:
  #if defined(__i386__) || defined(__x86_64__) || defined(__mips__) || \
 -    defined(__aarch64__)
-+    defined(__aarch64__) || defined(__riscv)
++    defined(__aarch64__) || defined (__riscv)
      case __NR_getrlimit:
  #endif
  #if defined(__i386__) || defined(__arm__)
 diff --git a/sandbox/policy/linux/bpf_renderer_policy_linux.cc b/sandbox/policy/linux/bpf_renderer_policy_linux.cc
-index e33f17e2f5c72..848cb53a4f275 100644
+index 8709f5e70a90a..02ca6f0c61d59 100644
 --- a/sandbox/policy/linux/bpf_renderer_policy_linux.cc
 +++ b/sandbox/policy/linux/bpf_renderer_policy_linux.cc
-@@ -85,7 +85,7 @@ ResultExpr RendererProcessPolicy::EvaluateSyscall(int sysno) const {
+@@ -86,7 +86,7 @@ ResultExpr RendererProcessPolicy::EvaluateSyscall(int sysno) const {
      case __NR_ftruncate64:
  #endif
  #if defined(__i386__) || defined(__x86_64__) || defined(__mips__) || \
