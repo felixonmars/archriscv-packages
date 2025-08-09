@@ -16,7 +16,7 @@
  )
  validpgpkeys=(7273542B39962DF7B299931416792B4EA25340F8 # Carlos O'Donell
                BC7C7372637EC10C57D7AA6579C43DFBF1CF2187) # Siddhesh Poyarekar
- b2sums=('02359e60590156f471d82bb97eb9e076a53edf460ce04a455adc5dd1746b25cb4e641aa6b9d43f642ca57018331aee1ad49feed89bcf23f5defc7b1852c1ad61'
+ b2sums=('e3b06cd0f8d34a3f9d5d7c01cd87aec1b14eaaa0d501c242c7a54f63299bf10afa7d9ddc4a071c2295c500af4e750fe62107d0570ddaffccfeb216675a8b913e'
          'c859bf2dfd361754c9e3bbd89f10de31f8e81fd95dc67b77d10cb44e23834b096ba3caa65fbc1bd655a8696c6450dfd5a096c476b3abf5c7e125123f97ae1a72'
          '04fbb3b0b28705f41ccc6c15ed5532faf0105370f22133a2b49867e790df0491f5a1255220ff6ebab91a462f088d0cf299491b3eb8ea53534cb8638a213e46e3'
 -        '7c265e6d36a5c0dff127093580827d15519b6c7205c2e1300e82f0fb5b9dd00b6accb40c56581f18179c4fbbc95bd2bf1b900ace867a83accde0969f7b609f8a'
@@ -27,7 +27,7 @@
  
  pkgver() {
    cd glibc
-@@ -37,21 +37,23 @@ pkgver() {
+@@ -37,21 +37,21 @@ pkgver() {
  }
  
  prepare() {
@@ -36,8 +36,6 @@
  
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc
    cd glibc
-+  # RISC-V: Fix IFUNC resolver cannot access gp pointer
-+  git cherry-pick -n 30992cb5e9d713ab0f4135dd8776a201f7a53f24
 +  patch -Np1 -i ../mremap-fix-test.patch
  }
  
@@ -54,7 +52,28 @@
        --enable-stack-protector=strong
        --enable-systemtap
        --disable-nscd
-@@ -83,29 +85,6 @@ build() {
+@@ -62,6 +62,12 @@ build() {
+   # _FORTIFY_SOURCE=3 causes testsuite build failure and is unnecessary during
+   # actual builds (support is built-in via --enable-fortify-source).
+   CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
++  # check-localplt requires malloc family symbols to go through PLT.
++  # -fno-plt causes compiler generated memset calls in early code to use GOT,
++  # leading to segfault due to uninitialized GOT entry. Removing -fno-plt restores
++  # the old happy path of generating R_RISCV_CALL_PLT for such memset calls and
++  # then optimizing them away.
++  CFLAGS=${CFLAGS/-fno-plt/}
+ 
+   (
+     cd glibc-build
+@@ -75,7 +81,6 @@ build() {
+         --libdir=/usr/lib \
+         --libexecdir=/usr/lib \
+         --enable-cet \
+-        --enable-sframe \
+         "${_configure_flags[@]}"
+ 
+     make -O
+@@ -84,29 +89,6 @@ build() {
      make info
    )
  
@@ -84,7 +103,7 @@
    # pregenerate locales here instead of in package
    # functions because localedef does not like fakeroot
    make -C "${srcdir}"/glibc/localedata objdir="${srcdir}"/glibc-build \
-@@ -140,7 +119,7 @@ check() (
+@@ -141,7 +123,7 @@ check() (
    _skip_test tst-shstk-legacy-1g     sysdeps/x86_64/Makefile
    _skip_test tst-adjtime             time/Makefile
  
@@ -93,7 +112,7 @@
  )
  
  package_glibc() {
-@@ -189,31 +168,6 @@ package_glibc() {
+@@ -190,31 +172,6 @@ package_glibc() {
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
  
@@ -125,7 +144,7 @@
  package_glibc-locales() {
    pkgdesc='Pregenerated locales for GNU C Library'
    depends=("glibc=$pkgver")
-@@ -224,3 +178,9 @@ package_glibc-locales() {
+@@ -225,3 +182,9 @@ package_glibc-locales() {
    # deduplicate locale data
    hardlink -c "${pkgdir}"/usr/lib/locale
  }
