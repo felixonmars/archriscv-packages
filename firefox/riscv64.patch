@@ -1,38 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -120,7 +120,6 @@ ac_add_options --enable-optimize
- ac_add_options --enable-rust-simd
- ac_add_options --enable-linker=lld
- ac_add_options --disable-install-strip
--ac_add_options --disable-elf-hack
- ac_add_options --disable-bootstrap
- ac_add_options --with-wasi-sysroot=/usr/share/wasi-sysroot
- 
-@@ -144,7 +143,7 @@ ac_add_options --with-system-nss
+@@ -149,10 +149,18 @@ ac_add_options --with-system-nss
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
 -ac_add_options --enable-crashreporter
-+ac_add_options --disable-crashreporter
  ac_add_options --disable-updater
  ac_add_options --disable-tests
  END
-@@ -169,6 +168,10 @@ build() {
-   # LTO needs more open files
-   ulimit -n 4096
- 
-+  cat >.mozconfig ../mozconfig
-+  ./mach build --priority normal
 +
-+: <<COMMENT
-   # Do 3-tier PGO
-   echo "Building instrumented browser..."
-   cat >.mozconfig ../mozconfig - <<END
-@@ -200,6 +203,7 @@ ac_add_options --with-pgo-profile-path=${PWD@Q}/merged.profdata
- ac_add_options --with-pgo-jarlog=${PWD@Q}/jarlog
- END
-   ./mach build --priority normal
-+COMMENT
++  case "$CARCH" in
++    x86_64 | i*86 | arm* | aarch64)
++      echo 'ac_add_options --enable-crashreporter' >>../mozconfig
++      ;;
++    *)
++      echo 'ac_add_options --disable-crashreporter' >>../mozconfig
++      ;;
++  esac
  }
  
- package() {
+ build() {
