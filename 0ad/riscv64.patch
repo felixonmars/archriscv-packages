@@ -1,24 +1,28 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,6 +24,8 @@ prepare() {
-   cd "$pkgname-$_pkgver"
+@@ -18,6 +18,13 @@ source=("https://releases.wildfiregames.com/$pkgname-$_pkgver-unix-build.tar.xz"
+ validpgpkeys=('A035C8C19219BA821ECEA86B64E628F8D684696D')  # Pablo Galindo Salgado <pablogsal@gmail.com>
+ sha512sums=('7ddc355afed44511f3c62bb4119e308f921fc9624980a3171853d923042777eeb248a1ce326d3768f23596d75e8346025321d7d72d6fa3b1106a5818ca62b40d')
  
-   patch -Np1 -i "$srcdir"/0ad-fix-missing-includes.patch
++prepare() {
++  cd "$pkgname-$_pkgver"
++
 +  patch -Np1 -i "$srcdir"/0ad-riscv64.patch
 +  patch -Np1 -i "$srcdir"/nvtt-riscv64.patch
++}
++
+ build() {
+   cd "$pkgname-$_pkgver"
+ 
+@@ -37,6 +44,7 @@ build() {
+ 
+   cd gcc
+ 
++  LDFLAGS+=" -Wl,--no-as-needed -latomic -Wl,--as-needed"
+   make -j$(nproc)
  }
  
- build() {
-@@ -33,6 +35,8 @@ build() {
-   ./build-source-libs.sh
-   cd ../build/workspaces
- 
-+  export LDFLAGS="$LDFLAGS -Wl,--no-as-needed -latomic -Wl,--as-needed"
-+
-   ./update-workspaces.sh -j$(nproc) \
-       --without-pch \
-       --with-system-premake5 \
-@@ -57,3 +61,8 @@ package() {
+@@ -52,3 +60,8 @@ package() {
    install -Dm644 build/resources/${pkgname}.desktop "${pkgdir}/usr/share/applications/${pkgname}.desktop"
    install -Dm644 build/resources/${pkgname}.png "${pkgdir}/usr/share/pixmaps/${pkgname}.png"
  }
@@ -26,4 +30,4 @@
 +source+=(0ad-riscv64.patch
 +         nvtt-riscv64.patch)
 +sha512sums+=('98fae7f06109b9d2cc58b7253a1a2e35c4c5b541d8d9dcae367d75ad57103f5f226a2350373c64d2c8d3c2b04e6208398caa6f2be979b9f235304722d2c475df'
-+             'fdacbdeac2828db27c6053fe4ebade58e9823ea012017d197c05d70a8b0cecea3790c4cbd5bb2a7fab4ee26b97afdb295c1220f7f31b1c8eba7e80d6d3898f80')
++             'b5b7e89390b7957cae8c07e342747f9fe1abef5a2eb9f0a1a6f457943679ce607dbad1fb2f2302b5041c9ed63c3c4386b337821ce67e60ca845d5d91e1e660aa')
