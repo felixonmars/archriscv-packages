@@ -1,23 +1,36 @@
-diff --git PKGBUILD PKGBUILD
-index 0010b42..a4b991b 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -85,7 +85,14 @@ _etcdir=/etc/webapps/gitlab
+@@ -85,13 +85,17 @@ sha256sums=('4a51ecb31a27a6733bf4532097f330f8d9d7d1e24de84402201b77403f764cd7'
+             '869b3e682e9fb26551a19c0cd0b200a6fdb594396f325e237d58e1a8a8a96f73'
+             '6c96a5d20c03bd626d9408cb1e41ab131d67610be586475af17c1e52e27ec697'
+             '84614a2bfbd734f09c2c91531dd3c13e795186b50c0780a120c8e5bc2a892607'
+-            '13e4588b62ebaa6b410c2192cafbd2b9f2c99b8fff7b02782c2968c8256f762a')
++            '13e4588b62ebaa6b410c2192cafbd2b9f2c99b8fff7b02782c2968c8256f762a'
++            'eb3feb57e734e27a4af56e62d49ddab7339e9e4036ebbaa4f1215cbe7eca8285')
+ 
+ _appdir=/usr/share/webapps/gitlab # the app source code location
+ _etcdir=/etc/webapps/gitlab
  _datadir=/var/lib/gitlab # directory with gitlab data and it also $HOME for 'gitlab' user
  _logdir=/var/log/gitlab
  
 +_rbtrace_version=0.5.1
 +source+=("git+https://github.com/tmm1/rbtrace.git#tag=v${_rbtrace_version}")
-+sha256sums+=('SKIP')
 +
+ _add_Gems_to_bundle() {
+ 	bundle add erb irb rdoc
+ 	bundle exec bundler-checksum init
+@@ -103,6 +107,10 @@ _add_Gems_to_bundle() {
+ }
+ 
  prepare() {
 +	# patch extconf.rb with sys("autoreconf -fi") to update config.guess and config.sub in extension msgpack of gem rbtrace
 +	# fix problem "config.guess: unable to guess system type"
 +	sed -Ei "/^([[:space:]]*)Dir.chdir\(dir\) do/a \sys(\"autoreconf -fi\")" rbtrace/ext/extconf.rb
- 	cd gitlab-foss
- 
- 	# GitLab tries to read its revision information from a file.
-@@ -116,6 +123,11 @@ prepare() {
++
+ 	# Patch bundled gpgme gem -- Drop API removed in gpgme 2.0
+ 	git -C ruby-gpgme config --local user.email "you@example.com"
+ 	git -C ruby-gpgme config --local user.name "Your Name"
+@@ -141,6 +149,11 @@ prepare() {
  }
  
  build() {
@@ -29,7 +42,7 @@ index 0010b42..a4b991b 100644
  	cd gitlab-foss
  
  	# https://github.com/nodejs/node/issues/48444
-@@ -137,11 +149,22 @@ build() {
+@@ -164,11 +177,23 @@ build() {
  	bundle config --local force_ruby_platform true # some native gems are not available for newer ruby
  	bundle config --local deployment true
  	bundle config --local without 'development test aws kerberos'
@@ -44,6 +57,7 @@ index 0010b42..a4b991b 100644
 +	cp ../rbtrace/rbtrace-${_rbtrace_version}.gem vendor/cache/
 +	rbtrace_checksum=$(sha256sum vendor/cache/rbtrace-${_rbtrace_version}.gem)
 +	sed -Ei "s/(\\{\"name\":\"rbtrace\".*\"checksum\":\")([[:alnum:]]*)(\"\\},)/\\1${rbtrace_checksum:0:64}\\3/" Gemfile.checksum
++
  	# Disable make jobserver due to a race in prometheus-client-mmap
  	# Clang because of https://github.com/grpc/grpc/issues/35945
  	env MAKEFLAGS= BUNDLER_CHECKSUM_VERIFICATION_OPT_IN=1 \
