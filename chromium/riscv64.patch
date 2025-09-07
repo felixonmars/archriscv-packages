@@ -9,42 +9,34 @@
  optdepends=('pipewire: WebRTC desktop sharing under Wayland'
              'kdialog: support for native dialogs in Plasma'
              'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -38,7 +38,16 @@ sha256sums=('8cd37b224dba4fc5e3c8ac98cc278d17a713a3b5a2f1dbb241ad94caca83d630'
-             '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
-             'a6507371588ed4d87d6501220249264abfbcd814771cc1ba351e0ac6cc987400'
+@@ -42,7 +42,12 @@ sha256sums=('68876365a4f8c566bb45119a615784f932718d89eb6be0744fd8982de7316c2d'
+             '75681c815bb2a8c102f0d7af3a3790b5012adbbce38780716b257b7da2e1c3d5'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
--            'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374')
-+            'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374'
+             'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374'
+-            '0eb47afd031188cf5a3f0502f3025a73a1799dfa52dff9906db5a3c2af24e2eb')
++            '0eb47afd031188cf5a3f0502f3025a73a1799dfa52dff9906db5a3c2af24e2eb'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+            '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+            '460a3cbe32b6c6a3f69fa64fc95d864ca07d6d506910b5a28c2a14bb39e8135c'
-+            'ff6c9bebdcfd593a158c0c7fd82c7494c5ae6d1bed5de7e16fb61f1471a1380f'
-+            '04729cb65e4419606583ac5290a959b2ecdb62003ffde9ab2b8cd7a4ac12730e'
-+            '35a710ee8b7047ff4976281ea127fe33c58861f2b94d0d979798478baa7130ab'
-+            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
-+            'abc9d2f93d9104de6f6d82c89124cfe0bb5afc291a0b10e0fa8ad827210ae62c'
-+            '53cbad1796b6ef78806b4babef8d29472895d9b23391f4259d092646173b4ccc')
++            '9ee0b8af0d420192fa8c9577dd270fe4abf1c95313d6744cbfefec47ae6628ef'
++            '2896f0d1c738ed6cbfd68b773973310cc2d63c5df7473dbbfbb9b87a03f410a5'
++            '19edd242f82882662513ace339932ee41604eac815bbfdf93e09b43f170c5fda'
++            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -117,6 +126,29 @@ prepare() {
+@@ -125,6 +130,25 @@ prepare() {
    # Increase _FORTIFY_SOURCE level to match Arch's default flags
    patch -Np1 -i ../increase-fortify-level.patch
  
 +  # RISC-V
-+  patch -Np1 -i ../riscv-chromium-variations-133.patch
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
-+  pushd v8
-+  patch -Np1 -i "${srcdir}"/0001-riscv-maglev-Add-some-peephole-optimisations.patch
-+  popd
++  # pushd v8
++  # patch -Np1 -i "${srcdir}"/0001-riscv-maglev-Add-some-peephole-optimisations.patch
++  # popd
 +
-+  for rvpatch in riscv-{dav1d,sandbox}.patch; do
-+    patch -Np1 -i ../$rvpatch
-+  done
-+  patch -Np1 -i ../0001-chrome-runtime_api_delegate-add-riscv64-define.patch
-+  patch -Np1 -i ../0001-extensions-common-api-runtime.json-riscv64-support.patch
-+  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-138.patch
++  patch -Np1 -i ../riscv-sandbox-140.patch
++  patch -Np1 -i ../riscv-dav1d.patch
++  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-140.patch
 +
 +  pushd third_party/node/
 +  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
@@ -57,7 +49,7 @@
    # Fixes for building with libstdc++ instead of libc++
  
    # Link to system tools required by the build
-@@ -135,6 +167,25 @@ prepare() {
+@@ -143,6 +167,25 @@ prepare() {
      ./tools/clang/scripts/update.py
    fi
  
@@ -83,7 +75,7 @@
    # Remove bundled libraries for which we will use the system copies; this
    # *should* do what the remove_bundled_libraries.py script does, with the
    # added benefit of not having to list all the remaining libraries
-@@ -191,6 +242,7 @@ build() {
+@@ -199,6 +242,7 @@ build() {
      'enable_nacl=false'
      'use_qt5=false'
      'use_qt6=true'
@@ -91,7 +83,7 @@
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
    )
-@@ -248,6 +300,11 @@ build() {
+@@ -256,6 +300,11 @@ build() {
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
  
@@ -103,19 +95,16 @@
    gn gen out/Release --args="${_flags[*]}"
    ninja -C out/Release chrome chrome_sandbox chromedriver.unstripped
  }
-@@ -323,4 +380,15 @@ package() {
+@@ -331,4 +380,12 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
-+_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/35bc18b/patches/'
++_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/ec86252/patches/'
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-dav1d.patch
-+         riscv-sandbox.patch
-+         riscv-ffmpeg-138.patch::${_riscv_fork_patches}/ffmpeg/0001-ffmpeg-generate-riscv64-changes.patch
-+         ${_riscv_fork_patches}/v8/0001-riscv-maglev-Add-some-peephole-optimisations.patch
-+         riscv-chromium-variations-133.patch
-+         Debian-fix-rust-linking.patch
-+         ${_riscv_fork_patches}/chromium/0001-extensions-common-api-runtime.json-riscv64-support.patch
-+         0001-chrome-runtime_api_delegate-add-riscv64-define.patch)
++         riscv-sandbox-140.patch::${_riscv_fork_patches}/chromium/0002-Add-support-for-riscv64-linux.patch
++         riscv-ffmpeg-140.patch::${_riscv_fork_patches}/ffmpeg/0001-Manually-copy-configs-for-riscv64-linux.patch
++         #${_riscv_fork_patches}/v8/0001-riscv-maglev-Add-some-peephole-optimisations.patch
++         Debian-fix-rust-linking.patch)
 +
  # vim:set ts=2 sw=2 et:
