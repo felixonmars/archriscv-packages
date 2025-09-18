@@ -1,16 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -2,7 +2,7 @@
- # Contributor: Thomas Bächler <thomas@archlinux.org>
+@@ -8,7 +8,6 @@ pkgname=(
+   linux-firmware-other
  
- pkgbase=linux-firmware
--pkgname=(linux-firmware-whence linux-firmware amd-ucode
-+pkgname=(linux-firmware-whence linux-firmware
-          linux-firmware-{nfp,mellanox,marvell,qcom,liquidio,qlogic,bnx2x}
- )
- _tag=20240115
-@@ -38,21 +38,6 @@ pkgver() {
-   echo $(TZ=UTC git show -s --pretty=%cd --date=format-local:%Y%m%d HEAD).$(git rev-parse --short HEAD)
+   # Splits
+-  amd-ucode
+   linux-firmware-amdgpu
+   linux-firmware-atheros
+   linux-firmware-broadcom
+@@ -67,21 +66,6 @@ prepare() {
+   done
  }
  
 -build() {
@@ -31,21 +30,3 @@
  _pick() {
    local p="$1" f d; shift
    for f; do
-@@ -106,17 +91,6 @@ package_linux-firmware() {
-   _pick linux-firmware-bnx2x usr/lib/firmware/bnx2x*
- }
- 
--package_amd-ucode() {
--  pkgdesc="Microcode update image for AMD CPUs"
--  license=(custom)
--
--  mv -v $pkgname/* "$pkgdir"
--
--  install -Dt "${pkgdir}/boot" -m644 amd-ucode.img
--
--  install -Dt "${pkgdir}/usr/share/licenses/${pkgname}" -m644 ${pkgbase}/LICENSE.amd-ucode
--}
--
- package_linux-firmware-nfp() {
-   pkgdesc+=" - nfp / Firmware for Netronome Flow Processors"
-   depends=('linux-firmware-whence')
