@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index f1e43b3..44d5a06 100644
+index af79868..a8391a2 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -23,7 +23,6 @@ depends=(
@@ -10,36 +10,42 @@ index f1e43b3..44d5a06 100644
    'cmake'
    'git'
    'gtest'
-@@ -45,10 +44,13 @@ source=(
+@@ -44,9 +43,12 @@ checkdepends=(
+ source=(
+   git+https://github.com/protocolbuffers/protobuf.git#tag=v$pkgver
    protobuf-fix-build-type-none.patch
-   # https://github.com/protocolbuffers/protobuf/issues/11935
-   $pkgbase-25.3-ruby-disable-LTO.patch
 +  # Keep it here instead of bottom of the file because this file updates along with the package
 +  "$pkgbase-$pkgver-python.tar.gz::https://files.pythonhosted.org/packages/source/${pkgbase::1}/${pkgbase//-/_}/${pkgbase//-/_}-6.$pkgver.tar.gz"
  )
- sha512sums=('f87cfe2f3c1830df496460b1c3a2ebd2b4d21698121ff72bb602ac83566068d41ee736c5728549921097e2c623ce1aac734b2d850b2f9964f824d6189fa954e1'
-             '18bc71031bbcbc3810a9985fa670465040f06a6c104ab8079b56bdfc499bb6cec40805a0cefd455031142490a576dc60aa8000523877ac0353b93558e9beabbd'
--            '1ebdea4e533ee0f71baf1b3fe2623ca723b36a08c6b97475ea5996b10aeb6873cf94d9120596ddd1216bd2f6feb991f8c33078e8104008a5078ace5be5431efd')
-+            '1ebdea4e533ee0f71baf1b3fe2623ca723b36a08c6b97475ea5996b10aeb6873cf94d9120596ddd1216bd2f6feb991f8c33078e8104008a5078ace5be5431efd'
-+            '595c125a116020344d5706adf444e1a3259eae5bce3ca61b92c1ab4cb63c167f97210c71e5e24b8c49c6489777ca6de95abdd398125ba3925313ad5ebe09cc18')
+ sha512sums=('0efcb80ec3a1f04f0f2e53ccd629eace4f6b9a2cbe5dae4c1b82140f11e174f8d023b8e35855def7e19c35da838c5b4fcfaa54748ee3534886caf1d35f55cccb'
+-            '18bc71031bbcbc3810a9985fa670465040f06a6c104ab8079b56bdfc499bb6cec40805a0cefd455031142490a576dc60aa8000523877ac0353b93558e9beabbd')
++            '18bc71031bbcbc3810a9985fa670465040f06a6c104ab8079b56bdfc499bb6cec40805a0cefd455031142490a576dc60aa8000523877ac0353b93558e9beabbd'
++            'c29d1b01984e0cc204bffa5c757e4df4eb8ee696b6f5557414e65310b15956192fc73db5daae176f2b4db03e98c36a46cc74ca8b377df193bc9461142c8269cf')
  
  options=(!lto)
  
-@@ -56,7 +58,6 @@ _gemname=google-protobuf
+@@ -54,7 +56,6 @@ _gemname=google-protobuf
  
  prepare() {
    cd "$pkgname"
 -  bazel --version
  
    patch -p1 < ../protobuf-fix-build-type-none.patch # Fix cmake config compatibility mode
-   patch -p1 < ../$pkgbase-25.3-ruby-disable-LTO.patch
-@@ -79,13 +80,14 @@ build() {
+ }
+@@ -76,7 +77,7 @@ build() {
    cmake "${cmake_options[@]}"
    cmake --build build --verbose
  
 -  cd "$pkgbase"
--  bazel build //python/dist:binary_wheel --noenable_bzlmod --enable_workspace
 +  cd "$pkgbase-6.$pkgver"
+   local bazel_options=(
+     --noenable_bzlmod
+     --enable_workspace
+@@ -87,9 +88,9 @@ build() {
+   # for aarch64
+   [[ $CARCH == "aarch64" ]] && bazel_options+=(--cpu=linux-aarch_64)
+ 
+-  bazel build //python/dist:binary_wheel "${bazel_options[@]}"
 +  python -m build --wheel --no-isolation
  
 -  cd ruby
@@ -47,11 +53,7 @@ index f1e43b3..44d5a06 100644
    local _gemdir="$(gem env gemdir)"
    local _gemver=4.$pkgver
  
-+  export PATH="$srcdir"/build:$PATH
-   PROTOC="$srcdir"/build/protoc \
-     rake
-   rake gem
-@@ -153,7 +155,7 @@ package_python-protobuf() {
+@@ -160,7 +161,7 @@ package_python-protobuf() {
      'python'
    )
  
