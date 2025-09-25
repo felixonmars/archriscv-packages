@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -36,7 +36,14 @@ makedepends=(cargo
+@@ -37,7 +37,14 @@ makedepends=(cargo
               cmake
               protobuf
               vulkan-headers
@@ -16,7 +16,16 @@
  optdepends=('clang: improved C/C++ language support'
              'eslint: improved Javascript language support'
              'pyright: improved Python language support'
-@@ -68,10 +75,20 @@ _srcenv() {
+@@ -53,6 +60,8 @@ _appid=dev.zed.Zed
+ 
+ prepare() {
+ 	cd "$_archive"
++	patch -Np1 -i ../minidumper-riscv64.patch
++	cargo update -p crash-context -p crash-handler -p minidumper -p minidump-common -p minidump-writer
+ 	cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ 	export DO_STARTUP_NOTIFY="true"
+ 	export APP_ICON="zed"
+@@ -69,10 +78,20 @@ _srcenv() {
  	CFLAGS+=' -ffat-lto-objects'
  	CXXFLAGS+=' -ffat-lto-objects'
  	RUSTFLAGS+=" --remap-path-prefix $PWD=/"
@@ -37,10 +46,12 @@
  	export ZED_UPDATE_EXPLANATION='Updates are handled by pacman'
  	export RELEASE_VERSION="$pkgver"
  	export PROTOC=/usr/bin/protoc
-@@ -94,3 +111,6 @@ package() {
+@@ -95,3 +114,8 @@ package() {
  	install -Dm0644 -t "$pkgdir/usr/share/applications/" "$_appid.desktop"
  	install -Dm0644 crates/zed/resources/app-icon.png "$pkgdir/usr/share/icons/$pkgname.png"
  }
 +
-+source+=("git+https://github.com/hack3ric/livekit-rust-sdks.git#commit=3119b6ac0ef5e705b3e92630c8e558648f0892ed")
-+sha256sums+=('df044bce7dc5af8adbc3ca29225a62f8cee7a71535d704988abc8b372ea600e7')
++source+=("git+https://github.com/hack3ric/livekit-rust-sdks.git#commit=0563cf43c285f61b7889922b917128bec5dc552f"
++         "minidumper-riscv64.patch")
++sha256sums+=('8262058073b7fb6f28ce30a701629986abcd8987745e040b1710801573502d75'
++             '18b4bed2367ce1932b6b8669299629d3d1623206ae649d74941a32ba6ea5917b')
