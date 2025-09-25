@@ -1,13 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,13 +15,17 @@ sha256sums=('19317ceb2ae330e28b5f969ab1ed64e6f665f89773437dfdca1d24b4dea811f7')
+@@ -15,13 +15,15 @@ sha256sums=('77968e728e3bace015dd332e04c7f2cb73e3fd7cd4e6046f841973044b4da2ba')
  
  prepare() {
  	cd "$pkgname-$pkgver"
 +	patch -Np1 -i ../pwru-add-vmlinux-riscv64.patch
-+	go mod edit -replace github.com/cilium/ebpf=github.com/cilium/ebpf@v0.12.0
-+	go mod tidy
-+	go mod vendor
++	patch -Np1 -i ../pwru-kprobe-add-riscv64-support.patch
  	export CGO_CPPFLAGS="${CPPFLAGS}"
  	export CGO_CFLAGS="${CFLAGS}"
  	export CGO_CXXFLAGS="${CXXFLAGS}"
@@ -19,7 +17,7 @@
  	go generate
  }
  
-@@ -33,13 +37,18 @@ build() {
+@@ -33,6 +35,7 @@ build() {
  	export CGO_LDFLAGS="${LDFLAGS}"
  	export GOPATH="${srcdir}"
  	export GOFLAGS="-buildmode=pie -mod=vendor -modcacherw"
@@ -27,15 +25,12 @@
  	make libpcap/libpcap.a
  	go build \
  		-ldflags "-compressdwarf=false -linkmode external -X \"github.com/cilium/pwru/internal/pwru.Version=${pkgver}\"" \
--		-o ${pkgname}
-+		-o ${pkgname} \
-+		*.go  # WORKAROUND: `riscv` is a reserved architecture in Go, so *_riscv.go is not included by default on linux/riscv64
- }
- 
- package() {
+@@ -43,3 +46,8 @@ package() {
  	cd "$pkgname-$pkgver"
  	install -Dm755 ${pkgname} -t "$pkgdir/usr/bin"
  }
 +
-+source+=("pwru-add-vmlinux-riscv64.patch")
-+sha256sums+=('d7c7942dc3dd6874d5b35063e11231b2f99c418a1c3d5fd97f607c1c4aa956b7')
++source+=("pwru-add-vmlinux-riscv64.patch::https://github.com/hack3ric/pwru/commit/8aa5e0f00c849ea0ef83bb8f491bb089a21e9820.diff"
++         "pwru-kprobe-add-riscv64-support.patch::https://github.com/hack3ric/pwru/commit/1d6b5db47aa46cc85f90a74249ba77cd03a8c91f.diff")
++sha256sums+=('cfc9a074c2af7b8b9cad0e7520cff11b7726626ca5cbf3683106402cadcf6fca'
++             '5bce8166d3a5f38c51e29ce33b22138169ef308b99b378b0eb9cb4f9ff2fe54e')
