@@ -13,7 +13,7 @@
    rust-wasm
    rust-src
  )
-@@ -39,15 +40,16 @@ depends=(
+@@ -40,14 +41,15 @@ depends=(
  makedepends=(
    aarch64-linux-gnu-gcc
    aarch64-linux-gnu-glibc
@@ -24,7 +24,6 @@
 -  lib32-gcc-libs
 -  lib32-glibc
    libffi
-   lld
    llvm
    musl
    musl-aarch64
@@ -32,9 +31,28 @@
    ninja
    perl
    python
-@@ -105,6 +107,12 @@ prepare() {
-   # Use our aarch64-linux-gnu-gcc
-   patch -Np1 -i ../0006-compiler-Use-aarch64-linux-gnu-gcc-to-link-aarch64-t.patch
+@@ -90,7 +92,7 @@ source=(
+ 
+   # Fix build with system rustc 1.90.0
+   # https://github.com/rust-lang/rust/issues/143765
+-  0009-bootstrap-Workaround-for-1.90.0-stage0.patch
++  #0009-bootstrap-Workaround-for-1.90.0-stage0.patch
+ )
+ b2sums=('7bb22f814f1ccf08bd8c57a0c81d94b5a5850b8e20c563f1da7b1a37bb390b5ed82ff448dfc7738e1990653c798f6edaacc410483b95007691e717d55a6b10de'
+         'SKIP'
+@@ -101,8 +103,7 @@ b2sums=('7bb22f814f1ccf08bd8c57a0c81d94b5a5850b8e20c563f1da7b1a37bb390b5ed82ff44
+         '2317343e6b986d1ec1fb6d035fb6d8933245704b5be1b3e4a032ad14300d8a338087c52e53a6dff4ceda52232ce7f21dd8ad536c9d4da04faee6a9b79a9670b6'
+         '40e14ccc8b5dfff5d87f43a8763d1d2a49435c7a76633a920648a43dd25df0ab056107722ccdc574d9d603322699c6f3990878e19ab25d5e0117689d8f6b99b8'
+         '8be938ad0016244e86707396ee147fdff7a7ee4d2a776607ff316a9264512faba99d03a7a6b5ba48744c3ae93b09a2eaede567554142a30570346e177131099f'
+-        '04a5a67ee8d2a41d81d663b0d81e63495ea4c3455d8dce97c94f2722749be0c2342c715da44f22b1c8fcd04890d980cb865f0e6980f2b8dae886848b4e870e27'
+-        '440465da4823dc58e67e2f608872dfeb52727673d8435280bbe79f4a32213c7dacf8761da1eef1f65eec3778a9f07f01d67a2134838ff68c73dfe639a7d5e7da')
++        '04a5a67ee8d2a41d81d663b0d81e63495ea4c3455d8dce97c94f2722749be0c2342c715da44f22b1c8fcd04890d980cb865f0e6980f2b8dae886848b4e870e27')
+ validpgpkeys=(
+   108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
+ )
+@@ -123,6 +124,12 @@ prepare() {
+     patch -Np1 < "../$src"
+   done
  
 +  # Force `crt_static_default = true` after upstream switched to dynamic by
 +  # default, which leads to https://github.com/rust-lang/rust/issues/82521.
@@ -45,7 +63,7 @@
    cat >bootstrap.toml <<END
  # see src/bootstrap/defaults/
  profile = "dist"
-@@ -119,8 +127,9 @@ link-shared = true
+@@ -137,8 +144,9 @@ link-shared = true
  [build]
  description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
  target = [
@@ -56,7 +74,7 @@
    "x86_64-unknown-linux-musl",
    "aarch64-unknown-linux-gnu",
    "aarch64-unknown-linux-musl",
-@@ -172,22 +181,16 @@ jemalloc = true
+@@ -192,22 +200,16 @@ lto = "fat"
  compression-formats = ["gz"]
  compression-profile = "fast"
  
@@ -82,7 +100,7 @@
  ar = "/usr/bin/gcc-ar"
  ranlib = "/usr/bin/gcc-ranlib"
  sanitizers = false
-@@ -211,6 +214,24 @@ default-linker = "aarch64-linux-gnu-gcc"
+@@ -231,6 +233,24 @@ default-linker = "aarch64-linux-gnu-gcc"
  sanitizers = false
  musl-root = "/usr/aarch64-linux-musl/lib/musl"
  
@@ -107,7 +125,7 @@
  [target.wasm32-unknown-unknown]
  cc = "/usr/bin/clang"
  cxx = "/usr/bin/clang++"
-@@ -304,12 +325,11 @@ build() {
+@@ -324,12 +344,11 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -124,7 +142,7 @@
    _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
    _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
    _pick dest-wasm usr/lib/rustlib/wasm32{,v1}-*
-@@ -394,6 +414,33 @@ package_rust-aarch64-musl() {
+@@ -414,6 +433,33 @@ package_rust-aarch64-musl() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
@@ -158,7 +176,7 @@
  package_rust-wasm() {
    pkgdesc="WebAssembly targets for Rust"
    depends=(
-@@ -418,4 +465,7 @@ package_rust-src() {
+@@ -437,4 +483,7 @@ package_rust-src() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
