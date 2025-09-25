@@ -1,14 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,7 +22,6 @@ pkgname=(
+@@ -23,7 +23,6 @@ pkgname=(
    qemu-ui-{curses,dbus,egl-headless,gtk,opengl,sdl,spice-{app,core}}
    qemu-user{,-static}{,-binfmt}
    qemu-vhost-user-gpu
 -  qemu-vmsr-helper
    qemu-{base,desktop,emulators-full,full}
  )
- pkgver=9.2.3
-@@ -124,6 +123,7 @@ makedepends=(
+ pkgver=10.1.0
+@@ -126,6 +125,7 @@ makedepends=(
    zlib
    zstd
  )
@@ -16,7 +16,7 @@
  source=(
    https://download.qemu.org/qemu-$pkgver.tar.xz{,.sig}
    bridge.conf
-@@ -209,7 +209,7 @@ _qemu_desktop_optdepends=(
+@@ -212,7 +212,7 @@ _qemu_desktop_optdepends=(
    'qemu-system-mips: for MIPS system emulator'
    'qemu-system-or1k: for OpenRisc32 system emulator'
    'qemu-system-ppc: for PPC system emulator'
@@ -25,7 +25,7 @@
    'qemu-system-rx: for RX system emulator'
    'qemu-system-s390x: for S390 system emulator'
    'qemu-system-sh4: for SH4 system emulator'
-@@ -435,13 +435,6 @@ package_qemu-common() {
+@@ -443,13 +443,6 @@ package_qemu-common() {
    # remove unneeded files
    find "$pkgdir" -name .buildinfo -delete
  
@@ -39,7 +39,7 @@
    (
      # create man page symlinks for all system emulators
      cd "$pkgdir/usr/share/man/man1"
-@@ -502,6 +495,9 @@ package_qemu-common() {
+@@ -515,6 +508,9 @@ package_qemu-common() {
  
      _pick qemu-system-aarch64 usr/bin/qemu-system-aarch64
      _pick qemu-system-aarch64 usr/share/man/man1/qemu-system-aarch64.1*
@@ -49,17 +49,17 @@
  
      _pick qemu-system-alpha usr/bin/qemu-system-alpha
      _pick qemu-system-alpha usr/share/man/man1/qemu-system-alpha.1*
-@@ -512,6 +508,9 @@ package_qemu-common() {
-     _pick qemu-system-arm usr/share/man/man1/qemu-system-arm.1*
+@@ -523,6 +519,9 @@ package_qemu-common() {
  
-     _pick qemu-system-arm-firmware usr/share/qemu/npcm7xx_bootrom.bin
+     _pick qemu-system-arm usr/bin/qemu-system-arm
+     _pick qemu-system-arm usr/share/man/man1/qemu-system-arm.1*
 +    # NOTE: needs to be replaced by edk2, not buildable on riscv64 yet
 +    _pick qemu-system-arm-firmware usr/share/qemu/firmware/*-arm*
 +    _pick qemu-system-arm-firmware usr/share/qemu/edk2-arm-*
  
-     _pick qemu-system-avr usr/bin/qemu-system-avr
-     _pick qemu-system-avr usr/share/man/man1/qemu-system-avr.1*
-@@ -583,6 +582,13 @@ package_qemu-common() {
+     _pick qemu-system-arm-firmware usr/share/qemu/{ast27x0,npcm{7,8}xx}_bootrom.bin
+ 
+@@ -596,6 +595,13 @@ package_qemu-common() {
  
      _pick qemu-system-x86-firmware usr/share/qemu/{kvmvapic,linuxboot,multiboot{,_dma},pvh}.bin
      _pick qemu-system-x86-firmware usr/share/qemu/qboot.rom
@@ -73,7 +73,7 @@
  
      _pick qemu-system-xtensa usr/bin/qemu-system-xtensa{,eb}
      _pick qemu-system-xtensa usr/share/man/man1/qemu-system-xtensa{,eb}.1*
-@@ -610,7 +616,6 @@ package_qemu-common() {
+@@ -623,7 +629,6 @@ package_qemu-common() {
      _pick qemu-vhost-user-gpu usr/lib/qemu/vhost-user-gpu
      _pick qemu-vhost-user-gpu usr/share/qemu/vhost-user/50-qemu-gpu.json
  
@@ -81,7 +81,7 @@
    )
  }
  
-@@ -807,7 +812,7 @@ package_qemu-hw-s390x-virtio-gpu-ccw() {
+@@ -841,7 +846,7 @@ package_qemu-hw-s390x-virtio-gpu-ccw() {
  
  package_qemu-system-aarch64() {
    pkgdesc="QEMU system emulator for AARCH64"
@@ -90,7 +90,7 @@
    mv -v $pkgname/* "$pkgdir"
    _install_licenses
  }
-@@ -828,7 +833,7 @@ package_qemu-system-alpha-firmware() {
+@@ -862,7 +867,7 @@ package_qemu-system-alpha-firmware() {
  
  package_qemu-system-arm() {
    pkgdesc="QEMU system emulator for ARM"
@@ -99,7 +99,7 @@
    mv -v $pkgname/* "$pkgdir"
    _install_licenses
  }
-@@ -983,7 +988,7 @@ package_qemu-system-tricore() {
+@@ -1017,7 +1022,7 @@ package_qemu-system-tricore() {
  
  package_qemu-system-x86() {
    pkgdesc="QEMU system emulator for x86"
@@ -108,7 +108,7 @@
    mv -v $pkgname/* "$pkgdir"
    _install_licenses
  }
-@@ -1178,7 +1183,7 @@ package_qemu-base() {
+@@ -1219,7 +1224,7 @@ package_qemu-base() {
    depends=(
      qemu-common=$pkgver-$pkgrel
      qemu-img=$pkgver-$pkgrel
@@ -117,7 +117,7 @@
      virtiofsd
    )
    optdepends=("${_qemu_base_optdepends[@]}")
-@@ -1227,7 +1232,6 @@ package_qemu-full() {
+@@ -1269,7 +1274,6 @@ package_qemu-full() {
      qemu-tests=$pkgver-$pkgrel
      qemu-tools=$pkgver-$pkgrel
      qemu-user=$pkgver-$pkgrel
