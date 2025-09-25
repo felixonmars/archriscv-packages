@@ -1,24 +1,18 @@
---- 0001-Fix-libbpf-build-workaround-for-netdata-libbpf-4.patch
-+++ 0001-Fix-libbpf-build-workaround-for-netdata-libbpf-4.patch
-@@ -18,11 +18,11 @@ index 17a26a10f..823a45b4a 100644
- -        CONFIGURE_COMMAND ""
- -        BUILD_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ DESTDIR=../ install
- +        CONFIGURE_COMMAND mkdir -pv src/build/
--+        BUILD_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ all
-++        BUILD_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ LIBSUBDIR=lib all
-          BUILD_IN_SOURCE 1
-          BUILD_BYPRODUCTS "${_libbpf_library}"
- -        INSTALL_COMMAND ""
--+        INSTALL_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ DESTDIR=../ install
-++        INSTALL_COMMAND ${MAKE_COMMAND} -C src CC=${CMAKE_C_COMPILER} BUILD_STATIC_ONLY=1 OBJDIR=build/ LIBSUBDIR=lib DESTDIR=../ install
-          EXCLUDE_FROM_ALL 1
-      )
-  
 --- PKGBUILD
 +++ PKGBUILD
-@@ -87,3 +87,5 @@ local-listeners,network-viewer.plugin,ndsudo,freeipmi.plugin,nfacct.plugin}
+@@ -30,6 +30,8 @@ sha512sums=('7766aec5cdf76e8dc39b3e2c6feb1e252545bab2999437fc45b2b42de475c0384e7
+ prepare() {
+   cd $pkgname-v$pkgver
+ 
++  patch -Np1 -i ../netdata-libbpf-path.patch
++
+   sed -i "s/CMAKE_CXX_STANDARD 14/CMAKE_CXX_STANDARD 17/" CMakeLists.txt
+   sed -i "s|usr/sbin|usr/bin|g" CMakeLists.txt
+   sed -i "s|usr/libexec|usr/lib|g" CMakeLists.txt
+@@ -82,3 +84,6 @@ local-listeners,network-viewer.plugin,ndsudo,freeipmi.plugin,nfacct.plugin}
    rm -rf "${pkgdir}/usr/lib/netdata/system"
    rm -rf "${pkgdir}/var/run"
  }
 +
-+sha512sums[1]='90cc7013229dfc80db60dc6f91cbf681b889b436e5b55179dd427c0340157877542dc0fcb2cd3e3b251074532f54ae83ae5b7b2f6828356619da98bb3c57f81b'
++source+=(netdata-libbpf-path.patch)
++sha512sums+=('f157fe75493623602d496ec2a6e13cd5a12501383471ec89446905eb124e4cc41f05e4c5319d7691450a665d8ee70d0b0731b7a0a4b4beb35818bb7b9c96213f')
