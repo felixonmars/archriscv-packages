@@ -1,36 +1,49 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,9 +11,11 @@ _GRUB_EMU_BUILD="0"
+@@ -24,7 +24,7 @@ install="${pkgname}.install"
+ conflicts=(
+   grub-bios
+   grub-common
+-  grub-efi-x86_64
++  grub-efi-riscv64
+   grub-emu
+   grub-legacy
+ )
+@@ -32,12 +32,12 @@ replaces=(
+   grub-common
+   grub-bios
+   grub-emu 
+-  grub-efi-x86_64
++  grub-efi-riscv64
+ )
+ provides=(
+   grub-bios
+   grub-common
+-  grub-efi-x86_64
++  grub-efi-riscv64
+   grub-emu
+ )
+ makedepends=(
+@@ -176,9 +176,7 @@ _configure_options=(
+ )
  
- [[ "${CARCH}" == 'x86_64' ]] && _EFI_ARCH='x86_64'
- [[ "${CARCH}" == 'i686' ]] && _EFI_ARCH='i386'
-+[[ "${CARCH}" == 'riscv64' ]] && _EFI_ARCH='riscv64'
+ _platform=(
+-  i386-pc
+-  i386-efi
+-  x86_64-efi
++  riscv64-efi
+ )
  
- [[ "${CARCH}" == 'x86_64' ]] && _EMU_ARCH='x86_64'
- [[ "${CARCH}" == 'i686' ]] && _EMU_ARCH='i386'
-+[[ "${CARCH}" == 'riscv64' ]] && _EMU_ARCH='riscv64'
- 
- pkgname='grub'
- pkgdesc='GNU GRand Unified Bootloader (2)'
-@@ -287,7 +289,7 @@ build() {
-   cd "${srcdir}/grub/"
- 
-   echo "Build grub bios stuff..."
--  _build_grub-common_and_bios
-+  #_build_grub-common_and_bios
- 
-   echo "Build grub ${_EFI_ARCH} efi stuff..."
-   _build_grub-efi
-@@ -304,10 +306,10 @@ build() {
- }
- 
- _package_grub-common_and_bios() {
--  cd "${srcdir}/grub-bios/"
-+  cd "${srcdir}/grub/"
- 
-   echo "Run make install for bios build..."
--  make DESTDIR="${pkgdir}/" bashcompletiondir="/usr/share/bash-completion/completions" install
-+  #make DESTDIR="${pkgdir}/" bashcompletiondir="/usr/share/bash-completion/completions" install
- 
-   echo "Remove gdb debugging related files for bios build..."
-   rm -f "${pkgdir}/usr/lib/grub/i386-pc"/*.module || true
+ build() {
+@@ -191,9 +189,10 @@ build() {
+     [[ "${i}" == "i386-pc" ]] && _configure_options+=(--enable-efiemu --with-platform="pc" --target="i386")
+     [[ "${i}" == "i386-efi" ]] && _configure_options+=(--disable-efiemu --with-platform="efi" --target="i386")
+     [[ "${i}" == "x86_64-efi" ]] && _configure_options+=(--with-platform="efi" --target="x86_64")
++    [[ "${i}" == "riscv64-efi" ]] && _configure_options+=(--with-platform="efi" --target="riscv64")
+     ./configure PACKAGE_VERSION="${epoch}:${pkgver}-${pkgrel}" \
+                 ${_configure_options[@]}
+-    if [[ "${i}" == "x86_64-efi" ]]; then
++    if [[ "${i}" == "riscv64-efi" ]]; then
+       echo "Build language and doc files only for most common variant..."
+       # language directory does not like -j option, build it first with -j1
+       make -j1 po/
