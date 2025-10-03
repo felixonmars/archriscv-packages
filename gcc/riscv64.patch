@@ -12,23 +12,7 @@
    libisl
    libmpc
    python
-@@ -41,6 +38,7 @@ _libdir=usr/lib/gcc/$CHOST/${pkgver%%+*}
- source=(git+https://sourceware.org/git/gcc.git#commit=${_commit}
-         c89 c99
-         gcc-ada-repro.patch
-+        round-builtin-fix.patch
- )
- validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.org
-               86CFFCA918CF3AF47147588051E8B148A9999C34  # foutrelis@archlinux.org
-@@ -49,12 +47,19 @@ validpgpkeys=(F3691687D867B81B51CE07D9BBE43771487328A9  # bpiotrowski@archlinux.
- sha256sums=('d1d0263f7595e2189110dbe5d12608e144637a6a29a247e41c6926915caab8de'
-             '7b09ec947f90b98315397af675369a1e3dfc527fa70013062e6e85c4be0275ab'
-             '44ea973558842f3f4bd666bdaf6e810fd7b7c7bd36b5cc4c69f93d2cd0124fc7'
--            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f')
-+            '1773f5137f08ac1f48f0f7297e324d5d868d55201c03068670ee4602babdef2f'
-+            '1e8ab4229f8a18dc6a620c78c895e4ff6bdae78d78de89b5d194ca1590a5dfdb')
- pkgver() {
-   cd gcc
+@@ -55,6 +52,12 @@ pkgver() {
    echo "$(cat gcc/BASE-VER)+$(git describe --abbrev=12 --tags | sed 's/[^-]*-[^-]*-//;s/[^-]*-/r&/;s/-/+/g;s/_/./')"
  }
  
@@ -41,13 +25,15 @@
  prepare() {
    [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
    cd gcc
-@@ -68,6 +73,10 @@ prepare() {
+@@ -68,6 +71,12 @@ prepare() {
    # Reproducible gcc-ada
    patch -Np0 < "$srcdir/gcc-ada-repro.patch"
  
 +  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=121534
 +  git cherry-pick -n f12a272169523823ff27d69f187f73c4211222ae
-+  patch -Np1 < "$srcdir/round-builtin-fix.patch"
++  git cherry-pick -n 60c6f92fb192352d784ab3153a9e11c19a3216a0
++  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110812
++  git cherry-pick -n 0efe904de8ce64e57db4c51e721f798ec3225b02
 +
    mkdir -p "$srcdir/gcc-build"
    mkdir -p "$srcdir/libgccjit-build"
