@@ -4,20 +4,24 @@
           'libffi' 'desktop-file-utils' 'hicolor-icon-theme')
  makedepends=('python' 'gn' 'ninja' 'clang' 'lld' 'gperf' 'nodejs' 'pipewire'
               'rust' 'rust-bindgen' 'qt6-base' 'java-runtime-headless'
--             'git')
-+             'git' 'jq' 'npm' 'rsync')
+-             'git' 'compiler-rt')
++             'git' 'compiler-rt' 'jq' 'npm' 'rsync')
  optdepends=('pipewire: WebRTC desktop sharing under Wayland'
              'kdialog: support for native dialogs in Plasma'
              'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -42,7 +42,12 @@ sha256sums=('68876365a4f8c566bb45119a615784f932718d89eb6be0744fd8982de7316c2d'
-             '75681c815bb2a8c102f0d7af3a3790b5012adbbce38780716b257b7da2e1c3d5'
+@@ -39,10 +39,15 @@ sha256sums=('e1a15924aeeee3cbd76cf15fd2dce755acea2a7cb034ea2993fd02dd63738764'
+             '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
+             '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
+             '5abc8611463b3097fc5ce58017ef918af8b70d616ad093b8b486d017d021bbdf'
+-            '81ba390a500a38c50b5adad9d185d08685cdf9a9d9448e1e33cfff4f2388618d'
++            '1b36a49855a19dd44d4c9d120157bb58a71cddcc8d40182330f73de2abbd59c9'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
              'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374'
--            '0eb47afd031188cf5a3f0502f3025a73a1799dfa52dff9906db5a3c2af24e2eb')
-+            '0eb47afd031188cf5a3f0502f3025a73a1799dfa52dff9906db5a3c2af24e2eb'
+-            'de5c873564b09713b65dd9e6a0b9049d7b3cf8f881436f36e1c091824b63e876')
++            'de5c873564b09713b65dd9e6a0b9049d7b3cf8f881436f36e1c091824b63e876'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +            '9ee0b8af0d420192fa8c9577dd270fe4abf1c95313d6744cbfefec47ae6628ef'
-+            '2896f0d1c738ed6cbfd68b773973310cc2d63c5df7473dbbfbb9b87a03f410a5'
++            '20d1674502309a1aa1edec44a7f47d13e89d95211e1749bc1ea2939b937d63f5'
 +            '19edd242f82882662513ace339932ee41604eac815bbfdf93e09b43f170c5fda'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea')
  
@@ -34,7 +38,7 @@
 +  # patch -Np1 -i "${srcdir}"/0001-riscv-maglev-Add-some-peephole-optimisations.patch
 +  # popd
 +
-+  patch -Np1 -i ../riscv-sandbox-140.patch
++  patch -Np1 -i ../riscv-sandbox-141.patch
 +  patch -Np1 -i ../riscv-dav1d.patch
 +  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-140.patch
 +
@@ -75,14 +79,14 @@
    # Remove bundled libraries for which we will use the system copies; this
    # *should* do what the remove_bundled_libraries.py script does, with the
    # added benefit of not having to list all the remaining libraries
-@@ -199,6 +242,7 @@ build() {
-     'enable_nacl=false'
+@@ -198,6 +241,7 @@ build() {
+     'enable_widevine=true'
      'use_qt5=false'
      'use_qt6=true'
 +    'is_clang=true'
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
-   )
+     'use_clang_modules=false'
 @@ -256,6 +300,11 @@ build() {
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
@@ -102,9 +106,44 @@
 +_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/ec86252/patches/'
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-dav1d.patch
-+         riscv-sandbox-140.patch::${_riscv_fork_patches}/chromium/0002-Add-support-for-riscv64-linux.patch
++         riscv-sandbox-141.patch
 +         riscv-ffmpeg-140.patch::${_riscv_fork_patches}/ffmpeg/0001-Manually-copy-configs-for-riscv64-linux.patch
 +         #${_riscv_fork_patches}/v8/0001-riscv-maglev-Add-some-peephole-optimisations.patch
 +         Debian-fix-rust-linking.patch)
 +
  # vim:set ts=2 sw=2 et:
+diff --git compiler-rt-adjust-paths.patch compiler-rt-adjust-paths.patch
+index c3ac1f9..bb7d0f8 100644
+--- compiler-rt-adjust-paths.patch
++++ compiler-rt-adjust-paths.patch
+@@ -1,12 +1,11 @@
+-diff -ura chromium-141.0.7390.54/build/config/clang/BUILD.gn chromium-141.0.7390.54.patched/build/config/clang/BUILD.gn
+---- chromium-141.0.7390.54/build/config/clang/BUILD.gn  2025-10-01 13:36:59.000000000 +0000
+-+++ chromium-141.0.7390.54.patched/build/config/clang/BUILD.gn  2025-10-01 13:42:38.977184172 +0000
+-@@ -170,17 +170,22 @@
+-         _dir = "darwin"
++diff --git a/build/config/clang/BUILD.gn b/build/config/clang/BUILD.gn
++index b171ee13ce7ed..d5b4e4fdcd0c8 100644
++--- a/build/config/clang/BUILD.gn
+++++ b/build/config/clang/BUILD.gn
++@@ -171,16 +171,21 @@ template("clang_lib") {
+        } else if (is_linux || is_chromeos) {
+          if (current_cpu == "x64") {
+--          _dir = "x86_64-unknown-linux-gnu"
+-+          _dir = "linux"
++           _dir = "x86_64-unknown-linux-gnu"
+ +          _suffix = "-x86_64"
+          } else if (current_cpu == "x86") {
+            _dir = "i386-unknown-linux-gnu"
+@@ -25,3 +24,11 @@ diff -ura chromium-141.0.7390.54/build/config/clang/BUILD.gn chromium-141.0.7390
+          } else if (current_cpu == "ppc64") {
+            _dir = "ppc64le-unknown-linux-gnu"
+          } else if (current_cpu == "s390x") {
++@@ -188,6 +193,7 @@ template("clang_lib") {
++         } else {
++           assert(false)  # Unhandled cpu type
++         }
+++          _dir = "linux"
++       } else if (is_fuchsia) {
++         if (current_cpu == "x64") {
++           _dir = "x86_64-unknown-fuchsia"
