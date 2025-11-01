@@ -1,14 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -53,6 +53,7 @@ EOF
+@@ -57,8 +57,16 @@ EOF
+ 
+   export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+ 
++  # Bundled wheels are not available for riscv64
++  sed -i '/wheel: </,$d' depot_tools/.vpython3
++  sed -i '/wheel: </,$d' depot_tools/gsutil.vpython3
++  # Hack
++  patch -Np0 -d depot_tools < HACK-gclient-fix-dep.diff
++
    cd sdk
  
-   patch -Np 1 --input=$srcdir/DEPS.patch
 +  patch -Np 1 --input=$srcdir/dart-riscv-no-cross.patch
++
+   patch -Np 1 --input="$srcdir/DEPS.patch"
+   patch -Np 1 --input="$srcdir/0001-vm-Fix-gcc-build.patch"
  
-   python ../depot_tools/gclient.py sync -D \
-       --nohooks \
-@@ -72,7 +73,7 @@ build() {
+@@ -80,7 +88,7 @@ build() {
    # gn args --list out
  
    /usr/bin/gn gen -qv out --args='
@@ -17,10 +26,12 @@
                          is_debug = false
                          is_release = true
                          is_clang = false
-@@ -104,3 +105,6 @@ package() {
+@@ -112,3 +120,8 @@ package() {
  }
  
  # vim:set ts=2 sw=2 et:
 +
-+source+=("dart-riscv-no-cross.patch")
-+sha256sums+=('8c0d3a27a86aea34d7b932181111a9f660d2e7bf67d5e45055163e6b980b187f')
++source+=("dart-riscv-no-cross.patch"
++         "HACK-gclient-fix-dep.diff")
++sha256sums+=('8c0d3a27a86aea34d7b932181111a9f660d2e7bf67d5e45055163e6b980b187f'
++             'ba4ac7e5c41c4d4a20f3fa420af99e844c69255ce1472436568a1fdf77785104')
