@@ -1,4 +1,4 @@
-From 39ff6f79460fbcef61818209d458ac5cf0b5468f Mon Sep 17 00:00:00 2001
+From 9ea2feda61e871b91d45730f8c4d32a11146d2fa Mon Sep 17 00:00:00 2001
 From: Andreas Schwab <schwab@suse.de>
 Date: Fri, 4 Mar 2022 15:27:35 +0100
 Subject: [PATCH] Add support for riscv64-linux
@@ -49,10 +49,10 @@ index 8c5db2c6fa6cf..5338be2700445 100644
 +                   current_cpu == "mipsel" || current_cpu == "mips64el" ||
 +                   current_cpu == "riscv64")
 diff --git a/sandbox/linux/BUILD.gn b/sandbox/linux/BUILD.gn
-index 59ac6d8db40ee..295bdf452724f 100644
+index 9ffc44d2ff138..8d5ee5043f5b2 100644
 --- a/sandbox/linux/BUILD.gn
 +++ b/sandbox/linux/BUILD.gn
-@@ -393,6 +393,7 @@ source_set("sandbox_services_headers") {
+@@ -394,6 +394,7 @@ source_set("sandbox_services_headers") {
      "system_headers/linux_time.h",
      "system_headers/mips64_linux_syscalls.h",
      "system_headers/mips_linux_syscalls.h",
@@ -242,10 +242,10 @@ index 34357796e84ea..0a0ec6d9b4a09 100644
  TEST_BASELINE_SIGSYS(__NR_vserver)
  #endif
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
-index 303c8e1d26f32..62a66470983e6 100644
+index d520ee20fa151..3d5d3fc793bc4 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
-@@ -44,6 +44,7 @@
+@@ -45,6 +45,7 @@
  #endif
  
  #if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && \
@@ -253,7 +253,7 @@ index 303c8e1d26f32..62a66470983e6 100644
      !defined(PTRACE_GET_THREAD_AREA)
  // Also include asm/ptrace-abi.h since ptrace.h in older libc (for instance
  // the one in Ubuntu 16.04 LTS) is missing PTRACE_GET_THREAD_AREA.
-@@ -488,8 +489,10 @@ ResultExpr RestrictPtrace() {
+@@ -489,8 +490,10 @@ ResultExpr RestrictPtrace() {
  #endif
    return Switch(request)
        .Cases({
@@ -265,7 +265,7 @@ index 303c8e1d26f32..62a66470983e6 100644
                   PTRACE_GETREGSET,
  #endif
  #if defined(__arm__)
-@@ -534,7 +537,7 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno) {
+@@ -535,7 +538,7 @@ SANDBOX_EXPORT bpf_dsl::ResultExpr RestrictSockSendFlags(int sysno) {
        break;
  #endif
  #if defined(__i386__) || defined(__x86_64__) || defined(__arm__) || \
@@ -275,7 +275,7 @@ index 303c8e1d26f32..62a66470983e6 100644
        argIndex = 3;
        break;
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
-index 10e64a2c07fbe..ddfd6a7c34465 100644
+index d1367dfc30a5a..1c694afaf89ab 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
 @@ -7,6 +7,7 @@
@@ -284,8 +284,8 @@ index 10e64a2c07fbe..ddfd6a7c34465 100644
  #include <linux/elf.h>
 +#include <asm/ptrace.h>
  #include <sched.h>
+ #include <sys/mman.h>
  #include <sys/prctl.h>
- #include <sys/ptrace.h>
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
 index f3b9561aaf601..15a1d69d15b52 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
@@ -862,10 +862,10 @@ index 3aae8cbced775..74977adb53caf 100644
    unsigned long st_dev;
    unsigned long st_ino;
 diff --git a/sandbox/linux/system_headers/linux_syscalls.h b/sandbox/linux/system_headers/linux_syscalls.h
-index 438147b4018b6..d6de8c1cb2340 100644
+index 450fe3b5427a6..d460cb7e7f1db 100644
 --- a/sandbox/linux/system_headers/linux_syscalls.h
 +++ b/sandbox/linux/system_headers/linux_syscalls.h
-@@ -35,5 +35,9 @@
+@@ -44,4 +44,8 @@
  #include "sandbox/linux/system_headers/arm64_linux_syscalls.h"
  #endif
  
@@ -874,7 +874,6 @@ index 438147b4018b6..d6de8c1cb2340 100644
 +#endif
 +
  #endif  // SANDBOX_LINUX_SYSTEM_HEADERS_LINUX_SYSCALLS_H_
- 
 diff --git a/sandbox/linux/system_headers/riscv64_linux_syscalls.h b/sandbox/linux/system_headers/riscv64_linux_syscalls.h
 new file mode 100644
 index 0000000000000..93460d7a50a1e
@@ -2198,7 +2197,7 @@ index 1ea2f0f6bee56..7d3290a61d2e7 100644
      case __NR_stat:
  #endif
 diff --git a/sandbox/policy/linux/bpf_gpu_policy_linux.cc b/sandbox/policy/linux/bpf_gpu_policy_linux.cc
-index 1ea6c9843b795..073400d597447 100644
+index 41cf2e902e141..a84e6089c3a0c 100644
 --- a/sandbox/policy/linux/bpf_gpu_policy_linux.cc
 +++ b/sandbox/policy/linux/bpf_gpu_policy_linux.cc
 @@ -73,7 +73,7 @@ ResultExpr GpuProcessPolicy::EvaluateSyscall(int sysno) const {
@@ -2276,5 +2275,5 @@ index e299ce998b9bd..ed1106898ec33 100644
  #endif
  #if defined(__i386__) || defined(__arm__)
 -- 
-2.39.5
+2.51.2
 

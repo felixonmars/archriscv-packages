@@ -1,7 +1,7 @@
 --- PKGBUILD
 +++ PKGBUILD
 @@ -8,7 +8,7 @@ pkgname=chromium
- pkgver=141.0.7390.122
+ pkgver=142.0.7444.59
  pkgrel=1
  _launcher_ver=8
 -_manual_clone=1
@@ -12,18 +12,18 @@
 @@ -19,7 +19,7 @@ depends=('gtk3' 'nss' 'alsa-lib' 'xdg-utils' 'libxss' 'libcups' 'libgcrypt'
           'libffi' 'desktop-file-utils' 'hicolor-icon-theme')
  makedepends=('python' 'gn' 'ninja' 'clang' 'lld' 'gperf' 'nodejs' 'pipewire'
-              'rust' 'rust-bindgen' 'qt6-base' 'java-runtime-headless'
+              'rustup' 'rust-bindgen' 'qt6-base' 'java-runtime-headless'
 -             'git' 'compiler-rt')
 +             'git' 'compiler-rt' 'jq' 'npm' 'rsync')
  optdepends=('pipewire: WebRTC desktop sharing under Wayland'
              'kdialog: support for native dialogs in Plasma'
              'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -35,14 +35,19 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
+@@ -35,14 +35,18 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
          increase-fortify-level.patch
          use-oauth2-client-switches-as-default.patch
          chromium-141-cssstylesheet-iwyu.patch)
 -sha256sums=('720a1196410080056cd97a1f5ec34d68ba216a281d9b5157b7ea81ea018ec661'
-+sha256sums=('77015e6ce56d456f165012e8190553b1f6f5ad03be2ad06b31797c882c2f52e0'
++sha256sums=('d8b193b8e0b75921defdf80ed80607eac386e00bc5fc5c36d5ea8a132924f080'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
              '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
              '5abc8611463b3097fc5ce58017ef918af8b70d616ad093b8b486d017d021bbdf'
@@ -33,14 +33,13 @@
 -            'de5c873564b09713b65dd9e6a0b9049d7b3cf8f881436f36e1c091824b63e876')
 +            'de5c873564b09713b65dd9e6a0b9049d7b3cf8f881436f36e1c091824b63e876'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+            '9ee0b8af0d420192fa8c9577dd270fe4abf1c95313d6744cbfefec47ae6628ef'
-+            '20d1674502309a1aa1edec44a7f47d13e89d95211e1749bc1ea2939b937d63f5'
++            'cce3c212ce2ff28da276bca743316ec1bec2efe9ec3a9063c529d6110a865c45'
 +            '19edd242f82882662513ace339932ee41604eac815bbfdf93e09b43f170c5fda'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -125,6 +130,25 @@ prepare() {
+@@ -127,6 +131,24 @@ prepare() {
    # Increase _FORTIFY_SOURCE level to match Arch's default flags
    patch -Np1 -i ../increase-fortify-level.patch
  
@@ -51,8 +50,7 @@
 +  # patch -Np1 -i "${srcdir}"/0001-riscv-maglev-Add-some-peephole-optimisations.patch
 +  # popd
 +
-+  patch -Np1 -i ../riscv-sandbox-141.patch
-+  patch -Np1 -i ../riscv-dav1d.patch
++  patch -Np1 -i ../riscv-sandbox-142.patch
 +  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-140.patch
 +
 +  pushd third_party/node/
@@ -66,7 +64,7 @@
    # Fixes for building with libstdc++ instead of libc++
  
    # Link to system tools required by the build
-@@ -143,6 +167,25 @@ prepare() {
+@@ -145,6 +167,25 @@ prepare() {
      ./tools/clang/scripts/update.py
    fi
  
@@ -92,7 +90,7 @@
    # Remove bundled libraries for which we will use the system copies; this
    # *should* do what the remove_bundled_libraries.py script does, with the
    # added benefit of not having to list all the remaining libraries
-@@ -198,6 +241,7 @@ build() {
+@@ -205,6 +246,7 @@ build() {
      'enable_widevine=true'
      'use_qt5=false'
      'use_qt6=true'
@@ -100,7 +98,7 @@
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
      'use_clang_modules=false'
-@@ -256,6 +300,11 @@ build() {
+@@ -263,6 +305,11 @@ build() {
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
  
@@ -112,14 +110,13 @@
    gn gen out/Release --args="${_flags[*]}"
    ninja -C out/Release chrome chrome_sandbox chromedriver.unstripped
  }
-@@ -331,4 +380,12 @@ package() {
+@@ -338,4 +385,11 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/ec86252/patches/'
 +source+=(swiftshader-use-llvm16.patch
-+         riscv-dav1d.patch
-+         riscv-sandbox-141.patch
++         riscv-sandbox-142.patch
 +         riscv-ffmpeg-140.patch::${_riscv_fork_patches}/ffmpeg/0001-Manually-copy-configs-for-riscv64-linux.patch
 +         #${_riscv_fork_patches}/v8/0001-riscv-maglev-Add-some-peephole-optimisations.patch
 +         Debian-fix-rust-linking.patch)
