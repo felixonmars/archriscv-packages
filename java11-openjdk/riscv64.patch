@@ -1,25 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,6 +41,7 @@ sha256sums=('c24c8708244e78c4418ff8680ae2122b1b7ff9bc4d0bf3187d3579ba84c1b29d'
- case "${CARCH}" in
+@@ -70,6 +70,7 @@ case "${CARCH}" in
    x86_64) _JARCH='x86_64';;
    i686)   _JARCH='x86';;
+   aarch64)_JARCH='aarch64';;
 +  riscv64)_JARCH='riscv64';;
  esac
  
  _jvmdir=/usr/lib/jvm/java-${_majorver}-openjdk
-@@ -52,6 +53,15 @@ _nonheadless=(lib/libawt_xawt.so
-               lib/libjsound.so
-               lib/libsplashscreen.so)
+@@ -101,8 +102,14 @@ _commondeps=(
+ 
+ prepare() {
+   patch -Np1 -i ../0001-java11-Build-failure-with-glibc-2.42-due-to-uabs-na.patch -d ${_jdkdir}
++  cd "$srcdir/$_jdkdir"
++  patch -Np1 -i "$srcdir"/java11-riscv64.patch
+ }
  
 +# see https://build.opensuse.org/package/show/home:Andreas_Schwab:riscv:java/java-11-openjdk
 +source+=(java11-riscv64.patch)
 +sha256sums+=('862b3b865da51a210d0d1c83be7912e23246c99397b27ea312566be35f510499')
-+
-+prepare() {
-+  cd "$srcdir/$_jdkdir"
-+  patch -Np1 -i "$srcdir"/java11-riscv64.patch
-+}
 +
  build() {
    cd ${_jdkdir}
