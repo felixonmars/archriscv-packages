@@ -1,25 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,6 +41,7 @@ b2sums=('78fdd9d59d9f9f5bf3d65901fa8cf44d42ffedf3bd48552575febeb3a35d24567b209e2
- case "${CARCH}" in
-   'x86_64') _JARCH=amd64 ; _DOC_ARCH=x86_64 ;;
-   'i686'  ) _JARCH=i386  ; _DOC_ARCH=x86    ;;
-+  'riscv64')_JARCH=riscv64;_DOC_ARCH=riscv64;;
+@@ -49,6 +49,7 @@ case "${CARCH}" in
+   'x86_64'  ) _JARCH=amd64   ; _DOC_ARCH=x86_64  ;;
+   'i686'    ) _JARCH=i386    ; _DOC_ARCH=x86     ;;
+   'aarch64' ) _JARCH=aarch64 ; _DOC_ARCH=aarch64 ;;
++  'riscv64' ) _JARCH=riscv64 ; _DOC_ARCH=riscv64 ;;
  esac
  
  _jdkname=openjdk8
-@@ -57,6 +58,10 @@ prepare() {
+@@ -65,6 +66,10 @@ _nonheadless=(
+ prepare() {
+   cd jdk8u-jdk${_majorver}u${_minorver}-b${_updatever}
  
-   # Fix build with C++17 (Fedora)
-   patch -Np1 -i "${srcdir}"/gcc11.patch
-+
 +  # RISC-V Support
 +  patch -Np2 -i "${srcdir}"/jdk8-riscv.patch
 +  (cd common/autoconf && bash ./autogen.sh)
- }
- 
- build() {
-@@ -83,7 +88,9 @@ build() {
++
+   # Do not treats warnings as errors
+   sed -E -i 's/(^WARNINGS_ARE_ERRORS = -W)(error)/\1no-\2/' \
+     hotspot/make/linux/makefiles/gcc.make
+@@ -121,7 +126,9 @@ build() {
      --with-extra-cflags="${CFLAGS}" \
      --with-extra-cxxflags="${CXXFLAGS}" \
      --with-extra-ldflags="${LDFLAGS}" \
@@ -30,7 +30,7 @@
  
    # These help to debug builds: LOG=trace HOTSPOT_BUILD_JOBS=1
    # Without 'DEBUG_BINARIES', i686 won't build: http://mail.openjdk.java.net/pipermail/core-libs-dev/2013-July/019203.html
-@@ -279,8 +286,11 @@ package_openjdk8-doc() {
+@@ -347,8 +354,11 @@ package_openjdk8-doc() {
    pkgdesc='OpenJDK Java 8 documentation'
  
    install -d -m 755 "${pkgdir}/usr/share/doc/${pkgbase}/"
