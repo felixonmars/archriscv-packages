@@ -1,30 +1,59 @@
-diff --git a/GPL/nativeBuildProperties.gradle b/GPL/nativeBuildProperties.gradle
-index 5e9c33f4e..cfad0b1d2 100644
---- a/GPL/nativeBuildProperties.gradle
-+++ b/GPL/nativeBuildProperties.gradle
-@@ -43,6 +43,9 @@ model {
- 				if (isCurrentArm_64()) {
- 					target("linux_arm_64")
- 				}
-+				if (isCurrentRiscv_64()) {
-+					target("linux_riscv_64")
-+				}
- 			}
- 		}
- 		if (isCurrentMac()) {
-diff --git a/GPL/nativePlatforms.gradle b/GPL/nativePlatforms.gradle
-index a75cf48a5..09b817dde 100644
---- a/GPL/nativePlatforms.gradle
-+++ b/GPL/nativePlatforms.gradle
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/GPL/DemanglerGnu/build.gradle b/ghidra-Ghidra_11.4.2_build/GPL/DemanglerGnu/build.gradle
+index 4b079cc..c493cb1 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/GPL/DemanglerGnu/build.gradle
++++ b/ghidra-Ghidra_11.4.2_build/GPL/DemanglerGnu/build.gradle
+@@ -79,6 +79,7 @@ model {
+ 			targetPlatform "win_x86_64"
+ 			targetPlatform "linux_x86_64"
+ 			targetPlatform "linux_arm_64"
++			targetPlatform "linux_riscv_64"
+ 			targetPlatform "mac_x86_64"
+ 			targetPlatform "mac_arm_64"
+ 			targetPlatform "freebsd_x86_64"
+@@ -102,6 +103,7 @@ model {
+ 			targetPlatform "win_x86_64"
+ 			targetPlatform "linux_x86_64"
+ 			targetPlatform "linux_arm_64"
++			targetPlatform "linux_riscv_64"
+ 			targetPlatform "mac_x86_64"
+ 			targetPlatform "mac_arm_64"
+ 			targetPlatform "freebsd_x86_64"
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/GPL/GnuDisassembler/buildGdis.gradle b/ghidra-Ghidra_11.4.2_build/GPL/GnuDisassembler/buildGdis.gradle
+index a3e601e..222865b 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/GPL/GnuDisassembler/buildGdis.gradle
++++ b/ghidra-Ghidra_11.4.2_build/GPL/GnuDisassembler/buildGdis.gradle
+@@ -4,7 +4,7 @@
+ 
+ defaultTasks 'assemble'
+ 
+-ext.supportedPlatforms = ['mac_x86_64', 'mac_arm_64', 'linux_x86_64', 'linux_arm_64']
++ext.supportedPlatforms = ['mac_x86_64', 'mac_arm_64', 'linux_x86_64', 'linux_arm_64', 'linux_riscv_64']
+ 
+ ext.binutilsResource = new File("${binutilsLocation}/${binutils}.tar.bz2")
+ 
+@@ -57,6 +57,9 @@ model {
+ 	tasks.compileGdisLinux_arm_64ExecutableGdisC {
+ 		dependsOn 'copyBinutilsArtifcats_linux_arm_64'
+ 	}
++	tasks.compileGdisLinux_riscv_64ExecutableGdisC {
++		dependsOn 'copyBinutilsArtifcats_linux_riscv_64'
++	}
+ 	
+ }
+ 
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/GPL/nativePlatforms.gradle b/ghidra-Ghidra_11.4.2_build/GPL/nativePlatforms.gradle
+index 0a2c02a..122604f 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/GPL/nativePlatforms.gradle
++++ b/ghidra-Ghidra_11.4.2_build/GPL/nativePlatforms.gradle
 @@ -23,6 +23,7 @@ project.ext.PLATFORMS = [
  	[name: "win_x86_64", os: "windows", arch: "x86_64"],
  	[name: "linux_x86_64", os: "linux", arch: "x86_64"],
  	[name: "linux_arm_64", os: "linux", arch: "arm64"],
 +	[name: "linux_riscv_64", os: "linux", arch: "riscv64"],
  	[name: "mac_x86_64", os: "osx", arch: "x86_64"],
- 	[name: "mac_arm_64", os: "osx", arch: "arm64"]
- ]
-@@ -71,6 +72,9 @@ ext.getCurrentPlatformName = {
+ 	[name: "mac_arm_64", os: "osx", arch: "arm64"],
+ 	[name: "freebsd_x86_64", os: "freebsd", arch: "x86_64"],
+@@ -76,6 +77,9 @@ ext.getCurrentPlatformName = {
  		case "arm64":
  			arch = "arm_64"
  			break
@@ -34,7 +63,7 @@ index a75cf48a5..09b817dde 100644
  		default:
  			throw new GradleException("Unrecognized platform architecture: $arch" )
  	}
-@@ -152,6 +156,14 @@ ext.isCurrentArm_64 = {
+@@ -171,6 +175,14 @@ ext.isCurrentArm_64 = {
  	return isArm_64(getCurrentPlatformName())
  }
  
@@ -49,18 +78,18 @@ index a75cf48a5..09b817dde 100644
  /****************************************************************************
   * Establish Visual Studio configuration environment for Windows native builds
   * NOTE: vsconfig.gradle path is relative to each GPL project module
-diff --git a/Ghidra/Debug/Debugger-rmi-trace/build.gradle b/Ghidra/Debug/Debugger-rmi-trace/build.gradle
-index 40fbc17ab..c10fec6eb 100644
---- a/Ghidra/Debug/Debugger-rmi-trace/build.gradle
-+++ b/Ghidra/Debug/Debugger-rmi-trace/build.gradle
-@@ -46,9 +46,14 @@ task generateProtoPy {
- 	inputs.files(src)
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Debug/Debugger-rmi-trace/build.gradle b/ghidra-Ghidra_11.4.2_build/Ghidra/Debug/Debugger-rmi-trace/build.gradle
+index 4fa3b9a..5a8889f 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Debug/Debugger-rmi-trace/build.gradle
++++ b/ghidra-Ghidra_11.4.2_build/Ghidra/Debug/Debugger-rmi-trace/build.gradle
+@@ -40,10 +40,16 @@ task configureGenerateProtoPy {
  	dependsOn(configurations.protocArtifact)
+ 
  	doLast {
 -		def exe = configurations.protocArtifact.first()
 -		if (!isCurrentWindows()) {
 -			exe.setExecutable(true)
-+		def exe
++ 		def exe
 +		if (isCurrentRiscv_64()) {
 +			exe = System.env.PROTOBUF_DESTDIR + "/usr/local/bin/protoc"
 +		} else {
@@ -69,13 +98,80 @@ index 40fbc17ab..c10fec6eb 100644
 +				exe.setExecutable(true)
 +			}
  		}
- 		exec {
- 			commandLine exe, "--python_out=$outdir", "-I$srcdir"
-diff --git a/gradle/debugger/hasProtobuf.gradle b/gradle/debugger/hasProtobuf.gradle
-index 23b4ce74b..24adc50d7 100644
---- a/gradle/debugger/hasProtobuf.gradle
-+++ b/gradle/debugger/hasProtobuf.gradle
-@@ -26,31 +26,34 @@ def platform = getCurrentPlatformName()
++
+ 		generateProtoPy.commandLine exe
+ 		generateProtoPy.args "--python_out=${generateProtoPy.outdir}"
+ 		generateProtoPy.args "--pyi_out=${generateProtoPy.stubsOutdir}"
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Features/BSim/support/make-postgres.sh b/ghidra-Ghidra_11.4.2_build/Ghidra/Features/BSim/support/make-postgres.sh
+index a2ab060..affe8f0 100755
+--- a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Features/BSim/support/make-postgres.sh
++++ b/ghidra-Ghidra_11.4.2_build/Ghidra/Features/BSim/support/make-postgres.sh
+@@ -98,6 +98,8 @@ elif [ "$ARCH" = "x86_64" ]; then
+ 	OSDIR="linux_x86_64"
+ elif [ "$ARCH" = "aarch64" ]; then
+ 	OSDIR="linux_arm_64"
++elif [ "$ARCH" = "riscv64" ]; then
++	OSDIR="linux_riscv_64"
+ else
+ 	echo "Unsupported platform: $OS $ARCH"
+ 	exit -1	
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Features/Decompiler/buildNatives.gradle b/ghidra-Ghidra_11.4.2_build/Ghidra/Features/Decompiler/buildNatives.gradle
+index 812a2d1..769b387 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Features/Decompiler/buildNatives.gradle
++++ b/ghidra-Ghidra_11.4.2_build/Ghidra/Features/Decompiler/buildNatives.gradle
+@@ -40,6 +40,7 @@ model {
+ 			targetPlatform "win_x86_64"
+ 			targetPlatform "linux_x86_64"
+ 			targetPlatform "linux_arm_64"
++			targetPlatform "linux_riscv_64"
+ 			targetPlatform "mac_x86_64"
+ 			targetPlatform "mac_arm_64"
+ 			targetPlatform "freebsd_x86_64"
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Features/FileFormats/buildNatives.gradle b/ghidra-Ghidra_11.4.2_build/Ghidra/Features/FileFormats/buildNatives.gradle
+index 37bba0f..39e107e 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Features/FileFormats/buildNatives.gradle
++++ b/ghidra-Ghidra_11.4.2_build/Ghidra/Features/FileFormats/buildNatives.gradle
+@@ -31,6 +31,7 @@ model {
+ 			targetPlatform "win_x86_64"
+ 			targetPlatform "linux_x86_64"
+ 			targetPlatform "linux_arm_64"
++			targetPlatform "linux_riscv_64"
+ 			targetPlatform "mac_x86_64"
+ 			targetPlatform "mac_arm_64"
+ 			targetPlatform "freebsd_x86_64"
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Architecture.java b/ghidra-Ghidra_11.4.2_build/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Architecture.java
+index 1b0c7c3..4090323 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Architecture.java
++++ b/ghidra-Ghidra_11.4.2_build/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Architecture.java
+@@ -21,6 +21,7 @@ public enum Architecture {
+ 	POWERPC("ppc"),
+ 	POWERPC_64("ppc64"),
+ 	ARM_64("aarch64", "arm64"),
++	RISCV_64("riscv64"),
+ 	UNKNOWN("Unknown Architecture");
+ 
+ 	/**
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Platform.java b/ghidra-Ghidra_11.4.2_build/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Platform.java
+index 06e37c2..07c77eb 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Platform.java
++++ b/ghidra-Ghidra_11.4.2_build/Ghidra/Framework/Generic/src/main/java/ghidra/framework/Platform.java
+@@ -55,6 +55,11 @@ public enum Platform {
+ 	 */
+ 	LINUX_ARM_64(OperatingSystem.LINUX, Architecture.ARM_64, "linux_arm_64", ".so", ""),
+ 
++	/**
++	 * Identifies a Linux RISC-V 64-bit OS.
++	 */
++	LINUX_RISCV_64(OperatingSystem.LINUX, Architecture.RISCV_64, "linux_riscv_64", ".so", ""),
++
+ 	/**
+ 	 * Identifies a macOS x86 32-bit OS.
+ 	 */
+diff --git a/ghidra-Ghidra_11.4.2_build.orig/gradle/hasProtobuf.gradle b/ghidra-Ghidra_11.4.2_build/gradle/hasProtobuf.gradle
+index a8c176b..e2ee03a 100644
+--- a/ghidra-Ghidra_11.4.2_build.orig/gradle/hasProtobuf.gradle
++++ b/ghidra-Ghidra_11.4.2_build/gradle/hasProtobuf.gradle
+@@ -26,29 +26,31 @@ def platform = getCurrentPlatformName()
  
  
  dependencies {
@@ -126,13 +222,10 @@ index 23b4ce74b..24adc50d7 100644
 +			}
  		}
  	}
-+
  }
- 
- /*protobuf {
-@@ -69,9 +72,14 @@ task generateProto {
- 	inputs.files(src)
+@@ -63,9 +65,14 @@ task configureGenerateProto {
  	dependsOn(configurations.protocArtifact)
+ 
  	doLast {
 -		def exe = configurations.protocArtifact.first()
 -		if (!isCurrentWindows()) {
@@ -146,5 +239,5 @@ index 23b4ce74b..24adc50d7 100644
 +				exe.setExecutable(true)
 +			}
  		}
- 		exec {
- 			commandLine exe, "--java_out=$outdir", "-I$srcdir"
+ 		generateProto.commandLine exe, "--java_out=${generateProto.outdir}", "-I${generateProto.srcdir}"
+ 		generateProto.args generateProto.src
