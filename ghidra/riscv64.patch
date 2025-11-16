@@ -1,7 +1,7 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -33,6 +33,12 @@ sha512sums=('4805c0508c2781f3b05697aa7930b044241d749341b2ba5087d50ff0839d08052c8
-             '04d1f895f87a8f0a653ee5c2b18ed0b6d158f1b7de4e16de2e50ed5a3087b1e83ca01f6c4c8c53d1788942e29d2f41528c910f224c41e27098cb5c2838a8ddf3')
+@@ -67,6 +67,12 @@ sha512sums=('c7a5fb9eae00418f2efcd03c43640e061750ee3324fc247299531670ebb54474719
+             '8ab5e9bc4feef2fac1c9044dc8a6f2d41aaf9fe2dae671de8b98c0b1a19dca2169588b87d85a8c990d808b1e76faee65984ce970eaa3282b75e107ca82cc2863')
  
  prepare() {
 +  # prepare for protobuf
@@ -10,15 +10,19 @@
 +  ./configure --disable-shared
 +  cd ..
 +
-   export PATH="/usr/lib/jvm/java-17-openjdk/bin:${PATH}"
    cd ghidra-Ghidra_${pkgver}_build
  
-@@ -50,14 +56,24 @@ prepare() {
+   # Check dependency expectations
+@@ -98,6 +104,8 @@ prepare() {
  
    # Ignore lack of licensing for YAJSW zip, packed FID datasets, and the native binaries
    sed -i '/FileTree tree/a\\t\texclude "yajsw-stable-**.zip"\n\t\texclude "src/main/fidb/**.fidb"\n\t\texclude "os/linux64/**"' gradle/support/ip.gradle
 +
-+  patch -Np1 -i ../add-riscv64-build.patch
++  patch -Np2 -i ../add-riscv64-build.patch
+ }
+ 
+ _check_dep() {
+@@ -109,6 +117,14 @@ _check_dep() {
  }
  
  build() {
@@ -30,33 +34,36 @@
 +  make DESTDIR=${PROTOBUF_DESTDIR} install
 +  cd ..
 +
-   export GRADLE_HOME="$(pwd)/usr/share/java/gradle/"
-   export PATH="$(pwd)/usr/share/java/gradle/bin/:${PATH}"
    cd ghidra-Ghidra_${pkgver}_build
+ 
+   export GRADLE_HOME="$(pwd)/usr/share/java/gradle/"
+@@ -124,7 +140,7 @@ build() {
+ 
+   # Ghidra build
    gradle yajswDevUnpack
 -  gradle buildNatives_linux_x86_64
 +  gradle buildNatives_linux_riscv_64
    gradle sleighCompile
    gradle buildGhidra
  }
-@@ -69,7 +85,7 @@ package() {
+@@ -150,7 +166,7 @@ package() {
    install -d "${pkgdir}"/{opt,usr/bin}
    _appver=$(grep -oP '(?<=^application.version=).*$' Ghidra/application.properties)
    _relname=$(grep -oP '(?<=^application.release.name=).*$' Ghidra/application.properties)
--  unzip -u "build/dist/ghidra_${_appver}_${_relname}"_*_linux_x86_64.zip -d "${pkgdir}"/opt
-+  unzip -u "build/dist/ghidra_${_appver}_${_relname}"_*_linux_riscv_64.zip -d "${pkgdir}"/opt
+-  bsdtar xf "build/dist/ghidra_${_appver}_${_relname}"_*_linux_x86_64.zip -C "${pkgdir}"/opt
++  bsdtar xf "build/dist/ghidra_${_appver}_${_relname}"_*_linux_riscv_64.zip -C "${pkgdir}"/opt
  
    # Simplify some directory and binary names
    mv "${pkgdir}"/opt/ghidra{_*,}
-@@ -77,4 +93,11 @@ package() {
+@@ -159,4 +175,11 @@ package() {
    ln -s /opt/ghidra/support/analyzeHeadless "${pkgdir}"/usr/bin/ghidra-analyzeHeadless
  }
  
-+_protobuf=21.8
-+_protobuf_cpp=3.$_protobuf
-+source+=(https://github.com/protocolbuffers/protobuf/releases/download/v${_protobuf}/protobuf-cpp-${_protobuf_cpp}.tar.gz
++_protobuf_ver=21.8
++_protobuf_cpp=3.$_protobuf_ver
++source+=(https://github.com/protocolbuffers/protobuf/releases/download/v${_protobuf_ver}/protobuf-cpp-${_protobuf_cpp}.tar.gz
 +         add-riscv64-build.patch)
 +sha512sums+=('ef4939dcd7d10a602f95cb8d6fdb5d31c53bd39f18678572f97d443be01093e05a69b6756e8431a27200ad30decf2a007274a5b90ecaecbb5d8e341008bba175'
-+             '751949a79d9f06263b7cc33a8c6a280d7bafa8e279f2687d4ac2eabcebc1463618dec576f428b7d5bf9af67265453afd78df72c9ca4647e8ad3921a77230ee85')
++             'fb028085e9d66c12df9a24e6ed3e03bb6cbde687e351a3b3136ccb5336cb6d427e0e88da2c08fd5ccd1ce9b6350b05f4f7cdd412ba4867538e22a05441bbd1b5')
 +
  # vim: ts=2 sw=2 et:
