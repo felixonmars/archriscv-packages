@@ -1,7 +1,7 @@
 --- PKGBUILD
 +++ PKGBUILD
 @@ -8,7 +8,7 @@ pkgname=chromium
- pkgver=142.0.7444.162
+ pkgver=142.0.7444.175
  pkgrel=1
  _launcher_ver=8
 -_manual_clone=1
@@ -23,7 +23,7 @@
          use-oauth2-client-switches-as-default.patch
          chromium-141-cssstylesheet-iwyu.patch)
 -sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-+sha256sums=('f9a082252754c38550b4b9b9b3daab4a3479ba1855e2fac5a4f2189fae89bc3e'
++sha256sums=('619b37ab0273f72fac859fff8dd89fbf1b7ae7e7ccb8d67bc79281b24f683bc9'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
              '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
              '5abc8611463b3097fc5ce58017ef918af8b70d616ad093b8b486d017d021bbdf'
@@ -98,19 +98,6 @@
      'moc_qt6_path="/usr/lib/qt6"'
      "google_api_key=\"$_google_api_key\""
      'use_clang_modules=false'
-@@ -261,9 +303,9 @@ build() {
-   # https://crbug.com/957519#c122
-   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
- 
--  if [[ $CARCH == aarch64 ]]; then
--    # On aarch64, certain files (e.g. in libvpx and libyuv) needs to be compiled
--    # with additional arch features (e.g. dotprod, sve, sme)
-+  if [[ $CARCH == aarch64 ]] || [[ $CARCH == riscv64 ]]; then
-+    # On aarch64 and riscv64, certain files (e.g. in libvpx and libyuv) needs to
-+    # be compiled with additional arch features (e.g. dotprod, sve, sme, rvv)
-     # Having an arch setting in the C(XX)FLAGS overrides those
-     # and causes compilation failure
-     CFLAGS="${CFLAGS/-march=*([^ ]) }"
 @@ -345,4 +387,11 @@ package() {
    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
