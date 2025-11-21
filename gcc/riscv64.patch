@@ -25,20 +25,7 @@
  prepare() {
    [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
    cd gcc
-@@ -68,6 +71,12 @@ prepare() {
-   # Reproducible gcc-ada
-   patch -Np0 < "$srcdir/gcc-ada-repro.patch"
- 
-+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=121534
-+  git cherry-pick -n f12a272169523823ff27d69f187f73c4211222ae
-+  git cherry-pick -n 60c6f92fb192352d784ab3153a9e11c19a3216a0
-+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110812
-+  git cherry-pick -n 0efe904de8ce64e57db4c51e721f798ec3225b02
-+
-   mkdir -p "$srcdir/gcc-build"
-   mkdir -p "$srcdir/libgccjit-build"
- }
-@@ -79,7 +88,7 @@ build() {
+@@ -79,7 +82,7 @@ build() {
        --libexecdir=/usr/lib
        --mandir=/usr/share/man
        --infodir=/usr/share/info
@@ -47,7 +34,7 @@
        --with-build-config=bootstrap-lto
        --with-linker-hash-style=gnu
        --with-system-zlib
-@@ -95,7 +104,7 @@ build() {
+@@ -95,7 +98,7 @@ build() {
        --enable-link-serialization=1
        --enable-linker-build-id
        --enable-lto
@@ -56,7 +43,7 @@
        --enable-plugin
        --enable-shared
        --enable-threads=posix
-@@ -113,7 +122,7 @@ build() {
+@@ -113,7 +116,7 @@ build() {
    CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
  
    "$srcdir/gcc/configure" \
@@ -65,7 +52,7 @@
      --enable-bootstrap \
      "${_confflags[@]:?_confflags unset}"
  
-@@ -161,9 +170,9 @@ check() {
+@@ -161,9 +164,9 @@ check() {
  package_gcc-libs() {
    pkgdesc='Runtime libraries shipped by GCC'
    depends=('glibc>=2.27')
@@ -77,7 +64,7 @@
    replaces=($pkgname-multilib libgphobos)
  
    cd gcc-build
-@@ -176,9 +185,8 @@ package_gcc-libs() {
+@@ -176,9 +179,8 @@ package_gcc-libs() {
               libgomp \
               libitm \
               libquadmath \
@@ -89,7 +76,7 @@
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
    done
  
-@@ -195,18 +203,17 @@ package_gcc-libs() {
+@@ -195,18 +197,17 @@ package_gcc-libs() {
      make -C $CHOST/$lib DESTDIR="$pkgdir" install-info
    done
  
@@ -111,7 +98,7 @@
    provides=($pkgname-multilib)
    replaces=($pkgname-multilib)
    options=(!emptydirs staticlibs)
-@@ -220,22 +227,18 @@ package_gcc() {
+@@ -220,25 +221,20 @@ package_gcc() {
    install -m755 -t "$pkgdir/${_libdir}/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -123,20 +110,24 @@
    make -C $CHOST/libstdc++-v3/include DESTDIR="$pkgdir" install
    make -C $CHOST/libstdc++-v3/libsupc++ DESTDIR="$pkgdir" install
    make -C $CHOST/libstdc++-v3/python DESTDIR="$pkgdir" install
+   make -C $CHOST/libatomic DESTDIR="$pkgdir" install
 -  make -C $CHOST/32/libstdc++-v3/src DESTDIR="$pkgdir" install
 -  make -C $CHOST/32/libstdc++-v3/include DESTDIR="$pkgdir" install
 -  make -C $CHOST/32/libstdc++-v3/libsupc++ DESTDIR="$pkgdir" install
+-  make -C $CHOST/32/libatomic DESTDIR="$pkgdir" install
  
    make DESTDIR="$pkgdir" install-libcc1
    install -d "$pkgdir/usr/share/gdb/auto-load/usr/lib"
    mv "$pkgdir"/usr/lib/libstdc++.so.6.*-gdb.py \
      "$pkgdir/usr/share/gdb/auto-load/usr/lib/"
 -  rm "$pkgdir"/usr/lib{,32}/libstdc++.so*
+-  rm "$pkgdir"/usr/lib{,32}/libatomic.so*
 +  rm "$pkgdir"/usr/lib/libstdc++.so*
++  rm "$pkgdir"/usr/lib/libatomic.so*
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -250,17 +253,12 @@ package_gcc() {
+@@ -253,17 +249,12 @@ package_gcc() {
    make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
    make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
    make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
@@ -155,7 +146,7 @@
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -271,7 +269,7 @@ package_gcc() {
+@@ -274,7 +265,7 @@ package_gcc() {
    # create cc-rs compatible symlinks
    # https://github.com/rust-lang/cc-rs/blob/1.0.73/src/lib.rs#L2578-L2581
    for binary in {c++,g++,gcc,gcc-ar,gcc-nm,gcc-ranlib}; do
@@ -164,7 +155,7 @@
    done
  
    # POSIX conformance launcher scripts for c89 and c99
-@@ -281,9 +279,6 @@ package_gcc() {
+@@ -284,9 +275,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -174,7 +165,7 @@
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -303,8 +298,6 @@ package_gcc-fortran() {
+@@ -306,8 +294,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -183,7 +174,7 @@
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/${_libdir}/f951"
-@@ -382,7 +375,6 @@ package_gcc-go() {
+@@ -385,7 +371,6 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
