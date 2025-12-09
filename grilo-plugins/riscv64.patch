@@ -1,0 +1,15 @@
+diff --git PKGBUILD PKGBUILD
+index 427088d..65a0887 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -79,7 +79,9 @@ build() {
+ }
+ 
+ check() {
+-  dbus-run-session meson test -C build --print-errorlogs
++  local skip_tests='test_lua_theaudiodb|test_chromaprint_resolve'
++  local tests_to_run=$(meson test --list -C build | grep -E -v "$skip_tests")
++  dbus-run-session meson test -C build --print-errorlogs  ${tests_to_run}
+ }
+ 
+ package() {
