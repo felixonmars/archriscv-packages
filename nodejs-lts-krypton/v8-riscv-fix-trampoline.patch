@@ -1,0 +1,167 @@
+From fcf3c056959c4fa5ad477d253db926796614225d Mon Sep 17 00:00:00 2001
+From: Lu Yahan <yahan@iscas.ac.cn>
+Date: Tue, 10 Jun 2025 15:41:56 +0800
+Subject: [PATCH] deps: V8: backport bbaae8e36164
+
+Original commit message:
+
+    Reland "[riscv] Fix Check failed in bind_to"
+
+    This is a reland of commit fdb5de2c741658e94944f2ec1218530e98601c23
+
+    Original change's description:
+    > [riscv] Fix Check failed in bind_to
+    >
+    > The trampoline should be emitted before the constant pool.
+    >
+    > Bug: 420232092
+    >
+    > Change-Id: I3a909b122607e37aca9d8765f28810ec74d5dc0b
+    > Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/6578135
+    > Auto-Submit: Yahan Lu (LuYahan) <yahan@iscas.ac.cn>
+    > Reviewed-by: Ji Qiu <qiuji@iscas.ac.cn>
+    > Commit-Queue: Ji Qiu <qiuji@iscas.ac.cn>
+    > Cr-Commit-Position: refs/heads/main@{#100480}
+
+    Bug: 420232092
+    Change-Id: I1fac1ed8c349383ef4510abea338b3d695ed57ab
+    Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/6595668
+    Commit-Queue: Ji Qiu <qiuji@iscas.ac.cn>
+    Reviewed-by: Ji Qiu <qiuji@iscas.ac.cn>
+    Cr-Commit-Position: refs/heads/main@{#100745}
+
+Refs: https://github.com/v8/v8/commit/bbaae8e36164b02b678966c7612bf3d23644b22c
+Co-authored-by: kxxt <rsworktech@outlook.com>
+---
+ common.gypi                                      |  2 +-
+ deps/v8/src/codegen/riscv/assembler-riscv.cc     |  4 ++--
+ deps/v8/src/codegen/riscv/assembler-riscv.h      | 15 +++++++++++++--
+ .../src/codegen/riscv/macro-assembler-riscv.cc   | 16 ++++++++++++----
+ 4 files changed, 28 insertions(+), 9 deletions(-)
+
+diff --git a/deps/v8/src/codegen/riscv/assembler-riscv.cc b/deps/v8/src/codegen/riscv/assembler-riscv.cc
+index a9093ed331..6cc3724b25 100644
+--- a/deps/v8/src/codegen/riscv/assembler-riscv.cc
++++ b/deps/v8/src/codegen/riscv/assembler-riscv.cc
+@@ -720,8 +720,8 @@ void Assembler::bind_to(Label* L, int pos) {
+             trampoline_pos = get_trampoline_entry(fixup_pos);
+             CHECK_NE(trampoline_pos, kInvalidSlotPos);
+           }
+-          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
+           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
++          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
+           target_at_put(fixup_pos, trampoline_pos, false);
+           fixup_pos = trampoline_pos;
+         }
+@@ -1486,6 +1486,7 @@ void Assembler::BlockTrampolinePoolFor(int instructions) {
+ }
+ 
+ void Assembler::CheckTrampolinePool() {
++  if (trampoline_emitted_) return;
+   // Some small sequences of instructions must not be broken up by the
+   // insertion of a trampoline pool; such sequences are protected by setting
+   // either trampoline_pool_blocked_nesting_ or no_trampoline_pool_before_,
+@@ -1507,7 +1508,6 @@ void Assembler::CheckTrampolinePool() {
+     return;
+   }
+ 
+-  DCHECK(!trampoline_emitted_);
+   DCHECK_GE(unbound_labels_count_, 0);
+   if (unbound_labels_count_ > 0) {
+     // First we emit jump, then we emit trampoline pool.
+diff --git a/deps/v8/src/codegen/riscv/assembler-riscv.h b/deps/v8/src/codegen/riscv/assembler-riscv.h
+index 2577e12a5d..5c408bfd2e 100644
+--- a/deps/v8/src/codegen/riscv/assembler-riscv.h
++++ b/deps/v8/src/codegen/riscv/assembler-riscv.h
+@@ -303,6 +303,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
+   // See Assembler::CheckConstPool for more info.
+   void EmitPoolGuard();
+ 
++  void FinishCode() { ForceConstantPoolEmissionWithoutJump(); }
++
+ #if defined(V8_TARGET_ARCH_RISCV64)
+   static void set_target_value_at(
+       Address pc, uint64_t target,
+@@ -617,6 +619,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
+     }
+   }
+ 
++  inline int next_buffer_check() { return next_buffer_check_; }
++
+   friend class VectorUnit;
+   class VectorUnit {
+    public:
+@@ -728,16 +732,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
+ 
+   // Block the emission of the trampoline pool before pc_offset.
+   void BlockTrampolinePoolBefore(int pc_offset) {
+-    if (no_trampoline_pool_before_ < pc_offset)
++    if (no_trampoline_pool_before_ < pc_offset) {
++      DEBUG_PRINTF("\tBlockTrampolinePoolBefore %d\n", pc_offset);
+       no_trampoline_pool_before_ = pc_offset;
++    }
+   }
+ 
+   void StartBlockTrampolinePool() {
+-    DEBUG_PRINTF("\tStartBlockTrampolinePool\n");
++    DEBUG_PRINTF("\tStartBlockTrampolinePool %d\n", pc_offset());
+     trampoline_pool_blocked_nesting_++;
+   }
+ 
+   void EndBlockTrampolinePool() {
++    DEBUG_PRINTF("\tEndBlockTrampolinePool\n");
+     trampoline_pool_blocked_nesting_--;
+     DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
+                  trampoline_pool_blocked_nesting_);
+@@ -767,6 +774,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
+ 
+   bool is_buffer_growth_blocked() const { return block_buffer_growth_; }
+ 
++  inline int ConstpoolComputesize() {
++    return constpool_.ComputeSize(Jump::kOmitted, Alignment::kOmitted);
++  }
++
+  private:
+   // Avoid overflows for displacements etc.
+   static const int kMaximalBufferSize = 512 * MB;
+diff --git a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+index 9ac7746ad1..28e648fb0c 100644
+--- a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
++++ b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+@@ -4926,11 +4926,22 @@ void MacroAssembler::LoadRootRegisterOffset(Register destination,
+ 
+ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
+                           const Operand& rt) {
+-  BlockTrampolinePoolScope block_trampoline_pool(this);
+   if (cond == cc_always) {
+     jr(target);
++    DEBUG_PRINTF("\tCheckTrampolinePool pc_offset:%d %d\n", pc_offset(),
++                 next_buffer_check() - ConstpoolComputesize());
++    if (!is_trampoline_emitted() && v8_flags.debug_code &&
++        pc_offset() >= (next_buffer_check() - ConstpoolComputesize())) {
++      // Debug mode will emit more instrs than Release mode.
++      // so we need to check trampoline pool before Constant pool.
++      // Here need to emit trampoline first.
++      // Jump(ra, al) will block trampoline pool for 1 instr.
++      nop();
++      CheckTrampolinePool();
++    }
+     ForceConstantPoolEmissionWithoutJump();
+   } else {
++    BlockTrampolinePoolScope block_trampoline_pool(this);
+     BRANCH_ARGS_CHECK(cond, rs, rt);
+     Branch(kInstrSize * 2, NegateCondition(cond), rs, rt);
+     jr(target);
+@@ -5342,9 +5353,6 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
+ 
+ void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
+   Jump(ra, cond, rs, rt);
+-  if (cond == al) {
+-    ForceConstantPoolEmissionWithoutJump();
+-  }
+ }
+ 
+ void MacroAssembler::BranchLong(Label* L) {
+-- 
+2.47.2
+
