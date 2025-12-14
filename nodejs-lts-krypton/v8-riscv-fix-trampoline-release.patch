@@ -1,0 +1,37 @@
+From 35e479a4ea840e72a286bf0519c76151b42c539e Mon Sep 17 00:00:00 2001
+From: Lu Yahan <yahan@iscas.ac.cn>
+Date: Wed, 18 Jun 2025 09:02:36 +0800
+Subject: [PATCH] deps: V8: cherry-pick 7f436a0b44a1
+
+Original commit message:
+
+    [riscv] Check trampoline before Constant pool in Release mode
+
+    Change-Id: I9645cded9328dabb2c11c7859b998c838b95f97b
+
+Refs: https://github.com/v8/v8/commit/7f436a0b44a15f2f8536e3d208d1e2f99592f803
+---
+ common.gypi                                        | 2 +-
+ deps/v8/src/codegen/riscv/macro-assembler-riscv.cc | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+index 71a1866246..04ffd05c0b 100644
+--- a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
++++ b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+@@ -4941,10 +4941,9 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
+     jr(target);
+     DEBUG_PRINTF("\tCheckTrampolinePool pc_offset:%d %d\n", pc_offset(),
+                  next_buffer_check() - ConstpoolComputesize());
+-    if (!is_trampoline_emitted() && v8_flags.debug_code &&
++    if (!is_trampoline_emitted() &&
+         pc_offset() >= (next_buffer_check() - ConstpoolComputesize())) {
+-      // Debug mode will emit more instrs than Release mode.
+-      // so we need to check trampoline pool before Constant pool.
++      // We need to check trampoline pool before Constant pool.
+       // Here need to emit trampoline first.
+       // Jump(ra, al) will block trampoline pool for 1 instr.
+       nop();
+-- 
+2.47.2
+
