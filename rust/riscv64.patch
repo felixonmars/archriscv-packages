@@ -13,7 +13,7 @@
    rust-wasm
    rust-src
  )
-@@ -40,14 +41,15 @@ depends=(
+@@ -41,14 +42,15 @@ depends=(
  makedepends=(
    aarch64-linux-gnu-gcc
    aarch64-linux-gnu-glibc
@@ -31,9 +31,9 @@
    ninja
    perl
    python
-@@ -119,6 +121,12 @@ prepare() {
-     patch -Np1 < "../$src"
-   done
+@@ -118,6 +120,12 @@ prepare() {
+   local clangdir
+   clangdir="$(clang -print-resource-dir)"
  
 +  # Force `crt_static_default = true` after upstream switched to dynamic by
 +  # default, which leads to https://github.com/rust-lang/rust/issues/82521.
@@ -44,7 +44,7 @@
    cat >bootstrap.toml <<END
  # see src/bootstrap/defaults/
  profile = "dist"
-@@ -133,8 +141,9 @@ link-shared = true
+@@ -132,8 +140,9 @@ link-shared = true
  [build]
  description = "Arch Linux $pkgbase $epoch:$pkgver-$pkgrel"
  target = [
@@ -55,7 +55,7 @@
    "x86_64-unknown-linux-musl",
    "aarch64-unknown-linux-gnu",
    "aarch64-unknown-linux-musl",
-@@ -188,22 +197,16 @@ lto = "fat"
+@@ -186,24 +195,17 @@ lto = "fat"
  compression-formats = ["gz"]
  compression-profile = "fast"
  
@@ -66,12 +66,15 @@
  ar = "/usr/bin/gcc-ar"
  ranlib = "/usr/bin/gcc-ranlib"
  llvm-config = "/usr/bin/llvm-config"
+-optimized-compiler-builtins = "$clangdir/lib/linux/libclang_rt.builtins-x86_64.a"
++optimized-compiler-builtins = "$clangdir/lib/linux/libclang_rt.builtins-riscv64.a"
  
 -[target.i686-unknown-linux-gnu]
 -cc = "/usr/bin/gcc"
 -cxx = "/usr/bin/g++"
 -ar = "/usr/bin/gcc-ar"
 -ranlib = "/usr/bin/gcc-ranlib"
+-optimized-compiler-builtins = "$clangdir/lib/linux/libclang_rt.builtins-i386.a"
 -
 -[target.x86_64-unknown-linux-musl]
 +[target.riscv64gc-unknown-linux-musl]
@@ -81,7 +84,7 @@
  ar = "/usr/bin/gcc-ar"
  ranlib = "/usr/bin/gcc-ranlib"
  sanitizers = false
-@@ -227,6 +230,24 @@ default-linker = "aarch64-linux-gnu-gcc"
+@@ -227,6 +229,24 @@ default-linker = "aarch64-linux-gnu-gcc"
  sanitizers = false
  musl-root = "/usr/aarch64-linux-musl/lib/musl"
  
@@ -106,7 +109,7 @@
  [target.wasm32-unknown-unknown]
  cc = "/usr/bin/clang"
  cxx = "/usr/bin/clang++"
-@@ -320,18 +341,17 @@ build() {
+@@ -321,18 +341,17 @@ build() {
  
    # rustbuild always installs copies of the shared libraries to /usr/lib,
    # overwrite them with symlinks to the per-architecture versions
@@ -134,7 +137,7 @@
    _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
    _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
    _pick dest-wasm usr/lib/rustlib/wasm32{,v1}-*
-@@ -416,6 +436,33 @@ package_rust-aarch64-musl() {
+@@ -417,6 +436,33 @@ package_rust-aarch64-musl() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
@@ -168,7 +171,7 @@
  package_rust-wasm() {
    pkgdesc="WebAssembly targets for Rust"
    depends=(
-@@ -439,4 +486,7 @@ package_rust-src() {
+@@ -440,4 +486,7 @@ package_rust-src() {
      rustc-$pkgver-src/{COPYRIGHT,LICENSE-MIT}
  }
  
