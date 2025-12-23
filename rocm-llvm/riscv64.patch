@@ -1,26 +1,23 @@
 diff --git PKGBUILD PKGBUILD
-index ff5b5c5..ae2d03c 100644
+index 3422600..49e34be 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,6 +37,12 @@ prepare() {
-   # Add fix for missing function overload (openat)
-   # https://github.com/llvm/llvm-project/issues/100754
-   git cherry-pick -n 155b7a12820ec45095988b6aa6e057afaf2bc892
-+
-+  # Fix llvm-mc abi
-+  git cherry-pick -n 3acb0e9e600cbe3668b7db3956238a592ebadc0a
+@@ -44,6 +44,9 @@ prepare() {
+ 
+   # Fix build with glibc 2.42: https://github.com/llvm/llvm-project/issues/137321
+   patch -Np1 < ../rocm-llvm-6.4-fix-glibc-2.42-termio-removal.patch
 +
 +  # Fix libraries_sha.inc:1:42: error: narrowing conversion of ‘-30’ from ‘int’ to ‘char’
 +  git cherry-pick -n 74c3df6cb5540c937ad8b58f95275901efae8669
  }
  
  build() {
-@@ -65,7 +71,7 @@ build() {
+@@ -73,7 +76,7 @@ build() {
          -D LIBCXXABI_ENABLE_SHARED=OFF
          -D LIBCXXABI_ENABLE_STATIC=ON
          -D LIBCXXABI_INSTALL_STATIC_LIBRARY=OFF
 -        -D LLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;X86'
 +        -D LLVM_TARGETS_TO_BUILD='AMDGPU;NVPTX;RISCV'
          -D CLANG_DEFAULT_LINKER=lld
+         -D ENABLE_LINKER_BUILD_ID=ON
          -D CLANG_DEFAULT_RTLIB=compiler-rt
-         -D CLANG_DEFAULT_UNWINDLIB=libgcc
