@@ -1,0 +1,19 @@
+diff --git PKGBUILD PKGBUILD
+index 0e79c4a..e72ad9f 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -83,11 +83,13 @@ check() {
+   python -m venv --system-site-packages test-env
+   test-env/bin/python -m installer dist/*.whl
+   # Deselect failing tests, unsure why they fail.
++  # ignore importer tests,Importer module heavily rely on Pandoc, which needs libicuuc.so.76. But icu has been upgraded to version 78 in riscv.
+   test-env/bin/python -m pytest --override-ini="addopts=" \
+     --deselect pelican/tests/test_pelican.py::TestPelican::test_basic_generation_works \
+     --deselect pelican/tests/test_pelican.py::TestPelican::test_custom_generation_works \
+     --deselect pelican/tests/test_readers.py::RstReaderTest::test_typogrify_ignore_filters \
+-    --deselect pelican/tests/test_readers.py::RstReaderTest::test_typogrify_ignore_tags
++    --deselect pelican/tests/test_readers.py::RstReaderTest::test_typogrify_ignore_tags \
++    --ignore pelican/tests/test_importer.py
+ }
+ 
+ package() {
