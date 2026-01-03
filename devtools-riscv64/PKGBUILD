@@ -1,8 +1,9 @@
 # Maintainer: Xeonacid <h.dwwwwww at gmail dot com>
+# Contributor: Levi Zim <i at kxxt dot dev>
 
 pkgname=devtools-riscv64
 epoch=1
-pkgver=1.3.2+patch2
+pkgver=1.4.0+patch1
 pkgrel=1
 pkgdesc='Tools for Arch Linux RISC-V package maintainers'
 arch=('x86_64' 'riscv64' 'loong64')
@@ -13,11 +14,13 @@ depends_x86_64=(qemu-user-static)
 depends_loong64=(qemu-user-static)
 source=(makepkg-riscv64.patch
         pacman-extra-riscv64.patch
+        fortran-riscv64.patch
         sogrep-riscv64.patch
         valid-repos-riscv64.sh
         z-archriscv-qemu-riscv64.conf)
 sha256sums=('efaa0c9ca426564921c7d2d909d0c331fd80ce4840019b26c0a259a15b45a087'
             'f01c8cfdbfffa3212a78117f2ce6e0feb97f6cb3d49f47d4f541e9c9f6136e87'
+            'c8432757292df29bb231d500f4be74522eebed4849f46eebcf22169ec319a2a8'
             'c8e9bfc390e42d358007578ca54212bda1d44c754c976be9ef262944d4a0d83c'
             '94ee35597de8e46b1f0c09f95ced34c47ece2f95f92d1a7f2415373f2d129c63'
             'c59273c423e815e4c27e8486632d80a768adddd172119035d48f7c2fac98a87a')
@@ -32,10 +35,16 @@ package() {
   patch /usr/share/devtools/makepkg.conf.d/x86_64.conf -i makepkg-riscv64.patch -o riscv64.conf
   install -Dm644 riscv64.conf -t "$pkgdir"/usr/share/devtools/makepkg.conf.d
   patch /usr/share/devtools/pacman.conf.d/extra.conf -i pacman-extra-riscv64.patch -o extra-riscv64.conf
+  # Disable sandbox because some vendor kernels and qemu-user does not support it
+  sed -i '/DisableSandbox/s/^#//' extra-riscv64.conf
   install -Dm644 extra-riscv64.conf -t "$pkgdir"/usr/share/devtools/pacman.conf.d
 
   install -dm755 "$pkgdir"/usr/share/devtools/makepkg.conf.d/riscv64.conf.d
-  for conf in fortran.conf rust.conf; do
+
+  patch /usr/share/devtools/makepkg.conf.d/conf.d/fortran.conf -i fortran-riscv64.patch -o fortran-riscv64.conf
+  install -Dm644 fortran-riscv64.conf "$pkgdir"/usr/share/devtools/makepkg.conf.d/riscv64.conf.d/fortran.conf
+
+  for conf in rust.conf; do
     ln -s '../conf.d/'$conf "$pkgdir"/usr/share/devtools/makepkg.conf.d/riscv64.conf.d/$conf
   done
 
