@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -53,10 +53,17 @@ _set_flags() {
+@@ -53,10 +53,15 @@ _set_flags() {
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -13,8 +13,6 @@
  prepare() {
    cd node
 +  patch -Np1 -i ../hwy-broken-rvv.diff
-+  patch -Np1 -i ../60588.diff
-+  patch -Np1 -i ../60591.diff
    # Update ICU tests https://github.com/nodejs/node/pull/60523
    patch -Np1 -i ${srcdir}/update-icu-tests.patch
  }
@@ -27,16 +25,12 @@
    rm test/parallel/test-http-outgoing-end-cork.js
    rm test/parallel/test-http2-client-set-priority.js
    rm test/parallel/test-http2-client-unescaped-path.js
-@@ -113,4 +122,12 @@ package() {
+@@ -113,4 +122,8 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
 +
 +makedepends+=(clang)
-+source+=("hwy-broken-rvv.diff"
-+         "60588.diff"
-+         "60591.diff")
-+sha512sums+=('de07b0d9c3481036ee97a22941ff444fee86c78abbc26afef36f17508bb479ce3ab83ca160109fbf4f0b9b3266dcce30860873dc8ffbcac1a70e98d17638ca55'
-+             'c1f0769f77f4e4699b8b580de29a77269df891e31cbb3174bf493ea6b48c75666f1b79a790da4543a649abca15445716756b9e64a96a9397c469e4d5d8f9b25c'
-+             '47a16a58c269eb44d6e34366d1a4b0c564a548dcdd6cee04adc00f2db01e7cc8daa4073f69a7dd848111ac0d1f1a9c9d6a0cbadbeeba3120cdba713ca7112cb2')
++source+=("hwy-broken-rvv.diff")
++sha512sums+=('de07b0d9c3481036ee97a22941ff444fee86c78abbc26afef36f17508bb479ce3ab83ca160109fbf4f0b9b3266dcce30860873dc8ffbcac1a70e98d17638ca55')
  # vim:set ts=2 sw=2 et:
