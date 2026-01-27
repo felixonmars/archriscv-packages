@@ -1,29 +1,17 @@
 diff --git PKGBUILD PKGBUILD
-index 2865a35..fc96c4d 100644
+index 6a6cda4..77872ff 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,7 +13,7 @@ pkgdesc="A D Compiler based on the LLVM Compiler Infrastructure including D runt
- arch=('x86_64')
- url="https://github.com/ldc-developers/ldc"
- license=('BSD-3-Clause AND BSL-1.0 AND Apache-2.0 WITH LLVM-exception')
--makedepends=('git' 'cmake' 'llvm' 'lld' 'ldc' 'ninja')
-+makedepends=('git' 'cmake' 'llvm' 'lld' 'ldc' 'ninja' 'llvm19-libs')
- # Disable lto as linking the ldc2 binary fails
- options=(!lto)
- 
-@@ -34,6 +34,11 @@ prepare() {
+@@ -34,6 +34,8 @@ prepare() {
  
      # LLVMDebuginfod required curl
      sed -i "s/-lLLVMDebuginfod/-lLLVMDebuginfod -lcurl/" tools/CMakeLists.txt
 +
 +    patch -Np1 -d runtime/phobos -i "$srcdir/disable-static-NaN-tests.patch"
-+
-+    # runtime: Link libatomic on 64-bit RISC-V and LoongArch
-+    git cherry-pick -n 9296fd6fccbc2a6ade38ded1358923d1a893caab
  }
  
  build() {
-@@ -49,7 +54,7 @@ build() {
+@@ -49,7 +51,7 @@ build() {
      -DBUILD_SHARED_LIBS=BOTH \
      -DBUILD_LTO_LIBS=ON \
      -DLDC_WITH_LLD=OFF \
@@ -32,7 +20,7 @@ index 2865a35..fc96c4d 100644
      -DADDITIONAL_DEFAULT_LDC_SWITCHES="\"-link-defaultlib-shared\"," \
      ..
      ninja
-@@ -101,3 +106,6 @@ package_liblphobos() {
+@@ -101,3 +103,6 @@ package_liblphobos() {
      # licenses
      install -D -m644 "$srcdir/ldc/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
