@@ -1,10 +1,50 @@
-diff --git a/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp b/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp
-index 47a6f387..9607107f 100644
---- a/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp
-+++ b/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp
-@@ -1666,7 +1666,13 @@ void AqlQueue::ExecutePM4(uint32_t* cmd_data, size_t cmd_size_b, hsa_fence_scope
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/inc/amd_gpu_agent.h b/projects/rocr-runtime/runtime/hsa-runtime/core/inc/amd_gpu_agent.h
+index 06bf55d346..fa7804dab9 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/inc/amd_gpu_agent.h
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/inc/amd_gpu_agent.h
+@@ -451,9 +451,21 @@ class GpuAgent : public GpuAgentInt {
+   /// @brief Force a WC flush on PCIe devices by doing a write and then read-back
+   __forceinline void PcieWcFlush(void *ptr, size_t size) const {
+     if (!xgmi_cpu_gpu_) {
++#if defined(_M_X64)
+       _mm_sfence();
++#elif defined(__loongarch_lp64)
++      asm("dbar 0");
++#elif defined(__riscv)
++      asm volatile("fence w, w");
++#endif
+       *((uint8_t*)ptr + size - 1) = *((uint8_t*)ptr + size - 1);
++#if defined(_M_X64)
+       _mm_mfence();
++#elif defined(__loongarch_lp64)
++      asm("dbar 0");
++#elif defined(__riscv)
++      asm volatile("fence w, w");
++#endif
+       auto readback = *(reinterpret_cast<volatile uint8_t*>(ptr) + size - 1);
+       UNUSED(readback);
+     }
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp b/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp
+index ccc20b8d19..bfb3d12421 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_aql_queue.cpp
+@@ -474,7 +474,13 @@ void AqlQueue::StoreRelaxed(hsa_signal_value_t value) {
+     HSAKMT_CALL(hsaKmtQueueRingDoorbell(queue_id_, value));
+   } else {
+     // Hardware doorbell supports AQL semantics.
++#if defined(_M_X64)
+     _mm_sfence();
++#elif defined(__loongarch_lp64)
++    asm("dbar 0");
++#elif defined(__riscv)
++    asm volatile("fence w, w");
++#endif
+     *(signal_.hardware_doorbell_ptr) = uint64_t(value);
+     /* signal_ is allocated as uncached so we do not need read-back to flush WC */
+   }
+@@ -1574,7 +1580,13 @@ void AqlQueue::ExecutePM4(uint32_t* cmd_data, size_t cmd_size_b, hsa_fence_scope
    memcpy(&queue_slot[1], &slot_data[1], slot_size_b - sizeof(uint32_t));
-   if (core::Runtime::runtime_singleton_->flag().dev_mem_queue() && !agent_->is_xgmi_cpu_gpu()) {
+   if (IsDeviceMemRingBuf() && needsPcieOrdering()) {
      // Ensure the packet body is written as header may get reordered when writing over PCIE
 +#if defined(_M_X64)
      _mm_sfence();
@@ -16,13 +56,13 @@ index 47a6f387..9607107f 100644
    }
    atomic::Store(&queue_slot[0], slot_data[0], std::memory_order_release);
  
-diff --git a/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp b/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp
-index 36d21fa1..92b8f980 100644
---- a/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp
-+++ b/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp
-@@ -1274,7 +1274,13 @@ void BlitKernel::PopulateQueue(uint64_t index, uint64_t code_handle, void* args,
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp b/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp
+index 4b50035093..d41171b23a 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/amd_blit_kernel.cpp
+@@ -896,7 +896,13 @@ void BlitKernel::PopulateQueue(uint64_t index, uint64_t code_handle, void* args,
    std::atomic_thread_fence(std::memory_order_release);
-   if (core::Runtime::runtime_singleton_->flag().dev_mem_queue() && !queue_->needsPcieOrdering()) {
+   if (queue_->IsDeviceMemRingBuf() && queue_->needsPcieOrdering()) {
      // Ensure the packet body is written as header may get reordered when writing over PCIE
 +#if defined(_M_X64)
      _mm_sfence();
@@ -32,30 +72,29 @@ index 36d21fa1..92b8f980 100644
 +    asm volatile("fence w, w");
 +#endif
    }
-   queue_buffer[index & queue_bitmask_].header = kDispatchPacketHeader;
- 
-diff --git a/runtime/hsa-runtime/core/runtime/intercept_queue.cpp b/runtime/hsa-runtime/core/runtime/intercept_queue.cpp
-index a86dabb3..2d35991d 100644
---- a/runtime/hsa-runtime/core/runtime/intercept_queue.cpp
-+++ b/runtime/hsa-runtime/core/runtime/intercept_queue.cpp
-@@ -258,7 +258,13 @@ uint64_t InterceptQueue::Submit(const AqlPacket* packets, uint64_t count) {
+ #if defined(__linux__)
+   __atomic_store_n(&(queue_buffer[index & queue_bitmask_].full_header),
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/intercept_queue.cpp b/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/intercept_queue.cpp
+index 939a2093a7..c62b856bae 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/intercept_queue.cpp
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/runtime/intercept_queue.cpp
+@@ -271,7 +271,13 @@ uint64_t InterceptQueue::Submit(const AqlPacket* packets, uint64_t count) {
        ring[barrier & mask].barrier_and.completion_signal = Signal::Convert(async_doorbell_);
-       if (Runtime::runtime_singleton_->flag().dev_mem_queue() && !needsPcieOrdering()) {
+       if (wrapped->IsDeviceMemRingBuf() && needsPcieOrdering()) {
          // Ensure the packet body is written as header may get reordered when writing over PCIE
--        _mm_sfence();
 +#if defined(_M_X64)
-+    _mm_sfence();
+         _mm_sfence();
 +#elif defined(__loongarch_lp64)
-+    asm("dbar 0");
++        asm("dbar 0");
 +#elif defined(__riscv)
-+    asm volatile("fence w, w");
++        asm volatile("fence w, w");
 +#endif
        }
        atomic::Store(&ring[barrier & mask].barrier_and.header, kBarrierHeader,
                      std::memory_order_release);
-@@ -305,7 +311,13 @@ uint64_t InterceptQueue::Submit(const AqlPacket* packets, uint64_t count) {
+@@ -318,7 +324,13 @@ uint64_t InterceptQueue::Submit(const AqlPacket* packets, uint64_t count) {
        if (write_index != 0) {
-         if (Runtime::runtime_singleton_->flag().dev_mem_queue() && !needsPcieOrdering()) {
+         if (wrapped->IsDeviceMemRingBuf() && needsPcieOrdering()) {
            // Ensure the packet body is written as header may get reordered when writing over PCIE
 +#if defined(_M_X64)
            _mm_sfence();
@@ -67,9 +106,9 @@ index a86dabb3..2d35991d 100644
          }
          atomic::Store(&ring[write & mask].packet.header, packets[first_written_packet_index].packet.header,
                        std::memory_order_release);
-@@ -374,7 +386,13 @@ void InterceptQueue::StoreRelaxed(hsa_signal_value_t value) {
-     handler.first(&ring[i & mask], 1, i, handler.second, PacketWriter);
-     if (Runtime::runtime_singleton_->flag().dev_mem_queue() && !needsPcieOrdering()) {
+@@ -419,7 +431,13 @@ void InterceptQueue::StoreRelaxed(hsa_signal_value_t value) {
+ 
+     if (IsDeviceMemRingBuf() && needsPcieOrdering()) {
        // Ensure the packet body is written as header may get reordered when writing over PCIE
 +#if defined(_M_X64)
        _mm_sfence();
@@ -79,13 +118,13 @@ index a86dabb3..2d35991d 100644
 +      asm volatile("fence w, w");
 +#endif
      }
-     // Invalidate consumed packet.
-     atomic::Store(&ring[i & mask].packet.header, kInvalidHeader, std::memory_order_release);
-diff --git a/runtime/hsa-runtime/core/util/lnx/os_linux.cpp b/runtime/hsa-runtime/core/util/lnx/os_linux.cpp
-index 4d629798..efb0fc73 100644
---- a/runtime/hsa-runtime/core/util/lnx/os_linux.cpp
-+++ b/runtime/hsa-runtime/core/util/lnx/os_linux.cpp
-@@ -65,7 +65,7 @@
+   }
+   i = next_packet_;
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/util/lnx/os_linux.cpp b/projects/rocr-runtime/runtime/hsa-runtime/core/util/lnx/os_linux.cpp
+index f73fd8c928..66e30ec215 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/util/lnx/os_linux.cpp
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/util/lnx/os_linux.cpp
+@@ -66,7 +66,7 @@
  #include <cpuid.h>
  #endif
  
@@ -94,10 +133,10 @@ index 4d629798..efb0fc73 100644
  #define ABS_ADDR(base, ptr) (ptr)
  #else
  #define ABS_ADDR(base, ptr) ((base) + (ptr))
-diff --git a/runtime/hsa-runtime/core/util/locks.h b/runtime/hsa-runtime/core/util/locks.h
-index 6c0de49a..052d04ac 100644
---- a/runtime/hsa-runtime/core/util/locks.h
-+++ b/runtime/hsa-runtime/core/util/locks.h
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/util/locks.h b/projects/rocr-runtime/runtime/hsa-runtime/core/util/locks.h
+index 133dd06f0b..c7477d84ed 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/util/locks.h
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/util/locks.h
 @@ -72,7 +72,11 @@ class HybridMutex {
      while (!lock_.compare_exchange_strong(old, 1)) {
        cnt--;
@@ -110,11 +149,11 @@ index 6c0de49a..052d04ac 100644
        } else if (cnt-- > maxSpinIterYield) {
          os::YieldThread();
        } else {
-diff --git a/runtime/hsa-runtime/core/util/utils.h b/runtime/hsa-runtime/core/util/utils.h
-index 66c2028a..7b400578 100644
---- a/runtime/hsa-runtime/core/util/utils.h
-+++ b/runtime/hsa-runtime/core/util/utils.h
-@@ -354,6 +354,7 @@ static __forceinline std::string& trim(std::string& s) { return ltrim(rtrim(s));
+diff --git a/projects/rocr-runtime/runtime/hsa-runtime/core/util/utils.h b/projects/rocr-runtime/runtime/hsa-runtime/core/util/utils.h
+index 96e9e476e0..97dc3bab12 100644
+--- a/projects/rocr-runtime/runtime/hsa-runtime/core/util/utils.h
++++ b/projects/rocr-runtime/runtime/hsa-runtime/core/util/utils.h
+@@ -388,6 +388,7 @@ static __forceinline std::string& trim(std::string& s) { return ltrim(rtrim(s));
  /// @param: offset(Input), offset of base address to flush
  /// @param: len(Input), length of buffer to flush
  inline void FlushCpuCache(const void* base, size_t offset, size_t len) {
@@ -122,7 +161,7 @@ index 66c2028a..7b400578 100644
    static long cacheline_size = 0;
  
    if (!cacheline_size) {
-@@ -369,6 +370,9 @@ inline void FlushCpuCache(const void* base, size_t offset, size_t len) {
+@@ -412,6 +413,9 @@ inline void FlushCpuCache(const void* base, size_t offset, size_t len) {
      _mm_clflush((const void*)cur);
      cur += cacheline_size;
    } while (cur <= (const char*)lastline);
