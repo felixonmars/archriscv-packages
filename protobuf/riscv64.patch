@@ -1,5 +1,5 @@
 diff --git PKGBUILD PKGBUILD
-index af79868..a8391a2 100644
+index d802a04..cf49143 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -23,7 +23,6 @@ depends=(
@@ -10,29 +10,30 @@ index af79868..a8391a2 100644
    'cmake'
    'git'
    'gtest'
-@@ -44,9 +43,12 @@ checkdepends=(
- source=(
+@@ -45,10 +44,13 @@ source=(
    git+https://github.com/protocolbuffers/protobuf.git#tag=v$pkgver
    protobuf-fix-build-type-none.patch
+   protobuf-33-patch-enum-traits-impl.patch
 +  # Keep it here instead of bottom of the file because this file updates along with the package
 +  "$pkgbase-$pkgver-python.tar.gz::https://files.pythonhosted.org/packages/source/${pkgbase::1}/${pkgbase//-/_}/${pkgbase//-/_}-6.$pkgver.tar.gz"
  )
- sha512sums=('0efcb80ec3a1f04f0f2e53ccd629eace4f6b9a2cbe5dae4c1b82140f11e174f8d023b8e35855def7e19c35da838c5b4fcfaa54748ee3534886caf1d35f55cccb'
--            '18bc71031bbcbc3810a9985fa670465040f06a6c104ab8079b56bdfc499bb6cec40805a0cefd455031142490a576dc60aa8000523877ac0353b93558e9beabbd')
-+            '18bc71031bbcbc3810a9985fa670465040f06a6c104ab8079b56bdfc499bb6cec40805a0cefd455031142490a576dc60aa8000523877ac0353b93558e9beabbd'
-+            'c29d1b01984e0cc204bffa5c757e4df4eb8ee696b6f5557414e65310b15956192fc73db5daae176f2b4db03e98c36a46cc74ca8b377df193bc9461142c8269cf')
+ sha512sums=('2dba565a0101090b5ab173f1343eed5b1fbe46d94590b88425a9687224fe496aef1eddf4b322c0d265a1bee492d644c5ffe317ecba798f0bda28247bfc756600'
+             '18bc71031bbcbc3810a9985fa670465040f06a6c104ab8079b56bdfc499bb6cec40805a0cefd455031142490a576dc60aa8000523877ac0353b93558e9beabbd'
+-            '8f7b8cb3829490962668bbb0eb8104f565a16bb336669e03afdc355c7ad50efb094851f7f78eba0d0a9704290b1c45ec56c9e6d6677cbf96ccfbfb659c014756')
++            '8f7b8cb3829490962668bbb0eb8104f565a16bb336669e03afdc355c7ad50efb094851f7f78eba0d0a9704290b1c45ec56c9e6d6677cbf96ccfbfb659c014756'
++            'bb9eb03a4cd59f2e0085fe72b6099a8ac749b16abcf26c9ba98410dc3258559cb5fdf7a090830234d575e3d648cfeb3dce4413bc4804026227762f18daf9c960')
  
  options=(!lto)
  
-@@ -54,7 +56,6 @@ _gemname=google-protobuf
+@@ -56,7 +58,6 @@ _gemname=google-protobuf
  
  prepare() {
    cd "$pkgname"
 -  bazel --version
  
    patch -p1 < ../protobuf-fix-build-type-none.patch # Fix cmake config compatibility mode
- }
-@@ -76,7 +77,7 @@ build() {
+   patch -p1 < ../protobuf-33-patch-enum-traits-impl.patch
+@@ -79,7 +80,7 @@ build() {
    cmake "${cmake_options[@]}"
    cmake --build build --verbose
  
@@ -41,7 +42,7 @@ index af79868..a8391a2 100644
    local bazel_options=(
      --noenable_bzlmod
      --enable_workspace
-@@ -87,9 +88,9 @@ build() {
+@@ -90,9 +91,9 @@ build() {
    # for aarch64
    [[ $CARCH == "aarch64" ]] && bazel_options+=(--cpu=linux-aarch_64)
  
@@ -52,8 +53,8 @@ index af79868..a8391a2 100644
 +  cd ../"$pkgbase"/ruby
    local _gemdir="$(gem env gemdir)"
    local _gemver=4.$pkgver
- 
-@@ -160,7 +161,7 @@ package_python-protobuf() {
+   local _gemplatform=$(ruby -e "puts Gem::Platform.local")
+@@ -174,7 +175,7 @@ package_python-protobuf() {
      'python'
    )
  
