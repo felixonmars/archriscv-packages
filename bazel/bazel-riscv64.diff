@@ -1,0 +1,132 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+index d33fff2e4c..5a43c69d33 100644
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -59,6 +59,12 @@ bazel_dep(name = "rules_apple", version = "4.3.1", repo_name = None)
+ bazel_dep(name = "google_benchmark", version = "1.9.4", repo_name = None)
+ 
+ # bazel_dep overrides
++single_version_override(
++    module_name = "rules_java",
++    patch_strip = 1,
++    patches = ["//third_party:rules_java_riscv.patch"],
++    version = "9.0.3",
++)
+ single_version_override(
+     module_name = "rules_jvm_external",
+     patch_strip = 1,
+diff --git a/repositories.bzl b/repositories.bzl
+index ab7c79736b..7797715a22 100644
+--- a/repositories.bzl
++++ b/repositories.bzl
+@@ -121,19 +121,17 @@ def embedded_jdk_repositories():
+         downloaded_file_path = "zulu-win-arm64.zip",
+         url = "https://cdn.azul.com/zulu/bin/zulu25.28.85-ca-jdk25.0.0-win_aarch64.zip",
+     )
+-
+-    # TODO: Update to JDK 25 when available for these architectures.
+     http_file(
+         name = "openjdk_linux_s390x_vanilla",
+-        integrity = "sha256-VVBZ9JKatkNeuDtJbQuWm8appcB5FdX3YH9dgz44+zk=",
++        integrity = "sha256-FeXLytzz1DYjwxuCUGPNwoF7nxuoQLUdxu9w5dM8hOM=",
+         downloaded_file_path = "adoptopenjdk-s390x-vanilla.tar.gz",
+-        url = "https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jdk_s390x_linux_hotspot_24.0.2_12.tar.gz",
++        url = "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jdk_s390x_linux_hotspot_25.0.2_10.tar.gz",
+     )
+     http_file(
+         name = "openjdk_linux_riscv64_vanilla",
+-        integrity = "sha256-k/ta8TSRtbBaw3gAK4qZdhTcD0IocMENX63N/LzQuUg=",
++        integrity = "sha256-FoEZ5PujUPTms8qSRQorkKhQK4miNaBEFemt+fXTFk4=",
+         downloaded_file_path = "adoptopenjdk-riscv64-vanilla.tar.gz",
+-        url = "https://github.com/adoptium/temurin24-binaries/releases/download/jdk-24.0.2%2B12/OpenJDK24U-jdk_riscv64_linux_hotspot_24.0.2_12.tar.gz",
++        url = "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jdk_riscv64_linux_hotspot_25.0.2_10.tar.gz",
+     )
+ 
+ def _async_profiler_repos(ctx):
+diff --git a/third_party/rules_java_riscv.patch b/third_party/rules_java_riscv.patch
+new file mode 100644
+index 0000000000..e2286708c4
+--- /dev/null
++++ b/third_party/rules_java_riscv.patch
+@@ -0,0 +1,81 @@
++From a95dfedaafa4e1ca32a620c257a46f59bf598faa Mon Sep 17 00:00:00 2001
++From: Levi Zim <rsworktech@outlook.com>
++Date: Thu, 29 Jan 2026 22:39:46 +0800
++Subject: [PATCH] Add remote JDK 25 for riscv64, ppc64le and s390x
++
++A remote JDK 25 is necessary for building Bazel 9.
++---
++ MODULE.bazel                     |  3 +++
++ java/bazel/repositories_util.bzl |  6 ++++++
++ java/repositories.bzl            | 24 ++++++++++++++++++++++++
++ 3 files changed, 33 insertions(+)
++
++diff --git a/MODULE.bazel b/MODULE.bazel
++index 23ee0ce..7dbbc2e 100644
++--- a/MODULE.bazel
+++++ b/MODULE.bazel
++@@ -100,6 +100,9 @@ JDKS = {
++     "25": [
++         "linux",
++         "linux_aarch64",
+++        "linux_ppc64le",
+++        "linux_riscv64",
+++        "linux_s390x",
++         "macos",
++         "macos_aarch64",
++         "win",
++diff --git a/java/bazel/repositories_util.bzl b/java/bazel/repositories_util.bzl
++index 924bb60..4132016 100644
++--- a/java/bazel/repositories_util.bzl
+++++ b/java/bazel/repositories_util.bzl
++@@ -95,6 +95,12 @@ _RELEASE_CONFIGS = {
++                 "windows": ["arm64", "x86_64"],
++             },
++         },
+++        "adoptium": {
+++            "release": "25.0.2+10",
+++            "platforms": {
+++                "linux": ["ppc64le", "riscv64", "s390x"],
+++            },
+++        },
++     },
++ }
++ 
++diff --git a/java/repositories.bzl b/java/repositories.bzl
++index 5b1f317..c17b523 100644
++--- a/java/repositories.bzl
+++++ b/java/repositories.bzl
++@@ -378,6 +378,30 @@ _REMOTE_JDK_CONFIGS_LIST = [
++         urls = ["https://cdn.azul.com/zulu/bin/zulu25.30.17-ca-jdk25.0.1-win_x64.zip", "https://mirror.bazel.build/cdn.azul.com/zulu/bin/zulu25.30.17-ca-jdk25.0.1-win_x64.zip"],
++         version = "25",
++     ),
+++    struct(
+++        name = "remotejdk25_linux_ppc64le",
+++        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:ppc64le"],
+++        sha256 = "b262b735b215173003766da36588d5f717dceada0286db41b439f93fb2ada468",
+++        strip_prefix = "jdk-25.0.2+10",
+++        urls = ["https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2+10/OpenJDK25U-jdk_ppc64le_linux_hotspot_25.0.2_10.tar.gz", "https://mirror.bazel.build/github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2+10/OpenJDK25U-jdk_ppc64le_linux_hotspot_25.0.2_10.tar.gz"],
+++        version = "25",
+++    ),
+++    struct(
+++        name = "remotejdk25_linux_riscv64",
+++        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:riscv64"],
+++        sha256 = "168119e4fba350f4e6b3ca92450a2b90a8502b89a235a04415e9adf9f5d3164e",
+++        strip_prefix = "jdk-25.0.2+10",
+++        urls = ["https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2+10/OpenJDK25U-jdk_riscv64_linux_hotspot_25.0.2_10.tar.gz", "https://mirror.bazel.build/github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2+10/OpenJDK25U-jdk_riscv64_linux_hotspot_25.0.2_10.tar.gz"],
+++        version = "25",
+++    ),
+++    struct(
+++        name = "remotejdk25_linux_s390x",
+++        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:s390x"],
+++        sha256 = "15e5cbcadcf3d43623c31b825063cdc2817b9f1ba840b51dc6ef70e5d33c84e3",
+++        strip_prefix = "jdk-25.0.2+10",
+++        urls = ["https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2+10/OpenJDK25U-jdk_s390x_linux_hotspot_25.0.2_10.tar.gz", "https://mirror.bazel.build/github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2+10/OpenJDK25U-jdk_s390x_linux_hotspot_25.0.2_10.tar.gz"],
+++        version = "25",
+++    ),
++ ]
++ 
++ def _make_version_to_remote_jdks():
++-- 
++2.52.0
++
