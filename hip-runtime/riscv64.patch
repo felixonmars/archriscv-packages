@@ -1,17 +1,17 @@
 diff --git PKGBUILD PKGBUILD
-index 809c385..ab78f28 100644
+index 516c09d..e0677df 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -1,7 +1,7 @@
- # Maintainer: Torsten Keßler <tpkessler at archlinux dot org>
+@@ -3,7 +3,7 @@
  # Contributor: acxz <akashpatel2008 at yahoo dot com>
+ 
  pkgbase=hip-runtime
 -pkgname=(hip-runtime-amd hip-runtime-nvidia)
-+pkgname=(hip-runtime-amd  )
- pkgver=6.4.1
++pkgname=(hip-runtime-amd)
+ pkgver=7.1.1
  pkgrel=1
  _pkgdesc="Heterogeneous Interface for Portability"
-@@ -10,9 +10,8 @@ url='https://rocm.docs.amd.com/projects/HIP/en/latest/'
+@@ -12,9 +12,8 @@ url='https://rocm.docs.amd.com/projects/HIP/en/latest/'
  license=('MIT')
  _amd_depends=('rocm-core' 'bash' 'perl' 'glibc' 'gcc-libs' 'numactl'
           'mesa' 'comgr' 'rocminfo' 'rocm-llvm' 'libelf' 'rocprofiler-register')
@@ -20,24 +20,24 @@ index 809c385..ab78f28 100644
 -             "${_amd_depends[@]}" "${_nvidia_depends[@]}")
 +             "${_amd_depends[@]}")
  _tag="tag=rocm-$pkgver"
- # Common HIP dir (AMD or nVidia)
- _hip='https://github.com/ROCm/HIP'
-@@ -31,6 +30,14 @@ sha256sums=('8ed42c4542756c91136d9308fcc84e4532183de691d9efc9e7ce1e4efc483fae'
-             '634a23d42abaa8b8757360e300b354205bc0bb0612ecc81c715b866347554fe6'
-             '09f332aa964079647a9407406305f6159937c72c0bc2b675f841ba0ab1b63c43')
+ # HIPCC compiler wrapper
+ _hipcc='https://github.com/ROCm/llvm-project'
+@@ -26,6 +25,14 @@ _projectBaseDir="rocm-systems-rocm-$pkgver/projects"
+ 
+ options=(!lto)
  
 +prepare() {
-+  cd "$srcdir/$pkgbase-clr"
++  cd "$srcdir/$_projectBaseDir/clr"
 +
-+  patch -Np1 -i "../$pkgbase-clr-riscv-hard-float.patch"
-+  patch -Np1 -i "../$pkgbase-clr-riscv-fence.patch"
-+  patch -Np1 -i "../$pkgbase-clr-riscv-currentStackPtr.patch"
++  patch -Np1 -i "$srcdir/$pkgbase-clr-riscv-hard-float.patch"
++  patch -Np3 -i "$srcdir/$pkgbase-clr-riscv-fence.patch"
++  patch -Np1 -i "$srcdir/$pkgbase-clr-riscv-currentStackPtr.patch"
 +}
 +
  build() {
    local hipcc_common_args=(
      -Wno-dev
-@@ -59,41 +66,16 @@ build() {
+@@ -54,41 +61,16 @@ build() {
      -DHIP_CATCH_TEST=0
      -DCLR_BUILD_HIP=ON
      -DCLR_BUILD_OCL=OFF
@@ -56,14 +56,14 @@ index 809c385..ab78f28 100644
 -
 -  local hip_nvidia_args=(
 -    -Wno-dev
--    -S "$srcdir/$pkgbase-clr"
+-    -S "$srcdir/$_projectBaseDir/clr"
 -    -B build-nvidia
 -    -DCMAKE_BUILD_TYPE=None
 -    -DCMAKE_INSTALL_PREFIX=/usr
 -    -DHIP_PLATFORM=nvidia
--    -DHIP_COMMON_DIR="$srcdir/$pkgbase"
+-    -DHIP_COMMON_DIR="$srcdir/$_projectBaseDir/hip"
 -    -DHIPCC_BIN_DIR="$srcdir/build-nvidia-hipcc"
--    -DHIPNV_DIR="$srcdir/$pkgbase-hipother/hipnv"
+-    -DHIPNV_DIR="$srcdir/$_projectBaseDir/hipother/hipnv"
 -    -DHIP_CATCH_TEST=0
 -    -DCLR_BUILD_HIP=ON
 -    -DCLR_BUILD_OCL=OFF
@@ -81,9 +81,9 @@ index 809c385..ab78f28 100644
    replaces=("hip")
    provides=("hip=${pkgver}")
    DESTDIR="$pkgdir" cmake --install build-amd
-@@ -106,3 +88,10 @@ package_hip-runtime-nvidia() {
+@@ -101,3 +83,10 @@ package_hip-runtime-nvidia() {
    DESTDIR="$pkgdir" cmake --install build-nvidia
-   install -Dm644 "$srcdir/$pkgbase/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+   install -Dm644 "$srcdir/$_projectBaseDir/hip/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
 +
 +source+=("$pkgbase-clr-riscv-hard-float.patch"
