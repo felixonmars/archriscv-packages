@@ -1,44 +1,52 @@
-diff --git a/hipamd/src/hip_graph_internal.cpp b/hipamd/src/hip_graph_internal.cpp
-index 794293b7f..10e5b1de1 100644
---- a/hipamd/src/hip_graph_internal.cpp
-+++ b/hipamd/src/hip_graph_internal.cpp
-@@ -979,9 +979,17 @@ void GraphKernelArgManager::ReadBackOrFlush() {
-       address dev_ptr =
-           kernarg_graph_.back().kernarg_pool_addr_ + kernarg_graph_.back().kernarg_pool_size_;
-       auto kSentinel = *reinterpret_cast<volatile unsigned char*>(dev_ptr - 1);
-+#if defined(__x86_64__)
+diff --git a/projects/clr/hipamd/src/hip_graph_internal.cpp b/projects/clr/hipamd/src/hip_graph_internal.cpp
+index a5fd0fc6f4..c5dad14636 100644
+--- a/projects/clr/hipamd/src/hip_graph_internal.cpp
++++ b/projects/clr/hipamd/src/hip_graph_internal.cpp
+@@ -1074,9 +1074,21 @@ void GraphKernelArgManager::ReadBackOrFlush() {
+       
+       // Read-modify-write sequence with memory barriers
+       volatile unsigned char kSentinel = *sentinel_ptr;
++#if defined(_M_X64)
        _mm_sfence();
++#elif defined(__loongarch_lp64)
++      asm("dbar 0");
 +#elif defined(__riscv)
 +      asm volatile("fence rw, rw");
 +#endif
-       *(dev_ptr - 1) = kSentinel;
-+#if defined(__x86_64__)
+       *sentinel_ptr = kSentinel;
++#if defined(_M_X64)
        _mm_mfence();
++#elif defined(__loongarch_lp64)
++      asm("dbar 0");
 +#elif defined(__riscv)
 +      asm volatile("fence rw, rw");
 +#endif
-       kSentinel = *reinterpret_cast<volatile unsigned char*>(dev_ptr - 1);
+       kSentinel = *sentinel_ptr;
+       (void)kSentinel; // Suppress unused variable warning
      }
-   }
-diff --git a/rocclr/device/rocm/rocvirtual.cpp b/rocclr/device/rocm/rocvirtual.cpp
-index 722450a14..a58ba908c 100644
---- a/rocclr/device/rocm/rocvirtual.cpp
-+++ b/rocclr/device/rocm/rocvirtual.cpp
-@@ -3282,9 +3282,17 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes,
-           auto kSentinel = *reinterpret_cast<volatile int*>(dev().info().hdpMemFlushCntl);
-         } else if (kernArgImpl == KernelArgImpl::DeviceKernelArgsReadback &&
-                    argSize != 0) {
-+#if defined(__x86_64__)
-           _mm_sfence();
+diff --git a/projects/clr/rocclr/device/rocm/rocvirtual.cpp b/projects/clr/rocclr/device/rocm/rocvirtual.cpp
+index 06cccbdd88..0a58e4ecaf 100644
+--- a/projects/clr/rocclr/device/rocm/rocvirtual.cpp
++++ b/projects/clr/rocclr/device/rocm/rocvirtual.cpp
+@@ -3712,9 +3712,21 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const
+         *dev().info().hdpMemFlushCntl = 1u;
+         auto kSentinel = *reinterpret_cast<volatile int*>(dev().info().hdpMemFlushCntl);
+       } else if (kernArgImpl == KernelArgImpl::DeviceKernelArgsReadback && argSize != 0) {
++#if defined(_M_X64)
+         _mm_sfence();
++#elif defined(__loongarch_lp64)
++        asm("dbar 0");
 +#elif defined(__riscv)
-+          asm volatile("fence rw, rw");
++        asm volatile("fence rw, rw");
 +#endif
-           *(argBuffer + argSize - 1) = *(parameters + argSize - 1);
-+#if defined(__x86_64__)
-           _mm_mfence();
+         *(argBuffer + argSize - 1) = *(parameters + argSize - 1);
++#if defined(_M_X64)
+         _mm_mfence();
++#elif defined(__loongarch_lp64)
++        asm("dbar 0");
 +#elif defined(__riscv)
-+          asm volatile("fence rw, rw");
++        asm volatile("fence rw, rw");
 +#endif
-           auto kSentinel = *reinterpret_cast<volatile unsigned char*>(
-               argBuffer + argSize - 1);
-         }
+         auto kSentinel = *reinterpret_cast<volatile unsigned char*>(argBuffer + argSize - 1);
+       }
+     }
