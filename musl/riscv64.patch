@@ -9,7 +9,7 @@
 +pkgname=(musl musl-aarch64 musl-x86_64)
 +_archs=("aarch64" "x86_64")
  pkgver=1.2.5
- pkgrel=2
+ pkgrel=6
  pkgdesc='Lightweight implementation of C standard library'
 @@ -12,7 +12,7 @@ arch=('x86_64')
  url='https://www.musl-libc.org/'
@@ -18,15 +18,27 @@
 -makedepends=('aarch64-linux-gnu-gcc' 'riscv64-linux-gnu-gcc')
 +makedepends=('aarch64-linux-gnu-gcc' 'x86_64-linux-gnu-gcc')
  validpgpkeys=('836489290BB6B70F99FFDA0556BCDB593020450F')
- source=(https://www.musl-libc.org/releases/musl-$pkgver.tar.gz{,.asc})
- sha256sums=('a9a118bbe84d8764da0ea0d28b3ab3fae8477fc7e4085d90102b8596fc7c75e4'
-@@ -72,6 +72,18 @@ package_musl-aarch64() {
+ source=(https://www.musl-libc.org/releases/musl-$pkgver.tar.gz{,.asc}
+ 	https://www.openwall.com/lists/musl/2025/02/13/1/1
+@@ -60,7 +60,7 @@ package_musl() {
+   cd $pkgname-$pkgver
+   make DESTDIR="$pkgdir" install
+ 
+-  ln -s ./musl-gcc "$pkgdir"/usr/bin/x86_64-linux-musl-gcc
++  ln -s ./musl-gcc "$pkgdir"/usr/bin/${CARCH}-linux-musl-gcc
+ 
+   # configure syslibdir with /lib for PT_INTERP compat, but install to /usr/lib
+   mv "$pkgdir"/lib/ld-musl*.so* "$pkgdir"/usr/lib/
+@@ -85,6 +85,21 @@ package_musl-aarch64() {
    install -Dm0644 COPYRIGHT "$pkgdir"/usr/share/licenses/musl-aarch64/COPYRIGHT
  }
  
 +package_musl-x86_64() {
 +  cd "$pkgbase-$pkgver-x86_64"
 +  make DESTDIR="$pkgdir" install
++
++  install -d "$pkgdir"/usr/bin
++  ln -s ../x86_64-linux-musl/bin/musl-gcc "$pkgdir"/usr/bin/x86_64-linux-musl-gcc
 +
 +  # configure syslibdir with /lib for PT_INTERP compat, but install to /usr/lib
 +  mv "$pkgdir"/lib/ld-musl*.so* "$pkgdir"/usr/x86_64-linux-musl/lib/
