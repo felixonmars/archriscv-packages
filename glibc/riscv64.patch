@@ -1,6 +1,8 @@
+diff --git PKGBUILD PKGBUILD
+index fc3e2cf..70acac8 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,21 +37,21 @@ pkgver() {
+@@ -44,21 +44,21 @@ pkgver() {
  }
  
  prepare() {
@@ -25,7 +27,7 @@
        --enable-stack-protector=strong
        --enable-systemtap
        --disable-nscd
-@@ -62,6 +62,12 @@ build() {
+@@ -69,6 +69,12 @@ build() {
    # _FORTIFY_SOURCE=3 causes testsuite build failure and is unnecessary during
    # actual builds (support is built-in via --enable-fortify-source).
    CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
@@ -38,15 +40,7 @@
  
    (
      cd glibc-build
-@@ -75,7 +81,6 @@ build() {
-         --libdir=/usr/lib \
-         --libexecdir=/usr/lib \
-         --enable-cet \
--        --enable-sframe \
-         "${_configure_flags[@]}"
- 
-     make -O
-@@ -84,29 +89,6 @@ build() {
+@@ -90,29 +96,6 @@ build() {
      make info
    )
  
@@ -76,7 +70,7 @@
    # pregenerate locales here instead of in package
    # functions because localedef does not like fakeroot
    make -C "${srcdir}"/glibc/localedata objdir="${srcdir}"/glibc-build \
-@@ -141,7 +123,7 @@ check() (
+@@ -147,7 +130,7 @@ check() (
    _skip_test tst-shstk-legacy-1g     sysdeps/x86_64/Makefile
    _skip_test tst-adjtime             time/Makefile
  
@@ -85,7 +79,7 @@
  )
  
  package_glibc() {
-@@ -190,31 +172,6 @@ package_glibc() {
+@@ -196,31 +179,6 @@ package_glibc() {
    install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
  }
  
@@ -117,7 +111,7 @@
  package_glibc-locales() {
    pkgdesc='Pregenerated locales for GNU C Library'
    depends=("glibc=$pkgver")
-@@ -225,3 +182,8 @@ package_glibc-locales() {
+@@ -231,3 +189,8 @@ package_glibc-locales() {
    # deduplicate locale data
    hardlink -c "${pkgdir}"/usr/lib/locale
  }
