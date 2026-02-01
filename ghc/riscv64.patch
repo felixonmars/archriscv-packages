@@ -1,19 +1,30 @@
 diff --git PKGBUILD PKGBUILD
-index 69700b6..fbb8d55 100644
+index 69700b6..5c25d7d 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -19,20 +19,23 @@ url='https://www.haskell.org/ghc/'
+@@ -11,7 +11,7 @@ shopt -s extglob
+ 
+ pkgbase=ghc
+ pkgname=(ghc-libs ghc ghc-static)
+-pkgver=9.6.6
++pkgver=9.6.7.20250817
+ pkgrel=1
+ pkgdesc='The Glasgow Haskell Compiler'
+ arch=('x86_64')
+@@ -19,20 +19,27 @@ url='https://www.haskell.org/ghc/'
  license=('custom')
  makedepends=('ghc-static' 'perl' 'libxslt' 'docbook-xsl' 'python-sphinx' 'haskell-hadrian'
               'haskell-hscolour' 'texlive-fontsrecommended' 'texlive-latexextra' 'texlive-xetex'
 -             'ttf-dejavu' 'alex' 'happy' 'time' 'numactl' 'python-sphinx_rtd_theme')
-+             'ttf-dejavu' 'alex' 'happy' 'time' 'numactl' 'python-sphinx_rtd_theme' 'llvm14')
- source=("https://downloads.haskell.org/~ghc/$pkgver/$pkgbase-${pkgver}-src.tar.xz"
+-source=("https://downloads.haskell.org/~ghc/$pkgver/$pkgbase-${pkgver}-src.tar.xz"
++             'ttf-dejavu' 'alex' 'happy' 'time' 'numactl' 'python-sphinx_rtd_theme' 'git')
++source=("git+https://github.com/eweOS/ghc.git#branch=ewe/ghc-9.6"
          "$pkgname-gcc-15.patch::https://gitlab.haskell.org/ghc/ghc/-/commit/f983a00ffc97b779eb52b10e69e254ec107f8311.patch"
 -        ghc-rebuild-doc-index.hook ghc-register.hook ghc-unregister.hook)
+-sha512sums=('532bbf5ab44fd4a42abc7904d86ada4803ecbc3cbb499d907520610466b6c2a0c95e07167e8a10c12f3871f3d1d9e54221469ee7a75c3fae1c49b1b281b857ef'
 +        ghc-rebuild-doc-index.hook ghc-register.hook ghc-unregister.hook
 +        0001-rts-posix-OSMem-Shrinking-allocation-size-when-it-s-.patch)
- sha512sums=('532bbf5ab44fd4a42abc7904d86ada4803ecbc3cbb499d907520610466b6c2a0c95e07167e8a10c12f3871f3d1d9e54221469ee7a75c3fae1c49b1b281b857ef'
++sha512sums=('SKIP'
              '577f8772652a371e51c185c2d1456584b5ca716df18bc99fa6a8db348c3e0ccd47510792bca5903750d0e40dbbc6cd9b75cffa1fac1434ab2f2d80784b86cb4a'
              'd69e5222d1169c4224a2b69a13e57fdd574cb1b5932b15f4bc6c7d269a9658dd87acb1be81f52fbcf3cb64f96978b9943d10cee2c21bff0565aaa93a5d35fcae'
              '5f659651d8e562a4dcaae0f821d272d6e9c648b645b1d6ab1af61e4dd690dc5a4b9c6846753b7f935963f001bb1ae1f40cd77731b71ef5a8dbc079a360aa3f8f'
@@ -22,19 +33,62 @@ index 69700b6..fbb8d55 100644
 +            '5000bda406e1c5bf66d29f39b61f2334b197ed631b06792f5547d4249200ceba04c4b809483f2bb7549d5bf876ab2ef885fb688eff084c89822c9d62823c1ca0')
  
  prepare() {
-   cd ghc-$pkgver
+-  cd ghc-$pkgver
++  cd ghc
++  git submodule update --init
++  # allow happy 2.1+
++  git cherry-pick -n 0029ca91c845dd4530eb2c4606ad5bd59775cec2
++  git cherry-pick -n 1fd83f865ffb620f4f7c4c59787710206dcadb90
  
    patch -p1 -i ../$pkgname-gcc-15.patch
 +  patch -p1 -i ../0001-rts-posix-OSMem-Shrinking-allocation-size-when-it-s-.patch
  
    # devendor rtd-theme for sphinx compatibility
    rm -r docs/users_guide/rtd-theme
-@@ -79,7 +82,7 @@ package_ghc-static() {
+@@ -43,8 +50,9 @@ prepare() {
+ }
  
- package_ghc() {
-   pkgdesc='The Glasgow Haskell Compiler'
--  depends=('gcc' 'ghc-libs')
-+  depends=('gcc' 'ghc-libs' 'llvm14')
-   provides=('haskell-haddock=2.29.2'
-             'haskell-hp2ps=0.1'
-             'haskell-hpc-bin=0.68'
+ build() {
+-  cd ghc-$pkgver
++  cd ghc
+ 
++  ./boot
+   LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" ./configure \
+     --prefix=/usr \
+     --docdir=/usr/share/doc/ghc \
+@@ -53,7 +61,7 @@ build() {
+ }
+ 
+ check() {
+-  cd ghc-$pkgver
++  cd ghc
+   # hadrian test --flavour=perf
+ }
+ 
+@@ -61,7 +69,7 @@ package_ghc-static() {
+   pkgdesc='The Glasgow Haskell Compiler - Static Libraries and Documentation'
+   depends=('ghc')
+ 
+-  cd ghc-$pkgver
++  cd ghc
+ 
+   DESTDIR="$pkgdir" LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" hadrian install --flavour=perf --prefix=/usr
+ 
+@@ -92,7 +100,7 @@ package_ghc() {
+   provides+=("haskell-ghc=$pkgver")
+   replaces+=("haskell-ghc")
+ 
+-  cd ghc-$pkgver
++  cd ghc
+   DESTDIR="$pkgdir" LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" hadrian install --flavour=perf --prefix=/usr
+ 
+   # Remove static libs
+@@ -187,7 +195,7 @@ package_ghc-libs() {
+   provides+=("haskell-ghci=$pkgver")
+   conflicts+=('haskell-ghci')
+ 
+-  cd ghc-$pkgver
++  cd ghc
+ 
+   DESTDIR="$pkgdir" LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" hadrian install --flavour=perf --prefix=/usr
+ 
