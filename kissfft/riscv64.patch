@@ -1,0 +1,36 @@
+diff --git PKGBUILD PKGBUILD
+index fba4cab..96c0710 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,10 +31,14 @@
+ 		"KISSFFT_OPENMP=OFF;KISSFFT_DATATYPE=int16_t"
+ 		"KISSFFT_OPENMP=ON;KISSFFT_DATATYPE=int32_t"
+ 		"KISSFFT_OPENMP=OFF;KISSFFT_DATATYPE=int32_t"
+-		# SIMD (requires SSE instruction set support on target CPU)
+-		"KISSFFT_OPENMP=ON;KISSFFT_DATATYPE=simd"
+-		"KISSFFT_OPENMP=OFF;KISSFFT_DATATYPE=simd"
+ 	)
++	if [ "$CARCH" = "x86_64" ]; then
++		_cmake_configs+=(
++			# SIMD (requires SSE instruction set support on target CPU)
++                	"KISSFFT_OPENMP=ON;KISSFFT_DATATYPE=simd"
++                	"KISSFFT_OPENMP=OFF;KISSFFT_DATATYPE=simd"
++		)
++	fi
+ 	for _config in "${_cmake_configs[@]}"; do
+ 		_cmake_args=""
+ 		IFS=';' read -ra _pairs <<< "${_config}"
+@@ -73,8 +77,12 @@
+ 		"double"
+ 		"int16_t"
+ 		"int32_t"
+-		"simd"
+ 	)
++        if [ "$CARCH" = "x86_64" ]; then
++                _data_types+=(
++			"simd"
++		)
++        fi
+ 	for _data_type in "${_data_types[@]}"; do
+ 		install -Dm644 "build/kissfft-${_data_type}.pc" "${pkgdir}/usr/share/pkgconfig/kissfft-${_data_type}.pc"
+ 		ln -s "libkissfft-${_data_type}.so.131" "${pkgdir}/usr/lib/libkissfft-${_data_type}.so"
