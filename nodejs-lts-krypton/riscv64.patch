@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -44,7 +44,14 @@ provides=(
+@@ -44,7 +44,15 @@ provides=(
  conflicts=(nodejs)
  options=('!lto')
  source=("git+https://github.com/nodejs/node.git#tag=v$pkgver?signed")
@@ -12,11 +12,12 @@
 +        'ae8fc401ef3bedf0e90bf6d9ff116aac911f20fc075fd35de06c5f538be3eea49f5f5803628ef292a7fc25f9ead2c75c2cbce765fe78ed9062f1859876966766'
 +        '9d1a5fffd988d2aa5227a1c226a772c94d1c4c1a2e32fef1a7ba40e000c3873010e3e4017b9dda6b10667fa9832fd8f6c72a290636681b397069e5e309bb0722'
 +        '706f0be85025b9fd23a341d99d134e0e020ccc2df3ca4ac28a0b9e1fde878ea64aa269293e9661812fb3d06249b8d8aea461e2a23d4f48fe2951905304341b4b'
++        'f1ad5e9efed34da853427b8aa1857d08f8856f0ec2c60feeb1d810dcc1f0d60f03570c0e40ee066e3a995e9be3de5115284b34aa2301bd7b15f100efb7caff23'
 +        '74c0a6873d289a4f3e904d1c63b7f01c835098690245b52e3fd144061a977b01263d896e850ee8914fd999348d685ba85c949df57c266002cf529fef7d53196c')
  validpgpkeys=(
    '8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600' # Michaël Zasso (Targos) <targos@protonmail.com>
    '890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4' # RafaelGSS <rafael.nunu@hotmail.com>
-@@ -58,12 +65,21 @@ _set_flags() {
+@@ -58,12 +66,22 @@ _set_flags() {
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -36,10 +37,11 @@
 +  patch -Np1 -i ../60591.diff
 +  patch -Np1 -i ../v8-riscv-fix-trampoline.patch
 +  patch -Np1 -i ../v8-riscv-fix-trampoline-release.patch
++  patch -Np1 -i ../v8-riscv-fix-sp.patch
  }
  
  build() {
-@@ -95,6 +111,8 @@ build() {
+@@ -95,6 +113,8 @@ build() {
  check() {
    _set_flags
    cd node
@@ -48,7 +50,7 @@
    rm test/parallel/test-http2-client-set-priority.js
    rm test/parallel/test-http2-client-unescaped-path.js
    rm test/parallel/test-http2-max-invalid-frames.js
-@@ -119,4 +137,12 @@ package() {
+@@ -119,4 +139,13 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
@@ -59,5 +61,6 @@
 +         "60588.diff"
 +         "60591.diff"
 +         v8-riscv-fix-trampoline{,-release}.patch
++         v8-riscv-fix-sp.patch
 +         https://github.com/nodejs/node/commit/5afe4cd716cbf7699f6abc99338f44db3b1424d5.diff)
  # vim:set ts=2 sw=2 et:
