@@ -1,12 +1,31 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,7 +21,8 @@ build() {
+@@ -13,15 +13,25 @@ url=https://github.com/oneapi-src/oneDNN
+ license=('Apache-2.0')
+ depends=('gcc-libs' 'glibc')
+ makedepends=('cmake' 'ninja')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/oneapi-src/oneDNN/archive/v${pkgver}.tar.gz")
+-sha256sums=('58a7399c86789bf3756117072ed946d764ba59dd1480f0e42efd4f9b6b7b9a64')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/oneapi-src/oneDNN/archive/v${pkgver}.tar.gz"
++	riscv-override.patch)
++sha256sums=('58a7399c86789bf3756117072ed946d764ba59dd1480f0e42efd4f9b6b7b9a64'
++            '5ca34895d448affcf606f9fee976ffcd92eb5ceddc70fbb6aa5ce707fc9a67ba')
++
++prepare() {
++  cd "oneDNN-$pkgver"
++  patch -Np1 -i ../riscv-override.patch
++}
+ 
+ build() {
+   cd "oneDNN-$pkgver"
    cmake \
        -Bbuild \
        -GNinja \
 -      -DCMAKE_INSTALL_PREFIX="/usr"
 +      -DCMAKE_INSTALL_PREFIX="/usr" \
-+      -DDNNL_CPU_RUNTIME=SEQ
++      -DDNNL_ARCH_OPT_FLAGS="-march=rv64gc" \
++      -DDNNL_RISCV_USE_RVV_INTRINSICS=false \
++      -DDNNL_RISCV_USE_ZVFH_INTRINSICS=false
    ninja -C build
  }
  
