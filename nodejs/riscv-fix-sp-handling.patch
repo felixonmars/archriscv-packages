@@ -1,0 +1,51 @@
+From 6e4319669a6a5e39dc52e6ab0842ab02eedc77e9 Mon Sep 17 00:00:00 2001
+From: Vivian Wang <wangruikang@iscas.ac.cn>
+Date: Tue, 3 Feb 2026 16:46:02 +0800
+Subject: [PATCH] Fix sp handling in MacroAssembler::LeaveFrame
+
+Keep sp <= fp to ensure that data right above fp doesn't get clobbered
+by an inopportune signal and its handler.
+
+Such clobbering can happen in e.g. Node.js when JIT-compiled code is
+interrupted by a SIGCHLD handler.
+
+Bug: None
+Change-Id: Ief0836032ada7942e89f081f7605f61632c4d414
+(cherry picked from commit e278190451f55787340f9e3f150c1c6923ae963f)
+[ kxxt: Resolved minor conflict in deps/v8/src/codegen/riscv/macro-assembler-riscv.cc ]
+---
+ deps/v8/AUTHORS                                    | 1 +
+ deps/v8/src/codegen/riscv/macro-assembler-riscv.cc | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/deps/v8/AUTHORS b/deps/v8/AUTHORS
+index ffce5c6df02..6aaefc67f05 100644
+--- a/deps/v8/AUTHORS
++++ b/deps/v8/AUTHORS
+@@ -300,6 +300,7 @@ Vadim Gorbachev <bmsdave@gmail.com>
+ Varun Varada <varuncvarada@gmail.com>
+ Victor Costan <costan@gmail.com>
+ Victor Polevoy <fx@thefx.co>
++Vivian Wang <wangruikang@iscas.ac.cn>
+ Vlad Burlik <vladbph@gmail.com>
+ Vladimir Kempik <vladimir.kempik@syntacore.com>
+ Vladimir Krivosheev <develar@gmail.com>
+diff --git a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+index 616faf5dd46..eb3fda3d5b6 100644
+--- a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
++++ b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+@@ -6714,9 +6714,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
+ 
+ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
+   ASM_CODE_COMMENT(this);
+-  AddWord(sp, fp, 2 * kSystemPointerSize);
++  Move(sp, fp);
+   LoadWord(ra, MemOperand(fp, 1 * kSystemPointerSize));
+   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
++  AddWord(sp, sp, 2 * kSystemPointerSize);
+ }
+ 
+ void MacroAssembler::EnterExitFrame(Register scratch, int stack_space,
+-- 
+2.53.0
+
