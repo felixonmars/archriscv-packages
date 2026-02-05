@@ -1,24 +1,16 @@
 diff --git PKGBUILD PKGBUILD
-index 506b4c5..bc0cf47 100644
+index e83d114..4c364a5 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,8 +9,17 @@ arch=('x86_64')
- url='http://libemf.sourceforge.net/'
- license=('GPL' 'LGPL')
- depends=('gcc-libs')
--source=("https://sourceforge.net/projects/libemf/files/libemf/${pkgver}/${pkgname}-${pkgver}.tar.gz")
--sha256sums=('74d92c017e8beb41730a8be07c2c6e4ff6547660c84bf91f832d8f325dd0cf82')
-+source=("https://sourceforge.net/projects/libemf/files/libemf/${pkgver}/${pkgname}-${pkgver}.tar.gz"
-+        "add-riscv64-support.patch")
-+sha256sums=('74d92c017e8beb41730a8be07c2c6e4ff6547660c84bf91f832d8f325dd0cf82'
-+            '0689e5b4a7137483acf13451d729e584e438083bf1a329a7be023a7cc74c2666')
-+
-+prepare() {
-+    cd "${pkgname}-${pkgver}"
-+
-+    # Patch from https://build.opensuse.org/package/view_file/openSUSE:Factory:RISCV/libEMF/riscv.patch
-+    patch -Np1 -i ${srcdir}/add-riscv64-support.patch
-+}
+@@ -14,6 +14,11 @@ depends=(
+ source=("https://sourceforge.net/projects/libemf/files/libemf/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+ sha256sums=('74d92c017e8beb41730a8be07c2c6e4ff6547660c84bf91f832d8f325dd0cf82')
  
++prepare(){
++    cd "${pkgname}-${pkgver}"
++    sed -i 's/^.*#.*error Unknown CPU architecture!.*/#undef WORDS_BIGENDIAN\n#undef BITFIELDS_BIGENDIAN\n#undef ALLOW_UNALIGNED_ACCESS/' include/libEMF/wine/winnt.h
++    sed -i 's/^.*#.*error You need to define a CONTEXT.*/typedef struct _CONTEXT { DWORD ContextFlags; } CONTEXT;/' include/libEMF/wine/winnt.h
++}
  build() {
      cd "${pkgname}-${pkgver}"
+     ./configure \
