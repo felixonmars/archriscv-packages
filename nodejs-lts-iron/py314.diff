@@ -1,0 +1,72 @@
+From 910b92ba02420cc039f39e6c6907557edd185107 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Lum=C3=ADr=20=27Frenzy=27=20Balhar?=
+ <frenzy.madness@gmail.com>
+Date: Sun, 22 Jun 2025 07:49:14 +0200
+Subject: [PATCH] tools: make nodedownload module compatible with Python 3.14
+
+FancyURLopener and URLopener have been deprecated since
+Python 3.3 and they are removed completely from 3.14.
+
+Fixes: https://github.com/nodejs/node/issues/58740
+PR-URL: https://github.com/nodejs/node/pull/58752
+Reviewed-By: Luigi Pinca <luigipinca@gmail.com>
+Reviewed-By: Yagiz Nizipli <yagiz@nizipli.com>
+Reviewed-By: James M Snell <jasnell@gmail.com>
+---
+ tools/configure.d/nodedownload.py | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/tools/configure.d/nodedownload.py b/tools/configure.d/nodedownload.py
+index 4f144e0e4b4..0d65c33606b 100644
+--- a/tools/configure.d/nodedownload.py
++++ b/tools/configure.d/nodedownload.py
+@@ -7,10 +7,7 @@ import sys
+ import zipfile
+ import tarfile
+ import contextlib
+-try:
+-    from urllib.request import FancyURLopener, URLopener
+-except ImportError:
+-    from urllib import FancyURLopener, URLopener
++from urllib.request import build_opener, install_opener, urlretrieve
+ 
+ def formatSize(amt):
+     """Format a size as a string in MB"""
+@@ -21,11 +18,6 @@ def spin(c):
+     spin = ".:|'"
+     return (spin[c % len(spin)])
+ 
+-class ConfigOpener(FancyURLopener):
+-    """fancy opener used by retrievefile. Set a UA"""
+-    # append to existing version (UA)
+-    version = '%s node.js/configure' % URLopener.version
+-
+ def reporthook(count, size, total):
+     """internal hook used by retrievefile"""
+     sys.stdout.write(' Fetch: %c %sMB total, %sMB downloaded   \r' %
+@@ -38,7 +30,10 @@ def retrievefile(url, targetfile):
+     try:
+         sys.stdout.write(' <%s>\nConnecting...\r' % url)
+         sys.stdout.flush()
+-        ConfigOpener().retrieve(url, targetfile, reporthook=reporthook)
++        opener = build_opener()
++        opener.addheaders = [('User-agent', f'Python-urllib/{sys.version_info.major}.{sys.version_info.minor} node.js/configure')]
++        install_opener(opener)
++        urlretrieve(url, targetfile, reporthook=reporthook)
+         print('')  # clear the line
+         return targetfile
+     except IOError as err:
+-- 
+2.53.0
+
+--- a/configure   2026-01-13 02:01:31.000000000 +0000
++++ b/configure	2026-02-04 05:46:05.729484536 +0000
+@@ -25,7 +25,7 @@
+   from distutils.spawn import find_executable as which
+ 
+ print('Node.js configure: Found Python {}.{}.{}...'.format(*sys.version_info))
+-acceptable_pythons = ((3, 13), (3, 12), (3, 11), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6))
++acceptable_pythons = ((3, 14), (3, 13), (3, 12), (3, 11), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6))
+ if sys.version_info[:2] in acceptable_pythons:
+   import configure
+ else:
