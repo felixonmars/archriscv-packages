@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,10 +19,14 @@ options=(!lto)
+ source=(
+   "https://nodejs.org/dist/v${pkgver}/node-v${pkgver}.tar.xz"
+   update-icu-tests.patch
++  configure-py314.diff
++  riscv-v8-fix-sp.patch
+ )
+ # https://nodejs.org/download/release/latest-jod/SHASUMS256.txt.asc
+ sha256sums=('4c138012bb5352f49822a8f3e6d1db71e00639d0c36d5b6756f91e4c6f30b683'
+-            '43da0fb7469e34a239b2711876475f303a4012151e44f72e636a5a7fcf21bff8')
++            '43da0fb7469e34a239b2711876475f303a4012151e44f72e636a5a7fcf21bff8'
++            '9eefe84d90cedffd47878cfd4f027d18fd8724ce2f798ba11cc2b3b861d1f10d'
++            'c3ecf573ef238c4d97fb051eefe0d4d47cdac8d6282f13cad69b04ec564460af')
+ 
+ _set_flags() {
+   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
+@@ -32,6 +36,8 @@ _set_flags() {
+ 
+ prepare() {
+   cd node-v${pkgver}
++  patch -Np0 -i ../configure-py314.diff
++  patch -Np1 -i ../riscv-v8-fix-sp.patch
+   # Update ICU tests https://github.com/nodejs/node/pull/60523
+   patch -Np1 -i ../update-icu-tests.patch
+ }

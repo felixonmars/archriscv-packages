@@ -1,0 +1,61 @@
+From b7ecaa8f7e903f7cf5190aa1e3150e739fffa1cc Mon Sep 17 00:00:00 2001
+From: Vivian Wang <wangruikang@iscas.ac.cn>
+Date: Tue, 3 Feb 2026 16:46:02 +0800
+Subject: [PATCH] deps: V8: backport 6a0a25abaed3
+
+Original commit message:
+
+    [riscv] Fix sp handling in MacroAssembler::LeaveFrame
+
+    Keep sp <= fp to ensure that data right above fp doesn't get clobbered
+    by an inopportune signal and its handler.
+
+    Such clobbering can happen in e.g. Node.js when JIT-compiled code is
+    interrupted by a SIGCHLD handler.
+
+    Bug: None
+    Change-Id: Ief0836032ada7942e89f081f7605f61632c4d414
+    Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/7540554
+    Reviewed-by: Ji Qiu <qiuji@iscas.ac.cn>
+    Commit-Queue: Yahan Lu (LuYahan) <yahan@iscas.ac.cn>
+    Reviewed-by: Rezvan Mahdavi Hezaveh <rezvan@chromium.org>
+    Cr-Commit-Position: refs/heads/main@{#105069}
+
+Refs: https://github.com/v8/v8/commit/6a0a25abaed397f83eb0d92e4b33a5e18204f8bc
+Co-authored-by: kxxt <rsworktech@outlook.com>
+---
+ deps/v8/AUTHORS                                    | 1 +
+ deps/v8/src/codegen/riscv/macro-assembler-riscv.cc | 3 ++-
+ 3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/deps/v8/AUTHORS b/deps/v8/AUTHORS
+index 54fb45992db..93b3d9d5b23 100644
+--- a/deps/v8/AUTHORS
++++ b/deps/v8/AUTHORS
+@@ -282,6 +282,7 @@ Vadim Gorbachev <bmsdave@gmail.com>
+ Varun Varada <varuncvarada@gmail.com>
+ Victor Costan <costan@gmail.com>
+ Victor Polevoy <fx@thefx.co>
++Vivian Wang <wangruikang@iscas.ac.cn>
+ Vlad Burlik <vladbph@gmail.com>
+ Vladimir Krivosheev <develar@gmail.com>
+ Vladimir Shutoff <vovan@shutoff.ru>
+diff --git a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+index fd5e97339b4..dc4e3aafcdb 100644
+--- a/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
++++ b/deps/v8/src/codegen/riscv/macro-assembler-riscv.cc
+@@ -6036,9 +6036,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
+ 
+ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
+   ASM_CODE_COMMENT(this);
+-  addi(sp, fp, 2 * kSystemPointerSize);
++  Move(sp, fp);
+   LoadWord(ra, MemOperand(fp, 1 * kSystemPointerSize));
+   LoadWord(fp, MemOperand(fp, 0 * kSystemPointerSize));
++  AddWord(sp, sp, 2 * kSystemPointerSize);
+ }
+ 
+ void MacroAssembler::EnterExitFrame(int stack_space,
+-- 
+2.53.0
+
