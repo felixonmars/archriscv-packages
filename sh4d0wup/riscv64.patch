@@ -8,20 +8,3 @@
  )
  options=(!lto)
  source=(https://github.com/kpcyrd/${pkgname}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz)
-@@ -31,6 +32,8 @@ b2sums=('7109e4523a61478a7f51e28f1a850071c3c9b966e47a5ef4e59c9e62b5267ae255b1d6b
- 
- prepare() {
-   cd "${pkgname}-${pkgver}"
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring@0.16.20
-   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
- }
- 
-@@ -41,6 +44,7 @@ build() {
- 
- check() {
-   cd ${pkgname}-${pkgver}
-+  CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
-   cargo test --frozen
- }
- 
