@@ -1,38 +1,35 @@
-diff --git PKGBUILD PKGBUILD
-index fff3294..7a67e35 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,7 +13,7 @@ arch=('any')
- url='https://jenkins.io'
+@@ -13,7 +13,7 @@
  license=('MIT')
+ _java=21
  depends=("java-runtime=${_java}" 'ttf-dejavu' 'fontconfig')
 -makedepends=("java-environment=${_java}" 'git' 'maven')
-+makedepends=("java-environment=${_java}" 'git' 'maven' 'nodejs-lts-iron' 'yarn')
++makedepends=("java-environment=${_java}" 'git' 'maven' 'corepack')
  provides=('jenkins-ci')
  conflicts=('jenkins-ci')
  replaces=('jenkins-ci')
-@@ -35,6 +35,7 @@ sha512sums=('7119d62ce38e7879cb8b0406cdc7bfde081c29b22444d174a9c37a46a84127cb1ff
+@@ -35,6 +35,7 @@
  prepare() {
-   cd "${pkgname}-${pkgname}-${pkgver}"
-   patch -Np1 <"${srcdir}"/skip-failing-test.patch
-+  patch -Np1 <"${srcdir}"/use-system-yarn.patch
+ 	cd "${pkgname}"
+ 	patch -Np1 -i "${srcdir}/skip-failing-test.patch"
++	patch -Np1 -i "${srcdir}/use-system-corepack.patch"
  }
  
  build() {
-@@ -46,7 +47,7 @@ build() {
+@@ -46,7 +47,7 @@
  check() {
-   cd "${pkgname}-${pkgname}-${pkgver}"
-   export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:${PATH}"
--  mvn -am -Plight-test -Dproject.build.outputTimestamp="${SOURCE_DATE_EPOCH}" test
-+  mvn -am -Plight-test -Dproject.build.outputTimestamp="${SOURCE_DATE_EPOCH}" -Djunit.jupiter.execution.timeout.default=20000 test
+ 	cd "${pkgname}"
+ 	export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:${PATH}"
+-	mvn -am -Plight-test -Dproject.build.outputTimestamp="${SOURCE_DATE_EPOCH}" test
++	mvn -am -Plight-test -Dproject.build.outputTimestamp="${SOURCE_DATE_EPOCH}" -Djunit.jupiter.execution.timeout.default=20000 test
  }
  
  package() {
-@@ -58,3 +59,6 @@ package() {
-   install -Dm 644 ../jenkins.sysusers "${pkgdir}/usr/lib/sysusers.d/jenkins.conf"
-   install -Dm 644 ../jenkins.conf "${pkgdir}/etc/conf.d/jenkins"
+@@ -58,3 +59,6 @@
+ 	install -Dm 644 "${srcdir}/${pkgname}.conf" "${pkgdir}/etc/conf.d/${pkgname}"
+ 	install -Dm 644 LICENSE.txt "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
  }
 +
-+source+=('use-system-yarn.patch')
-+sha512sums+=('ba7d22c9ff7005e3c51d32af25cd2a3db8536a29a160eefa39bc41057c585fedae24cc394afa399f0e703a537f75a023a651f3bc203db17a7e7a1fad4ec75458')
-\ No newline at end of file
++source+=('use-system-corepack.patch')
++sha512sums+=('b4e0aa2ff77c94fd3e63b54ff0549b0f4caf6ce40068d390f0fb58bc2449aed98e5fed0e69aff4cad5df963baadd53c0d7bfb53b4c0b32b817c6bc132211cfa2')
