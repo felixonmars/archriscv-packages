@@ -1,8 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index fc3e2cf..70acac8 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -44,21 +44,21 @@ pkgver() {
+@@ -44,21 +44,21 @@
  }
  
  prepare() {
@@ -27,50 +25,23 @@ index fc3e2cf..70acac8 100644
        --enable-stack-protector=strong
        --enable-systemtap
        --disable-nscd
-@@ -69,6 +69,12 @@ build() {
-   # _FORTIFY_SOURCE=3 causes testsuite build failure and is unnecessary during
+@@ -70,9 +70,13 @@
    # actual builds (support is built-in via --enable-fortify-source).
    CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
+ 
+-  # locale-gen segfaults without this on glibc 2.42
 +  # check-localplt requires malloc family symbols to go through PLT.
 +  # -fno-plt causes compiler generated memset calls in early code to use GOT,
 +  # leading to segfault due to uninitialized GOT entry. Removing -fno-plt restores
 +  # the old happy path of generating R_RISCV_CALL_PLT for such memset calls and
 +  # then optimizing them away.
 +  CFLAGS=${CFLAGS/-fno-plt/}
+   if [[ ${CARCH} = "aarch64" ]]; then
+-     CFLAGS=${CFLAGS/-fno-plt/}
+      _configure_flags+=(--enable-memory-tagging)
+   fi
  
-   (
-     cd glibc-build
-@@ -90,29 +96,6 @@ build() {
-     make info
-   )
- 
--  (
--    cd lib32-glibc-build
--    export CC="gcc -m32 -mstackrealign"
--    export CXX="g++ -m32 -mstackrealign"
--
--    # remove frame pointer flags due to crashes of nvidia driver on steam starts
--    # See https://gitlab.archlinux.org/archlinux/packaging/packages/glibc/-/issues/10
--    CFLAGS=${CFLAGS/-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer/}
--
--    echo "slibdir=/usr/lib32" >> configparms
--    echo "rtlddir=/usr/lib32" >> configparms
--    echo "sbindir=/usr/bin" >> configparms
--    echo "rootsbindir=/usr/bin" >> configparms
--
--    "${srcdir}"/glibc/configure \
--        --host=i686-pc-linux-gnu \
--        --libdir=/usr/lib32 \
--        --libexecdir=/usr/lib32 \
--        "${_configure_flags[@]}"
--
--    make -O
--  )
--
-   # pregenerate locales here instead of in package
-   # functions because localedef does not like fakeroot
-   make -C "${srcdir}"/glibc/localedata objdir="${srcdir}"/glibc-build \
-@@ -147,7 +130,7 @@ check() (
+@@ -154,7 +158,7 @@
    _skip_test tst-shstk-legacy-1g     sysdeps/x86_64/Makefile
    _skip_test tst-adjtime             time/Makefile
  
@@ -79,44 +50,10 @@ index fc3e2cf..70acac8 100644
  )
  
  package_glibc() {
-@@ -196,31 +179,6 @@ package_glibc() {
-   install -Dm644 "${srcdir}"/sdt-config.h "${pkgdir}"/usr/include/sys/sdt-config.h
- }
- 
--package_lib32-glibc() {
--  pkgdesc='GNU C Library (32-bit)'
--  depends=("glibc=$pkgver")
--  options+=('!emptydirs')
--  install=lib32-glibc.install
--
--  cd lib32-glibc-build
--
--  make DESTDIR="${pkgdir}" install
--  rm -rf "${pkgdir}"/{etc,sbin,usr/{bin,sbin,share},var}
--
--  # We need to keep 32 bit specific header files
--  find "${pkgdir}"/usr/include -type f -not -name '*-32.h' -delete
--
--  # Dynamic linker
--  install -d "${pkgdir}"/usr/lib
--  ln -s ../lib32/ld-linux.so.2 "${pkgdir}"/usr/lib/
--
--  # Add lib32 paths to the default library search path
--  install -Dm644 "${srcdir}"/lib32-glibc.conf "${pkgdir}"/etc/ld.so.conf.d/lib32-glibc.conf
--
--  # Symlink /usr/lib32/locale to /usr/lib/locale
--  ln -s ../lib/locale "${pkgdir}"/usr/lib32/locale
--}
--
- package_glibc-locales() {
-   pkgdesc='Pregenerated locales for GNU C Library'
-   depends=("glibc=$pkgver")
-@@ -231,3 +189,8 @@ package_glibc-locales() {
+@@ -239,3 +243,6 @@
    # deduplicate locale data
    hardlink -c "${pkgdir}"/usr/lib/locale
  }
 +
-+pkgname=(${pkgname[@]/lib32-glibc})
-+makedepends=(${makedepends[@]/lib32-gcc-libs})
 +source+=("mremap-fix-test.patch::https://inbox.sourceware.org/libc-alpha/20250208-fix-mremap-tst-v1-1-ad7ee617ec65@coelacanthus.name/raw")
 +b2sums+=('3ba09c775c0d58bf9e5b08985ea5fa73509433df7ff284f035f7f73357e8f35a79c8e7f3a0fecfe4b8759831e9f0d38e8524dcf2b8132066a47cb7e234880a6e')
