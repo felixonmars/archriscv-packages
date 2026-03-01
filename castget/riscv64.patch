@@ -1,35 +1,30 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,17 +8,20 @@ pkgdesc="Command-line based RSS enclosure downloader primarily intended for down
- arch=('x86_64')
- url="https://johndal.com/castget/"
- license=('GPL-2.0-or-later' 'LGPL-2.1-or-later')
--depends=('glib2' 'libxml2' 'curl' 'id3lib')
-+depends=('glib2' 'libxml2' 'curl' 'taglib')
+@@ -12,21 +12,25 @@
+   'curl'
+   'glib2'
+   'glibc'
+-  'id3lib'
++  'taglib'
+   'libxml2'
+ )
 +makedepends=('ruby-ronn-ng')
- changelog=$pkgname.changelog
  source=(
    "https://download.savannah.gnu.org/releases/$pkgname/$pkgname-$pkgver.tar.bz2"
    "https://download.savannah.gnu.org/releases/$pkgname/$pkgname-$pkgver.tar.bz2.sig"
    "fix-build.patch"
 +  "port-to-taglib.patch"
  )
- sha256sums=(
-   '438b5f7ec7e31a45ed3756630fe447f42015acda53ec09202f48628726b5e875'
-   'SKIP'
-   '48cce3303601ee28e06bdf6b55b7c5023405cacd7c913f8bc6616b3277395b80'
-+  '51b690cf0f2ec8526e1ebc14fb01ae537ce8acf8c176b9487c008b3d83b32e8c'  
- )
+ b2sums=('a4c74857fdc301121f82468565c11aceae386133a7b1472617e9fa7ac7395fb64f19871cf56380fa3e7b3115679ba6ad8fd5c15a6f75bc683045df6c6f0fd265'
+         'SKIP'
+-        'bf96f3d9df86f04880070cd4a55f5d4df0042e7b1f833cc6705eb790cd8d0f004f98392c94bb07ae3179d7377c5057ffa595a279bbafc2938befa242dbd6d0be')
++        'bf96f3d9df86f04880070cd4a55f5d4df0042e7b1f833cc6705eb790cd8d0f004f98392c94bb07ae3179d7377c5057ffa595a279bbafc2938befa242dbd6d0be'
++        '6d0f00ee372626fb57da8eefd843af49d80966727196a021afaa316b4e719d2c906578b478a5a4fac3418ce0e97f6ffe63b65982996a2e8e6ad8e17a43c2db5f')
  validpgpkeys=('561BCBC3DF8A53503A62416EA7DE43E1D881FF60') # Marius Larsen Jøhndal <mariuslj@ifi.uio.no>
  
-@@ -33,6 +36,10 @@ prepare() {
- build() {
-   cd "${srcdir}"/$pkgname-$pkgver
- 
+ prepare() {
+   cd $pkgname-$pkgver
 +  patch -Np1 -i ../port-to-taglib.patch
-+
-+  autoreconf -fi
-+
-   ./configure --prefix=/usr
-   make
- }
+   autoreconf -fiv
+   # Naively replace deprecated curl option CURLOPT_PROGRESSFUNCTION with
+   # CURLOPT_XFERINFOFUNCTION and add a missing include.
