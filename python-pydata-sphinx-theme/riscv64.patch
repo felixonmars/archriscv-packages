@@ -1,0 +1,22 @@
+--- PKGBUILD	2026-03-02 09:41:00.704030328 +0800
++++ PKGBUILD	2026-03-02 09:41:00.776255222 +0800
+@@ -24,12 +24,20 @@
+   python-build
+   python-installer
+   python-sphinx-theme-builder
++  nodejs-lts-jod
++  npm
+ )
+ source=("git+https://github.com/pydata/pydata-sphinx-theme.git#tag=v$pkgver")
+ b2sums=('539321405ca0204e2dbb654fbc17cdefe51cd9209d080f7231db97fa9db4920b5d2a01c4c24ac2fbb1dfabf9f51213f49799e8260ec7cc923a94fb4ce4df0ca5')
+ 
++prepare() {
++  cd ${pkgname/python-/}
++  sed -i "s/node-version = \"22.9.0\"/node-version = \"$(node --version | sed 's/^v//')\"/g" pyproject.toml
++}
++
+ build() {
+   cd ${pkgname/python-/}
++  export STB_USE_SYSTEM_NODE=true
+   python -m build --wheel --no-isolation
+ }
