@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,17 +20,22 @@ depends=(
+@@ -20,17 +20,24 @@
  makedepends=(
    git
    cargo
@@ -8,18 +8,20 @@
 +  clang
  )
  source=("git+https://github.com/ProtonVPN/local-agent-rs.git#tag=${pkgver}")
- sha256sums=('66224b7958f4532da9ae0962edfb8a07181b8db5f8ed40c90db110d65a538f7b')
+ sha256sums=('e37902dd39ca9cbee37095ccce841e3e9f744f8b86f5935fa68f833dcd37d0ed')
  
  prepare() {
      cd "${srcdir}"/local-agent-rs/python-proton-vpn-local-agent
 +    cargo update -p bindgen
-     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+     cargo fetch --locked --target "$(rustc --print host-tuple)"
  }
  
  build() {
      cd "${srcdir}"/local-agent-rs/python-proton-vpn-local-agent
 +    export CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
 +    export CXXFLAGS=${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
++    export CFLAGS+=" -Wno-error=unterminated-string-initialization -Wno-error=discarded-qualifiers"
++    export CMAKE_POLICY_VERSION_MINIMUM=3.5
      cargo build --frozen --release --all-features
  }
  
