@@ -1,49 +1,39 @@
-diff --git a/projects/clr/hipamd/src/hip_graph_internal.cpp b/projects/clr/hipamd/src/hip_graph_internal.cpp
-index a5fd0fc6f4..c5dad14636 100644
---- a/projects/clr/hipamd/src/hip_graph_internal.cpp
-+++ b/projects/clr/hipamd/src/hip_graph_internal.cpp
-@@ -1074,9 +1074,21 @@ void GraphKernelArgManager::ReadBackOrFlush() {
+diff --git a/hipamd/src/hip_graph_internal.cpp b/hipamd/src/hip_graph_internal.cpp
+--- a/hipamd/src/hip_graph_internal.cpp
++++ b/hipamd/src/hip_graph_internal.cpp
+@@ -1234,9 +1234,17 @@
        
        // Read-modify-write sequence with memory barriers
        volatile unsigned char kSentinel = *sentinel_ptr;
-+#if defined(_M_X64)
++#if defined(__x86_64__)
        _mm_sfence();
-+#elif defined(__loongarch_lp64)
-+      asm("dbar 0");
 +#elif defined(__riscv)
 +      asm volatile("fence rw, rw");
 +#endif
        *sentinel_ptr = kSentinel;
-+#if defined(_M_X64)
++#if defined(__x86_64__)
        _mm_mfence();
-+#elif defined(__loongarch_lp64)
-+      asm("dbar 0");
 +#elif defined(__riscv)
 +      asm volatile("fence rw, rw");
 +#endif
        kSentinel = *sentinel_ptr;
        (void)kSentinel; // Suppress unused variable warning
      }
-diff --git a/projects/clr/rocclr/device/rocm/rocvirtual.cpp b/projects/clr/rocclr/device/rocm/rocvirtual.cpp
-index 06cccbdd88..0a58e4ecaf 100644
---- a/projects/clr/rocclr/device/rocm/rocvirtual.cpp
-+++ b/projects/clr/rocclr/device/rocm/rocvirtual.cpp
-@@ -3712,9 +3712,21 @@ bool VirtualGPU::submitKernelInternal(const amd::NDRangeContainer& sizes, const
+diff --git a/rocclr/device/rocm/rocvirtual.cpp b/rocclr/device/rocm/rocvirtual.cpp
+--- a/rocclr/device/rocm/rocvirtual.cpp
++++ b/rocclr/device/rocm/rocvirtual.cpp
+@@ -3805,9 +3805,17 @@
          *dev().info().hdpMemFlushCntl = 1u;
          auto kSentinel = *reinterpret_cast<volatile int*>(dev().info().hdpMemFlushCntl);
        } else if (kernArgImpl == KernelArgImpl::DeviceKernelArgsReadback && argSize != 0) {
-+#if defined(_M_X64)
++#if defined(__x86_64__)
          _mm_sfence();
-+#elif defined(__loongarch_lp64)
-+        asm("dbar 0");
 +#elif defined(__riscv)
 +        asm volatile("fence rw, rw");
 +#endif
          *(argBuffer + argSize - 1) = *(parameters + argSize - 1);
-+#if defined(_M_X64)
++#if defined(__x86_64__)
          _mm_mfence();
-+#elif defined(__loongarch_lp64)
-+        asm("dbar 0");
 +#elif defined(__riscv)
 +        asm volatile("fence rw, rw");
 +#endif

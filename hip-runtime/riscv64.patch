@@ -1,5 +1,3 @@
-diff --git PKGBUILD PKGBUILD
-index 516c09d..e0677df 100644
 --- PKGBUILD
 +++ PKGBUILD
 @@ -3,7 +3,7 @@
@@ -8,10 +6,10 @@ index 516c09d..e0677df 100644
  pkgbase=hip-runtime
 -pkgname=(hip-runtime-amd hip-runtime-nvidia)
 +pkgname=(hip-runtime-amd)
- pkgver=7.1.1
+ pkgver=7.2.0
  pkgrel=1
  _pkgdesc="Heterogeneous Interface for Portability"
-@@ -12,9 +12,8 @@ url='https://rocm.docs.amd.com/projects/HIP/en/latest/'
+@@ -12,9 +12,8 @@
  license=('MIT')
  _amd_depends=('rocm-core' 'bash' 'perl' 'glibc' 'gcc-libs' 'numactl'
           'mesa' 'comgr' 'rocminfo' 'rocm-llvm' 'libelf' 'rocprofiler-register')
@@ -22,7 +20,7 @@ index 516c09d..e0677df 100644
  _tag="tag=rocm-$pkgver"
  # HIPCC compiler wrapper
  _hipcc='https://github.com/ROCm/llvm-project'
-@@ -26,6 +25,14 @@ _projectBaseDir="rocm-systems-rocm-$pkgver/projects"
+@@ -26,6 +25,14 @@
  
  options=(!lto)
  
@@ -30,14 +28,14 @@ index 516c09d..e0677df 100644
 +  cd "$srcdir/$_projectBaseDir/clr"
 +
 +  patch -Np1 -i "$srcdir/$pkgbase-clr-riscv-hard-float.patch"
-+  patch -Np3 -i "$srcdir/$pkgbase-clr-riscv-fence.patch"
++  patch -Np1 -i "$srcdir/$pkgbase-clr-riscv-fence.patch"
 +  patch -Np1 -i "$srcdir/$pkgbase-clr-riscv-currentStackPtr.patch"
 +}
 +
  build() {
    local hipcc_common_args=(
      -Wno-dev
-@@ -54,41 +61,16 @@ build() {
+@@ -54,50 +61,25 @@
      -DHIP_CATCH_TEST=0
      -DCLR_BUILD_HIP=ON
      -DCLR_BUILD_OCL=OFF
@@ -81,14 +79,18 @@ index 516c09d..e0677df 100644
    replaces=("hip")
    provides=("hip=${pkgver}")
    DESTDIR="$pkgdir" cmake --install build-amd
-@@ -101,3 +83,10 @@ package_hip-runtime-nvidia() {
-   DESTDIR="$pkgdir" cmake --install build-nvidia
    install -Dm644 "$srcdir/$_projectBaseDir/hip/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
  }
-+
+ 
+-package_hip-runtime-nvidia() {
+-  pkgdesc="$_pkgdesc (Nvidia runtime)"
+-  depends=("${_nvidia_depends[@]}")
+-  DESTDIR="$pkgdir" cmake --install build-nvidia
+-  install -Dm644 "$srcdir/$_projectBaseDir/hip/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+-}
 +source+=("$pkgbase-clr-riscv-hard-float.patch"
 +         "$pkgbase-clr-riscv-fence.patch"
-+         "$pkgbase-clr-riscv-currentStackPtr.patch::https://github.com/ROCm/clr/pull/117.diff")
-+sha256sums+=('SKIP'
-+             'SKIP'
-+             '933ddbc531a652a3ada6322df6eb0d8adcedc214ca01bd882fc82c704c69cdc8')
++         "$pkgbase-clr-riscv-currentStackPtr.patch")
++sha256sums+=('88c1531459b25e7c8903ef13c81e6f1ec72fcce5dfeac5af657db3fc2f200086'
++             '33c026a400d7258a7ded2de53dc1282f7edcde6935340d8fb59b0c7758781db2'
++             '667d8cbddb62b2f85c855967b97f9bac5bf720a1d08018002608a740488a0bc7')
