@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,7 +22,18 @@
+ 
+ prepare() {
+     cd ${pkgname}-${pkgver}
++    # Replace @napi-rs/magic-string with pure JS magic-string for riscv64
++    # https://github.com/zheeeng/vite-plugin-plain-text/issues/6
++    sed -i 's/"@types\/react": "~18.2.0"/"@types\/react": "~18.2.0",\n    "@napi-rs\/magic-string": "npm:magic-string@^0.30.0"/' package.json
++
+     yarn install --no-fund
++    # Fix API differences between @napi-rs/magic-string and magic-string:
++    # 1. @napi-rs/magic-string exports { MagicString }, magic-string exports default
++    # 2. @napi-rs/magic-string's generateMap().toMap() vs magic-string's generateMap() returns SourceMap directly
++    find node_modules/vite-plugin-plain-text -name "*.js" -exec sed -i \
++        -e 's/new magic_string_1.MagicString/new magic_string_1/g' \
++        -e 's/\.generateMap(\([^)]*\))\.toMap()/.generateMap(\1)/g' {} \;
++
+     sed -e 's|^datadir=$|&/var/lib/kresus|' -e 's|^python_exec=$|&python|' -i support/docker/config.example.ini
+ }
+ 
