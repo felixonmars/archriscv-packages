@@ -1,21 +1,21 @@
-diff --git a/jdk8u-jdk8u432-b05.orig/common/autoconf/build-aux/autoconf-config.guess b/jdk8u-jdk8u432-b05/common/autoconf/build-aux/autoconf-config.guess
+diff --git a/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.guess b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.guess
 index 15ee438..c7355c3 100644
---- a/jdk8u-jdk8u432-b05.orig/common/autoconf/build-aux/autoconf-config.guess
-+++ b/jdk8u-jdk8u432-b05/common/autoconf/build-aux/autoconf-config.guess
+--- a/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.guess
++++ b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.guess
 @@ -1000,6 +1000,9 @@ EOF
      ppc:Linux:*:*)
  	echo powerpc-unknown-linux-gnu
  	exit ;;
 +    riscv64:Linux:*:*)
-+    echo riscv64-unknown-linux-gnu
-+    exit ;;
++	echo riscv64-unknown-linux-gnu
++	exit ;;
      s390:Linux:*:* | s390x:Linux:*:*)
  	echo ${UNAME_MACHINE}-ibm-linux
  	exit ;;
-diff --git a/jdk8u-jdk8u432-b05.orig/common/autoconf/build-aux/autoconf-config.sub b/jdk8u-jdk8u432-b05/common/autoconf/build-aux/autoconf-config.sub
+diff --git a/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub
 index 1aab2b3..662b002 100644
---- a/jdk8u-jdk8u432-b05.orig/common/autoconf/build-aux/autoconf-config.sub
-+++ b/jdk8u-jdk8u432-b05/common/autoconf/build-aux/autoconf-config.sub
+--- a/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub
++++ b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub
 @@ -302,6 +302,7 @@ case $basic_machine in
  	| pdp10 | pdp11 | pj | pjl \
  	| powerpc | powerpc64 | powerpc64le | powerpcle | ppcbe \
@@ -32,10 +32,10 @@ index 1aab2b3..662b002 100644
  	| romp-* | rs6000-* \
  	| sh-* | sh[1234]-* | sh[24]a-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
  	| shle-* | sh[1234]le-* | sh3ele-* | sh64-* | sh64le-* \
-diff --git a/jdk8u-jdk8u432-b05.orig/common/autoconf/platform.m4 b/jdk8u-jdk8u432-b05/common/autoconf/platform.m4
+diff --git a/jdk8u-jdk8u482-b08/common/autoconf/platform.m4 b/jdk8u-jdk8u482-b08/common/autoconf/platform.m4
 index f54942a..e70c159 100644
---- a/jdk8u-jdk8u432-b05.orig/common/autoconf/platform.m4
-+++ b/jdk8u-jdk8u432-b05/common/autoconf/platform.m4
+--- a/jdk8u-jdk8u482-b08/common/autoconf/platform.m4
++++ b/jdk8u-jdk8u482-b08/common/autoconf/platform.m4
 @@ -102,6 +102,12 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
        VAR_CPU_BITS=64
        VAR_CPU_ENDIAN=little
@@ -57,20 +57,22 @@ index f54942a..e70c159 100644
      *)      ZERO_ARCHDEF=$(echo "${OPENJDK_TARGET_CPU_LEGACY_LIB}" | tr a-z A-Z)
    esac
    AC_SUBST(ZERO_ARCHDEF)
-diff --git a/jdk8u-jdk8u432-b05.orig/hotspot/src/os/linux/vm/os_linux.cpp b/jdk8u-jdk8u432-b05/hotspot/src/os/linux/vm/os_linux.cpp
+diff --git a/jdk8u-jdk8u482-b08/hotspot/src/os/linux/vm/os_linux.cpp b/jdk8u-jdk8u482-b08/hotspot/src/os/linux/vm/os_linux.cpp
 index 5629a64..77fde84 100644
---- a/jdk8u-jdk8u432-b05.orig/hotspot/src/os/linux/vm/os_linux.cpp
-+++ b/jdk8u-jdk8u432-b05/hotspot/src/os/linux/vm/os_linux.cpp
-@@ -363,7 +363,7 @@ void os::init_system_properties_values() {
- //        1: ...
- //        ...
- //        7: The default directories, normally /lib and /usr/lib.
+--- a/jdk8u-jdk8u482-b08/hotspot/src/os/linux/vm/os_linux.cpp
++++ b/jdk8u-jdk8u482-b08/hotspot/src/os/linux/vm/os_linux.cpp
+@@ -363,8 +363,8 @@
+   //        1: ...
+   //        ...
+   //        7: The default directories, normally /lib and /usr/lib.
 -#if defined(AMD64) || defined(_LP64) && (defined(SPARC) || defined(PPC) || defined(S390))
+-  #define DEFAULT_LIBPATH "/usr/lib64:/lib64:/lib:/usr/lib"
 +#if defined(AMD64) || defined(_LP64) && (defined(SPARC) || defined(PPC) || defined(S390) || defined(RISCV))
- #define DEFAULT_LIBPATH "/usr/lib64:/lib64:/lib:/usr/lib"
++  #define DEFAULT_LIBPATH "/usr/lib64:/lib64:/lib:/usr/lib"
  #else
- #define DEFAULT_LIBPATH "/lib:/usr/lib"
-@@ -1952,6 +1952,9 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen)
+ #if defined(AARCH64)
+   // Use 32-bit locations first for AARCH64 (a 64-bit architecture), since some systems
+@@ -1959,6 +1959,9 @@
    #ifndef EM_LOONGARCH
    #define EM_LOONGARCH  258               /* LoongArch */
    #endif
@@ -80,7 +82,7 @@ index 5629a64..77fde84 100644
  
    static const arch_t arch_array[]={
      {EM_386,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
-@@ -1976,6 +1979,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen)
+@@ -1986,6 +1989,7 @@
      {EM_68K,         EM_68K,     ELFCLASS32, ELFDATA2MSB, (char*)"M68k"},
      {EM_AARCH64,     EM_AARCH64, ELFCLASS64, ELFDATA2LSB, (char*)"AARCH64"},
      {EM_LOONGARCH,   EM_LOONGARCH, ELFCLASS64, ELFDATA2LSB, (char*)"LoongArch"},
@@ -88,7 +90,7 @@ index 5629a64..77fde84 100644
    };
  
    #if  (defined IA32)
-@@ -2010,9 +2014,11 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen)
+@@ -2021,9 +2025,11 @@
      static  Elf32_Half running_arch_code=EM_AARCH64;
    #elif  (defined LOONGARCH64)
      static  Elf32_Half running_arch_code=EM_LOONGARCH;
@@ -101,7 +103,7 @@ index 5629a64..77fde84 100644
    #endif
  
    // Identify compatability class for VM's architecture and library's architecture
-@@ -2045,10 +2051,12 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen)
+@@ -2058,10 +2064,12 @@
    }
  
  #ifndef S390
