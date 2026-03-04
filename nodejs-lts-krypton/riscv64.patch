@@ -1,23 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -44,7 +44,15 @@ provides=(
- conflicts=(nodejs)
- options=('!lto')
- source=("git+https://github.com/nodejs/node.git#tag=v$pkgver?signed")
--b2sums=('ec771721f9aab7ee0e5ba4731bea1a75c8b1d039d9f8d50b69e86c27082fa5b28cac9802bdf22c4d0ad2ad59576cbe35081a042975fbe2f286e5e3c1232e9958')
-+b2sums=('ec771721f9aab7ee0e5ba4731bea1a75c8b1d039d9f8d50b69e86c27082fa5b28cac9802bdf22c4d0ad2ad59576cbe35081a042975fbe2f286e5e3c1232e9958'
+@@ -48,7 +48,9 @@ source=(
+   update-icu-tests.patch
+ )
+ b2sums=('6ec1c3e75b73cc614fb9ba8b83b025adaa19b5c17d1f9e599289bbaeede2d9acd47015be68548350eb649c63890b32bf3c3058f7103cb40eb5b11d81e0b0014f'
+-        '1469b72d559972121e5896f32faff8fec0a34e890e23d60f4011505b10ca2d9a9e3d87bb8fa5b5674282dc854f6fdca0a50c6e4843a5d95e0beedd25d4e2b920')
++        '1469b72d559972121e5896f32faff8fec0a34e890e23d60f4011505b10ca2d9a9e3d87bb8fa5b5674282dc854f6fdca0a50c6e4843a5d95e0beedd25d4e2b920'
 +        '4e770adcd1d4edc71f1ebced7573ca61b6e7424f780baa15bd12aae8f37656ce518fe5b1a9cc4c838f41464421a25490d4d3c8c88b441a8dab50481df94f08d5'
-+        'a77f6493c058daeae23637def05a51ad448d19c1bc5330d7ddd33b4589aef087934e0c939f1bdf56eea292df285be48e1a37c600aaf0b11c0a683104f50a6730'
-+        '8f7ffaf74d22a3624ad803688a3588b28ea670e9ef11f83c075d13db37df3800152b5fe999b196f625376f5973bad62d545c4f60c5b612bef5f25dd930be5bf4'
-+        'ae8fc401ef3bedf0e90bf6d9ff116aac911f20fc075fd35de06c5f538be3eea49f5f5803628ef292a7fc25f9ead2c75c2cbce765fe78ed9062f1859876966766'
-+        '9d1a5fffd988d2aa5227a1c226a772c94d1c4c1a2e32fef1a7ba40e000c3873010e3e4017b9dda6b10667fa9832fd8f6c72a290636681b397069e5e309bb0722'
-+        '706f0be85025b9fd23a341d99d134e0e020ccc2df3ca4ac28a0b9e1fde878ea64aa269293e9661812fb3d06249b8d8aea461e2a23d4f48fe2951905304341b4b'
-+        'f1ad5e9efed34da853427b8aa1857d08f8856f0ec2c60feeb1d810dcc1f0d60f03570c0e40ee066e3a995e9be3de5115284b34aa2301bd7b15f100efb7caff23'
-+        '74c0a6873d289a4f3e904d1c63b7f01c835098690245b52e3fd144061a977b01263d896e850ee8914fd999348d685ba85c949df57c266002cf529fef7d53196c')
++        'f1ad5e9efed34da853427b8aa1857d08f8856f0ec2c60feeb1d810dcc1f0d60f03570c0e40ee066e3a995e9be3de5115284b34aa2301bd7b15f100efb7caff23')
  validpgpkeys=(
    '8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600' # Michaël Zasso (Targos) <targos@protonmail.com>
    '890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4' # RafaelGSS <rafael.nunu@hotmail.com>
-@@ -58,12 +66,22 @@ _set_flags() {
+@@ -63,12 +65,18 @@ _set_flags() {
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -28,20 +22,15 @@
  
  prepare() {
    cd node
-   # Update ICU test data
--  git cherry-pick --no-commit 5afe4cd716cbf7699f6abc99338f44db3b1424d5
-+  patch -Np1 -i ../5afe4cd716cbf7699f6abc99338f44db3b1424d5.diff
-+  patch -Np0 -i ../configure-py314.diff
+   # Update ICU tests https://github.com/nodejs/node/pull/60523
+   patch -Np1 -i ../update-icu-tests.patch
 +  patch -Np1 -i ../hwy-broken-rvv.diff
-+  patch -Np1 -i ../60588.diff
-+  patch -Np1 -i ../60591.diff
-+  patch -Np1 -i ../v8-riscv-fix-trampoline.patch
-+  patch -Np1 -i ../v8-riscv-fix-trampoline-release.patch
 +  patch -Np1 -i ../v8-riscv-fix-sp.patch
++
  }
  
  build() {
-@@ -95,6 +113,8 @@ build() {
+@@ -100,6 +108,8 @@ build() {
  check() {
    _set_flags
    cd node
@@ -50,17 +39,12 @@
    rm test/parallel/test-http2-client-set-priority.js
    rm test/parallel/test-http2-client-unescaped-path.js
    rm test/parallel/test-http2-max-invalid-frames.js
-@@ -119,4 +139,13 @@ package() {
+@@ -124,4 +134,8 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
 +
 +makedepends+=(clang)
 +source+=("hwy-broken-rvv.diff"
-+         "configure-py314.diff"
-+         "60588.diff"
-+         "60591.diff"
-+         v8-riscv-fix-trampoline{,-release}.patch
-+         v8-riscv-fix-sp.patch
-+         https://github.com/nodejs/node/commit/5afe4cd716cbf7699f6abc99338f44db3b1424d5.diff)
++         v8-riscv-fix-sp.patch)
  # vim:set ts=2 sw=2 et:
