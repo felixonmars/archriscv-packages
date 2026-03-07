@@ -1,128 +1,61 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,9 +12,12 @@ pkgname=(
-   rust-wasm
- 
-   # x86_64 only
--  lib32-rust-libs
-+  #lib32-rust-libs
-+  # Cross compilation targets
+@@ -17,6 +17,8 @@ pkgname=(
+   # cross targets
    rust-aarch64-gnu
    rust-aarch64-musl
 +  rust-x86_64-gnu
 +  rust-x86_64-musl
  )
- pkgver=1.93.0
+ pkgver=1.94.0
  pkgrel=1
-@@ -23,6 +26,7 @@ pkgdesc="Systems programming language focused on safety, speed and concurrency"
- url=https://www.rust-lang.org/
- arch=(
-   aarch64
-+  riscv64
-   x86_64
- )
- license=("Apache-2.0 OR MIT")
-@@ -59,6 +63,14 @@ makedepends_x86_64=(
-   lib32-glibc
+@@ -61,12 +63,16 @@ makedepends_loong64=(
+   aarch64-linux-gnu-gcc
+   aarch64-linux-gnu-glibc
    musl-aarch64
- )
-+makedepends_riscv64=(
-+  aarch64-linux-gnu-gcc
-+  aarch64-linux-gnu-glibc
 +  x86_64-linux-gnu-gcc
 +  x86_64-linux-gnu-glibc
-+  musl-aarch64
-+  musl-x86_64
-+)
- checkdepends=(
-   gdb
-   procps-ng
-@@ -94,6 +106,12 @@ source=(
-   0007-compiler-Swap-primary-and-secondary-lib-dirs.patch
+   musl-x86_64
  )
- source_aarch64=(bootstrap.aarch64.toml)
-+source_riscv64=(
-+  bootstrap.riscv64.toml
-+  # Make rust riscv64 musl target link libc statically, to align with
-+  # the behavior that rust x86_64 musl target links it statically.
-+  riscv-musl-crt-default-static.patch
-+)
- source_x86_64=(bootstrap.x86_64.toml)
- b2sums=('ab35dfebfc8c9beb0b93fa564d7178da225f47591fb5de90566d59fb0dcf55a275f014c287805df3f901aba80374e92f5bdd93ac925585a869eed5dcd2571d48'
-         'SKIP'
-@@ -105,6 +123,8 @@ b2sums=('ab35dfebfc8c9beb0b93fa564d7178da225f47591fb5de90566d59fb0dcf55a275f014c
-         '8015b14bd00f412c0935961fce5f9671fe3d51256a70eacbf61573c4c8ae35f3cd81372681fe406395ca571363e9f9a9c5b40969e79513f22d808e677a841ae7'
-         'b8e3d23c3a7617e231246465a264708789152abfc73203d901d64290701fabffff59d600fc8ecb1ec5d507313125d17c4040ec769474f4d58ea159d9cafc3910')
- b2sums_aarch64=('63ce33811457d6f271ea92ef0b3c2c0ae81d0c2cc8545273ad308237131c6eb1807d56e4de75037b525d19b6d405f9c5558665d85bd821a2d05ae40c1f9f2926')
-+b2sums_riscv64=('5f495e01fbadb8af3c350f9f55ce706115b381e987e04f6407b5b80811794bbb48ecf6107457a11aa424cd229fc8ef366f5ef18e996395d6c2739c6cebb2e629'
-+                'c7e4849c433bba9fd69f05e6b242e94fcd229e9470e086bd93e6782ff811b418fd46596fe503b507c3cd677089f7e54fabffa5f88a98e965742e06e381619e49')
- b2sums_x86_64=('b1808412ce71ec37b80bc44034e13fb4918577052b5cae0ee4809ffc499c7ccfeb01dfb8a1c49141a0b614861875680f80e6fff4add8c015a4c4becda3859e1e')
+ makedepends_riscv64=(
+   aarch64-linux-gnu-gcc
+   aarch64-linux-gnu-glibc
+   musl-aarch64
++  x86_64-linux-gnu-gcc
++  x86_64-linux-gnu-glibc
+   musl-x86_64
+ )
+ makedepends_x86_64=(
+@@ -128,8 +134,8 @@ b2sums=('cab2e007c1a5401c653218ff0dd542d10c0d7a4fcc7bf2ee269cbbb9760bdd04c78276b
+         '6e473abbda7e77fb399b1b5ff0a50efa6b324a4b9f8e0904a0ebca1258e9a84be840465ef1ad716d968fbb580e7bb77d4af2f7dbbbad258749eb9025a7cbc899'
+         '991cb47155fb2a0d7969e3e2cbc44d030e9eb13474a38d9c9ad88365ce6ab6ecfb69692dd420d68f439585fa2a6e0139cd6f294b5487b77f6b875b773382a459')
+ b2sums_aarch64=('0a2c2c5c4ddadbfe269b4acd5ed0028e01f78c266e56de30010a6706a619e23db14e5f7578fc7b5974832fe48ccb2b5827c268c9c79bccd6ffa057f61ca52c86')
+-b2sums_loong64=('ca71cf8438d9a5cb898ffa176b99ef059ff0b62805bedce66c3f36dd20cd6be21e0d6bca7e765b717bdbb4a550404c75e64e0af7139bdb3dd98c3b281969de97')
+-b2sums_riscv64=('b2809d686b4301f755d0769d9edc4a8427d9aab0a74024254848315c7a5abb5f2ec06b33deb7f2a7b72035a4cf08efd313d42aec304ad852598580ba72a17003')
++b2sums_loong64=('49b7cdf068cd2b2d33a51c3b19477ac1c3062b01f183010bc646de977e6dde8a4de7d5da1b9553543e57193ff2f06c63119709313290d34f6db21c8deec380fe')
++b2sums_riscv64=('df51aa640d1328a8b1a22f552fdb15633179c9d4fcaae74641c02867c132521e4d0b661ddac5c9bba80b3dbd7b55c5e404d4e8cbdbee42c244d2bb274a9a7fb3')
+ b2sums_x86_64=('6310635b44227fe5ab6a9a70dd7d2b520d223624d1b9069723ef914b7feb8920186099ce77fe903fc089583bbeba8df7ae97d26030c37d6337689133ac726f08')
  validpgpkeys=(
    108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
-@@ -170,17 +190,19 @@ build() {
-     rmdir -p --ignore-fail-on-non-empty "$d"
-   done
- 
-+  _host_tuple="$(rustc --print host-tuple)"
-+
-   # rustbuild always installs copies of the shared libraries to /usr/lib,
-   # overwrite them with symlinks to the per-architecture versions
--  ln -srvft usr/lib usr/lib/rustlib/${CARCH}-unknown-linux-gnu/lib/*.so
-+  ln -srvft usr/lib usr/lib/rustlib/${_host_tuple}/lib/*.so
- 
-   # Symlink the "self-contained" linker to our system lld
--  mkdir -pv usr/lib/rustlib/${CARCH}-unknown-linux-gnu/bin/gcc-ld
--  ln -srvf  usr/bin/lld          usr/lib/rustlib/${CARCH}-unknown-linux-gnu/bin/rust-lld
--  ln -srvf  usr/bin/llvm-objcopy usr/lib/rustlib/${CARCH}-unknown-linux-gnu/bin/rust-objcopy
--  ln -srvft usr/lib/rustlib/${CARCH}-unknown-linux-gnu/bin/gcc-ld usr/bin/{ld.lld,ld64.lld,lld-link,wasm-ld}
-+  mkdir -pv usr/lib/rustlib/${_host_tuple}/bin/gcc-ld
-+  ln -srvf  usr/bin/lld          usr/lib/rustlib/${_host_tuple}/bin/rust-lld
-+  ln -srvf  usr/bin/llvm-objcopy usr/lib/rustlib/${_host_tuple}/bin/rust-objcopy
-+  ln -srvft usr/lib/rustlib/${_host_tuple}/bin/gcc-ld usr/bin/{ld.lld,ld64.lld,lld-link,wasm-ld}
- 
--  _pick dest-musl usr/lib/rustlib/${CARCH}-unknown-linux-musl
-+  _pick dest-musl usr/lib/rustlib/${_host_tuple%gnu}musl
-   _pick dest-wasm usr/lib/rustlib/wasm32{,v1}-*
-   _pick dest-src  usr/lib/rustlib/src
- 
-@@ -188,6 +210,11 @@ build() {
-     _pick dest-i686 usr/lib/rustlib/i686-unknown-linux-gnu
-     _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
-     _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
-+  elif [[ $CARCH == riscv64 ]]; then
-+    _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
-+    _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
-+    _pick dest-x86_64-gnu usr/lib/rustlib/x86_64-unknown-linux-gnu
-+    _pick dest-x86_64-musl usr/lib/rustlib/x86_64-unknown-linux-musl
-   fi
+@@ -225,6 +231,8 @@ build() {
+     loong64|riscv64)
+       _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
+       _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
++      _pick dest-x86_64-gnu usr/lib/rustlib/x86_64-unknown-linux-gnu
++      _pick dest-x86_64-musl usr/lib/rustlib/x86_64-unknown-linux-musl
+       ;;
+   esac
  }
- 
-@@ -269,7 +296,7 @@ package_lib32-rust-libs() {
- 
- package_rust-aarch64-gnu() {
-   pkgdesc="AArch64 GNU target for Rust"
--  arch=(x86_64)
-+  arch=(x86_64 riscv64)
-   depends=(
-     aarch64-linux-gnu-gcc
-     aarch64-linux-gnu-glibc
-@@ -282,7 +309,7 @@ package_rust-aarch64-gnu() {
- 
- package_rust-aarch64-musl() {
-   pkgdesc="AArch64 Musl target for Rust"
--  arch=(x86_64)
-+  arch=(x86_64 riscv64)
-   depends=(
-     aarch64-linux-gnu-gcc
-     rust
-@@ -292,4 +319,32 @@ package_rust-aarch64-musl() {
+@@ -338,4 +346,35 @@ package_rust-aarch64-musl() {
    _install_licenses
  }
  
 +package_rust-x86_64-gnu() {
 +  pkgdesc="x86_64 GNU target for Rust"
-+  arch=(riscv64)
-+
++  arch=(
++    loong64
++    riscv64
++  )
 +  depends=(
 +    x86_64-linux-gnu-gcc
 +    x86_64-linux-gnu-glibc
@@ -135,8 +68,10 @@
 +
 +package_rust-x86_64-musl() {
 +  pkgdesc="x86_64 Musl target for Rust"
-+  arch=(riscv64)
-+
++  arch=(
++    loong64
++    riscv64
++  )
 +  depends=(
 +    x86_64-linux-gnu-gcc
 +    rust
@@ -146,5 +81,82 @@
 +  _install_licenses
 +}
 +
-+
  # vim:set ts=2 sw=2 et:
+diff --git bootstrap.loong64.toml bootstrap.loong64.toml
+index 23a1d1f..e22e212 100644
+--- bootstrap.loong64.toml
++++ bootstrap.loong64.toml
+@@ -18,6 +18,8 @@ target = [
+   "loongarch64-unknown-linux-musl",
+   "aarch64-unknown-linux-gnu",
+   "aarch64-unknown-linux-musl",
++  "x86_64-unknown-linux-gnu",
++  "x86_64-unknown-linux-musl",
+   "wasm32-unknown-unknown",
+   "wasm32v1-none",
+   "wasm32-wasip1",
+@@ -107,6 +109,25 @@ linker = "aarch64-linux-gnu-gcc"
+ default-linker = "aarch64-linux-gnu-gcc"
+ sanitizers = false
+ 
++[target.x86_64-unknown-linux-gnu]
++cc = "x86_64-linux-gnu-gcc"
++cxx = "x86_64-linux-gnu-g++"
++ar = "x86_64-linux-gnu-gcc-ar"
++ranlib = "x86_64-linux-gnu-ranlib"
++linker = "x86_64-linux-gnu-gcc"
++default-linker = "x86_64-linux-gnu-gcc"
++sanitizers = false
++
++[target.x86_64-unknown-linux-musl]
++musl-root = "/usr/x86_64-linux-musl/lib/musl"
++cc = "x86_64-linux-musl-gcc"
++cxx = "x86_64-linux-gnu-g++"
++ar = "x86_64-linux-gnu-gcc-ar"
++ranlib = "x86_64-linux-gnu-ranlib"
++linker = "x86_64-linux-gnu-gcc"
++default-linker = "x86_64-linux-gnu-gcc"
++sanitizers = false
++
+ [target.wasm32-unknown-unknown]
+ cc = "clang"
+ cxx = "clang++"
+diff --git bootstrap.riscv64.toml bootstrap.riscv64.toml
+index 66812cc..ffc2626 100644
+--- bootstrap.riscv64.toml
++++ bootstrap.riscv64.toml
+@@ -18,6 +18,8 @@ target = [
+   "riscv64gc-unknown-linux-musl",
+   "aarch64-unknown-linux-gnu",
+   "aarch64-unknown-linux-musl",
++  "x86_64-unknown-linux-gnu",
++  "x86_64-unknown-linux-musl",
+   "wasm32-unknown-unknown",
+   "wasm32v1-none",
+   "wasm32-wasip1",
+@@ -107,6 +109,25 @@ linker = "aarch64-linux-gnu-gcc"
+ default-linker = "aarch64-linux-gnu-gcc"
+ sanitizers = false
+ 
++[target.x86_64-unknown-linux-gnu]
++cc = "x86_64-linux-gnu-gcc"
++cxx = "x86_64-linux-gnu-g++"
++ar = "x86_64-linux-gnu-gcc-ar"
++ranlib = "x86_64-linux-gnu-ranlib"
++linker = "x86_64-linux-gnu-gcc"
++default-linker = "x86_64-linux-gnu-gcc"
++sanitizers = false
++
++[target.x86_64-unknown-linux-musl]
++musl-root = "/usr/x86_64-linux-musl/lib/musl"
++cc = "x86_64-linux-musl-gcc"
++cxx = "x86_64-linux-gnu-g++"
++ar = "x86_64-linux-gnu-gcc-ar"
++ranlib = "x86_64-linux-gnu-ranlib"
++linker = "x86_64-linux-gnu-gcc"
++default-linker = "x86_64-linux-gnu-gcc"
++sanitizers = false
++
+ [target.wasm32-unknown-unknown]
+ cc = "clang"
+ cxx = "clang++"
