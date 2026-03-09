@@ -1,45 +1,106 @@
 diff --git PKGBUILD PKGBUILD
-index 5737224..73afcdc 100644
+index fdfe891..d0b118c 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,6 +38,7 @@ source=(
+@@ -39,6 +39,25 @@ _srctag=v${pkgver%.*}-${pkgver##*.}
+ source=(
    https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
-   config  # the main kernel config file
-+  riscv64.config-patch
++  # sg2042 write_once
++  0000-sg2042-write_once.patch::https://github.com/revyos/linux/commit/8b001d81419df1c78c58411a51dfd0475233d319.patch
++  # drm/ttm: support device w/o coherency
++  0100-ttm-coherency.patch::https://github.com/revyos/linux/commit/4360470added82f87c49c75464c0126241f7455e.patch
++  0101-ttm-coherency2.patch::https://github.com/revyos/linux/commit/328c79fd1daefcadce1672ebee6bb88810664b06.patch
++  # fix r5 230/220 on pioneer
++  0200-gpu.patch::https://github.com/revyos/linux/commit/c3c2266ee821cee649a7817b16bc8fc54ace401e.patch
++  0201-gpu2.patch::https://github.com/revyos/linux/commit/1fd00f50d4b71cbed6902e57f00824b802760909.patch
++  0202-gpu3.patch::https://github.com/revyos/linux/commit/4ab96bc3a453137e46727d820e252db3b22cbab6.patch
++  0203-gpu4.patch::https://github.com/revyos/linux/commit/ba1ba70a9b0923c7cf8b23cf8bff65633b20418c.patch
++  # sg2042 dt
++  0300-sg2042-dt.patch::https://github.com/revyos/linux/commit/e949c9d87141163c97bf30833105be102303f525.patch
++  0301-sg2042-dt2.patch::https://github.com/revyos/linux/commit/2f4b9403bd9216a317dde4ac5ecf842b108210d3.patch
++  0303-sg2042-dt3.patch::https://github.com/revyos/linux/commit/7727d0cc701365daea9112c0bdfdc9292dc1d02e.patch
++  # rust + gcc
++  0400-rust.patch::https://github.com/revyos/linux/commit/62db2801ca6383d228342b4a78b842bb04614560.patch
++  0401-rust1.patch::https://github.com/revyos/linux/commit/e5dbd930828f455c0161a72a198c73a3c5b06972.patch
++  0402-rust2.patch::https://github.com/revyos/linux/commit/09539b5244d8a1f87d83ac5f53c0d3e5746902f7.patch
++  0403-rust3.patch::https://github.com/revyos/linux/commit/5545a0d3db17b6858d2311fa29d284963c846698.patch
  )
+ source_x86_64=(config.x86_64)
  validpgpkeys=(
-   ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -49,12 +50,14 @@ sha256sums=('189d1f409cef8d0d234210e04595172df392f8cb297e14b447ed95720e2fd940'
+@@ -46,17 +65,46 @@ validpgpkeys=(
+   647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
+   83BC8889351B5DEBBB68416EB8AC08600F108CDF  # Jan Alexander Steffens (heftig)
+ )
+-b2sums=('612fd1e944194c20bb2e6f9d2b309d5957db5b738bcb7b782c9c25de4c02b341fa5caa9af76d92e88628135b8334f550cc2277d63738098fde950ca05f46e89a'
+-        'SKIP'
+-        '8432d3a2fc622cfe08960b1c7e7889c3bbb3f617a0b6c04111f064c792799ac512b0704f67559090535f2b573340c89479997497ad6214aa088283eda4e32cc7'
+-        'SKIP')
+-b2sums_x86_64=('e5b25c5404cd07af0db440c68926de476176cf741777e1389322c65fc2404a8111526a9191d68e721d4cfa2fea184ee3fbbc75c2a6f3f6c009e83e9ec9843473')
+-
+-# https://www.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc
+ sha256sums=('4d9f3ff73214f68c0194ef02db9ca4b7ba713253ac1045441d4e9f352bc22e14'
              'SKIP'
-             'e1b9e56a90ce3eb5d60bf9cd76161b4cc6b2926cd61657c197f5f97c3adfcd89'
-             'SKIP'
--            '53876f5a6cc1efc1cbfa671517db86177c02a4ddeafc8ae8fbbec5e1aeec66b6')
-+            '53876f5a6cc1efc1cbfa671517db86177c02a4ddeafc8ae8fbbec5e1aeec66b6'
-+            'db8f32ce9c12971aaca0b482f791e0f4e06a9ea17244c7444ef92973049e8c55')
- b2sums=('9294ae977d7b8b929c476e649cbb116969a674d3923e5a4cddf8615ee5ba373761630f1a6397045d9ebe7eeaa87a3fffae3628aebc1ca4c7db5561b1c4513289'
-         'SKIP'
-         '705574fb00542c2ba7e63691616e0b1583ff7b498060d55daeca118394cad956ea3b7cc7a0e0f3726ba8ec81fa3e13e73e9874ac0857906390f8be62a9d82a64'
-         'SKIP'
--        '6567305d4402ba3e1a80ed89ce0588a2c4aa7ec850720ab63e4289b2d4a905100bae7c4b2318c6aedaaebc7c474437320c3298efa90dd2499608b3dc18677f86')
-+        '6567305d4402ba3e1a80ed89ce0588a2c4aa7ec850720ab63e4289b2d4a905100bae7c4b2318c6aedaaebc7c474437320c3298efa90dd2499608b3dc18677f86'
-+        '8fe2e4b4b9f2225dddc5f65babbb03b0cee08fa4b42efe397f784beb8ffbc87a48618b46213bcd7b1504eb0df13c51b9f485782046e3df69c06f8b80ffbafddf')
+             '9465435c9e2a655f5bd73b5863c44e262d6e99e9929467f1d647bab2dd5afd26'
+-            'SKIP')
++            'SKIP'
++            '28afcd80186a889b481b422a0f77dda477f3c8ca9f89965dad1d311632d30f10'
++            'cdf43bac253bce108a3dcba2cb7887ead43bea95aaf504695d67a8ea3e6fd7d0'
++            '58efa1db8c007ebee1e5df40e7bae51b3861fdb2175d53a84fd7bae8b1c1eb19'
++            '1eca8e06cb61b8ced21704713f4044310f5ec6f0f7cd9fe70d7a50df93fdd1cd'
++            '332cf0135e13039d5564ec142b52303041cb473097c68aa414831f85246a43f6'
++            'ccb54473e4e484f144faada372383cb95aa5a50abcc851b9711093bf0f59d8f7'
++            'a717e69b47b71b58b6266c9a31a9a97fff31bc36eefd75375db83f52585fcc74'
++            'e6b99eaa9e6fc62e65b105b0cd5eeae51f5c20746f0b97d9732108e488bbd059'
++            '0e3ed33b07f081594391325ec1ebcfc43fb209d0b82d68f4eb7bd1c19a915ca7'
++            '5bed6646d9f4d1247bc4d15f7e48bde450b83d86f42604777821bca469abd32b'
++            '1f08a3344111e46f323f3f7512848ed91329ec3f409dfaa9058bdb3376e538c0'
++            '032424505dea6a6208544085624122892263f890ba62066a5971475bbd3a756f'
++            'cc5a503625e82308b7e50acd028985173aba04eff2d202a24b79ccbf05831fe4'
++            'fe076acaea7ee194c61c67e4b23678e51fc1268b04a7a0db5f0702fff1b09ad5')
++sha256sums_x86_64=('112501e973db8bebf1d5ba9ac2ab58a97a3535b474fc93f2ae1e4a64488594ee')
++b2sums=('612fd1e944194c20bb2e6f9d2b309d5957db5b738bcb7b782c9c25de4c02b341fa5caa9af76d92e88628135b8334f550cc2277d63738098fde950ca05f46e89a'
++        'SKIP'
++        '8432d3a2fc622cfe08960b1c7e7889c3bbb3f617a0b6c04111f064c792799ac512b0704f67559090535f2b573340c89479997497ad6214aa088283eda4e32cc7'
++        'SKIP'
++        '589bc1db6d2f305fca86e1a8d527b264bda694591c505182f8ed2ed6ca747ca186aeb2e0a0e43398aa89c9c4ab8e5927da32d80ce9d8b59df900a275efc31cb7'
++        '929a37e689177da6731c56cc6f363cfa1f7992647dfc928fa0293f9ef46ee96fedcb2137fdc85cb8d3a3798084d22480ba52d7729d81b03db94960d969c18914'
++        'acd2dc7800231d65b30c76d34a03fef55d211fe9ccbd9520abe2e218b32d26498ef54892d92126165d11630750491bc4e3aa6d809bdc0eaadd48c0c41562154a'
++        '3bd8ce999d6d9e09db03c2748952e8d428ec5bd7c25c2031b33d14d484f7ebfaa6d25692a2b9c9a26afaee0beb8ca0abd4081437589ee6ac17eded20ec2767c9'
++        '2975ec6f8a68362e465fb025af1a9af54509bf71ca06c6b3a6f9b48f8e88719f25241c45fe035ca88616814d5f3b976a8b9adf1480371092b396bdec2353e376'
++        'd14a4de2e6a23bc52d5b4c98fd010ee9bdae6de63ebd829350e183c94b607a039ebd78c054a75aba3c489dcc5e51739ebd4a55003b519d00c61736e431974686'
++        'f41546abcebaf9fa2f4cf19a25d95ef2079a50d5c5fbf502ccc78824ee4084fc2fc5b17dbfe482049cdea5b0a310bad962b11298a1f11f7ac3302bbaa4b618e3'
++        '4804d39548535b1d7f3551eb04b47bff5b8a367c8c52bcc9f84ade2290abc4297cb1a86bdf2bb20e6d7fada2066dff445239285dd58843d3ffae19b7f7585a5a'
++        'c6ec3092d1c1d0eea42c3910220de73b6f2010905c4e693cb628d6440663027d8b85cc537d9b8fa7a6ae9a920442dfe19adf6fb8388dc09e8dc1b91f1d65a67f'
++        '509acc3a16682f39e0b8b36bd3b3ad89c4a23df4e5dd074ff8d52ef7d5764abf7047bbafb895d7498ac5ec166db82f87f188685c8a97cd11a32bdc6966af7e11'
++        'eae010c8a8672554e94b85842ba146e382cb73a40fe6ecd6f1d51ec3b6f93d2bcc285ad200cf8a17473e5f9e280c4e9e3287bf92a8050bc2ed1883373847d4f4'
++        '717929762889e139f0101a6514aee7bd52cccc5d1fb79ea2cec51b64ef0e1bbd1425cc399cf53763be3dd2ac91ea1e18514fb78b02d4846716f33721bef76b6e'
++        '0ac4be3b3970398461db880c0a9fd22fca96753b1c475bb2a5b06b4603009e26da5c7a7a848482d92170c50d82c84a75f9911780cb3247b899c1f8b0243db894'
++        'ae311471b3ac71d3533ba34240dd4c5e7f03cc36f0b74d62f118f68f16330ca3782c56c5d0057f9513af41894ad7381c9f203f590d9eb7a7dfab58c22d654d24')
++b2sums_x86_64=('e5b25c5404cd07af0db440c68926de476176cf741777e1389322c65fc2404a8111526a9191d68e721d4cfa2fea184ee3fbbc75c2a6f3f6c009e83e9ec9843473')
++
++# https://www.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -82,13 +85,20 @@ prepare() {
-   make olddefconfig
-   diff -u ../config .config || :
+@@ -80,9 +128,14 @@ prepare() {
+   done
  
+   echo "Setting config..."
+-  cp ../config.$CARCH .config
++  cp ../config.x86_64 .config
++  make olddefconfig
++
 +  patch -Np0 < ../riscv64.config-patch
 +  mv .config .config.1
 +  make mrproper
 +  mv .config.1 .config
-+  make olddefconfig
-+
+   make olddefconfig
+-  diff -u ../config.$CARCH .config || :
+ 
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
- }
+@@ -90,7 +143,8 @@ prepare() {
  
  build() {
    cd $_srcname
@@ -49,7 +110,7 @@ index 5737224..73afcdc 100644
    make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
    make htmldocs SPHINXOPTS=-QT
  }
-@@ -131,6 +141,9 @@ _package() {
+@@ -134,6 +188,9 @@ _package() {
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -59,47 +120,11 @@ index 5737224..73afcdc 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -146,20 +159,17 @@ _package-headers() {
-   install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
-     localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
-   install -Dt "$builddir/kernel" -m644 kernel/Makefile
--  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
-+  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
-   cp -t "$builddir" -a scripts
-   ln -srt "$builddir" "$builddir/scripts/gdb/vmlinux-gdb.py"
+@@ -149,6 +206,7 @@ _package-headers() {
+   local karch
+   case $CARCH in
+     x86_64) karch=x86 ;;
++    riscv64) karch=riscv ;;
+     *) echo "Unknown CARCH $CARCH"; exit 1 ;;
+   esac
  
--  # required when STACK_VALIDATION is enabled
--  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
--
-   # required when DEBUG_INFO_BTF_MODULES is enabled
-   install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
- 
-   echo "Installing headers..."
-   cp -t "$builddir" -a include
--  cp -t "$builddir/arch/x86" -a arch/x86/include
--  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
-+  cp -t "$builddir/arch/riscv" -a arch/riscv/include
-+  install -Dt "$builddir/arch/riscv/kernel" -m644 arch/riscv/kernel/asm-offsets.s
- 
-   install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
-   install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -178,10 +188,6 @@ _package-headers() {
-   echo "Installing KConfig files..."
-   find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
- 
--  echo "Installing Rust files..."
--  install -Dt "$builddir/rust" -m644 rust/*.rmeta
--  install -Dt "$builddir/rust" rust/*.so
--
-   echo "Installing unstripped VDSO..."
-   make INSTALL_MOD_PATH="$pkgdir/usr" vdso_install \
-     link=  # Suppress build-id symlinks
-@@ -189,7 +195,7 @@ _package-headers() {
-   echo "Removing unneeded architectures..."
-   local arch
-   for arch in "$builddir"/arch/*/; do
--    [[ $arch = */x86/ ]] && continue
-+    [[ $arch = */riscv/ ]] && continue
-     echo "Removing $(basename "$arch")"
-     rm -r "$arch"
-   done
