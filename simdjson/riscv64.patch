@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,8 +19,17 @@ makedepends=(
+ 
+ source=(
+   "$pkgname-$pkgver.tar.gz::https://github.com/simdjson/simdjson/archive/v$pkgver.tar.gz"
++  rvv-check.diff
++  rvv-check-single-header.diff
+ )
+-sha256sums=('d493cf4e5c60afab90cb4a3d58620c5a17904676076e927f715815d903ef4d08')
++sha256sums=('d493cf4e5c60afab90cb4a3d58620c5a17904676076e927f715815d903ef4d08'
++            '0faaaafcc813e2fc0715188fa8e7b4be728ed38de422ddee8aeb7cdcd88a98db'
++            '09cfa3477f0dcef4068180b2b8223d40c6c4219ca90bc45bb4a69974284535e1')
++
++prepare() {
++   patch -Np1 -d "$pkgname-$pkgver" < rvv-check.diff
++   patch -Np0 -d "$pkgname-$pkgver" < rvv-check-single-header.diff
++}
+ 
+ build() {
+   cmake -B build -S "$pkgname-$pkgver" \
+@@ -51,6 +60,7 @@ check() {
+ }
+ 
+ package() {
++  bash -i
+   DESTDIR="$pkgdir/" cmake --install build
+ }
+ 
