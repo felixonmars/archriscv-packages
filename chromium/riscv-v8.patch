@@ -1,0 +1,57 @@
+From cd2c216e7658c19bc6501fc785ac2f4be1a3734f Mon Sep 17 00:00:00 2001
+From: LuYahan <yahan@iscas.ac.cn>
+Date: Thu, 26 Feb 2026 08:53:12 +0800
+Subject: [PATCH] [riscv][jspi] Clear EPT entry on stack return
+
+Port commit 54cf5fa964f0734a8277ea2837aa2e4168e3240a
+Bug: 485784597
+
+Change-Id: I4a7e12d9047f7a4257be4711d9d6645d42f02a38
+Reviewed-on: https://chromium-review.googlesource.com/c/v8/v8/+/7608971
+Commit-Queue: Ji Qiu <qiuji@iscas.ac.cn>
+Reviewed-by: Ji Qiu <qiuji@iscas.ac.cn>
+Cr-Commit-Position: refs/heads/main@{#105464}
+---
+ src/builtins/riscv/builtins-riscv.cc | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/builtins/riscv/builtins-riscv.cc b/src/builtins/riscv/builtins-riscv.cc
+index 77918ffad3c..7c68c8b634c 100644
+--- a/src/builtins/riscv/builtins-riscv.cc
++++ b/src/builtins/riscv/builtins-riscv.cc
+@@ -3836,7 +3836,8 @@ void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
+   {
+     FrameScope scope(masm, StackFrame::MANUAL);
+     DCHECK(old_stack.is_valid());
+-    bool is_return = fn == ExternalReference::wasm_return_stack();
++    bool is_return = fn == ExternalReference::wasm_return_jspi_stack() ||
++                     fn == ExternalReference::wasm_return_wasmfx_stack();
+     int num_args = is_return ? 2 : 5;
+     if (maybe_suspender.is_valid()) {
+       num_args++;
+@@ -3874,8 +3875,9 @@ void ReloadParentStack(MacroAssembler* masm, Register return_reg,
+   __ LoadWord(parent, MemOperand(active_stack, wasm::kStackParentOffset));
+ 
+   // Switch stack!
+-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
+-               no_reg, tmp3, {return_reg, return_value, context, parent});
++  SwitchStacks(masm, ExternalReference::wasm_return_jspi_stack(), parent,
++               nullptr, no_reg, tmp3,
++               {return_reg, return_value, context, parent});
+   LoadJumpBuffer(masm, parent, false, tmp3);
+ }
+ 
+@@ -4228,8 +4230,8 @@ void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {
+   DEFINE_PINNED(parent, a2);
+   __ Move(parent, MemOperand(active_stack, wasm::kStackParentOffset));
+   DEFINE_REG(scratch);
+-  SwitchStacks(masm, ExternalReference::wasm_return_stack(), parent, nullptr,
+-               no_reg, scratch, {parent, arg_buffer});
++  SwitchStacks(masm, ExternalReference::wasm_return_wasmfx_stack(), parent,
++               nullptr, no_reg, scratch, {parent, arg_buffer});
+   LoadJumpBuffer(masm, parent, true, scratch);
+   __ Trap();
+ }
+-- 
+2.53.0
+

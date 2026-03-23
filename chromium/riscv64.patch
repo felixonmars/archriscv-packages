@@ -1,112 +1,116 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,7 +8,7 @@ pkgname=chromium
- pkgver=142.0.7444.175
- pkgrel=1
- _launcher_ver=8
--_manual_clone=1
-+_manual_clone=0
- _system_clang=1
- pkgdesc="A web browser built for speed, simplicity, and security"
- arch=('x86_64')
-@@ -19,7 +19,7 @@ depends=('gtk3' 'nss' 'alsa-lib' 'xdg-utils' 'libxss' 'libcups' 'libgcrypt'
-          'libffi' 'desktop-file-utils' 'hicolor-icon-theme')
- makedepends=('python' 'gn' 'ninja' 'clang' 'lld' 'gperf' 'nodejs' 'pipewire'
-              'rustup' 'rust-bindgen' 'qt6-base' 'java-runtime-headless'
--             'git' 'compiler-rt')
-+             'git' 'compiler-rt' 'jq' 'npm' 'rsync')
- optdepends=('pipewire: WebRTC desktop sharing under Wayland'
-             'kdialog: support for native dialogs in Plasma'
-             'gtk4: for --gtk-version=4 (GTK4 IME might work better on Wayland)'
-@@ -35,14 +35,18 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         increase-fortify-level.patch
+@@ -66,7 +66,7 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
+         enable-widevine-arm64.patch
          use-oauth2-client-switches-as-default.patch
-         chromium-141-cssstylesheet-iwyu.patch)
+         glibc-2.42-baud-rate-fix.patch)
 -sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-+sha256sums=('619b37ab0273f72fac859fff8dd89fbf1b7ae7e7ccb8d67bc79281b24f683bc9'
++sha256sums=('66ad6129695e1cb3800f50a660b62f47859a2c2c01741b0d4da009e4f619117b'
              '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
              '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
-             '5abc8611463b3097fc5ce58017ef918af8b70d616ad093b8b486d017d021bbdf'
-             'ec8e49b7114e2fa2d359155c9ef722ff1ba5fe2c518fa48e30863d71d3b82863'
+             '4fc040a0656a0a524dd8ad090cd129fc5b6cb21adcc66be82080165789e8c13e'
+@@ -77,11 +77,16 @@ sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
-             'e6da901e4d0860058dc2f90c6bbcdc38a0cf4b0a69122000f62204f24fa7e374'
--            'de5c873564b09713b65dd9e6a0b9049d7b3cf8f881436f36e1c091824b63e876')
-+            'de5c873564b09713b65dd9e6a0b9049d7b3cf8f881436f36e1c091824b63e876'
+             '9c766b82d1143cb3413fe2057361bd2655e46287eacc2c6d6f8504b4c255647a'
+             '9343afa1a4308a7cfb3317229f5aff7778688debcc03c4a74a85908aa1d0cc3a'
+-            '1c1898f263eaacbc069a8e1a3e732852350350d1dad4cb1a6bba430e3b796cd0')
++            '1c1898f263eaacbc069a8e1a3e732852350350d1dad4cb1a6bba430e3b796cd0'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+            'cce3c212ce2ff28da276bca743316ec1bec2efe9ec3a9063c529d6110a865c45'
-+            '19edd242f82882662513ace339932ee41604eac815bbfdf93e09b43f170c5fda'
-+            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea')
++            '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821'
++            '51ff7707611cb1370958e750628e4317c8b46f85fd07fb1979e72e2856a8ae84'
++            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
++            'ddd02dbb1dafee30ea78c6694f064da3abce5230c84b27e12132c3a7f16b7a2f')
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
-@@ -127,6 +131,24 @@ prepare() {
-   # Increase _FORTIFY_SOURCE level to match Arch's default flags
-   patch -Np1 -i ../increase-fortify-level.patch
+-  sha256sums[0]='2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
++  sha256sums[0]='f0aed11f2dba184a4249094e33a1840be6705bba1cdb4e2a40b31e5d12fe80d3'
+   makedepends+=('python-httplib2' 'python-pyparsing' 'python-six' 'npm' 'rsync')
+ fi
+ 
+@@ -148,6 +153,13 @@ prepare() {
+   # runtime -- this allows signing into Chromium without baked-in values
+   patch -Np1 -i ../use-oauth2-client-switches-as-default.patch
  
 +  # RISC-V
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
++  patch -Np1 -i ../riscv-sandbox.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
-+  # pushd v8
-+  # patch -Np1 -i "${srcdir}"/0001-riscv-maglev-Add-some-peephole-optimisations.patch
-+  # popd
++  # https://chromium-review.googlesource.com/c/v8/v8/+/7608971
++  patch -Np1 -d v8 < ../riscv-v8.patch
 +
-+  patch -Np1 -i ../riscv-sandbox-142.patch
-+  patch -Np1 -d third_party/ffmpeg < ../riscv-ffmpeg-140.patch
-+
-+  pushd third_party/node/
-+  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" node_modules.py
-+  local _rollup_ver="$(jq -r .dependencies.\"@rollup/wasm-node\" package.json)"
-+  jq ".dependencies.rollup=\"$_rollup_ver\"" package.json > package.json.new
-+  mv package.json{.new,}
-+  popd
-+  third_party/node/update_npm_deps
-+
-   # Fixes for building with libstdc++ instead of libc++
+   # Upstream fixes
  
-   # Link to system tools required by the build
-@@ -143,6 +165,25 @@ prepare() {
-     ./tools/clang/scripts/update.py
-   fi
- 
-+  pushd third_party/devtools-frontend/src
-+  sed -i -e 's/@rollup/rollup/' -e "s/'wasm-node',//" scripts/devtools_paths.py
-+  local _rollup_ver="$(jq -r .devDependencies.\"@rollup/wasm-node\" package.json)"
-+  jq ".devDependencies.rollup=\"$_rollup_ver\" | .devDependencies.\"@rollup/rollup-linux-riscv64-gnu\"=\"$_rollup_ver\""  package.json > package.json.new
-+  mv package.json{.new,}
-+  # Chromium hosts a custom registry at https://npm.skia.org/chrome-devtools/
-+  # and rejects some packages:
-+  # Package fs-extra with version 11.3.0 was created 108h0m0s time ago. This is less than 1 week and so failed the audit.
-+  sed -i /registry/d .npmrc
-+  # Replace direct invocation of wasm rollup
-+  sed -i 's\@rollup/wasm-node\rollup\' \
-+    inspector_overlay/BUILD.gn \
-+    front_end/models/live-metrics/web-vitals-injected/BUILD.gn \
-+    front_end/Images/BUILD.gn \
-+    front_end/panels/recorder/injected/BUILD.gn \
-+    scripts/build/ninja/bundle.gni
-+  popd
-+  python third_party/devtools-frontend/src/scripts/deps/manage_node_deps.py
-+
-   # Remove bundled libraries for which we will use the system copies; this
-   # *should* do what the remove_bundled_libraries.py script does, with the
-   # added benefit of not having to list all the remaining libraries
-@@ -203,6 +244,7 @@ build() {
-     'enable_widevine=true'
-     'use_qt5=false'
-     'use_qt6=true'
-+    'is_clang=true'
-     'moc_qt6_path="/usr/lib/qt6"'
-     "google_api_key=\"$_google_api_key\""
-     'use_clang_modules=false'
-@@ -345,4 +387,11 @@ package() {
-   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
+   # Fixes from Gentoo
+@@ -395,4 +407,10 @@ package() {
+   install -Dvm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
-+_riscv_fork_patches='https://github.com/riscv-forks/electron/raw/ec86252/patches/'
 +source+=(swiftshader-use-llvm16.patch
-+         riscv-sandbox-142.patch
-+         riscv-ffmpeg-140.patch::${_riscv_fork_patches}/ffmpeg/0001-Manually-copy-configs-for-riscv64-linux.patch
-+         #${_riscv_fork_patches}/v8/0001-riscv-maglev-Add-some-peephole-optimisations.patch
-+         Debian-fix-rust-linking.patch)
++         riscv-sandbox.patch
++         riscv-v8.patch
++         Debian-fix-rust-linking.patch
++         DEPS-remove-native-binaries.diff)
 +
  # vim:set ts=2 sw=2 et:
+diff --git fetch-chromium-release fetch-chromium-release
+index 4e15b8f..7902245 100755
+--- fetch-chromium-release
++++ fetch-chromium-release
+@@ -27,8 +27,48 @@ export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+ # system python fails to load six.moves module
+ #export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
+ 
++# Python 3.12 breaks gsutils
++# Bundled wheels are not available for riscv64
++sed -i '/wheel: </,$d' depot_tools/.vpython3
++sed -i '/wheel: </,$d' depot_tools/gsutil.py.vpython3
++sed -i '/wheel: </,$d' depot_tools/recipes/recipe_modules/gitiles/resources/gerrit_client.py.vpython3
++mkdir -p rv-site-packages
++# Manually install required wheels
++vpython3 -m pip install httplib2==0.13.1 six==1.10.0 requests==2.31.0 crcmod==1.7 -t rv-site-packages
++export PYTHONPATH="$PWD/rv-site-packages:$PYTHONPATH"
++
++# Sync often fails on SG2042 with:
++# lockfile.LockError: Error locking /build/chromium/src/chromium-checkout/depot_tools/external_bin/gsutil/gsutil_5.35 (err: [Errno 11] Resource temporarily unavailable)
++retry() {
++  local retries=$1
++  shift
++
++  local count=0
++  until "$@"; do
++    exit=$?
++    wait=$((2 ** $count))
++    count=$(($count + 1))
++    if [ $count -lt $retries ]; then
++      echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
++      sleep $wait
++    else
++      echo "Retry $count/$retries exited $exit, no more retries left."
++      return $exit
++    fi
++  done
++  return 0
++}
++
++
+ git clone -b $VERSION --depth=2 https://chromium.googlesource.com/chromium/src
+-gclient sync --no-history --nohooks
++patch -Np1 -d src < ../DEPS-remove-native-binaries.diff
++retry 5 gclient sync --no-history --nohooks
++
++
++# Bundled wheels are not available for riscv64 (third_party/depot_tools)
++sed -i '/wheel: </,$d' src/third_party/depot_tools/.vpython3
++sed -i '/wheel: </,$d' src/third_party/depot_tools/gsutil.py.vpython3
++
+ src/build/util/lastchange.py -o src/build/util/LASTCHANGE
+ src/build/util/lastchange.py -m GPU_LISTS_VERSION \
+   --revision-id-only --header src/gpu/config/gpu_lists_version.h
+@@ -43,5 +83,6 @@ src/tools/update_pgo_profiles.py --target=linux update \
+ src/third_party/node/update_npm_deps
+ 
+ rm -rf src/third_party/node/linux/node-linux-x64/bin/
++mkdir -p src/third_party/jdk/current/bin/
+ find src/third_party/jdk/current -type f -delete
+ mv src ../chromium-$VERSION
