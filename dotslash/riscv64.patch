@@ -1,0 +1,44 @@
+diff --git PKGBUILD PKGBUILD
+index f4f8acf..f0b4a8d 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,6 +19,7 @@
+ 
+ prepare() {
+   cd "$srcdir/$pkgname-$pkgver"
++  patch -Np1 -i "../$pkgname-riscv64.patch"
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+ 
+@@ -29,7 +30,23 @@
+ 
+ check() {
+   cd "$srcdir/$pkgname-$pkgver"
+-  cargo test --frozen --all-features
++  # Needs print_argv executable in https://github.com/zertosh/dotslash_fixtures
++  skip_tests=(
++    clean_command_ok
++    fetch_simple
++    get_extracted_cache_path_simple
++    http__arg0
++    http__gz__valid_executable
++    http__nonexistent_url
++    http__plain__valid_executable
++    http__tar_gz__valid_executable
++    http__tar_xz__valid_executable
++    http__tar_zst__valid_executable
++    http__xz__valid_executable
++    http__zip__valid_executable
++    http__zst__valid_executable
++  )
++  cargo test --frozen --all-features -- $(printf -- '--skip %s ' "${skip_tests[@]}")
+ }
+ 
+ package() {
+@@ -38,3 +55,6 @@
+   install -Dm644 LICENSE-MIT LICENSE-APACHE \
+     -t "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++source+=("$pkgname-riscv64.patch::https://github.com/facebook/dotslash/commit/b9a87e1889557a781601e7a24bebc037fb703b4e.diff")
++sha256sums+=('ac48092494aaa944be1dd01b8016bd06117c572ea2f3c0b09a33e0d70a509199')
