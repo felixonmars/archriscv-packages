@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -48,11 +48,8 @@
+@@ -48,11 +48,8 @@ url='https://gcc.gnu.org'
  makedepends=(
    binutils
    doxygen
@@ -12,12 +12,12 @@
    libisl
    libmpc
    python
-@@ -88,6 +85,12 @@
+@@ -88,6 +85,12 @@ pkgver() {
    echo "$(cat gcc/BASE-VER)+$(git describe --abbrev=12 --tags | sed 's/[^-]*-[^-]*-//;s/[^-]*-/r&/;s/-/+/g;s/_/./')"
  }
  
 +for i in "${!pkgname[@]}"; do
-+  if [[ ${pkgname[i]} = "gcc-ada" ]] || [[ ${pkgname[i]} = "lib32-gcc-libs" ]] || [[ ${pkgname[i]} = "libtsan" ]]; then
++  if [[ ${pkgname[i]} = "gcc-ada" ]] || [[ ${pkgname[i]} = "lib32-gcc-libs" ]]; then
 +    unset 'pkgname[i]'
 +  fi
 +done
@@ -25,7 +25,7 @@
  prepare() {
    [[ ! -d gcc ]] && ln -s gcc-${pkgver/+/-} gcc
    cd gcc
-@@ -112,7 +115,7 @@
+@@ -112,7 +115,7 @@ build() {
        --libexecdir=/usr/lib
        --mandir=/usr/share/man
        --infodir=/usr/share/info
@@ -34,7 +34,7 @@
        --with-build-config=bootstrap-lto
        --with-linker-hash-style=gnu
        --with-system-zlib
-@@ -128,7 +131,7 @@
+@@ -128,7 +131,7 @@ build() {
        --enable-link-serialization=1
        --enable-linker-build-id
        --enable-lto
@@ -43,7 +43,7 @@
        --enable-plugin
        --enable-shared
        --enable-threads=posix
-@@ -146,7 +149,7 @@
+@@ -146,7 +149,7 @@ build() {
    CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
  
    "$srcdir/gcc/configure" \
@@ -52,7 +52,7 @@
      --enable-bootstrap \
      "${_confflags[@]:?_confflags unset}"
  
-@@ -200,9 +203,6 @@
+@@ -200,9 +203,6 @@ package_gcc() {
      zstd
      libisl.so
    )
@@ -62,7 +62,7 @@
    provides=(
      $pkgname-multilib
    )
-@@ -223,25 +223,20 @@
+@@ -223,25 +223,20 @@ package_gcc() {
    install -m755 -t "$pkgdir/$_libdir/" gcc/{cc1,cc1plus,collect2,lto1}
  
    make -C $CHOST/libgcc DESTDIR="$pkgdir" install
@@ -91,11 +91,9 @@
  
    make DESTDIR="$pkgdir" install-fixincludes
    make -C gcc DESTDIR="$pkgdir" install-mkheaders
-@@ -256,17 +251,12 @@
-   make -C $CHOST/libquadmath DESTDIR="$pkgdir" install-nodist_libsubincludeHEADERS
-   make -C $CHOST/libsanitizer DESTDIR="$pkgdir" install-nodist_{saninclude,toolexeclib}HEADERS
+@@ -258,15 +253,11 @@ package_gcc() {
    make -C $CHOST/libsanitizer/asan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
--  make -C $CHOST/libsanitizer/tsan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
+   make -C $CHOST/libsanitizer/tsan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
    make -C $CHOST/libsanitizer/lsan DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
 -  make -C $CHOST/32/libgomp DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
 -  make -C $CHOST/32/libitm DESTDIR="$pkgdir" install-nodist_toolexeclibHEADERS
@@ -110,7 +108,7 @@
  
    make -C libcpp DESTDIR="$pkgdir" install
    make -C gcc DESTDIR="$pkgdir" install-po
-@@ -277,7 +267,7 @@
+@@ -277,7 +268,7 @@ package_gcc() {
    # create cc-rs compatible symlinks
    # https://github.com/rust-lang/cc-rs/blob/1.0.73/src/lib.rs#L2578-L2581
    for binary in {c++,g++,gcc,gcc-ar,gcc-nm,gcc-ranlib}; do
@@ -119,7 +117,7 @@
    done
  
    # POSIX conformance launcher scripts for c89 and c99
-@@ -287,9 +277,6 @@
+@@ -287,9 +278,6 @@ package_gcc() {
    # install the libstdc++ man pages
    make -C $CHOST/libstdc++-v3/doc DESTDIR="$pkgdir" doc-install-man
  
@@ -129,7 +127,7 @@
    # byte-compile python libraries
    python -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
    python -O -m compileall "$pkgdir/usr/share/gcc-${pkgver%%+*}/"
-@@ -399,8 +386,6 @@
+@@ -399,8 +387,6 @@ package_gcc-fortran() {
    cd gcc-build
    make -C $CHOST/libgfortran DESTDIR="$pkgdir" install-cafexeclibLTLIBRARIES \
      install-{toolexeclibDATA,nodist_fincludeHEADERS,gfor_cHEADERS}
@@ -138,7 +136,7 @@
    make -C $CHOST/libgomp DESTDIR="$pkgdir" install-nodist_fincludeHEADERS
    make -C gcc DESTDIR="$pkgdir" fortran.install-{common,man,info}
    install -Dm755 gcc/f951 "$pkgdir/$_libdir/f951"
-@@ -454,11 +439,10 @@
+@@ -454,11 +440,10 @@ package_gcc-go() {
  
    cd gcc-build
    make -C $CHOST/libgo DESTDIR="$pkgdir" install-exec-am
@@ -151,7 +149,7 @@
    install -Dm755 gcc/go1 "$pkgdir/$_libdir/go1"
  
    # Install Runtime Library Exception
-@@ -481,7 +465,6 @@
+@@ -481,7 +466,6 @@ package_gcc-libs() {
      libobjc
      libquadmath
      libstdc++
@@ -159,27 +157,3 @@
      libubsan
    )
    provides=(
-@@ -891,23 +874,6 @@
-     "$pkgdir/usr/share/licenses/libstdc++/RUNTIME.LIBRARY.EXCEPTION"
- }
- 
--package_libtsan() {
--  pkgdesc='Thread Sanitizer runtime library shipped by GCC'
--  depends=(
--    'glibc>=2.27'
--  )
--  provides=(
--    libtsan.so
--  )
--
--  cd gcc-build
--
--  make -C $CHOST/libsanitizer/tsan DESTDIR="$pkgdir" install-toolexeclibLTLIBRARIES
--
--  # Install Runtime Library Exception
--  install -Dm644 "$srcdir/gcc/COPYING.RUNTIME" \
--    "$pkgdir/usr/share/licenses/libtsan/RUNTIME.LIBRARY.EXCEPTION"
--}
- 
- package_libubsan() {
-   pkgdesc='Undefined Behavior Sanitizer runtime library shipped by GCC'
