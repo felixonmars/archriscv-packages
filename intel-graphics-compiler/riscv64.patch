@@ -1,23 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -49,6 +49,8 @@
-             '7a2c3c9c66aac0b3319ad0cf0cce10f973d8db4bc01f162a02d6369774f03195'
+@@ -50,6 +50,8 @@
              'b47ada280614670a467f80e9f8c67542050983f238f2f4b3fa17682855faf9bf'
-             'eac4352a78d537e8a6bbca55c059377dc704e3e1e5a267c99a0e9edda7a87380')
+             '698707f39531b2655624158e456bfa698891f6a765bf207399c4438cc4cf9cd5')
+ 
 +source+=('intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch::https://github.com/intel/intel-graphics-compiler/commit/0228c3cac90e35f094e6409ecdbb2787240f0b1b.diff')
 +sha256sums+=('075de70c8f654ef750c4b191fc44ef268c04b3a3eb678b95800ae84fa4806e73')
- 
  prepare() {
      # rename to prevent SPIRV-LLVM-Translator from being included
-@@ -59,6 +61,7 @@
+     # twice by the build process, which causes the build to fail
+@@ -60,6 +62,7 @@
      ln -s "${srcdir}/opencl-clang" "${srcdir}/llvm-project/llvm/projects/opencl-clang"
-     
+ 
      patch -d "intel-graphics-compiler-${pkgver}" -Np1 -i "${srcdir}/010-intel-graphics-compiler-disable-werror.patch"
 +    patch -d "intel-graphics-compiler-${pkgver}" -Np1 -i "${srcdir}/intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch"
  }
  
  build() {
-@@ -72,6 +75,20 @@
+@@ -73,6 +76,20 @@
      export CFLAGS="${CFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
      export CXXFLAGS="${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
  
@@ -27,18 +27,18 @@
 +    export CXXFLAGS+=' -Wno-error=attributes'
 +
 +    # fix error: 'void operator delete(void*, std::size_t)' called on pointer '<unknown>' with nonzero offset 40 [-Werror]
-+    # note: False positive? in STL
++    # note: false positive in STL
 +    export CFLAGS+=' -Wno-error=free-nonheap-object'
 +    export CXXFLAGS+=' -Wno-error=free-nonheap-object'
 +
-+    # fix error: #warning "<ciso646> is deprecated in C++17 [-Werror]
++    # fix error: #warning "<ciso646> is deprecated in C++17" [-Werror=cpp]
 +    export CFLAGS+=' -Wno-error=cpp'
 +    export CXXFLAGS+=' -Wno-error=cpp'
 +
      export GIT_COMMITTER_NAME='builduser'
      export GIT_COMMITTER_EMAIL='builduser@archlinux.org'
-     
-@@ -83,6 +100,7 @@
+ 
+@@ -86,6 +103,7 @@
          -DCMAKE_INSTALL_PREFIX=/usr \
          -DCMAKE_POLICY_VERSION_MINIMUM=3.5.0 \
          -DCMAKE_SKIP_RPATH=YES \
