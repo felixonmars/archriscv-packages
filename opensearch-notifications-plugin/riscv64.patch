@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,7 +10,7 @@ arch=('x86_64')
+ url="https://opensearch.org/docs/latest/notifications-plugin/index/"
+ license=('Apache-2.0')
+ depends=("opensearch=${_opensearchver}")
+-makedepends=("java-environment=${_jdkver}" 'unzip')
++makedepends=("java-environment=${_jdkver}" 'unzip' 'gradle')
+ source=(
+   "${pkgname}-${pkgver}.tar.gz::https://github.com/opensearch-project/notifications/archive/${pkgver}.tar.gz"
+ )
+@@ -21,10 +21,13 @@ build() {
+   export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
+   export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
+   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
+-  ./gradlew build \
++  # Use system gradle. Bundled gradle is missing https://github.com/gradle/native-platform/commit/bc65f1dae7c140bdfc3e3da23958e44b2ff61a3d
++  # Exclude integTest because it downloads binary from upstream but upstream does not release binary for riscv64.
++  gradle build \
+     --exclude-task "notifications:jacocoTestCoverageVerification" \
+     --exclude-task "opensearch-notifications-core:jacocoTestCoverageVerification" \
+     --exclude-task "opensearch-notifications-core-spi:jacocoTestCoverageVerification" \
++    --exclude-task "notifications:integTest" \
+     --exclude-task "notifications:jacocoTestReport" \
+     --exclude-task "opensearch-notifications-core:jacocoTestReport" \
+     --exclude-task "opensearch-notifications-core-spi:jacocoTestReport" \
