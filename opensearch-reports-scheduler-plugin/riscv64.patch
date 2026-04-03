@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,7 +10,7 @@ arch=('x86_64')
+ url="https://opensearch.org/docs/latest/dashboards/reporting"
+ license=('Apache-2.0')
+ depends=("opensearch=${_opensearchver}")
+-makedepends=("java-environment=${_jdkver}" 'unzip')
++makedepends=("java-environment=${_jdkver}" 'unzip' 'gradle')
+ source=(
+   "${pkgname}-${pkgver}.tar.gz::https://github.com/opensearch-project/reporting/archive/${pkgver}.tar.gz"
+ )
+@@ -21,7 +21,7 @@ build() {
+   export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
+   export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
+   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
+-  ./gradlew assemble \
++  gradle assemble -Dkotlin.version=2.2.10 \
+     --exclude-task ":jacocoTestReport"
+ }
+ 
