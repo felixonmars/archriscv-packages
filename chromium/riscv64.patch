@@ -1,15 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -66,7 +66,7 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         enable-widevine-arm64.patch
-         use-oauth2-client-switches-as-default.patch
-         glibc-2.42-baud-rate-fix.patch)
--sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-+sha256sums=('66ad6129695e1cb3800f50a660b62f47859a2c2c01741b0d4da009e4f619117b'
-             '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
-             '4fc040a0656a0a524dd8ad090cd129fc5b6cb21adcc66be82080165789e8c13e'
-@@ -77,11 +77,16 @@ sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
+@@ -77,11 +77,15 @@ sha256sums=('57594966be592efdb9fe6491f5a834de237f5c7decdca5eb1f7d7a5d38dd54e9'
              'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
              '9c766b82d1143cb3413fe2057361bd2655e46287eacc2c6d6f8504b4c255647a'
              '9343afa1a4308a7cfb3317229f5aff7778688debcc03c4a74a85908aa1d0cc3a'
@@ -17,7 +8,6 @@
 +            '1c1898f263eaacbc069a8e1a3e732852350350d1dad4cb1a6bba430e3b796cd0'
 +            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +            '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821'
-+            '51ff7707611cb1370958e750628e4317c8b46f85fd07fb1979e72e2856a8ae84'
 +            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
 +            'ddd02dbb1dafee30ea78c6694f064da3abce5230c84b27e12132c3a7f16b7a2f')
  
@@ -28,7 +18,7 @@
    makedepends+=('python-httplib2' 'python-pyparsing' 'python-six' 'npm' 'rsync')
  fi
  
-@@ -148,6 +153,13 @@ prepare() {
+@@ -148,6 +152,11 @@ prepare() {
    # runtime -- this allows signing into Chromium without baked-in values
    patch -Np1 -i ../use-oauth2-client-switches-as-default.patch
  
@@ -36,19 +26,16 @@
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
-+  # https://chromium-review.googlesource.com/c/v8/v8/+/7608971
-+  patch -Np1 -d v8 < ../riscv-v8.patch
 +
    # Upstream fixes
  
    # Fixes from Gentoo
-@@ -395,4 +407,10 @@ package() {
+@@ -395,4 +404,9 @@ package() {
    install -Dvm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-sandbox.patch
-+         riscv-v8.patch
 +         Debian-fix-rust-linking.patch
 +         DEPS-remove-native-binaries.diff)
 +
