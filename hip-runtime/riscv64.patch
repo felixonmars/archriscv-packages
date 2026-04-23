@@ -1,17 +1,17 @@
---- PKGBUILD
-+++ PKGBUILD
+--- PKGBUILD	2026-04-24 01:04:33.516123078 +0800
++++ PKGBUILD.riscv2	2026-04-24 01:22:32.830808448 +0800
 @@ -3,7 +3,7 @@
  # Contributor: acxz <akashpatel2008 at yahoo dot com>
  
  pkgbase=hip-runtime
 -pkgname=(hip-runtime-amd hip-runtime-nvidia)
 +pkgname=(hip-runtime-amd)
- pkgver=7.2.0
+ pkgver=7.2.2
  pkgrel=1
  _pkgdesc="Heterogeneous Interface for Portability"
 @@ -12,9 +12,8 @@
  license=('MIT')
- _amd_depends=('rocm-core' 'bash' 'perl' 'glibc' 'gcc-libs' 'numactl'
+ _amd_depends=('rocm-core' 'bash' 'perl' 'glibc' 'libgcc' 'numactl'
           'mesa' 'comgr' 'rocminfo' 'rocm-llvm' 'libelf' 'rocprofiler-register')
 -_nvidia_depends=('cuda')
  makedepends=('git' 'cmake' 'python' 'python-cppheaderparser'
@@ -35,7 +35,7 @@
  build() {
    local hipcc_common_args=(
      -Wno-dev
-@@ -54,50 +61,25 @@
+@@ -54,50 +61,26 @@
      -DHIP_CATCH_TEST=0
      -DCLR_BUILD_HIP=ON
      -DCLR_BUILD_OCL=OFF
@@ -88,6 +88,7 @@
 -  DESTDIR="$pkgdir" cmake --install build-nvidia
 -  install -Dm644 "$srcdir/$_projectBaseDir/hip/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 -}
++
 +source+=("$pkgbase-clr-riscv-hard-float.patch"
 +         "$pkgbase-clr-riscv-fence.patch"
 +         "$pkgbase-clr-riscv-currentStackPtr.patch")
