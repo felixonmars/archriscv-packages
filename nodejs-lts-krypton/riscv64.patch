@@ -1,36 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index ff2ec7e..c07eb5a 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -48,7 +48,9 @@ source=(
-   update-icu-tests.patch
- )
- b2sums=('6ec1c3e75b73cc614fb9ba8b83b025adaa19b5c17d1f9e599289bbaeede2d9acd47015be68548350eb649c63890b32bf3c3058f7103cb40eb5b11d81e0b0014f'
--        '1469b72d559972121e5896f32faff8fec0a34e890e23d60f4011505b10ca2d9a9e3d87bb8fa5b5674282dc854f6fdca0a50c6e4843a5d95e0beedd25d4e2b920')
-+        '1469b72d559972121e5896f32faff8fec0a34e890e23d60f4011505b10ca2d9a9e3d87bb8fa5b5674282dc854f6fdca0a50c6e4843a5d95e0beedd25d4e2b920'
-+        '4e770adcd1d4edc71f1ebced7573ca61b6e7424f780baa15bd12aae8f37656ce518fe5b1a9cc4c838f41464421a25490d4d3c8c88b441a8dab50481df94f08d5'
-+        'f1ad5e9efed34da853427b8aa1857d08f8856f0ec2c60feeb1d810dcc1f0d60f03570c0e40ee066e3a995e9be3de5115284b34aa2301bd7b15f100efb7caff23')
- validpgpkeys=(
-   '8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600' # Michaël Zasso (Targos) <targos@protonmail.com>
-   '890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4' # RafaelGSS <rafael.nunu@hotmail.com>
-@@ -63,12 +65,18 @@ _set_flags() {
+@@ -61,6 +61,17 @@ _set_flags() {
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
++
 +  # https://github.com/riscv-forks/electron/issues/7
 +  export CC=/usr/bin/clang
 +  export CXX=/usr/bin/clang++
- }
- 
- prepare() {
-   cd node
-   # Update ICU tests https://github.com/nodejs/node/pull/60523
-   patch -Np1 -i ../update-icu-tests.patch
++}
++
++prepare() {
++  cd node
++
 +  patch -Np1 -i ../hwy-broken-rvv.diff
 +  patch -Np1 -i ../v8-riscv-fix-sp.patch
-+
  }
  
  build() {
-@@ -100,6 +108,8 @@ build() {
+@@ -94,6 +105,8 @@ build() {
  check() {
    _set_flags
    cd node
@@ -39,7 +29,7 @@
    rm test/parallel/test-http2-client-set-priority.js
    rm test/parallel/test-http2-client-unescaped-path.js
    rm test/parallel/test-http2-max-invalid-frames.js
-@@ -124,4 +134,8 @@ package() {
+@@ -114,4 +127,10 @@ package() {
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
@@ -47,4 +37,6 @@
 +makedepends+=(clang)
 +source+=("hwy-broken-rvv.diff"
 +         v8-riscv-fix-sp.patch)
++b2sums+=('4e770adcd1d4edc71f1ebced7573ca61b6e7424f780baa15bd12aae8f37656ce518fe5b1a9cc4c838f41464421a25490d4d3c8c88b441a8dab50481df94f08d5'
++         'f1ad5e9efed34da853427b8aa1857d08f8856f0ec2c60feeb1d810dcc1f0d60f03570c0e40ee066e3a995e9be3de5115284b34aa2301bd7b15f100efb7caff23')
  # vim:set ts=2 sw=2 et:
