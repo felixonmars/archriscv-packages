@@ -4,34 +4,34 @@ index 15ee438..c7355c3 100644
 +++ b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.guess
 @@ -1000,6 +1000,9 @@ EOF
      ppc:Linux:*:*)
- 	echo powerpc-unknown-linux-gnu
- 	exit ;;
+	echo powerpc-unknown-linux-gnu
+	exit ;;
 +    riscv64:Linux:*:*)
 +	echo riscv64-unknown-linux-gnu
 +	exit ;;
      s390:Linux:*:* | s390x:Linux:*:*)
- 	echo ${UNAME_MACHINE}-ibm-linux
- 	exit ;;
+	echo ${UNAME_MACHINE}-ibm-linux
+	exit ;;
 diff --git a/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub
 index 1aab2b3..662b002 100644
 --- a/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub
 +++ b/jdk8u-jdk8u482-b08/common/autoconf/build-aux/autoconf-config.sub
 @@ -302,6 +302,7 @@ case $basic_machine in
- 	| pdp10 | pdp11 | pj | pjl \
- 	| powerpc | powerpc64 | powerpc64le | powerpcle | ppcbe \
- 	| pyramid \
+	| pdp10 | pdp11 | pj | pjl \
+	| powerpc | powerpc64 | powerpc64le | powerpcle | ppcbe \
+	| pyramid \
 +	| riscv32 | riscv64 \
- 	| score \
- 	| sh | sh[1234] | sh[24]a | sh[23]e | sh[34]eb | sheb | shbe | shle | sh[1234]le | sh3ele \
- 	| sh64 | sh64le \
+	| score \
+	| sh | sh[1234] | sh[24]a | sh[23]e | sh[34]eb | sheb | shbe | shle | sh[1234]le | sh3ele \
+	| sh64 | sh64le \
 @@ -383,6 +384,7 @@ case $basic_machine in
- 	| pdp10-* | pdp11-* | pj-* | pjl-* | pn-* | power-* \
- 	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* | ppcbe-* \
- 	| pyramid-* \
+	| pdp10-* | pdp11-* | pj-* | pjl-* | pn-* | power-* \
+	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* | ppcbe-* \
+	| pyramid-* \
 +	| riscv32-* | riscv64-* \
- 	| romp-* | rs6000-* \
- 	| sh-* | sh[1234]-* | sh[24]a-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
- 	| shle-* | sh[1234]le-* | sh3ele-* | sh64-* | sh64le-* \
+	| romp-* | rs6000-* \
+	| sh-* | sh[1234]-* | sh[24]a-* | sh[23]e-* | sh[34]eb-* | sheb-* | shbe-* \
+	| shle-* | sh[1234]le-* | sh3ele-* | sh64-* | sh64le-* \
 diff --git a/jdk8u-jdk8u482-b08/common/autoconf/platform.m4 b/jdk8u-jdk8u482-b08/common/autoconf/platform.m4
 index f54942a..e70c159 100644
 --- a/jdk8u-jdk8u482-b08/common/autoconf/platform.m4
@@ -103,9 +103,7 @@ index 5629a64..77fde84 100644
    #endif
  
    // Identify compatability class for VM's architecture and library's architecture
-@@ -2058,10 +2064,12 @@
-   }
- 
+@@ -2054,6 +2060,8 @@
  #ifndef S390
 +#ifndef RISCV
    if (lib_arch.elf_class != arch_array[running_arch_index].elf_class) {
@@ -115,4 +113,193 @@ index 5629a64..77fde84 100644
 +#endif // RISCV
  #endif // !S390
  
-   if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
+  if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c b/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c
+index 9e579e6..65daf0d 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c
++++ b/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c
+@@ -145,7 +145,7 @@ static struct vmdesc *knownVMs = NULL;
+ static int knownVMsCount = 0;
+ static int knownVMsLimit = 0;
+ 
+-static void GrowKnownVMs();
++static void GrowKnownVMs(int minimum);
+ static int  KnownVMIndex(const char* name);
+ static void FreeKnownVMs();
+ static jboolean IsWildCardEnabled();
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h b/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h
+index a51a6a1..24ee536 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h
++++ b/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h
+@@ -407,7 +407,7 @@ char* nativeGetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy);
+ char* nativeGetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy);
+ 
+ int getFastEncoding();
+ 
+-void initializeEncoding();
++void initializeEncoding(JNIEnv *env);
+ 
+ void* getProcessHandle();
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/awt_GraphicsEnv.h b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/awt_GraphicsEnv.h
+index 5b1f84d..72cdb56 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/awt_GraphicsEnv.h
++++ b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/awt_GraphicsEnv.h
+@@ -50,8 +50,6 @@
+ #define MITSHM_PERM_COMMON (0666)
+ #define MITSHM_PERM_OWNER  (0600)
+ 
+-extern int XShmQueryExtension();
+-
+ void TryInitMITShm(JNIEnv *env, jint *shmExt, jint *shmPixmaps);
+ void resetXShmAttachFailed();
+ jboolean isXShmAttachFailed();
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk2_interface.c b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk2_interface.c
+index 6db1fb9..cb85cde 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk2_interface.c
++++ b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk2_interface.c
+@@ -1468,7 +1468,7 @@ gtk2_get_widget(GtkWidgetType widget_type)
+             if (init_result = (NULL == gtk2_widgets[_GTK_NOTEBOOK_TYPE]))
+             {
+                 gtk2_widgets[_GTK_NOTEBOOK_TYPE] =
+-                    (*fp_gtk_notebook_new)(NULL);
++                    (*fp_gtk_notebook_new)();
+             }
+             result = gtk2_widgets[_GTK_NOTEBOOK_TYPE];
+             break;
+@@ -1476,7 +1476,7 @@ gtk2_get_widget(GtkWidgetType widget_type)
+             if (init_result = (NULL == gtk2_widgets[_GTK_TOGGLE_BUTTON_TYPE]))
+             {
+                 gtk2_widgets[_GTK_TOGGLE_BUTTON_TYPE] =
+-                    (*fp_gtk_toggle_button_new)(NULL);
++                    (*fp_gtk_toggle_button_new)();
+             }
+             result = gtk2_widgets[_GTK_TOGGLE_BUTTON_TYPE];
+             break;
+@@ -1485,7 +1485,7 @@ gtk2_get_widget(GtkWidgetType widget_type)
+             if (init_result = (NULL == gtk2_widgets[_GTK_TOOLBAR_TYPE]))
+             {
+                 gtk2_widgets[_GTK_TOOLBAR_TYPE] =
+-                    (*fp_gtk_toolbar_new)(NULL);
++                    (*fp_gtk_toolbar_new)();
+             }
+             result = gtk2_widgets[_GTK_TOOLBAR_TYPE];
+             break;
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk3_interface.c b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk3_interface.c
+index c0d1445..59af4eb 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk3_interface.c
++++ b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/awt/gtk3_interface.c
+@@ -1241,7 +1241,7 @@ gtk3_get_widget(GtkWidgetType widget_type)
+             if (init_result = (NULL == gtk3_widgets[_GTK_NOTEBOOK_TYPE]))
+             {
+                 gtk3_widgets[_GTK_NOTEBOOK_TYPE] =
+-                    (*fp_gtk_notebook_new)(NULL);
++                    (*fp_gtk_notebook_new)();
+             }
+             result = gtk3_widgets[_GTK_NOTEBOOK_TYPE];
+             break;
+@@ -1249,7 +1249,7 @@ gtk3_get_widget(GtkWidgetType widget_type)
+             if (init_result = (NULL == gtk3_widgets[_GTK_TOGGLE_BUTTON_TYPE]))
+             {
+                 gtk3_widgets[_GTK_TOGGLE_BUTTON_TYPE] =
+-                    (*fp_gtk_toggle_button_new)(NULL);
++                    (*fp_gtk_toggle_button_new)();
+             }
+             result = gtk3_widgets[_GTK_TOGGLE_BUTTON_TYPE];
+             break;
+@@ -1258,7 +1258,7 @@ gtk3_get_widget(GtkWidgetType widget_type)
+             if (init_result = (NULL == gtk3_widgets[_GTK_TOOLBAR_TYPE]))
+             {
+                 gtk3_widgets[_GTK_TOOLBAR_TYPE] =
+-                    (*fp_gtk_toolbar_new)(NULL);
++                    (*fp_gtk_toolbar_new)();
+             }
+             result = gtk3_widgets[_GTK_TOOLBAR_TYPE];
+             break;
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.h b/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.h
+index a2ff6bd..d015510 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.h
++++ b/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.h
+@@ -32,9 +32,20 @@
+ 
+ /* Struct that holds the mlib function ptrs and names */
+ typedef struct {
+-    mlib_status (*fptr)();
++    void *fptr;
+     char *fname;
+ } mlibFnS_t;
+ 
++typedef mlib_status (*MlibConvMxNFP_t)(mlib_image *, const mlib_image *,
++                                       const mlib_s32 *, mlib_s32, mlib_s32,
++                                       mlib_s32, mlib_s32, mlib_s32, mlib_s32,
++                                       mlib_edge);
++typedef mlib_status (*MlibAffineFP_t)(mlib_image *, const mlib_image *,
++                                      const mlib_d64 *, mlib_filter, mlib_edge);
++typedef mlib_status (*MlibLookUpFP_t)(mlib_image *, const mlib_image *,
++                                      const void **);
++typedef mlib_status (*MlibConvKernelConvertFP_t)(mlib_s32 *, mlib_s32 *,
++                                                 const mlib_d64 *, mlib_s32, mlib_s32, mlib_type);
++
+ typedef mlib_image *(*MlibCreateFP_t)(mlib_type, mlib_s32, mlib_s32,
+                                        mlib_s32);
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.c b/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.c
+index 77d82f1..f25d6eb 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.c
++++ b/jdk8u-jdk8u482-b08/jdk/src/share/native/sun/awt/medialib/awt_ImagingLib.c
+@@ -430,2 +430,2 @@ Java_sun_awt_image_ImagingLib_convolveBI(JNIEnv *env, jobject this,
+-    if ((*sMlibFns[MLIB_CONVKERNCVT].fptr)(kdata, &scale, dkern, w, h,
++    if (((MlibConvKernelConvertFP_t)sMlibFns[MLIB_CONVKERNCVT].fptr)(kdata, &scale, dkern, w, h,
+                                     mlib_ImageGetType(src)) != MLIB_SUCCESS) {
+@@ -458,3 +458,3 @@ Java_sun_awt_image_ImagingLib_convolveBI(JNIEnv *env, jobject this,
+-    status = (*sMlibFns[MLIB_CONVMxN].fptr)(dst, src, kdata, w, h,
++    status = ((MlibConvMxNFP_t)sMlibFns[MLIB_CONVMxN].fptr)(dst, src, kdata, w, h,
+                                (w-1)/2, (h-1)/2, scale, cmask,
+                                getMlibEdgeHint(edgeHint));
+@@ -677,2 +677,2 @@ Java_sun_awt_image_ImagingLib_convolveRaster(JNIEnv *env, jobject this,
+-    if ((*sMlibFns[MLIB_CONVKERNCVT].fptr)(kdata, &scale, dkern, w, h,
++    if (((MlibConvKernelConvertFP_t)sMlibFns[MLIB_CONVKERNCVT].fptr)(kdata, &scale, dkern, w, h,
+                                     mlib_ImageGetType(src)) != MLIB_SUCCESS) {
+@@ -706,3 +706,3 @@ Java_sun_awt_image_ImagingLib_convolveRaster(JNIEnv *env, jobject this,
+-    status = (*sMlibFns[MLIB_CONVMxN].fptr)(dst, src, kdata, w, h,
++    status = ((MlibConvMxNFP_t)sMlibFns[MLIB_CONVMxN].fptr)(dst, src, kdata, w, h,
+                                (w-1)/2, (h-1)/2, scale, cmask,
+                                getMlibEdgeHint(edgeHint));
+@@ -922,2 +922,2 @@ Java_sun_awt_image_ImagingLib_transformBI(JNIEnv *env, jobject this,
+-    if ((status = (*sMlibFns[MLIB_AFFINE].fptr)(dst, src, mtx, filter,
++    if ((status = ((MlibAffineFP_t)sMlibFns[MLIB_AFFINE].fptr)(dst, src, mtx, filter,
+                                   MLIB_EDGE_SRC_EXTEND) != MLIB_SUCCESS))
+@@ -1139,2 +1139,2 @@ Java_sun_awt_image_ImagingLib_transformRaster(JNIEnv *env, jobject this,
+-    if ((status = (*sMlibFns[MLIB_AFFINE].fptr)(dst, src, mtx, filter,
++    if ((status = ((MlibAffineFP_t)sMlibFns[MLIB_AFFINE].fptr)(dst, src, mtx, filter,
+                                   MLIB_EDGE_SRC_EXTEND) != MLIB_SUCCESS))
+@@ -1496,3 +1496,2 @@ Java_sun_awt_image_ImagingLib_lookupByteBI(JNIEnv *env,
+-    }
+-    else if ((status = (*sMlibFns[MLIB_LOOKUP].fptr)(dst, src,
++    } else if ((status = ((MlibLookUpFP_t)sMlibFns[MLIB_LOOKUP].fptr)(dst, src,
+                                       (void **)tbl) != MLIB_SUCCESS)) {
+@@ -1733,3 +1733,3 @@ Java_sun_awt_image_ImagingLib_lookupByteRaster(JNIEnv *env,
+-        /* How about ddata == null? */
+-    } else if ((status = (*sMlibFns[MLIB_LOOKUP].fptr)(dst, src,
++        /* How about ddata == null? */
++    } else if ((status = ((MlibLookUpFP_t)sMlibFns[MLIB_LOOKUP].fptr)(dst, src,
+                                       (void **)mlib_lookupTable) != MLIB_SUCCESS)) {
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/net/spi/DefaultProxySelector.c b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/net/spi/DefaultProxySelector.c
+index fa90dff..b5a7656 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/net/spi/DefaultProxySelector.c
++++ b/jdk8u-jdk8u482-b08/jdk/src/solaris/native/sun/net/spi/DefaultProxySelector.c
+@@ -95,11 +95,11 @@ typedef struct _GProxyResolver GProxyResolver;
+ typedef struct _GSocketConnectable GSocketConnectable;
+ typedef struct GError GError;
+ typedef GProxyResolver* g_proxy_resolver_get_default_func();
+-typedef char** g_proxy_resolver_lookup_func();
+-typedef GSocketConnectable* g_network_address_parse_uri_func();
+-typedef const char* g_network_address_get_hostname_func();
+-typedef unsigned short g_network_address_get_port_func();
+-typedef void g_strfreev_func();
++typedef char** g_proxy_resolver_lookup_func(GProxyResolver*, const char*, void*, GError**);
++typedef GSocketConnectable* g_network_address_parse_uri_func(const char*, unsigned short, GError**);
++typedef const char* g_network_address_get_hostname_func(GSocketConnectable*);
++typedef unsigned short g_network_address_get_port_func(GSocketConnectable*);
++typedef void g_strfreev_func(char**);
+ 
+ static g_proxy_resolver_get_default_func* g_proxy_resolver_get_default = NULL;
+ static g_proxy_resolver_lookup_func* g_proxy_resolver_lookup = NULL;

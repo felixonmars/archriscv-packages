@@ -1,25 +1,27 @@
+diff --git PKGBUILD PKGBUILD
+index 42de797..e65b9bd 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -50,6 +50,7 @@
+@@ -49,6 +49,7 @@ b2sums=('baad344bcb29c35f6f01a1af2285cc3e1f0d075b78ae341e8f4d63f001636a96359fcab
+ case "${CARCH}" in
    'x86_64'  ) _JARCH=amd64   ; _DOC_ARCH=x86_64  ;;
-   'i686'    ) _JARCH=i386    ; _DOC_ARCH=x86     ;;
    'aarch64' ) _JARCH=aarch64 ; _DOC_ARCH=aarch64 ;;
 +  'riscv64' ) _JARCH=riscv64 ; _DOC_ARCH=riscv64 ;;
  esac
  
  _jdkname=openjdk8
-@@ -66,6 +67,10 @@
+@@ -65,6 +66,10 @@ _nonheadless=(
  prepare() {
    cd jdk8u-jdk${_majorver}u${_minorver}-b${_updatever}
  
-+  # RISC-V Support
++  # RISC-V support
 +  patch -Np2 -i "${srcdir}"/jdk8-riscv.patch
 +  (cd common/autoconf && bash ./autogen.sh)
 +
    # Do not treats warnings as errors
    sed -E -i 's/(^WARNINGS_ARE_ERRORS = -W)(error)/\1no-\2/' \
      hotspot/make/linux/makefiles/gcc.make
-@@ -112,7 +117,9 @@
+@@ -111,7 +116,9 @@ build() {
      --with-extra-cflags="${CFLAGS}" \
      --with-extra-cxxflags="${CXXFLAGS}" \
      --with-extra-ldflags="${LDFLAGS}" \
@@ -30,7 +32,7 @@
  
    # These help to debug builds: LOG=trace HOTSPOT_BUILD_JOBS=1
    # Without 'DEBUG_BINARIES', i686 won't build: http://mail.openjdk.java.net/pipermail/core-libs-dev/2013-July/019203.html
-@@ -338,8 +345,13 @@
+@@ -337,8 +345,11 @@ package_openjdk8-doc() {
    pkgdesc='OpenJDK Java 8 documentation'
  
    install -d -m 755 "${pkgdir}/usr/share/doc/${pkgbase}/"
@@ -39,9 +41,7 @@
      "${pkgdir}/usr/share/doc/${pkgbase}/"
  }
  
- # vim: ts=2 sw=2 et:
-+
 +source+=(jdk8-riscv.patch)
-+b2sums+=('640cdcb5f2e1df972d7561b1f76013a29c97cab3fb3b78996da5522c493904fffd965e6aada50215906d27c4c50d93facf82260036bec8345814a7ad9d0def60')
++b2sums+=('6098f770f42620e40177eb2a07b93d54672231b034bbed7148a03b41da7a8195477a6199cdf1a8944ac7703266bac01bd8b841551601a55190273d9ebbe61fe3')
 +
-+# vim: ts=2 sw=2 et:
+ # vim: ts=2 sw=2 et:
