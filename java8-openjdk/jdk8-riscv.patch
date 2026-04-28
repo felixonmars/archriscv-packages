@@ -103,9 +103,7 @@ index 5629a64..77fde84 100644
    #endif
  
    // Identify compatability class for VM's architecture and library's architecture
-@@ -2058,10 +2064,12 @@
-   }
- 
+@@ -2054,6 +2060,8 @@
  #ifndef S390
 +#ifndef RISCV
    if (lib_arch.elf_class != arch_array[running_arch_index].elf_class) {
@@ -115,4 +113,31 @@ index 5629a64..77fde84 100644
 +#endif // RISCV
  #endif // !S390
  
-   if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
+  if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
+
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c b/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c
+index 9e579e6..65daf0d 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c
++++ b/jdk8u-jdk8u482-b08/jdk/src/share/bin/java.c
+@@ -145,7 +145,7 @@ static struct vmdesc *knownVMs = NULL;
+ static int knownVMsCount = 0;
+ static int knownVMsLimit = 0;
+ 
+-static void GrowKnownVMs();
++static void GrowKnownVMs(int minimum);
+ static int  KnownVMIndex(const char* name);
+ static void FreeKnownVMs();
+ static jboolean IsWildCardEnabled();
+
+diff --git a/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h b/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h
+index a51a6a1..24ee536 100644
+--- a/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h
++++ b/jdk8u-jdk8u482-b08/jdk/src/share/native/common/jni_util.h
+@@ -407,7 +407,7 @@ char* nativeGetStringPlatformChars(JNIEnv *env, jstring jstr, jboolean *isCopy);
+ 
+ int getFastEncoding();
+ 
+-void initializeEncoding();
++void initializeEncoding(JNIEnv *env);
+ 
+ void* getProcessHandle();
