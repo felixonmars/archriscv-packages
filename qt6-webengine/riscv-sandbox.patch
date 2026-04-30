@@ -7,19 +7,20 @@ Change-Id: Ibcdaaba1b0c92a1cd85361b9859370c686832c49
 ---
 
 diff --git a/sandbox/features.gni b/sandbox/features.gni
-index 8434144..8aa52983 100644
+index 994f9b32..f29069b5 100644
 --- a/sandbox/features.gni
 +++ b/sandbox/features.gni
-@@ -9,7 +9,8 @@
+@@ -5,8 +5,9 @@
+ # The seccomp-bpf sandbox is only supported on six architectures
+ # currently.
+ # Do not disable seccomp_bpf anywhere without talking to
+ # security@chromium.org!
  use_seccomp_bpf = (is_linux || is_chromeos || is_android) &&
                    (current_cpu == "x86" || current_cpu == "x64" ||
                     current_cpu == "arm" || current_cpu == "arm64" ||
 -                   current_cpu == "mipsel" || current_cpu == "mips64el")
 +                   current_cpu == "mipsel" || current_cpu == "mips64el" ||
 +                   current_cpu == "riscv64")
- 
- # SSBD (Speculative Store Bypass Disable) is a mitigation of Spectre Variant 4.
- # As Spectre Variant 4 can be mitigated by site isolation, opt-out SSBD on site
 diff --git a/sandbox/linux/bpf_dsl/linux_syscall_ranges.h b/sandbox/linux/bpf_dsl/linux_syscall_ranges.h
 index 1d0590b..b722fbc9 100644
 --- a/sandbox/linux/bpf_dsl/linux_syscall_ranges.h
@@ -149,7 +150,7 @@ index 4a2721c..8ef9f51a 100644
  
        default:
 diff --git a/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc b/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
-index 7bde501..b92ab39 100644
+index 9dc18597..e42c5402 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/baseline_policy.cc
 @@ -60,6 +60,9 @@
@@ -162,16 +163,7 @@ index 7bde501..b92ab39 100644
           SyscallSets::IsAllowedOperationOnFd(sysno);
    // clang-format on
  }
-@@ -193,7 +196,7 @@
-     return RestrictFcntlCommands();
- #endif
- 
--#if !defined(__aarch64__)
-+#if !defined(__aarch64__) && !defined(__riscv)
-   // fork() is never used as a system call (clone() is used instead), but we
-   // have seen it in fallback code on Android.
-   if (sysno == __NR_fork) {
-@@ -255,7 +258,7 @@
+@@ -260,7 +263,7 @@ ResultExpr EvaluateSyscallImpl(int fs_denied_errno,
    }
  
  #if defined(__i386__) || defined(__x86_64__) || defined(__mips__) || \
@@ -180,24 +172,6 @@ index 7bde501..b92ab39 100644
    if (sysno == __NR_mmap)
      return RestrictMmapFlags();
  #endif
-@@ -276,7 +279,7 @@
-     return RestrictPrctl();
- 
- #if defined(__x86_64__) || defined(__arm__) || defined(__mips__) || \
--    defined(__aarch64__)
-+    defined(__aarch64__) || defined(__riscv)
-   if (sysno == __NR_socketpair) {
-     // Only allow AF_UNIX, PF_UNIX. Crash if anything else is seen.
-     static_assert(AF_UNIX == PF_UNIX,
-@@ -366,7 +369,7 @@
-   // Allow creating pipes, but don't allow weird flags to pipe2().
-   // O_NOTIFICATION_PIPE (== O_EXCL) can be used to create
-   // "notification pipes", which are rarely used.
--#if !defined(__aarch64__)
-+#if !defined(__aarch64__) && !defined(__riscv)
-   if (sysno == __NR_pipe) {
-     return Allow();
-   }
 diff --git a/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc b/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc
 index a0a8796..8bea4c9 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/baseline_policy_unittest.cc
@@ -230,18 +204,18 @@ index a0a8796..8bea4c9 100644
  TEST_BASELINE_SIGSYS(__NR_vserver)
  #endif
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
-index 74112e8..b451c19 100644
+index bc00f2ea..dc52b6ba 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions.cc
-@@ -37,6 +37,7 @@
+@@ -44,6 +44,7 @@
+ #endif
  
- #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)) && \
-     !defined(__arm__) && !defined(__aarch64__) &&             \
+ #if BUILDFLAG(IS_LINUX) && !defined(__arm__) && !defined(__aarch64__) && \
 +    !defined(__riscv) &&                                      \
      !defined(PTRACE_GET_THREAD_AREA)
  // Also include asm/ptrace-abi.h since ptrace.h in older libc (for instance
  // the one in Ubuntu 16.04 LTS) is missing PTRACE_GET_THREAD_AREA.
-@@ -463,8 +464,10 @@
+@@ -484,8 +485,10 @@
  #endif
    return Switch(request)
        .Cases({
@@ -253,6 +227,7 @@ index 74112e8..b451c19 100644
                   PTRACE_GETREGSET,
  #endif
  #if defined(__arm__)
+
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
 index 10e64a2c..ddfd6a7 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_parameters_restrictions_unittests.cc
@@ -266,7 +241,7 @@ index 10e64a2c..ddfd6a7 100644
  #include <sys/prctl.h>
  #include <sys/ptrace.h>
 diff --git a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
-index 4cde283..bc680424 100644
+index 4640d842..b38c8ad6 100644
 --- a/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
 +++ b/sandbox/linux/seccomp-bpf-helpers/syscall_sets.cc
 @@ -103,7 +103,7 @@
@@ -401,12 +376,12 @@ index 4cde283..bc680424 100644
      case __NR_recvfrom:  // Could specify source.
      case __NR_recvmsg:   // Could specify source.
  #endif
-@@ -622,7 +622,7 @@
+@@ -626,7 +626,7 @@ bool SyscallSets::IsAllowedGeneralIo(int sysno) {
      case __NR_send:
  #endif
- #if defined(__x86_64__) || defined(__arm__) || defined(__mips__) || \
--    defined(__aarch64__)
-+    defined(__aarch64__) || defined(__riscv)
+ #if defined(__i386__) || defined(__x86_64__) || defined(__arm__) || \
+-    defined(__mips__) || defined(__aarch64__)
++    defined(__mips__) || defined(__aarch64__) || defined(__riscv)
      case __NR_sendmsg:  // Could specify destination.
      case __NR_sendto:   // Could specify destination.
  #endif

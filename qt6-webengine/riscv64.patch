@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -91,6 +91,13 @@ prepare() {
+@@ -94,6 +94,12 @@
    # Bump chromium to head of stable branch
    cd src/3rdparty
    [[ -n $_chromium ]] && git checkout $_chromium || true
@@ -8,14 +8,13 @@
 +  for _patch in sandbox dav1d; do
 +    patch -d chromium -Np1 < "$srcdir"/riscv-$_patch.patch
 +  done
-+  patch -d chromium/v8 -Np1 < "$srcdir"/0001-riscv-Flush-icache-in-both-local-and-remote-harts.patch
-+  patch -d chromium -Np0 < "$srcdir"/compiler-rt-riscv.patch
 +  patch -d chromium -Np1 < "$srcdir"/fix-linux-syscall-ranges.patch
++  patch -d chromium -Np1 < "$srcdir"/blink-webaudio-delay-complete-upstream-span-fix.patch
  }
  
  build() {
-@@ -103,7 +110,10 @@ build() {
-     -DQT_FEATURE_webengine_system_re2=ON \
+@@ -106,7 +112,10 @@
+     -DQT_FEATURE_webengine_system_openh264=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
 -    -DQT_FEATURE_webengine_webrtc_pipewire=ON
@@ -26,18 +25,16 @@
    cmake --build build
  }
  
-@@ -112,3 +122,14 @@ package() {
- 
-   install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
+@@ -117,3 +126,12 @@
+ # Remove cmake module that breaks corrosion
+   rm "$pkgdir"/usr/lib/cmake/Qt6/FindRust.cmake
  }
 +
 +makedepends+=(clang)
 +source+=(riscv-{sandbox,dav1d}.patch
-+         https://raw.githubusercontent.com/riscv-forks/electron/refs/heads/v33.4.8-riscv/patches/v8/0001-riscv-Flush-icache-in-both-local-and-remote-harts.patch
-+         compiler-rt-riscv.patch
-+         fix-linux-syscall-ranges.patch::https://github.com/rockos-riscv/chromium-129.0.6668.100/commit/f699f4ed684e413e508e1f3c5e30d806473ff13b.patch)
-+sha256sums+=('1713cfc3c73d7f33fd7a9daba9b642869632468bc1068b727827a6b5320a7f88'
++         fix-linux-syscall-ranges.patch::https://github.com/rockos-riscv/chromium-129.0.6668.100/commit/f699f4ed684e413e508e1f3c5e30d806473ff13b.patch
++         blink-webaudio-delay-complete-upstream-span-fix.patch)
++sha256sums+=('716b51af60ed290dba4a85703a213a1bfde55a76b8eab13a641b8765976c52e4'
 +             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
-+             '72c4ee0fe374c6a8494c3c54494f551ce54957314b6e76f8b4c4a5b449fdf438'
-+             'cc119391ef129ba85b636a5deb47c06464b76fcd3be14ac29c8ab78bf14fa780'
-+             '0ac16adaebe4e3c347ab67647ae0e1ff1db1d710d0b64b469ab77d27eb9f4192')
++             '0ac16adaebe4e3c347ab67647ae0e1ff1db1d710d0b64b469ab77d27eb9f4192'
++             '236cdf8ae68b7cc3d3833db3b4e71af0512ee0e3d78e577c09069988be36cf05')
