@@ -1,15 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,6 +20,12 @@ optdepends=('svt-av1: SVT-AV1 encoder support'
- source=("$pkgname-$pkgver.tar.gz"::https://github.com/master-of-zen/Av1an/archive/refs/tags/$pkgver.tar.gz)
- sha256sums=('c30d8d2ba9613d21daadb1c1a35781a36a979bc7aa90b95fc94c59b9be774866')
+@@ -21,6 +21,13 @@
+ source=("git+https://github.com/master-of-zen/Av1an#tag=v$pkgver")
+ sha256sums=('01c7e71296c60b1584fb1ecaf5cca9ecef849ba65bbd8a765be195432e445695')
  
 +prepare() {
-+  cd "Av1an-${pkgver}"
-+  echo -e "\n[patch.crates-io]\nffmpeg-the-third = { git = 'https://github.com/moui0/ffmpeg-the-third', tag = 'v2.0.1' }" >> Cargo.toml
-+  cargo update -p ffmpeg-the-third
++  cd "Av1an"
++  # https://github.com/rust-av/av-scenechange/pull/209
++  printf '\n[patch.crates-io]\nav-scenechange = { git = "https://github.com/felixonmars/av-scenechange", branch = "cpufeatures-0.20" }\n' >> Cargo.toml
++  cargo update -p av-scenechange
 +}
 +
  build() {
-   cd "Av1an-${pkgver}"
+   cd "Av1an"
    export CFLAGS+=" -ffat-lto-objects"
