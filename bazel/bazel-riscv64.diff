@@ -1,25 +1,77 @@
-diff --git a/MODULE.bazel b/MODULE.bazel
-index d33fff2e4c..5a43c69d33 100644
---- a/MODULE.bazel
-+++ b/MODULE.bazel
-@@ -59,6 +59,12 @@ bazel_dep(name = "rules_apple", version = "4.3.1", repo_name = None)
- bazel_dep(name = "google_benchmark", version = "1.9.4", repo_name = None)
+diff -urN src.orig/MODULE.bazel src/MODULE.bazel
+--- src.orig/MODULE.bazel	1980-01-01 00:00:00.000000000 +0730
++++ src/MODULE.bazel	2026-05-01 21:52:49.442896553 +0800
+@@ -63,6 +63,12 @@
  
  # bazel_dep overrides
-+single_version_override(
+ single_version_override(
 +    module_name = "rules_java",
 +    patch_strip = 1,
 +    patches = ["//third_party:rules_java_riscv.patch"],
-+    version = "9.0.3",
++    version = "9.1.0",
 +)
- single_version_override(
++single_version_override(
      module_name = "rules_jvm_external",
      patch_strip = 1,
-diff --git a/third_party/rules_java_riscv.patch b/third_party/rules_java_riscv.patch
-new file mode 100644
-index 0000000000..e2286708c4
---- /dev/null
-+++ b/third_party/rules_java_riscv.patch
+     patches = ["//third_party:rules_jvm_external_6.5.patch"],
+@@ -354,6 +360,7 @@
+     "graalvm_oracle",
+     "openjdk_linux_aarch64_vanilla",
+     "openjdk_linux_ppc64le_vanilla",
++    "openjdk_linux_riscv64_jmods",
+     "openjdk_linux_riscv64_vanilla",
+     "openjdk_linux_s390x_vanilla",
+     "openjdk_linux_vanilla",
+diff -urN src.orig/repositories.bzl src/repositories.bzl
+--- src.orig/repositories.bzl	1980-01-01 00:00:00.000000000 +0730
++++ src/repositories.bzl	2026-05-01 21:52:42.535761617 +0800
+@@ -104,6 +104,12 @@
+         url = "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jdk_riscv64_linux_hotspot_25.0.2_10.tar.gz",
+     )
+     http_file(
++        name = "openjdk_linux_riscv64_jmods",
++        integrity = "sha256-e5xoQEi1v3e76YR1qoBcak3TMTd8E7KQJ+hbum1+4xk=",
++        downloaded_file_path = "adoptopenjdk-riscv64-jmods.tar.gz",
++        url = "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.2%2B10/OpenJDK25U-jmods_riscv64_linux_hotspot_25.0.2_10.tar.gz",
++    )
++    http_file(
+         name = "openjdk_linux_s390x_vanilla",
+         integrity = "sha256-FeXLytzz1DYjwxuCUGPNwoF7nxuoQLUdxu9w5dM8hOM=",
+         downloaded_file_path = "adoptopenjdk-s390x-vanilla.tar.gz",
+diff -urN src.orig/src/BUILD src/src/BUILD
+--- src.orig/src/BUILD	1980-01-01 00:00:00.000000000 +0730
++++ src/src/BUILD	2026-05-01 21:53:03.209165489 +0800
+@@ -226,11 +226,13 @@
+         ":embedded_jdk_vanilla",
+         ":jdeps_modules.golden",
+     ] + select({
++        "//src/conditions:linux_riscv64": ["@openjdk_linux_riscv64_jmods//file"],
+         "//src/conditions:windows_arm64": ["@openjdk_win_arm64_jmods//file"],
+         "//conditions:default": [],
+     }),
+     outs = ["minimal_jdk.zip"],
+     cmd = "$(location :minimize_jdk) $(location :jdk_for_jlink) $(location :embedded_jdk_vanilla) $(location :jdeps_modules.golden) $@" + select({
++        "//src/conditions:linux_riscv64": " $(location @openjdk_linux_riscv64_jmods//file)",
+         "//src/conditions:windows_arm64": " $(location @openjdk_win_arm64_jmods//file)",
+         "//conditions:default": "",
+     }),
+@@ -247,11 +249,13 @@
+         ":embedded_jdk_vanilla",
+         ":jdeps_modules.golden",
+     ] + select({
++        "//src/conditions:linux_riscv64": ["@openjdk_linux_riscv64_jmods//file"],
+         "//src/conditions:windows_arm64": ["@openjdk_win_arm64_jmods//file"],
+         "//conditions:default": [],
+     }),
+     outs = ["allmodules_jdk.zip"],
+     cmd = "$(location :minimize_jdk) --allmodules $(location :jdk_for_jlink) $(location :embedded_jdk_vanilla) $(location :jdeps_modules.golden) $@" + select({
++        "//src/conditions:linux_riscv64": " $(location @openjdk_linux_riscv64_jmods//file)",
+         "//src/conditions:windows_arm64": " $(location @openjdk_win_arm64_jmods//file)",
+         "//conditions:default": "",
+     }),
+diff -urN src.orig/third_party/rules_java_riscv.patch src/third_party/rules_java_riscv.patch
+--- src.orig/third_party/rules_java_riscv.patch	1970-01-01 07:30:00.000000000 +0730
++++ src/third_party/rules_java_riscv.patch	2026-05-01 21:52:13.185704194 +0800
 @@ -0,0 +1,81 @@
 +From a95dfedaafa4e1ca32a620c257a46f59bf598faa Mon Sep 17 00:00:00 2001
 +From: Levi Zim <rsworktech@outlook.com>
