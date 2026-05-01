@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -9,13 +9,20 @@ arch=(x86_64)
+@@ -9,13 +9,18 @@
  url="https://github.com/litex-hub/wishbone-utils"
  license=(Apache-2.0)
  depends=(glibc gcc-libs)
@@ -8,20 +8,18 @@
 +makedepends=(rust git)
  options=(!lto)
 -source=($pkgname-$pkgver.tar.gz::https://github.com/litex-hub/wishbone-utils/archive/v$pkgver.tar.gz)
--sha512sums=('ca61e335f97c3e5ed0b02d71601c4d2102c87ea40051f7345514c1624c06bdaa47bb6acca66c0709968c9e39faf570f49e5ec81cb444909029498043240e506d')
+-sha512sums=('f02c376aefafc87ea8a5776764caa5f091ac635e630b60519517b488351d9f21a1428703c4daac357b393b3a424de0b0c119adf45622a556a70e5620717aa3a6')
 +source=($pkgname-$pkgver.tar.gz::https://github.com/litex-hub/wishbone-utils/archive/v$pkgver.tar.gz
-+        bump-dep-serialport.patch::https://github.com/litex-hub/wishbone-utils/pull/51.patch
-+        Cargo.lock)
-+sha512sums=('ca61e335f97c3e5ed0b02d71601c4d2102c87ea40051f7345514c1624c06bdaa47bb6acca66c0709968c9e39faf570f49e5ec81cb444909029498043240e506d'
-+            'f95b7ed0cdcc1536e0e586ed4bac56df063914f6a6e123589f358e8db86a431f1c8af12fbd4dbb0434812c87b655255c601b8180ae9c1a591098e521e1b226a8'
-+            'bb8bf6ca6f6c8c2d063378ea0eb8ffe464656afd8b88ab0bda8b749210565ffef285d2f7273104a66bf940c37cf2f1252ec0f499eef233ec5349f8af7ae4ebfa')
++        bump-dep-serialport.patch)
++sha512sums=('f02c376aefafc87ea8a5776764caa5f091ac635e630b60519517b488351d9f21a1428703c4daac357b393b3a424de0b0c119adf45622a556a70e5620717aa3a6'
++            '12a148c90656515d0126c372e7a0b6783287c3d803995bbe6d9c97efed4ab83b8f2860c88e9c10fd2e2b5a2c0058a21f0488b28a880628e248d5839952e7f50a')
  
  prepare() {
 -  cd $pkgname-$pkgver/wishbone-tool
 +  cd $pkgname-$pkgver
-+  mv ../Cargo.lock ./wishbone-tool/
-+  git apply --exclude=wishbone-tool/Cargo.lock ../bump-dep-serialport.patch
++  patch -Np0 -i ../bump-dep-serialport.patch
 +  cd wishbone-tool
-   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++  cargo update -p serialport
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
  }
  

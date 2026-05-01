@@ -1,0 +1,74 @@
+--- wishbone-tool/crates/bridge/Cargo.toml
++++ wishbone-tool/crates/bridge/Cargo.toml
+@@ -36,7 +36,7 @@ byteorder = { version = "1", optional = true }
+ libusb-sys-wishbone-tool = { path="../libusb-sys", version = "0.2.6", optional = true }
+ libusb-wishbone-tool = { path = "../libusb-rs", version = "0.3.1", optional = true }
+ 
+-serialport = { version = "3.3", default-features = false, optional = true }
++serialport = { version = "=4.7.3", default-features = false, optional = true }
+ 
+ # Enable GPIO access for SpiBone on Raspberry Pi
+ [target.'cfg(all(target_os = "linux", any(target_arch = "arm", target_arch = "aarch64")))'.dependencies]
+--- wishbone-tool/crates/bridge/src/bridges/uart.rs
++++ wishbone-tool/crates/bridge/src/bridges/uart.rs
+@@ -8,7 +8,7 @@ use std::time::Duration;
+ use log::{debug, error, info};
+ 
+ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+-use serialport::prelude::*;
++use serialport::{DataBits, FlowControl, Parity, StopBits};
+ 
+ use crate::{Bridge, BridgeConfig, BridgeError};
+ 
+@@ -107,18 +107,30 @@ impl UartBridgeInner {
+     fn serial_connect_thread(
+         tx: Arc<(Mutex<Option<ConnectThreadResponses>>, Condvar)>,
+         rx: Receiver<ConnectThreadRequests>,
+-        path: PathBuf,
++        mut path: PathBuf,
+         baud: u32,
+     ) {
+-        let mut path = path;
+         let mut baud = baud;
+         let mut print_waiting_message = true;
+         let mut first_run = true;
+         let &(ref response, ref cvar) = &*tx;
+         loop {
+-            let mut port = match serialport::open(&path) {
++            let path_str = match path.as_os_str().to_str() {
++                Some(p) => p,
++                None => {
++                    error!("invalid serial port path: {}", path.display());
++                    return;
++                }
++            };
++            let port = serialport::new(path_str, baud)
++                .data_bits(DataBits::Eight)
++                .parity(Parity::None)
++                .stop_bits(StopBits::One)
++                .flow_control(FlowControl::None)
++                .open();
++            let mut port = match port {
+                 Ok(port) => {
+-                    info!("Re-opened serial device {}", path.display());
++                    info!("Re-opened serial device {}", path_str);
+                     if first_run {
+                         *response.lock().unwrap() = Some(ConnectThreadResponses::OpenedDevice);
+                         first_run = false;
+@@ -139,16 +151,6 @@ impl UartBridgeInner {
+                     continue;
+                 }
+             };
+-            port.set_baud_rate(baud as _)
+-                .unwrap_or_else(|e| error!("unable to set serial port speed: {}", e));
+-            port.set_data_bits(DataBits::Eight)
+-                .unwrap_or_else(|e| error!("unable to set data bits: {}", e));
+-            port.set_parity(Parity::None)
+-                .unwrap_or_else(|e| error!("unable to set parity: {}", e));
+-            port.set_stop_bits(StopBits::One)
+-                .unwrap_or_else(|e| error!("unable to set stop bits: {}", e));
+-            port.set_flow_control(FlowControl::None)
+-                .unwrap_or_else(|e| error!("unable to set flow control: {}", e));
+             if let Err(e) = port.set_timeout(Duration::from_millis(1000)) {
+                 error!("unable to set port duration timeout: {}", e);
+             }
