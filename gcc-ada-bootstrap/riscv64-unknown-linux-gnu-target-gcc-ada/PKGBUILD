@@ -1,0 +1,108 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+# Maintainer: Filipe Laíns (FFY00) <lains@archlinux.org>
+# Contributor: Alexander F. Rødseth <xyproto@archlinux.org>
+# Contributor: Emil Renner Berthing <aur@esmil.dk>
+
+_target=riscv64-unknown-linux-gnu
+_short_target=riscv64-linux-gnu
+pkgname=$_target-target-gcc-ada
+pkgver=16.1.1+r12+g301eb08fa2c5
+_commit=301eb08fa2c5b6f3045260bf1294c2e2bacbcd90
+pkgrel=1
+pkgdesc='Cross compiler for 32-bit and 64-bit RISC-V'
+provides=(gcc-ada)
+arch=('any')
+url='https://gcc.gnu.org/'
+license=('GPL' 'LGPL' 'FDL')
+groups=('risc-v')
+makedepends=(
+  "git"
+  "$_short_target-binutils"
+  "$_short_target-glibc"
+  'gcc-ada'
+)
+depends=(
+  'gcc-libs'
+  'glibc'
+)
+options=(!emptydirs !strip  staticlibs !lto !debug)
+source=("git+https://sourceware.org/git/gcc.git#commit=$_commit")
+sha256sums=('e7641bfddebaada298ca0a631183ef8d81bb3c5dfd3aef30bc7d4223f1c0e450')
+b2sums=('15fa6929b5bddc7dc042a3d590fced204d2012ab8421b13b1dfa83b2bbde9de1487cced0134823c1cc978c005041589bbb811d1816cdaa618697485ff1f9820f')
+
+if [[ -n "$_snapshot" ]]; then
+  _basedir=gcc-$_snapshot
+else
+  _basedir=gcc
+fi
+
+pkgver() {
+  cd gcc
+  echo "$(cat gcc/BASE-VER)+$(git describe --abbrev=12 --tags | sed 's/[^-]*-[^-]*-//;s/[^-]*-/r&/;s/-/+/g;s/_/./')"
+}
+
+prepare() {
+  # We need the riscv64-unknown-linux-* symlinks
+  LINKDIR="$PWD/riscv-unknown-bin"
+  mkdir -p "$LINKDIR"
+  for src in /usr/bin/riscv64-linux-gnu-*; do
+      base=$(basename "$src")
+      new=${base/riscv64-linux-gnu/riscv64-unknown-linux-gnu}
+
+      ln -sf "$src" "$LINKDIR/$new"
+  done
+
+  cd $_basedir
+
+
+  # Do not run fixincludes
+  sed -i 's@\./fixinc\.sh@-c true@' gcc/Makefile.in
+
+  rm -rf "$srcdir/gcc-build"
+  mkdir "$srcdir/gcc-build"
+
+  ./contrib/download_prerequisites
+}
+
+build() {
+  export PATH="$srcdir/riscv-unknown-bin:$PATH"
+  cd gcc-build
+
+  unset CFLAGS
+  unset CXXFLAGS
+
+  "$srcdir/$_basedir/configure" \
+      --prefix=/opt/gcc-ada \
+      --with-build-sysroot=/usr/$_short_target \
+      --libdir=/opt/gcc-ada/lib \
+      --libexecdir=/opt/gcc-ada/lib \
+      --target=$_target \
+      --host=$_target \
+      --build=$CHOST \
+      --with-isl \
+      --with-linker-hash-style=gnu \
+      --disable-nls \
+      --disable-libunwind-exceptions \
+      --disable-libstdcxx-pch \
+      --disable-libssp \
+      --disable-multilib \
+      --disable-werror \
+      --enable-languages=c,ada \
+      --enable-shared \
+      --enable-threads=posix \
+      --enable-__cxa_atexit \
+      --enable-clocale=gnu \
+      --enable-gnu-unique-object \
+      --enable-linker-build-id \
+      --enable-default-pie \
+      --enable-checking=release
+  make -j$(nproc)
+}
+
+package() {
+  export PATH="$srcdir/riscv-unknown-bin:$PATH"
+  make -C gcc-build DESTDIR="$pkgdir" \
+    install-gcc install-target-{libada,libgcc,libatomic,libstdc++-v3,libgomp,libquadmath}
+}
+
+# vim: ts=2 sw=2 et:
