@@ -1,0 +1,765 @@
+diff --git a/build.zig b/build.zig
+index 39fb92d1e2..e965646985 100644
+--- a/build.zig
++++ b/build.zig
+@@ -120,10 +120,14 @@ pub fn getOSVersionMin(os: OperatingSystem) ?Target.Query.OsVersion {
+     };
+ }
+ 
+-pub fn getOSGlibCVersion(os: OperatingSystem) ?Version {
++pub fn getOSGlibCVersion(os: OperatingSystem, arch: Arch) ?Version {
+     return switch (os) {
+         // Compiling with a newer glibc than this will break certain cloud environments. See symbols.test.ts.
+-        .linux => .{ .major = 2, .minor = 17, .patch = 0 },
++        .linux => switch (arch) {
++            // riscv64 support was added in glibc 2.27.
++            .riscv64 => .{ .major = 2, .minor = 27, .patch = 0 },
++            else => .{ .major = 2, .minor = 17, .patch = 0 },
++        },
+ 
+         else => null,
+     };
+@@ -180,7 +184,7 @@ pub fn build(b: *Build) !void {
+     }
+ 
+     target_query.os_version_min = getOSVersionMin(os);
+-    target_query.glibc_version = if (abi.isGnu()) getOSGlibCVersion(os) else null;
++    target_query.glibc_version = if (abi.isGnu()) getOSGlibCVersion(os, arch) else null;
+ 
+     const target = b.resolveTargetQuery(target_query);
+ 
+@@ -612,7 +616,7 @@ const TargetDescription = struct {
+             .cpu_arch = desc.arch,
+             .cpu_model = getCpuModel(desc.os, desc.arch) orelse .determined_by_arch_os,
+             .os_version_min = getOSVersionMin(desc.os),
+-            .glibc_version = if (desc.musl) null else getOSGlibCVersion(desc.os),
++            .glibc_version = if (desc.musl) null else getOSGlibCVersion(desc.os, desc.arch),
+         });
+     }
+ };
+diff --git a/scripts/build/config.ts b/scripts/build/config.ts
+index f5a672b070..da79542bed 100644
+--- a/scripts/build/config.ts
++++ b/scripts/build/config.ts
+@@ -18,7 +18,7 @@ import { cyan, dim, green } from "./tty.ts";
+ import { defaultZigCommit } from "./zig.ts";
+ 
+ export type OS = "linux" | "darwin" | "windows";
+-export type Arch = "x64" | "aarch64";
++export type Arch = "x64" | "aarch64" | "riscv64";
+ export type Abi = "gnu" | "musl";
+ export type BuildType = "Debug" | "Release" | "RelWithDebInfo" | "MinSizeRel";
+ export type BuildMode = "full" | "cpp-only" | "zig-only" | "link-only";
+@@ -75,6 +75,7 @@ export interface Config {
+   unix: boolean;
+   x64: boolean;
+   arm64: boolean;
++  riscv64: boolean;
+ 
+   /**
+    * What's running the build. Differs from os/arch/windows (target) in
+@@ -313,8 +314,10 @@ export function detectHost(): Host {
+       ? "x64"
+       : a === "arm64"
+         ? "aarch64"
++        : a === "riscv64"
++          ? "riscv64"
+         : (() => {
+-            throw new BuildError(`Unsupported host architecture: ${a}`, { hint: "Bun builds on x64 or arm64" });
++            throw new BuildError(`Unsupported host architecture: ${a}`, { hint: "Bun builds on x64, arm64, or riscv64" });
+           })();
+ 
+   return { os, arch, exeSuffix: os === "windows" ? ".exe" : "" };
+@@ -352,6 +355,7 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+   const unix = linux || darwin;
+   const x64 = arch === "x64";
+   const arm64 = arch === "aarch64";
++  const riscv64 = arch === "riscv64";
+ 
+   // Platform file conventions — MSVC style on Windows, Unix everywhere else.
+   const exeSuffix = windows ? ".exe" : "";
+@@ -421,8 +425,8 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+   // failure is loud ("cannot find -l:libatomic.a") and the fix is obvious.
+   const staticLibatomic = partial.staticLibatomic ?? true;
+ 
+-  // TinyCC: off on Windows ARM64 (not supported), on elsewhere
+-  const tinycc = partial.tinycc ?? !(windows && arm64);
++  // TinyCC: off where the embedded JIT backend is not wired up.
++  const tinycc = partial.tinycc ?? (!(windows && arm64) && !riscv64);
+ 
+   const valgrind = partial.valgrind ?? false;
+   const fuzzilli = partial.fuzzilli ?? false;
+@@ -493,6 +497,7 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+     unix,
+     x64,
+     arm64,
++    riscv64,
+     host,
+     exeSuffix,
+     objSuffix,
+diff --git a/scripts/build/deps/boringssl.ts b/scripts/build/deps/boringssl.ts
+index e1e12d494d..2f2cb660a9 100644
+--- a/scripts/build/deps/boringssl.ts
++++ b/scripts/build/deps/boringssl.ts
+@@ -17,11 +17,15 @@ export const boringssl: Dependency = {
+     commit: BORINGSSL_COMMIT,
+   }),
+ 
+-  build: () => ({
++  build: cfg => ({
+     kind: "nested-cmake",
+     // No explicit targets — defaults to lib names (crypto, ssl, decrepit).
+     // BoringSSL's cmake targets match its output library names.
+-    args: {},
++    //
++    // BoringSSL's generated source list includes assembly for every supported
++    // ISA. On riscv64 that can leave x86/arm objects in libcrypto.a unless ASM
++    // is disabled explicitly.
++    args: cfg.riscv64 ? { OPENSSL_NO_ASM: "1" } : {},
+   }),
+ 
+   provides: () => ({
+diff --git a/scripts/build/deps/webkit.ts b/scripts/build/deps/webkit.ts
+index 2dcc0ab836..160fa78bfd 100644
+--- a/scripts/build/deps/webkit.ts
++++ b/scripts/build/deps/webkit.ts
+@@ -251,6 +251,19 @@ export const webkit: Dependency = {
+       ...(cfg.asan ? { ENABLE_SANITIZERS: "address" } : {}),
+     };
+ 
++    if (cfg.riscv64) {
++      Object.assign(args, {
++        ENABLE_JIT: "OFF",
++        ENABLE_DFG_JIT: "OFF",
++        ENABLE_FTL_JIT: "OFF",
++        ENABLE_C_LOOP: "OFF",
++        ENABLE_SAMPLING_PROFILER: "ON",
++        ENABLE_WEBASSEMBLY: "ON",
++        ENABLE_WEBASSEMBLY_BBQJIT: "OFF",
++        ENABLE_WEBASSEMBLY_OMGJIT: "OFF",
++      });
++    }
++
+     const spec: NestedCmakeBuild = {
+       kind: "nested-cmake",
+       targets: ["jsc"],
+diff --git a/scripts/build/flags.ts b/scripts/build/flags.ts
+index 1ac5b4d4f0..2484c8469c 100644
+--- a/scripts/build/flags.ts
++++ b/scripts/build/flags.ts
+@@ -36,6 +36,11 @@ export interface Flag {
+ // ═══════════════════════════════════════════════════════════════════════════
+ 
+ export const cpuTargetFlags: Flag[] = [
++  {
++    flag: ["-march=rv64gc", "-mabi=lp64d", "-mno-relax"],
++    when: c => c.linux && c.riscv64,
++    desc: "RISC-V Linux: RV64GC with double-float ABI and fixed instruction layout",
++  },
+   {
+     flag: "-mcpu=apple-m1",
+     when: c => c.darwin && c.arm64,
+@@ -706,19 +711,27 @@ export const linkerFlags: Flag[] = [
+       "-Wl,--wrap=exp",
+       "-Wl,--wrap=exp2",
+       "-Wl,--wrap=expf",
+-      "-Wl,--wrap=fcntl64",
+-      "-Wl,--wrap=getrandom",
+-      "-Wl,--wrap=gettid",
+       "-Wl,--wrap=log",
+       "-Wl,--wrap=log2",
+       "-Wl,--wrap=log2f",
+       "-Wl,--wrap=logf",
+       "-Wl,--wrap=pow",
+       "-Wl,--wrap=powf",
++    ],
++    when: c => c.linux && c.abi !== "musl" && !c.riscv64,
++    desc: "Wrap old glibc libm symbols (portable down to glibc 2.17)",
++  },
++  {
++    // RISC-V glibc starts at 2.27, so the libm version wrappers above are not
++    // needed there and recurse without an architecture-specific .symver alias.
++    flag: [
++      "-Wl,--wrap=fcntl64",
++      "-Wl,--wrap=getrandom",
++      "-Wl,--wrap=gettid",
+       "-Wl,--wrap=quick_exit",
+     ],
+     when: c => c.linux && c.abi !== "musl",
+-    desc: "Wrap glibc 2.18+ symbols (portable down to glibc 2.17)",
++    desc: "Wrap newer glibc runtime symbols",
+   },
+   {
+     flag: ["-static-libstdc++", "-static-libgcc"],
+@@ -747,6 +760,11 @@ export const linkerFlags: Flag[] = [
+     when: c => c.linux,
+     desc: "Use lld instead of system ld",
+   },
++  {
++    flag: "-Wl,--no-relax",
++    when: c => c.linux && c.riscv64,
++    desc: "Disable RISC-V linker relaxation so JSC IPInt opcode labels keep fixed spacing",
++  },
+   {
+     flag: ["-fno-pic", "-Wl,-no-pie"],
+     when: c => c.linux,
+diff --git a/scripts/build/source.ts b/scripts/build/source.ts
+index bee06834a8..4cdc14c587 100644
+--- a/scripts/build/source.ts
++++ b/scripts/build/source.ts
+@@ -1023,8 +1023,12 @@ function emitNestedCmake(
+     // Most deps are static-lib-only so this usually doesn't matter, but when
+     // it does (dep builds a tool to generate a header), using lld keeps the
+     // toolchain consistent.
+-    args.push(`-DCMAKE_EXE_LINKER_FLAGS=--ld-path=${cfg.ld}`);
+-    args.push(`-DCMAKE_SHARED_LINKER_FLAGS=--ld-path=${cfg.ld}`);
++    const linkerFlags = [`--ld-path=${cfg.ld}`];
++    if (cfg.riscv64) {
++      linkerFlags.push("-Wl,--no-relax");
++    }
++    args.push(`-DCMAKE_EXE_LINKER_FLAGS=${linkerFlags.join(" ")}`);
++    args.push(`-DCMAKE_SHARED_LINKER_FLAGS=${linkerFlags.join(" ")}`);
+   }
+   if (cfg.windows) {
+     // Windows-specific toolchain forwarding. When CMAKE_C_COMPILER is
+diff --git a/scripts/build/tools.ts b/scripts/build/tools.ts
+index 4af051385b..af9fcf30eb 100644
+--- a/scripts/build/tools.ts
++++ b/scripts/build/tools.ts
+@@ -425,9 +425,10 @@ export function resolveLlvmToolchain(
+     ld = ""; // darwin: unused
+   }
+ 
+-  // strip: GNU strip on Linux (more features), llvm-strip elsewhere
++  // strip: GNU strip on native Linux (more features), llvm-strip for cross
++  // targets because the host binutils may not recognize the target ELF.
+   let strip: string;
+-  if (os === "linux") {
++  if (os === "linux" && arch !== "riscv64") {
+     strip = findTool({ names: ["strip"], required: true, hint: "Install binutils for your distro" })?.path ?? "";
+   } else {
+     strip = findLlvmTool("llvm-strip", paths, os, { checkVersion: false, required: true })?.path ?? "";
+diff --git a/scripts/build/zig.ts b/scripts/build/zig.ts
+index cc3867919c..db083d960a 100644
+--- a/scripts/build/zig.ts
++++ b/scripts/build/zig.ts
+@@ -74,11 +74,10 @@ function usingParallelCompiler(cfg: Config): boolean {
+ // ───────────────────────────────────────────────────────────────────────────
+ 
+ /**
+- * Zig target triple. Arch is always `x86_64`/`aarch64` (zig's naming),
+- * not `x64`/`arm64`.
++ * Zig target triple. Arch is always zig's naming, not Node's `x64`/`arm64`.
+  */
+ export function zigTarget(cfg: Config): string {
+-  const arch = cfg.x64 ? "x86_64" : "aarch64";
++  const arch = cfg.x64 ? "x86_64" : cfg.arm64 ? "aarch64" : "riscv64";
+   if (cfg.darwin) return `${arch}-macos-none`;
+   if (cfg.windows) return `${arch}-windows-msvc`;
+   // linux: abi is always set (resolveConfig asserts)
+@@ -129,6 +128,9 @@ export function zigCpu(cfg: Config): string {
+     if (cfg.windows) return "cortex_a76";
+     return "native";
+   }
++  if (cfg.riscv64) {
++    return "baseline_rv64";
++  }
+   // x64
+   return cfg.baseline ? "nehalem" : "haswell";
+ }
+diff --git a/src/Global.zig b/src/Global.zig
+index 1c6c1bf22a..9231367932 100644
+--- a/src/Global.zig
++++ b/src/Global.zig
+@@ -53,6 +53,8 @@ else if (Environment.isX86)
+     "x86"
+ else if (Environment.isAarch64)
+     "arm64"
++else if (Environment.isRiscV64)
++    "riscv64"
+ else
+     "unknown";
+ 
+diff --git a/src/analytics.zig b/src/analytics.zig
+index f62f8f4408..9571db90cc 100644
+--- a/src/analytics.zig
++++ b/src/analytics.zig
+@@ -240,7 +240,7 @@ pub const EventName = enum(u8) {
+ 
+ var random: std.rand.DefaultPrng = undefined;
+ 
+-const platform_arch = if (Environment.isAarch64) analytics.Architecture.arm else analytics.Architecture.x64;
++const platform_arch = if (Environment.isAarch64) analytics.Architecture.arm else if (Environment.isRiscV64) analytics.Architecture.riscv64 else analytics.Architecture.x64;
+ 
+ // TODO: move this code somewhere more appropriate, and remove it from "analytics"
+ // The following code is not currently even used for analytics, just feature-detection
+diff --git a/src/analytics/schema.zig b/src/analytics/schema.zig
+index 33d3fcadbb..02c860dd1e 100644
+--- a/src/analytics/schema.zig
++++ b/src/analytics/schema.zig
+@@ -350,6 +350,9 @@ pub const analytics = struct {
+         /// arm
+         arm,
+ 
++        /// riscv64
++        riscv64,
++
+         _,
+ 
+         pub fn jsonStringify(self: @This(), writer: anytype) !void {
+diff --git a/src/bun.js/api/ffi.zig b/src/bun.js/api/ffi.zig
+index 6f4ec41433..79017a581e 100644
+--- a/src/bun.js/api/ffi.zig
++++ b/src/bun.js/api/ffi.zig
+@@ -301,6 +301,18 @@ pub const FFI = struct {
+                     } else if (bun.FD.cwd().directoryExistsAt("/usr/lib64").isTrue()) {
+                         cached_default_system_library_dir = "/usr/lib64";
+                     }
++                } else if (Environment.isRiscV64) {
++                    if (bun.FD.cwd().directoryExistsAt("/usr/include/riscv64-linux-gnu").isTrue()) {
++                        cached_default_system_include_dir = "/usr/include/riscv64-linux-gnu";
++                    } else if (bun.FD.cwd().directoryExistsAt("/usr/include").isTrue()) {
++                        cached_default_system_include_dir = "/usr/include";
++                    }
++
++                    if (bun.FD.cwd().directoryExistsAt("/usr/lib/riscv64-linux-gnu").isTrue()) {
++                        cached_default_system_library_dir = "/usr/lib/riscv64-linux-gnu";
++                    } else if (bun.FD.cwd().directoryExistsAt("/usr/lib64").isTrue()) {
++                        cached_default_system_library_dir = "/usr/lib64";
++                    }
+                 }
+             }
+         }
+diff --git a/src/bun.js/bindings/BunProcess.cpp b/src/bun.js/bindings/BunProcess.cpp
+index a5c074c385..a3cdbbce41 100644
+--- a/src/bun.js/bindings/BunProcess.cpp
++++ b/src/bun.js/bindings/BunProcess.cpp
+@@ -172,6 +172,8 @@ static JSValue constructArch(VM& vm, JSObject* processObject)
+     return JSC::jsString(vm, makeAtomString("x64"_s));
+ #elif CPU(ARM64)
+     return JSC::jsString(vm, makeAtomString("arm64"_s));
++#elif CPU(RISCV64)
++    return JSC::jsString(vm, makeAtomString("riscv64"_s));
+ #else
+ #error "Unknown architecture"
+ #endif
+@@ -2293,6 +2295,9 @@ static JSValue constructProcessConfigObject(VM& vm, JSObject* processObject)
+ #elif CPU(ARM64)
+     variables->putDirect(vm, JSC::Identifier::fromString(vm, "host_arch"_s), JSC::jsString(vm, String("arm64"_s)), 0);
+     variables->putDirect(vm, JSC::Identifier::fromString(vm, "target_arch"_s), JSC::jsString(vm, String("arm64"_s)), 0);
++#elif CPU(RISCV64)
++    variables->putDirect(vm, JSC::Identifier::fromString(vm, "host_arch"_s), JSC::jsString(vm, String("riscv64"_s)), 0);
++    variables->putDirect(vm, JSC::Identifier::fromString(vm, "target_arch"_s), JSC::jsString(vm, String("riscv64"_s)), 0);
+ #else
+ #error "Unsupported architecture"
+ #endif
+diff --git a/src/bun.js/bindings/CPUFeatures.cpp b/src/bun.js/bindings/CPUFeatures.cpp
+index d1b1560565..f7feb1db0a 100644
+--- a/src/bun.js/bindings/CPUFeatures.cpp
++++ b/src/bun.js/bindings/CPUFeatures.cpp
+@@ -17,6 +17,15 @@ enum class AArch64CPUFeature : uint8_t {
+     sve = 6,
+ };
+ 
++enum class RISCV64CPUFeature : uint8_t {
++    m = 1,
++    a = 2,
++    f = 3,
++    d = 4,
++    c = 5,
++    v = 6,
++};
++
+ #if CPU(X86_64)
+ 
+ #if OS(WINDOWS)
+@@ -130,12 +139,46 @@ static uint8_t aarch64_cpu_features()
+ 
+ #endif
+ 
++#if CPU(RISCV64)
++
++#if OS(LINUX)
++#include <asm/hwcap.h>
++#include <sys/auxv.h>
++#endif
++
++static uint8_t riscv64_cpu_features()
++{
++    uint8_t features = 0;
++
++#if OS(LINUX)
++    unsigned long hwcaps = getauxval(AT_HWCAP);
++    if (hwcaps & COMPAT_HWCAP_ISA_M)
++        features |= 1 << static_cast<uint8_t>(RISCV64CPUFeature::m);
++    if (hwcaps & COMPAT_HWCAP_ISA_A)
++        features |= 1 << static_cast<uint8_t>(RISCV64CPUFeature::a);
++    if (hwcaps & COMPAT_HWCAP_ISA_F)
++        features |= 1 << static_cast<uint8_t>(RISCV64CPUFeature::f);
++    if (hwcaps & COMPAT_HWCAP_ISA_D)
++        features |= 1 << static_cast<uint8_t>(RISCV64CPUFeature::d);
++    if (hwcaps & COMPAT_HWCAP_ISA_C)
++        features |= 1 << static_cast<uint8_t>(RISCV64CPUFeature::c);
++    if (hwcaps & COMPAT_HWCAP_ISA_V)
++        features |= 1 << static_cast<uint8_t>(RISCV64CPUFeature::v);
++#endif
++
++    return features;
++}
++
++#endif
++
+ extern "C" uint8_t bun_cpu_features()
+ {
+ #if CPU(X86_64)
+     return x86_cpu_features();
+ #elif CPU(ARM64)
+     return aarch64_cpu_features();
++#elif CPU(RISCV64)
++    return riscv64_cpu_features();
+ #else
+ #error "Unknown architecture"
+ #endif
+diff --git a/src/bun.js/bindings/CPUFeatures.zig b/src/bun.js/bindings/CPUFeatures.zig
+index 29e4a6e040..ec4cfde413 100644
+--- a/src/bun.js/bindings/CPUFeatures.zig
++++ b/src/bun.js/bindings/CPUFeatures.zig
+@@ -28,6 +28,18 @@ pub const Flags = switch (@import("builtin").cpu.arch) {
+ 
+         padding: u1 = 0,
+     },
++    .riscv64 => packed struct(u8) {
++        none: bool,
++
++        m: bool,
++        a: bool,
++        f: bool,
++        d: bool,
++        c: bool,
++        v: bool,
++
++        padding: u1 = 0,
++    },
+     else => unreachable,
+ };
+ 
+@@ -52,6 +64,7 @@ pub fn isEmpty(features: CPUFeatures) bool {
+ }
+ 
+ pub fn hasAnyAVX(features: CPUFeatures) bool {
++    if (comptime !bun.Environment.isX64) return false;
+     return features.flags.avx or features.flags.avx2 or features.flags.avx512;
+ }
+ 
+diff --git a/src/bun.js/bindings/JSBuffer.cpp b/src/bun.js/bindings/JSBuffer.cpp
+index 5b1ccd84da..56e7a21b66 100644
+--- a/src/bun.js/bindings/JSBuffer.cpp
++++ b/src/bun.js/bindings/JSBuffer.cpp
+@@ -2060,16 +2060,18 @@ static JSC::EncodedJSValue jsBufferPrototypeFunction_toStringBody(JSC::JSGlobalO
+         RETURN_IF_EXCEPTION(scope, {});
+     }
+ 
+-    auto fstart = arg2.toNumber(lexicalGlobalObject);
+-    RETURN_IF_EXCEPTION(scope, {});
+-    if (fstart < 0) {
+-        fstart = 0;
+-        goto lstart;
+-    }
+-    if (fstart > byteLength) {
+-        return JSC::JSValue::encode(JSC::jsEmptyString(vm));
++    if (!arg2.isUndefined()) {
++        auto fstart = arg2.toNumber(lexicalGlobalObject);
++        RETURN_IF_EXCEPTION(scope, {});
++        if (fstart < 0) {
++            fstart = 0;
++            goto lstart;
++        }
++        if (fstart > byteLength) {
++            return JSC::JSValue::encode(JSC::jsEmptyString(vm));
++        }
++        start = static_cast<uint32_t>(fstart);
+     }
+-    start = static_cast<uint32_t>(fstart);
+ lstart:
+ 
+     if (!arg3.isUndefined()) {
+diff --git a/src/bun.js/bindings/NodeVMScript.cpp b/src/bun.js/bindings/NodeVMScript.cpp
+index b6ae742d67..c6ce606bbd 100644
+--- a/src/bun.js/bindings/NodeVMScript.cpp
++++ b/src/bun.js/bindings/NodeVMScript.cpp
+@@ -8,6 +8,7 @@
+ #include "JavaScriptCore/JSWeakMapInlines.h"
+ #include "JavaScriptCore/ProgramCodeBlock.h"
+ #include "JavaScriptCore/SourceCodeKey.h"
++#include "JavaScriptCore/Watchdog.h"
+ 
+ #include "NodeVMScriptFetcher.h"
+ #include "../vm/SigintWatcher.h"
+@@ -163,6 +164,7 @@ constructScript(JSGlobalObject* globalObject, CallFrame* callFrame, JSValue newT
+                 codeBlock = JSC::ProgramCodeBlock::create(vm, executable, unlinkedBlock, jsScope);
+                 RETURN_IF_EXCEPTION(scope, {});
+             }
++#if ENABLE(JIT)
+             JSC::CompilationResult compilationResult = JIT::compileSync(vm, codeBlock, JITCompilationEffort::JITCompilationCanFail);
+             if (compilationResult != JSC::CompilationResult::CompilationFailed) {
+                 executable->installCode(codeBlock);
+@@ -170,6 +172,9 @@ constructScript(JSGlobalObject* globalObject, CallFrame* callFrame, JSValue newT
+             } else {
+                 script->cachedDataRejected(TriState::True);
+             }
++#else
++            script->cachedDataRejected(TriState::True);
++#endif
+         }
+     } else if (produceCachedData) {
+         script->cacheBytecode();
+diff --git a/src/bun.js/bindings/NodeVMSourceTextModule.cpp b/src/bun.js/bindings/NodeVMSourceTextModule.cpp
+index 5c3ad694ec..e4ac037db7 100644
+--- a/src/bun.js/bindings/NodeVMSourceTextModule.cpp
++++ b/src/bun.js/bindings/NodeVMSourceTextModule.cpp
+@@ -140,12 +140,16 @@ NodeVMSourceTextModule* NodeVMSourceTextModule::create(VM& vm, JSGlobalObject* g
+             RETURN_IF_EXCEPTION(scope, nullptr);
+         }
+         if (codeBlock) {
++#if ENABLE(JIT)
+             CompilationResult compilationResult = JIT::compileSync(vm, codeBlock, JITCompilationEffort::JITCompilationCanFail);
+             RETURN_IF_EXCEPTION(scope, nullptr);
+             if (compilationResult != CompilationResult::CompilationFailed) {
+                 executable->installCode(codeBlock);
+                 return ptr;
+             }
++#else
++            UNUSED_PARAM(codeBlock);
++#endif
+         }
+     }
+ 
+diff --git a/src/bun.js/bindings/webcore/SerializedScriptValue.cpp b/src/bun.js/bindings/webcore/SerializedScriptValue.cpp
+index 3125ee8411..e8400b7cb0 100644
+--- a/src/bun.js/bindings/webcore/SerializedScriptValue.cpp
++++ b/src/bun.js/bindings/webcore/SerializedScriptValue.cpp
+@@ -3424,12 +3424,13 @@ private:
+         ptr += length * sizeof(char16_t);
+ #else
+         std::span<char16_t> characters;
+-        str = String::createUninitialized(length, characters);
++        auto string = String::createUninitialized(length, characters);
+         for (unsigned i = 0; i < length; ++i) {
+             uint16_t c;
+             readLittleEndian(ptr, end, c);
+             characters[i] = c;
+         }
++        str = Identifier::fromString(vm, string);
+ #endif
+         return true;
+     }
+diff --git a/src/bun.js/modules/BunJSCModule.h b/src/bun.js/modules/BunJSCModule.h
+index 038fbe1c14..f3d3ae2eaa 100644
+--- a/src/bun.js/modules/BunJSCModule.h
++++ b/src/bun.js/modules/BunJSCModule.h
+@@ -582,7 +582,11 @@ JSC_DECLARE_HOST_FUNCTION(functionTotalCompileTime);
+ JSC_DEFINE_HOST_FUNCTION(functionTotalCompileTime,
+     (JSGlobalObject*, CallFrame*))
+ {
++#if ENABLE(JIT)
+     return JSValue::encode(jsNumber(JIT::totalCompileTime().milliseconds()));
++#else
++    return JSValue::encode(jsNumber(0));
++#endif
+ }
+ 
+ JSC_DECLARE_HOST_FUNCTION(functionGetProtectedObjects);
+diff --git a/src/cli/upgrade_command.zig b/src/cli/upgrade_command.zig
+index 036d9d9e75..20125d2487 100644
+--- a/src/cli/upgrade_command.zig
++++ b/src/cli/upgrade_command.zig
+@@ -42,7 +42,7 @@ pub const Version = struct {
+         .wasm => @compileError("Unsupported OS for Bun Upgrade"),
+     };
+ 
+-    pub const arch_label = if (Environment.isAarch64) "aarch64" else "x64";
++    pub const arch_label = if (Environment.isAarch64) "aarch64" else if (Environment.isRiscV64) "riscv64" else "x64";
+     pub const triplet = platform_label ++ "-" ++ arch_label;
+     const suffix_abi = if (Environment.isMusl) "-musl" else "";
+     const suffix_cpu = if (Environment.baseline) "-baseline" else "";
+diff --git a/src/compile_target.zig b/src/compile_target.zig
+index a1400d0151..629fe568dc 100644
+--- a/src/compile_target.zig
++++ b/src/compile_target.zig
+@@ -462,13 +462,14 @@ pub fn defineValues(this: *const CompileTarget) []const []const u8 {
+     // Use inline else to avoid extra allocations.
+     switch (this.os) {
+         inline else => |os| switch (this.arch) {
+-            inline .arm64, .x64 => |arch| return struct {
++            inline .arm64, .x64, .riscv64 => |arch| return struct {
+                 pub const values = &.{
+                     "\"" ++ os.nameString() ++ "\"",
+ 
+                     switch (arch) {
+                         .x64 => "\"x64\"",
+                         .arm64 => "\"arm64\"",
++                        .riscv64 => "\"riscv64\"",
+                         .wasm => @compileError("TODO"),
+                     },
+ 
+diff --git a/src/crash_handler.zig b/src/crash_handler.zig
+index 58a6a191bd..8f6e8e22e3 100644
+--- a/src/crash_handler.zig
++++ b/src/crash_handler.zig
+@@ -813,6 +813,8 @@ pub fn reportBaseUrl() []const u8 {
+ 
+ const arch_display_string = if (bun.Environment.isAarch64)
+     if (bun.Environment.isMac) "Silicon" else "arm64"
++else if (bun.Environment.isRiscV64)
++    "riscv64"
+ else
+     "x64";
+ 
+@@ -1096,6 +1098,7 @@ const Platform = enum(u8) {
+     linux_x86_64 = 'l',
+     linux_x86_64_baseline = 'B',
+     linux_aarch64 = 'L',
++    linux_riscv64 = 'r',
+ 
+     mac_x86_64_baseline = 'b',
+     mac_x86_64 = 'm',
+diff --git a/src/env.zig b/src/env.zig
+index 4d4fa2bbda..ddd972a5de 100644
+--- a/src/env.zig
++++ b/src/env.zig
+@@ -20,6 +20,7 @@ pub const isLinux = builtin.target.os.tag == .linux;
+ pub const isAarch64 = builtin.target.cpu.arch.isAARCH64();
+ pub const isX86 = builtin.target.cpu.arch.isX86();
+ pub const isX64 = builtin.target.cpu.arch == .x86_64;
++pub const isRiscV64 = builtin.target.cpu.arch == .riscv64;
+ pub const isMusl = builtin.target.abi.isMusl();
+ pub const allow_assert = isDebug or isTest or std.builtin.OptimizeMode.ReleaseSafe == builtin.mode;
+ pub const ci_assert = isDebug or isTest or enable_asan or (std.builtin.OptimizeMode.ReleaseSafe == builtin.mode and is_canary);
+@@ -144,6 +145,7 @@ else
+ pub const Architecture = enum {
+     x64,
+     arm64,
++    riscv64,
+     wasm,
+ 
+     /// npm package name, `@oven-sh/bun-{os}-{arch}`
+@@ -151,6 +153,7 @@ pub const Architecture = enum {
+         return switch (this) {
+             .x64 => "x64",
+             .arm64 => "aarch64",
++            .riscv64 => "riscv64",
+             .wasm => "wasm",
+         };
+     }
+@@ -161,6 +164,7 @@ pub const Architecture = enum {
+         .{ "amd64", .x64 },
+         .{ "aarch64", .arm64 },
+         .{ "arm64", .arm64 },
++        .{ "riscv64", .riscv64 },
+         .{ "wasm", .wasm },
+     });
+ };
+@@ -171,6 +175,8 @@ else if (isX64)
+     .x64
+ else if (isAarch64)
+     .arm64
++else if (isRiscV64)
++    .riscv64
+ else
+     @compileError("Please add your architecture to the Architecture enum");
+ 
+diff --git a/src/install/npm.zig b/src/install/npm.zig
+index 255a4f7f30..81d64f091d 100644
+--- a/src/install/npm.zig
++++ b/src/install/npm.zig
+@@ -759,18 +759,21 @@ pub const Architecture = enum(u16) {
+     pub const s390x: u16 = 1 << 9;
+     pub const x32: u16 = 1 << 10;
+     pub const x64: u16 = 1 << 11;
++    pub const riscv64: u16 = 1 << 12;
+ 
+-    pub const all_value: u16 = arm | arm64 | ia32 | mips | mipsel | ppc | ppc64 | s390 | s390x | x32 | x64;
++    pub const all_value: u16 = arm | arm64 | ia32 | mips | mipsel | ppc | ppc64 | s390 | s390x | x32 | x64 | riscv64;
+ 
+     pub const current: Architecture = switch (Environment.arch) {
+         .arm64 => @enumFromInt(arm64),
+         .x64 => @enumFromInt(x64),
++        .riscv64 => @enumFromInt(riscv64),
+         .wasm => @compileError("Specify architecture: " ++ Environment.arch),
+     };
+ 
+     pub const current_name = switch (Environment.arch) {
+         .arm64 => "arm64",
+         .x64 => "x64",
++        .riscv64 => "riscv64",
+         .wasm => @compileError("Unsupported architecture: " ++ @tagName(current)),
+     };
+ 
+@@ -786,6 +789,7 @@ pub const Architecture = enum(u16) {
+         .{ "s390x", s390x },
+         .{ "x32", x32 },
+         .{ "x64", x64 },
++        .{ "riscv64", riscv64 },
+     });
+ 
+     pub inline fn has(this: Architecture, other: u16) bool {
+diff --git a/src/js/node/os.ts b/src/js/node/os.ts
+index 64b1a1c0ac..c81a16f037 100644
+--- a/src/js/node/os.ts
++++ b/src/js/node/os.ts
+@@ -96,7 +96,7 @@ function bound(binding) {
+     },
+     cpus: lazyCpus(binding),
+     endianness: function () {
+-      return process.arch === "arm64" || process.arch === "x64" //
++      return process.arch === "arm64" || process.arch === "x64" || process.arch === "riscv64" //
+         ? "LE"
+         : $bundleError("TODO: endianness");
+     },
+@@ -132,7 +132,9 @@ function bound(binding) {
+         ? "arm64"
+         : process.arch === "x64"
+           ? "x86_64"
+-          : $bundleError("TODO: machine");
++          : process.arch === "riscv64"
++            ? "riscv64"
++            : $bundleError("TODO: machine");
+     },
+     devNull: process.platform === "win32" ? "\\\\.\\nul" : "/dev/null",
+     get EOL() {
+diff --git a/src/sys.zig b/src/sys.zig
+index 9f48b78540..bad867e41a 100644
+--- a/src/sys.zig
++++ b/src/sys.zig
+@@ -93,7 +93,7 @@ pub const O = switch (Environment.os) {
+ 
+         pub const toPacked = toPackedO;
+     },
+-    .linux, .wasm => switch (Environment.isX86) {
++    .linux, .wasm => switch (Environment.isX86 or Environment.isRiscV64) {
+         true => struct {
+             pub const RDONLY = 0x0000;
+             pub const WRONLY = 0x0001;
+diff --git a/src/workaround_missing_symbols.zig b/src/workaround_missing_symbols.zig
+index fda57737a6..0e888e99cd 100644
+--- a/src/workaround_missing_symbols.zig
++++ b/src/workaround_missing_symbols.zig
+@@ -66,15 +66,15 @@ pub const darwin = struct {
+ 
+     pub const lstat = blk: {
+         const T = *const fn (?[*:0]const u8, ?*bun.Stat) callconv(.c) c_int;
+-        break :blk @extern(T, .{ .name = if (bun.Environment.isAarch64) "lstat" else "lstat64" });
++        break :blk @extern(T, .{ .name = if (bun.Environment.isAarch64 or bun.Environment.isRiscV64) "lstat" else "lstat64" });
+     };
+     pub const fstat = blk: {
+         const T = *const fn (i32, ?*bun.Stat) callconv(.c) c_int;
+-        break :blk @extern(T, .{ .name = if (bun.Environment.isAarch64) "fstat" else "fstat64" });
++        break :blk @extern(T, .{ .name = if (bun.Environment.isAarch64 or bun.Environment.isRiscV64) "fstat" else "fstat64" });
+     };
+     pub const stat = blk: {
+         const T = *const fn (?[*:0]const u8, ?*bun.Stat) callconv(.c) c_int;
+-        break :blk @extern(T, .{ .name = if (bun.Environment.isAarch64) "stat" else "stat64" });
++        break :blk @extern(T, .{ .name = if (bun.Environment.isAarch64 or bun.Environment.isRiscV64) "stat" else "stat64" });
+     };
+ };
+ pub const windows = struct {

@@ -1,0 +1,947 @@
+diff --git a/Source/JavaScriptCore/CMakeLists.txt b/Source/JavaScriptCore/CMakeLists.txt
+index d7e3e82010e8..5d9926ce3018 100644
+--- a/Source/JavaScriptCore/CMakeLists.txt
++++ b/Source/JavaScriptCore/CMakeLists.txt
+@@ -56,6 +56,10 @@ if(USE_CAPSTONE)
+     list(APPEND JavaScriptCore_PRIVATE_INCLUDE_DIRECTORIES "${THIRDPARTY_DIR}/capstone/Source/include")
+ endif()
+ 
++if(USE_MIMALLOC)
++    list(APPEND JavaScriptCore_PRIVATE_INCLUDE_DIRECTORIES "${BMALLOC_DIR}/mimalloc/mimalloc/include")
++endif()
++
+ set(JavaScriptCore_OBJECT_LUT_SOURCES
+     runtime/ArrayConstructor.cpp
+     runtime/AsyncFromSyncIteratorPrototype.cpp
+diff --git a/Source/JavaScriptCore/assembler/MacroAssemblerRISCV64.h b/Source/JavaScriptCore/assembler/MacroAssemblerRISCV64.h
+index 2f58ddbe6d91..77b6910ef4fa 100644
+--- a/Source/JavaScriptCore/assembler/MacroAssemblerRISCV64.h
++++ b/Source/JavaScriptCore/assembler/MacroAssemblerRISCV64.h
+@@ -4365,20 +4365,20 @@ private:
+         using IType = RISCV64Assembler::IImmediate;
+         template<int32_t value>
+         static IType I() { return IType::v<IType, value>(); }
+-        template<typename T, typename = EnableIfInteger<T>>
++        template<std::integral T>
+         static IType I(T value) { return IType::v<IType>(value); }
+         static IType I(uint32_t value) { return IType(value); }
+ 
+         using SType = RISCV64Assembler::SImmediate;
+         template<int32_t value>
+         static SType S() { return SType::v<SType, value>(); }
+-        template<typename T, typename = EnableIfInteger<T>>
++        template<std::integral T>
+         static SType S(T value) { return SType::v<SType>(value); }
+ 
+         using BType = RISCV64Assembler::BImmediate;
+         template<int32_t value>
+         static BType B() { return BType::v<BType, value>(); }
+-        template<typename T, typename = EnableIfInteger<T>>
++        template<std::integral T>
+         static BType B(T value) { return BType::v<BType>(value); }
+         static BType B(uint32_t value) { return BType(value); }
+ 
+diff --git a/Source/JavaScriptCore/b3/B3Validate.cpp b/Source/JavaScriptCore/b3/B3Validate.cpp
+index a3f5f6cb8f9a..1879239b565e 100644
+--- a/Source/JavaScriptCore/b3/B3Validate.cpp
++++ b/Source/JavaScriptCore/b3/B3Validate.cpp
+@@ -493,7 +493,7 @@ public:
+             case VectorExtractLane:
+                 VALIDATE(!value->kind().hasExtraBits(), ("At ", *value));
+                 VALIDATE(value->numChildren() == 1, ("At ", *value));
+-                VALIDATE(value->type() == Wasm::toB3Type(Wasm::simdScalarType(value->asSIMDValue()->simdLane())), ("At ", *value));
++                VALIDATE(value->type() == simdB3ScalarType(value->asSIMDValue()->simdLane()), ("At ", *value));
+                 VALIDATE(value->child(0)->type() == V128, ("At ", *value));
+                 break;
+             case VectorReplaceLane:
+@@ -501,7 +501,7 @@ public:
+                 VALIDATE(value->numChildren() == 2, ("At ", *value));
+                 VALIDATE(value->type() == V128, ("At ", *value));
+                 VALIDATE(value->child(0)->type() == V128, ("At ", *value));
+-                VALIDATE(value->child(1)->type() == Wasm::toB3Type(Wasm::simdScalarType(value->asSIMDValue()->simdLane())), ("At ", *value));
++                VALIDATE(value->child(1)->type() == simdB3ScalarType(value->asSIMDValue()->simdLane()), ("At ", *value));
+                 break;
+             case VectorDupElement:
+                 VALIDATE(!value->kind().hasExtraBits(), ("At ", *value));
+@@ -523,7 +523,7 @@ public:
+                 VALIDATE(!value->kind().hasExtraBits(), ("At ", *value));
+                 VALIDATE(value->numChildren() == 1, ("At ", *value));
+                 VALIDATE(value->type() == V128, ("At ", *value));
+-                VALIDATE(value->child(0)->type() == Wasm::toB3Type(Wasm::simdScalarType(value->asSIMDValue()->simdLane())), ("At ", *value));
++                VALIDATE(value->child(0)->type() == simdB3ScalarType(value->asSIMDValue()->simdLane()), ("At ", *value));
+                 break;
+ 
+             case VectorPopcnt:
+diff --git a/Source/JavaScriptCore/b3/air/AirArg.h b/Source/JavaScriptCore/b3/air/AirArg.h
+index 5012f3318a5c..de62de31be18 100644
+--- a/Source/JavaScriptCore/b3/air/AirArg.h
++++ b/Source/JavaScriptCore/b3/air/AirArg.h
+@@ -1475,17 +1475,15 @@ public:
+         if (!isARM64() && !isX86_64())
+             return false;
+ 
++        uint64_t u64 = static_cast<uint64_t>(value);
+ #if CPU(ARM64)
+         if (ARM64Assembler::canEncodeFPImm<64>(value))
+             return true;
+ 
+-        uint64_t u64 = static_cast<uint64_t>(value);
+         if (ARM64FPImmediate::create64(u64).isValid())
+             return true;
+ 
+ #elif CPU(X86_64)
+-        uint64_t u64 = static_cast<uint64_t>(value);
+-
+         if (u64 == 0xFFFFFFFFFFFFFFFFULL)
+             return true;
+ 
+diff --git a/Source/JavaScriptCore/domjit/DOMJITEffect.h b/Source/JavaScriptCore/domjit/DOMJITEffect.h
+index 6ba85116d1be..943754f793a4 100644
+--- a/Source/JavaScriptCore/domjit/DOMJITEffect.h
++++ b/Source/JavaScriptCore/domjit/DOMJITEffect.h
+@@ -28,6 +28,16 @@
+ #include "DFGAbstractHeap.h"
+ #include "DOMJITHeapRange.h"
+ 
++#if !ENABLE(DFG_JIT)
++namespace JSC { namespace DFG {
++enum AbstractHeapKind : unsigned {
++    InvalidAbstractHeap,
++    Heap,
++    SideState,
++};
++} }
++#endif
++
+ WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
+ 
+ namespace JSC {
+diff --git a/Source/JavaScriptCore/jit/GdbJIT.cpp b/Source/JavaScriptCore/jit/GdbJIT.cpp
+index a812a7622291..d9599230a09f 100644
+--- a/Source/JavaScriptCore/jit/GdbJIT.cpp
++++ b/Source/JavaScriptCore/jit/GdbJIT.cpp
+@@ -873,7 +873,7 @@ private:
+             0x7F, 'E', 'L', 'F', 1, 1, 1, 0,
+             0, 0, 0, 0, 0, 0, 0, 0
+         };
+-#elif CPU(X86_64) || CPU(ARM64)
++#elif CPU(X86_64) || CPU(ARM64) || CPU(RISCV64)
+         const uint8_t ident[16] = {
+             0x7F, 'E', 'L', 'F', 2, 1, 1, 0,
+             0, 0, 0, 0, 0, 0, 0, 0
+@@ -895,6 +895,9 @@ private:
+ #elif CPU(ARM64)
+         // AARCH64
+         header->machine = 0xB7;
++#elif CPU(RISCV64)
++        // RISC-V
++        header->machine = 0xF3;
+ #else
+ #error Unsupported target architecture.
+ #endif
+@@ -996,7 +999,7 @@ public:
+         uint8_t m_other;
+         uint16_t m_section;
+     } __attribute__((packed,aligned(1)));
+-#elif CPU(X86_64) || CPU(ARM64)
++#elif CPU(X86_64) || CPU(ARM64) || CPU(RISCV64)
+     struct SerializedLayout {
+         SerializedLayout(uint32_t name, uintptr_t value, uintptr_t size, Binding binding, Type type, uint16_t section)
+             : m_name(name)
+diff --git a/Source/JavaScriptCore/llint/InPlaceInterpreter.asm b/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
+index 74697f1525a1..9cc5fafef17f 100644
+--- a/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
++++ b/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
+@@ -332,14 +332,19 @@ end
+ macro ipintAtomicOp(name, impl)
+     atomicInstructionLabel(name)
+ 
+-    if TRACING
+-        move cfr, a1
+-        move PC, a2
+-        move MC, a3
+-        operationCall(macro() cCall4(_ipint_extern_trace) end)
+-    end
++    if RISCV64
++        validateOpcodeConfig(a0)
++        break
++    else
++        if TRACING
++            move cfr, a1
++            move PC, a2
++            move MC, a3
++            operationCall(macro() cCall4(_ipint_extern_trace) end)
++        end
+ 
+-    impl()
++        impl()
++    end
+ end
+ 
+ macro reservedAtomicOpcode(opcode)
+@@ -1275,7 +1280,7 @@ op(wasm_throw_from_fault_handler_trampoline_reg_instance, macro ()
+ end)
+ 
+ op(ipint_entry, macro()
+-if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7)
++if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7 or RISCV64)
+     preserveCallerPCAndCFR()
+     saveIPIntRegisters()
+     storep wasmInstance, CodeBlock[cfr]
+@@ -1289,10 +1294,15 @@ else
+ end
+ end)
+ 
+-if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7)
++if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7 or RISCV64)
+ .ipint_entry_end_local:
+     argumINTInitializeDefaultLocals()
++if RISCV64
++    pcrtoaddr .ipint_entry_end_local, csr4
++    jmp csr4
++else
+     jmp .ipint_entry_end_local
++end
+ 
+ .ipint_entry_finish_zero:
+     argumINTFinish()
+@@ -1421,7 +1431,7 @@ end
+ end)
+ 
+ op(ipint_table_catch_entry, macro()
+-if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7)
++if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7 or RISCV64)
+     ipintCatchCommon()
+ 
+     # push arguments but no ref: sp in a2, call normal operation
+@@ -1440,7 +1450,7 @@ end
+ end)
+ 
+ op(ipint_table_catch_ref_entry, macro()
+-if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7)
++if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7 or RISCV64)
+     ipintCatchCommon()
+ 
+     # push both arguments and ref
+@@ -1459,7 +1469,7 @@ end
+ end)
+ 
+ op(ipint_table_catch_all_entry, macro()
+-if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7)
++if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7 or RISCV64)
+     ipintCatchCommon()
+ 
+     # do nothing: 0 in sp for no arguments, call normal operation
+@@ -1478,7 +1488,7 @@ end
+ end)
+ 
+ op(ipint_table_catch_allref_entry, macro()
+-if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7)
++if WEBASSEMBLY and (ARM64 or ARM64E or X86_64 or ARMv7 or RISCV64)
+     ipintCatchCommon()
+ 
+     # push only the ref
+@@ -1985,7 +1995,7 @@ _pinballHandlerRejectFunction:
+ # 5. Instruction implementation #
+ #################################
+ 
+-if JSVALUE64 and (ARM64 or ARM64E or X86_64)
++if JSVALUE64 and (ARM64 or ARM64E or X86_64 or RISCV64)
+     include InPlaceInterpreter64
+ else
+ # For unimplemented architectures: make sure that the assertions can still find the labels
+diff --git a/Source/JavaScriptCore/llint/InPlaceInterpreter.cpp b/Source/JavaScriptCore/llint/InPlaceInterpreter.cpp
+index a14c01138994..0c97a67b71fb 100644
+--- a/Source/JavaScriptCore/llint/InPlaceInterpreter.cpp
++++ b/Source/JavaScriptCore/llint/InPlaceInterpreter.cpp
+@@ -78,7 +78,7 @@ do { \
+ 
+ void initialize()
+ {
+-#if !ENABLE(C_LOOP) && (CPU(ADDRESS64) && (CPU(ARM64) || CPU(X86_64)))
++#if !ENABLE(C_LOOP) && (CPU(ADDRESS64) && (CPU(ARM64) || CPU(X86_64) || CPU(RISCV64)))
+ 
+ #define INIT_IPINT_BASE_POINTER(basePointerName, targetAddress) \
+     g_opcodeConfig.basePointerName = removeCodePtrTag(reinterpret_cast<void*>(targetAddress));
+@@ -97,13 +97,13 @@ void initialize()
+     FOR_EACH_IPINT_MINT_RETURN_OPCODE(VALIDATE_IPINT_MINT_RETURN_OPCODE);
+     FOR_EACH_IPINT_UINT_OPCODE(VALIDATE_IPINT_UINT_OPCODE);
+ #else
+-    RELEASE_ASSERT_NOT_REACHED("IPInt only supports ARM64 and X86_64 (for now).");
++    RELEASE_ASSERT_NOT_REACHED("IPInt only supports ARM64, X86_64, and RISCV64 (for now).");
+ #endif
+ }
+ 
+ void verifyInitialization()
+ {
+-#if !ENABLE(C_LOOP) && (CPU(ADDRESS64) && (CPU(ARM64) || CPU(X86_64)))
++#if !ENABLE(C_LOOP) && (CPU(ADDRESS64) && (CPU(ARM64) || CPU(X86_64) || CPU(RISCV64)))
+ 
+ #define VERIFY_IPINT_BASE_POINTER(basePointerName, targetAddress) \
+     RELEASE_ASSERT(g_opcodeConfig.basePointerName == removeCodePtrTag(reinterpret_cast<void*>(targetAddress)));
+diff --git a/Source/JavaScriptCore/llint/InPlaceInterpreter.h b/Source/JavaScriptCore/llint/InPlaceInterpreter.h
+index 6d6d95024df9..c16754a5ce94 100644
+--- a/Source/JavaScriptCore/llint/InPlaceInterpreter.h
++++ b/Source/JavaScriptCore/llint/InPlaceInterpreter.h
+@@ -788,7 +788,7 @@ extern "C" void SYSV_ABI ipint_entry();
+     m(0x11, uint_stack_vector) \
+     m(0x12, uint_ret) \
+ 
+-#if !ENABLE(C_LOOP) && (CPU(ADDRESS64) && (CPU(ARM64) || CPU(X86_64)))
++#if !ENABLE(C_LOOP) && (CPU(ADDRESS64) && (CPU(ARM64) || CPU(X86_64) || CPU(RISCV64)))
+ FOR_EACH_IPINT_OPCODE(IPINT_VALIDATE_DEFINE_FUNCTION);
+ FOR_EACH_IPINT_GC_OPCODE(IPINT_VALIDATE_DEFINE_FUNCTION);
+ FOR_EACH_IPINT_CONVERSION_OPCODE(IPINT_VALIDATE_DEFINE_FUNCTION);
+diff --git a/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm b/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
+index 653b6a343537..8805ace80a5f 100644
+--- a/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
++++ b/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
+@@ -51,7 +51,7 @@ end
+ 
+ # Dispatch target bases
+ 
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+ const ipint_dispatch_base = _ipint_unreachable
+ end
+ 
+@@ -71,7 +71,7 @@ if ARM64 or ARM64E
+     pcrtoaddr ipint_dispatch_base, t7
+     addlshiftp t7, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
+     jmp t0
+-elsif X86_64
++elsif X86_64 or RISCV64
+     pcrtoaddr ipint_dispatch_base, t1
+     lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
+     addq t1, t0
+@@ -87,7 +87,7 @@ end
+ macro pushQuad(reg)
+     if ARM64 or ARM64E
+         push reg, reg
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         push reg, reg
+     else
+         break
+@@ -102,7 +102,7 @@ macro popQuad(reg)
+     # FIXME: emit post-increment in offlineasm
+     if ARM64 or ARM64E
+         loadqinc [sp], reg, V128ISize
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         loadq [sp], reg
+         addq V128ISize, sp
+     else
+@@ -200,7 +200,7 @@ macro argumINTDispatch()
+     addp 1, MC
+     bbgteq argumINTTmp, (constexpr IPInt::ArgumINTBytecode::NumOpcodes), _ipint_argument_dispatch_err
+     lshiftp (constexpr (WTF::fastLog2(JSC::IPInt::alignArgumInt))), argumINTTmp
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     pcrtoaddr _argumINT_begin, argumINTDsp
+     addp argumINTTmp, argumINTDsp
+     jmp argumINTDsp
+@@ -219,7 +219,7 @@ macro argumINTInitializeDefaultLocals()
+ if ARM64 or ARM64E
+     # offlineasm doesn't have xzr so emit it
+     emit "stp x19, xzr, [x9]"
+-elsif X86_64
++elsif X86_64 or RISCV64
+     storep argumINTTmp, [argumINTDst]
+     storep 0, 8[argumINTDst]
+ end
+@@ -502,7 +502,7 @@ end)
+ if ARM64 or ARM64E
+     const IPIntCallCallee = sc1
+     const IPIntCallFunctionSlot = sc0
+-elsif X86_64
++elsif X86_64 or RISCV64
+     const IPIntCallCallee = t7
+     const IPIntCallFunctionSlot = t6
+ end
+@@ -3201,7 +3201,7 @@ ipintOp(_atomic_prefix, macro()
+     if ARM64 or ARM64E
+         addlshiftp t1, t0, constexpr (WTF::fastLog2(JSC::IPInt::alignAtomicIPInt)), t0
+         jmp t0
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         lshiftq constexpr (WTF::fastLog2(JSC::IPInt::alignAtomicIPInt)), t0
+         addq t1, t0
+         jmp t0
+@@ -10953,7 +10953,7 @@ macro mintArgDispatch()
+     addq 1, MC
+     bigteq sc0, (constexpr IPInt::CallArgumentBytecode::NumOpcodes), _ipint_mint_arg_dispatch_err
+     lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignMInt))), sc0
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     pcrtoaddr _mint_begin, csr4
+     addq sc0, csr4
+     jmp csr4
+@@ -10969,7 +10969,7 @@ macro mintRetDispatch()
+     addq 1, MC
+     bigteq sc0, (constexpr IPInt::CallResultBytecode::NumOpcodes), _ipint_mint_ret_dispatch_err
+     lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignMInt))), sc0
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     pcrtoaddr _mint_begin_return, csr4
+     addq sc0, csr4
+     jmp csr4
+@@ -11205,7 +11205,7 @@ mintAlign(_a1)
+     mintArgDispatch()
+ 
+ mintAlign(_a2)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     mintPop(a2)
+     mintArgDispatch()
+ else
+@@ -11213,7 +11213,7 @@ else
+ end
+ 
+ mintAlign(_a3)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     mintPop(a3)
+     mintArgDispatch()
+ else
+@@ -11221,7 +11221,7 @@ else
+ end
+ 
+ mintAlign(_a4)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     mintPop(a4)
+     mintArgDispatch()
+ else
+@@ -11229,7 +11229,7 @@ else
+ end
+ 
+ mintAlign(_a5)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     mintPop(a5)
+     mintArgDispatch()
+ else
+@@ -11237,7 +11237,7 @@ else
+ end
+ 
+ mintAlign(_a6)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     mintPop(a6)
+     mintArgDispatch()
+ else
+@@ -11245,7 +11245,7 @@ else
+ end
+ 
+ mintAlign(_a7)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     mintPop(a7)
+     mintArgDispatch()
+ else
+@@ -11447,7 +11447,7 @@ mintAlign(_r1)
+     mintRetDispatch()
+ 
+ mintAlign(_r2)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     subp StackValueSize, mintRetDst
+     storeq wa2, [mintRetDst]
+     mintRetDispatch()
+@@ -11456,7 +11456,7 @@ else
+ end
+ 
+ mintAlign(_r3)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     subp StackValueSize, mintRetDst
+     storeq wa3, [mintRetDst]
+     mintRetDispatch()
+@@ -11465,7 +11465,7 @@ else
+ end
+ 
+ mintAlign(_r4)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     subp StackValueSize, mintRetDst
+     storeq wa4, [mintRetDst]
+     mintRetDispatch()
+@@ -11474,7 +11474,7 @@ else
+ end
+ 
+ mintAlign(_r5)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     subp StackValueSize, mintRetDst
+     storeq wa5, [mintRetDst]
+     mintRetDispatch()
+@@ -11483,7 +11483,7 @@ else
+ end
+ 
+ mintAlign(_r6)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     subp StackValueSize, mintRetDst
+     storeq wa6, [mintRetDst]
+     mintRetDispatch()
+@@ -11492,7 +11492,7 @@ else
+ end
+ 
+ mintAlign(_r7)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     subp StackValueSize, mintRetDst
+     storeq wa7, [mintRetDst]
+     mintRetDispatch()
+@@ -11854,7 +11854,7 @@ argumINTAlign(_a1)
+     argumINTDispatch()
+ 
+ argumINTAlign(_a2)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     storeq wa2, [argumINTDst]
+     addp LocalSize, argumINTDst
+     argumINTDispatch()
+@@ -11864,7 +11864,7 @@ end
+ 
+ 
+ argumINTAlign(_a3)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     storeq wa3, [argumINTDst]
+     addp LocalSize, argumINTDst
+     argumINTDispatch()
+@@ -11873,7 +11873,7 @@ else
+ end
+ 
+ argumINTAlign(_a4)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     storeq wa4, [argumINTDst]
+     addp LocalSize, argumINTDst
+     argumINTDispatch()
+@@ -11882,7 +11882,7 @@ else
+ end
+ 
+ argumINTAlign(_a5)
+-if ARM64 or ARM64E or X86_64
++if ARM64 or ARM64E or X86_64 or RISCV64
+     storeq wa5, [argumINTDst]
+     addp LocalSize, argumINTDst
+     argumINTDispatch()
+@@ -11891,7 +11891,7 @@ else
+ end
+ 
+ argumINTAlign(_a6)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     storeq wa6, [argumINTDst]
+     addp LocalSize, argumINTDst
+     argumINTDispatch()
+@@ -11900,7 +11900,7 @@ else
+ end
+ 
+ argumINTAlign(_a7)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     storeq wa7, [argumINTDst]
+     addp LocalSize, argumINTDst
+     argumINTDispatch()
+@@ -11965,7 +11965,12 @@ argumINTAlign(_stack_vector)
+     argumINTDispatch()
+ 
+ argumINTAlign(_end)
++if RISCV64
++    pcrtoaddr .ipint_entry_end_local, argumINTDsp
++    jmp argumINTDsp
++else
+     jmp .ipint_entry_end_local
++end
+ 
+ if ARM64E
+     global _wasmTailCallTrampoline
+diff --git a/Source/JavaScriptCore/llint/LowLevelInterpreter.asm b/Source/JavaScriptCore/llint/LowLevelInterpreter.asm
+index 71cf86f85df2..219faf9d36f1 100644
+--- a/Source/JavaScriptCore/llint/LowLevelInterpreter.asm
++++ b/Source/JavaScriptCore/llint/LowLevelInterpreter.asm
+@@ -364,6 +364,43 @@ elsif X86_64
+     const wfa6 = ft6
+     const wfa7 = ft7
+ 
++    const fr = fa0
++elsif RISCV64
++    const a0 = t0
++    const a1 = t1
++    const a2 = t2
++    const a3 = t3
++    const a4 = t4
++    const a5 = t5
++    const a6 = t6
++    const a7 = t7
++
++    const wa0 = a0
++    const wa1 = a1
++    const wa2 = a2
++    const wa3 = a3
++    const wa4 = a4
++    const wa5 = a5
++    const wa6 = a6
++    const wa7 = a7
++
++    const ws0 = t9
++    const ws1 = t10
++    const ws2 = t11
++    const ws3 = t12
++
++    const r0 = a0
++    const r1 = a1
++
++    const wfa0 = fa0
++    const wfa1 = fa1
++    const wfa2 = fa2
++    const wfa3 = fa3
++    const wfa4 = fa4
++    const wfa5 = fa5
++    const wfa6 = fa6
++    const wfa7 = fa7
++
+     const fr = fa0
+ else
+     const a0 = t0
+@@ -906,8 +943,12 @@ macro checkStackPointerAlignment(tempReg, location)
+     end
+ end
+ 
+-if C_LOOP or ARM64 or ARM64E or X86_64 or RISCV64
++if C_LOOP or ARM64 or ARM64E or X86_64
+     const CalleeSaveRegisterCount = 0
++elsif RISCV64
++    # Save s1-s11 and fs0-fs11. s0/fp is already saved as cfr by functionPrologue().
++    # The extra slot keeps the stack 16-byte aligned after pushCalleeSaves().
++    const CalleeSaveRegisterCount = 24
+ elsif ARMv7
+     const CalleeSaveRegisterCount = 5 + 2 * 2 // 5 32-bit GPRs + 2 64-bit FPRs
+ end
+@@ -923,7 +964,32 @@ macro pushCalleeSaves()
+     # but are not in RegisterSet::vmCalleeSaveRegisters() need to be saved here,
+     # i.e.: only those registers that are callee save in the C ABI, but are not
+     # callee save in the JIT ABI.
+-    if C_LOOP or ARM64 or ARM64E or X86_64 or RISCV64
++    if C_LOOP or ARM64 or ARM64E or X86_64
++    elsif RISCV64
++        subp CalleeRegisterSaveSize, sp
++        storeq csr0, [sp]
++        storeq csr1, 8[sp]
++        storeq csr2, 16[sp]
++        storeq csr3, 24[sp]
++        storeq csr4, 32[sp]
++        storeq csr5, 40[sp]
++        storeq csr6, 48[sp]
++        storeq csr7, 56[sp]
++        storeq csr8, 64[sp]
++        storeq csr9, 72[sp]
++        storeq csr10, 80[sp]
++        stored csfr0, 88[sp]
++        stored csfr1, 96[sp]
++        stored csfr2, 104[sp]
++        stored csfr3, 112[sp]
++        stored csfr4, 120[sp]
++        stored csfr5, 128[sp]
++        stored csfr6, 136[sp]
++        stored csfr7, 144[sp]
++        stored csfr8, 152[sp]
++        stored csfr9, 160[sp]
++        stored csfr10, 168[sp]
++        stored csfr11, 176[sp]
+     elsif ARMv7
+         emit "vpush.64 {d14, d15}"
+         emit "push {r4-r6, r8-r9}"
+@@ -931,7 +997,32 @@ macro pushCalleeSaves()
+ end
+ 
+ macro popCalleeSaves()
+-    if C_LOOP or ARM64 or ARM64E or X86_64 or RISCV64
++    if C_LOOP or ARM64 or ARM64E or X86_64
++    elsif RISCV64
++        loadq [sp], csr0
++        loadq 8[sp], csr1
++        loadq 16[sp], csr2
++        loadq 24[sp], csr3
++        loadq 32[sp], csr4
++        loadq 40[sp], csr5
++        loadq 48[sp], csr6
++        loadq 56[sp], csr7
++        loadq 64[sp], csr8
++        loadq 72[sp], csr9
++        loadq 80[sp], csr10
++        loadd 88[sp], csfr0
++        loadd 96[sp], csfr1
++        loadd 104[sp], csfr2
++        loadd 112[sp], csfr3
++        loadd 120[sp], csfr4
++        loadd 128[sp], csfr5
++        loadd 136[sp], csfr6
++        loadd 144[sp], csfr7
++        loadd 152[sp], csfr8
++        loadd 160[sp], csfr9
++        loadd 168[sp], csfr10
++        loadd 176[sp], csfr11
++        addp CalleeRegisterSaveSize, sp
+     elsif ARMv7
+         emit "pop {r4-r6, r8-r9}"
+         emit "vpop.64 {d14, d15}"
+diff --git a/Source/JavaScriptCore/offlineasm/registers.rb b/Source/JavaScriptCore/offlineasm/registers.rb
+index 9c605e6f52d4..38715831151a 100644
+--- a/Source/JavaScriptCore/offlineasm/registers.rb
++++ b/Source/JavaScriptCore/offlineasm/registers.rb
+@@ -67,6 +67,22 @@ FPRS =
+      "ft5",
+      "ft6",
+      "ft7",
++     "fa0",
++     "fa1",
++     "fa2",
++     "fa3",
++     "fa4",
++     "fa5",
++     "fa6",
++     "fa7",
++     "wfa0",
++     "wfa1",
++     "wfa2",
++     "wfa3",
++     "wfa4",
++     "wfa5",
++     "wfa6",
++     "wfa7",
+      "csfr0",
+      "csfr1",
+      "csfr2",
+diff --git a/Source/JavaScriptCore/offlineasm/riscv64.rb b/Source/JavaScriptCore/offlineasm/riscv64.rb
+index d9ed36aa5350..1953bf837f20 100644
+--- a/Source/JavaScriptCore/offlineasm/riscv64.rb
++++ b/Source/JavaScriptCore/offlineasm/riscv64.rb
+@@ -170,10 +170,16 @@ class RegisterID
+             'x16'
+         when 't7', 'a7', 'wa7'
+             'x17'
+-        when 'ws0'
++        when 't8'
++            'x5'
++        when 't9', 'ws0'
+             'x6'
+-        when 'ws1'
++        when 't10', 'ws1'
+             'x7'
++        when 't11'
++            'x28'
++        when 't12'
++            'x29'
+         when 'csr0'
+             'x9'
+         when 'csr1'
+@@ -223,6 +229,10 @@ class FPRegisterID
+             'f4'
+         when 'ft5'
+             'f5'
++        when 'ft6'
++            'f6'
++        when 'ft7'
++            'f7'
+         when 'csfr0'
+             'f8'
+         when 'csfr1'
+@@ -467,7 +477,7 @@ def riscv64LowerAddressLoads(list)
+                 riscv64ValidateOperands(node.operands, [LabelReference, RegisterID])
+                 newList << Instruction.new(node.codeOrigin, "rv_la", node.operands)
+             when "pcrtoaddr"
+-                riscv64ValidateOperands(node.operands, [LabelReference, RegisterID])
++                riscv64ValidateOperands(node.operands, [LabelReference, RegisterID], [LocalLabelReference, RegisterID])
+                 newList << Instruction.new(node.codeOrigin, "rv_lla", node.operands)
+             else
+                 newList << node
+@@ -570,6 +580,25 @@ def riscv64LowerOperation(list)
+         newList << Instruction.new(node.codeOrigin, "rv_s#{suffix}", node.operands)
+     end
+ 
++    def emitTransferOperation(newList, node, size)
++        riscv64ValidateOperands(node.operands, [Address, Address])
++
++        case size
++        when :i
++            loadSuffix = "wu"
++            storeSuffix = "w"
++        when :p, :q
++            loadSuffix = "d"
++            storeSuffix = "d"
++        else
++            raise "Invalid size #{size}"
++        end
++
++        tmp = Tmp.new(node.codeOrigin, :gpr)
++        newList << Instruction.new(node.codeOrigin, "rv_l#{loadSuffix}", [node.operands[0], tmp])
++        newList << Instruction.new(node.codeOrigin, "rv_s#{storeSuffix}", [tmp, node.operands[1]])
++    end
++
+     def emitMove(newList, node)
+         case riscv64OperandTypes(node.operands)
+         when [RegisterID, RegisterID]
+@@ -600,7 +629,7 @@ def riscv64LowerOperation(list)
+         case riscv64OperandTypes(node.operands)
+         when [RegisterID]
+             callOpcode = "jalr"
+-        when [LabelReference]
++        when [LabelReference], [LocalLabelReference]
+             callOpcode = "call"
+         else
+             riscv64RaiseMismatchedOperands(node.operands)
+@@ -784,13 +813,24 @@ def riscv64LowerOperation(list)
+             return
+         end
+ 
++        case [extension, fromSize, toSize]
++        when [:z, :b, :i], [:z, :b, :p], [:z, :b, :q]
++            newList << Instruction.new(node.codeOrigin, "rv_slli", [source, Immediate.new(node.codeOrigin, 56), dest])
++            newList << Instruction.new(node.codeOrigin, "rv_srli", [dest, Immediate.new(node.codeOrigin, 56), dest])
++            return
++        when [:z, :h, :i], [:z, :h, :p], [:z, :h, :q]
++            newList << Instruction.new(node.codeOrigin, "rv_slli", [source, Immediate.new(node.codeOrigin, 48), dest])
++            newList << Instruction.new(node.codeOrigin, "rv_srli", [dest, Immediate.new(node.codeOrigin, 48), dest])
++            return
++        end
++
+         raise "Invalid zero extension" unless extension == :s
+         case [fromSize, toSize]
+         when [:b, :i]
+             newList << Instruction.new(node.codeOrigin, "rv_slli", [source, Immediate.new(node.codeOrigin, 56), dest])
+             newList << Instruction.new(node.codeOrigin, "rv_srai", [dest, Immediate.new(node.codeOrigin, 24), dest])
+             newList << Instruction.new(node.codeOrigin, "rv_srli", [dest, Immediate.new(node.codeOrigin, 32), dest])
+-        when [:b, :q]
++        when [:b, :p], [:b, :q]
+             newList << Instruction.new(node.codeOrigin, "rv_slli", [source, Immediate.new(node.codeOrigin, 56), dest])
+             newList << Instruction.new(node.codeOrigin, "rv_srai", [dest, Immediate.new(node.codeOrigin, 56), dest])
+         when [:h, :i]
+@@ -852,6 +892,8 @@ def riscv64LowerOperation(list)
+                 emitLoadOperation(newList, node, $1.to_sym)
+             when /^store(b|h|i|p|q)$/
+                 emitStoreOperation(newList, node, $1.to_sym)
++            when /^transfer(i|p|q)$/
++                emitTransferOperation(newList, node, $1.to_sym)
+             when "move"
+                 emitMove(newList, node)
+             when "jmp"
+@@ -1197,6 +1239,60 @@ def riscv64LowerFPOperation(list)
+         newList << Instruction.new(node.codeOrigin, "rv_fs#{suffix}", node.operands)
+     end
+ 
++    def emitLoadVectorOperation(newList, node)
++        case riscv64OperandTypes(node.operands)
++        when [Address, FPRegisterID]
++            newList << Instruction.new(node.codeOrigin, "rv_fld", node.operands)
++        when [Address, VecRegisterID]
++            newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode loadv")
++        else
++            riscv64RaiseMismatchedOperands(node.operands)
++        end
++    end
++
++    def emitStoreVectorOperation(newList, node)
++        case riscv64OperandTypes(node.operands)
++        when [FPRegisterID, Address]
++            newList << Instruction.new(node.codeOrigin, "rv_fsd", node.operands)
++        when [VecRegisterID, Address]
++            newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode storev")
++        else
++            riscv64RaiseMismatchedOperands(node.operands)
++        end
++    end
++
++    def emitPushVectorOperation(newList, node)
++        sp = RegisterID.forName(node.codeOrigin, 'sp')
++        node.operands.each {
++            | op |
++            case riscv64OperandTypes([op])
++            when [FPRegisterID]
++                newList << Instruction.new(node.codeOrigin, "rv_addi", [sp, Immediate.new(node.codeOrigin, -16), sp])
++                newList << Instruction.new(node.codeOrigin, "rv_fsd", [op, Address.new(node.codeOrigin, sp, Immediate.new(node.codeOrigin, 0))])
++            when [VecRegisterID]
++                newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode pushv")
++            else
++                riscv64RaiseMismatchedOperands([op])
++            end
++        }
++    end
++
++    def emitPopVectorOperation(newList, node)
++        sp = RegisterID.forName(node.codeOrigin, 'sp')
++        node.operands.each {
++            | op |
++            case riscv64OperandTypes([op])
++            when [FPRegisterID]
++                newList << Instruction.new(node.codeOrigin, "rv_fld", [Address.new(node.codeOrigin, sp, Immediate.new(node.codeOrigin, 0)), op])
++                newList << Instruction.new(node.codeOrigin, "rv_addi", [sp, Immediate.new(node.codeOrigin, 16), sp])
++            when [VecRegisterID]
++                newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode popv")
++            else
++                riscv64RaiseMismatchedOperands([op])
++            end
++        }
++    end
++
+     def emitMoveOperation(newList, node, precision)
+         riscv64ValidateOperands(node.operands, [FPRegisterID, FPRegisterID])
+         raise "Invalid precision" unless [:f, :d].include? precision
+@@ -1366,6 +1462,14 @@ def riscv64LowerFPOperation(list)
+                 emitLoadOperation(newList, node, $1.to_sym)
+             when /^store(f|d)$/
+                 emitStoreOperation(newList, node, $1.to_sym)
++            when "loadv"
++                emitLoadVectorOperation(newList, node)
++            when "storev"
++                emitStoreVectorOperation(newList, node)
++            when "pushv"
++                emitPushVectorOperation(newList, node)
++            when "popv"
++                emitPopVectorOperation(newList, node)
+             when /^move(d)$/
+                 emitMoveOperation(newList, node, $1.to_sym)
+             when /^f(i|p|q|f|d)2(i|p|q|f|d)$/
+@@ -1589,7 +1693,7 @@ class Instruction
+             riscv64ValidateOperands(operands, [LabelReference], [LocalLabelReference])
+             $asm.puts "#{rvop(opcode)} #{operands[0].asmLabel}"
+         when /^rv_(la|lla)$/
+-            riscv64ValidateOperands(operands, [LabelReference, RegisterID])
++            riscv64ValidateOperands(operands, [LabelReference, RegisterID], [LocalLabelReference, RegisterID])
+             $asm.puts "#{rvop(opcode)} #{operands[1].riscv64Operand}, #{operands[0].asmLabel}"
+         when "rv_mv"
+             riscv64ValidateOperands(operands, [RegisterID, RegisterID])
+diff --git a/Source/JavaScriptCore/runtime/Options.cpp b/Source/JavaScriptCore/runtime/Options.cpp
+index a4cf996708be..a9dffffce1f5 100644
+--- a/Source/JavaScriptCore/runtime/Options.cpp
++++ b/Source/JavaScriptCore/runtime/Options.cpp
+@@ -801,7 +801,11 @@ void Options::notifyOptionsChanged()
+     Options::useConcurrentGC() = false;
+     Options::forceUnlinkedDFG() = false;
+     Options::useWasmSIMD() = false;
++#if CPU(RISCV64)
++    Options::useWasmIPIntSIMD() = false;
++#else
+     Options::useWasmIPInt() = false;
++#endif
+ #if !CPU(ARM_THUMB2)
+     Options::useBBQJIT() = false;
+ #endif
+diff --git a/Source/JavaScriptCore/runtime/Options.h b/Source/JavaScriptCore/runtime/Options.h
+index 6c707f34ef73..47c73896f51b 100644
+--- a/Source/JavaScriptCore/runtime/Options.h
++++ b/Source/JavaScriptCore/runtime/Options.h
+@@ -175,7 +175,7 @@ private:
+     static unsigned computeNumberOfWorkerThreads(int maxNumberOfWorkerThreads, int minimum = 1);
+     static int32_t computePriorityDeltaOfWorkerThreads(int32_t twoCorePriorityDelta, int32_t multiCorePriorityDelta);
+     static constexpr bool jitEnabledByDefault() { return isAddress64Bit(); }
+-    static constexpr bool ipintEnabledByDefault() { return isARM64() || isARM64E() || isX86_64(); }
++    static constexpr bool ipintEnabledByDefault() { return isARM64() || isARM64E() || isRISCV64() || isX86_64(); }
+     static double defaultQuickDFGTierUpThresholdFactor()
+     {
+ #if PLATFORM(MAC)

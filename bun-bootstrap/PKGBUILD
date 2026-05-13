@@ -1,0 +1,133 @@
+# Contributor: Daniele Basso <d dot bass 05 at proton dot me>
+# Maintainer: Carl Smedstad <carsme@archlinux.org>
+
+pkgname=bun-bootstrap
+_pkgname=bun
+pkgver=1.3.13
+# From https://github.com/oven-sh/bun/blob/main/scripts/build/deps/webkit.ts#L6
+_webkitver=4d5e75ebd84a14edbc7ae264245dcd77fe597c10
+# From https://github.com/oven-sh/bun/blob/main/scripts/build/zig.ts#L36
+_zigver=365343af4fc5a1a632e6b54aadd0b87be30edd81
+pkgrel=1
+pkgdesc="Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one"
+arch=(any)
+url="https://github.com/oven-sh/bun"
+license=('MIT')
+depends=(
+  glibc
+  icu
+)
+makedepends=(
+  clang21         # bun, webkit
+  cmake
+  git
+  lld21           # bun, webkit
+  llvm21          # bun, webkit
+  ninja
+  python          # webkit
+  qemu-user-static
+  riscv64-linux-gnu-gcc
+  riscv64-linux-gnu-glibc
+  ruby            # webkit
+  ruby-getoptlong # webkit
+  rustup          # bun
+  unzip
+)
+conflicts=($_pkgname)
+provides=($_pkgname)
+options=('!lto')
+source=(
+  "git+$url.git#tag=bun-v$pkgver"
+  "$_pkgname-WebKit::git+https://github.com/oven-sh/WebKit.git#commit=$_webkitver"
+  "$_pkgname-webkit-typed-array-int32-conversion.patch"
+  "$_pkgname-riscv64.patch"
+  "$_pkgname-riscv64-cross.patch"
+  "$_pkgname-webkit-riscv64.patch"
+  "$pkgname-rootfs-riscv64.tar.zst"
+  "$_pkgname-bootstrap-$pkgver.zip::https://github.com/oven-sh/bun/releases/download/bun-v$pkgver/bun-linux-x64.zip"
+  "$_pkgname-zig-$_zigver-x86_64.zip::https://github.com/oven-sh/zig/releases/download/autobuild-$_zigver/bootstrap-x86_64-linux-musl.zip"
+)
+b2sums=('0a300c8df9a5e40e72acdf23ba0319ebbea3ea1b09e4c367377a13fc6829429081aa35b8428734d988b87ff2590475505c038b694bd97f45d9fd6e5a50f5c8ea'
+        'd1f67be7b083c61087e782be26456374d287231a731ef8f68ae7219667bc72c432b29f38070380b65078f77c76afa348a8b770e3ff3aa6ce2adf627b0ea8b57e'
+        '36a5af756df6aacb5e80dc19d76201f953a5e6fc0bdb700731421f03b0d44147f56d967eac307f9f41f85beb26aa4b23b6e67e87f500f1c400808a3caa43e2f1'
+        '8a0571cc5c597c0656da12ec2a540e6ba401e56101e4eb1701f71c054c43a0f10d7ce9eb265f7db4867ea84a6c7f3382afadd785747d9bd68fbaf4916ed5c331'
+        '45be49e3279398ed8fd4f8ea7b7643d9a7067e4ea73a0fecaf4f21165add25ce569f99d0679d2f0591501ecfa374983d3d0285769e5117a475e83a3fe539a215'
+        'b64777e7bf3fb030235f3a53ad035c835a9c4335e3508ab9d94c93804041e5d3380a0c63803c6dd5612ecbef765a998cf9496ca8d612c9c361cff4cf8c187292'
+        'SKIP'
+        '27d373ddff381e2cba9b8ba6c58ef0bcc6f002e8b814b6ea1252dd587c04381228f6dadfb03ffd9d7910dd935370c5017afd34d9075de12804463b7fe9baa638'
+        'e9cde161c5da43d21ae3f99b3753223a2d26b7ed60a6ad0da0f15d5f3d3637d2304278b7e18a65d6fdea65460fc504ad8d809e35eebe403994ba4706c969087c')
+noextract=("$pkgname-rootfs-riscv64.tar.zst")
+
+prepare() {
+  export RUSTUP_TOOLCHAIN=stable
+
+  mkdir rootfs
+  bsdtar -xf "$pkgname-rootfs-riscv64.tar.zst" -C rootfs
+
+  # Fix UB in JSC typed array int32 conversion that causes wrong values
+  # to be stored for numbers > INT32_MAX (https://github.com/oven-sh/bun/issues/28607)
+  patch -Np1 -d $_pkgname-WebKit < $_pkgname-webkit-typed-array-int32-conversion.patch
+  patch -Np1 -d $_pkgname-WebKit < $_pkgname-webkit-riscv64.patch
+
+  cd $_pkgname
+  patch -Np1 < "$srcdir/$_pkgname-riscv64.patch"
+  patch -Np1 < "$srcdir/$_pkgname-riscv64-cross.patch"
+
+  grep -q "WEBKIT_VERSION = \"$_webkitver\"" scripts/build/deps/webkit.ts \
+    || (echo "WebKit version mismatch"; exit 1)
+  grep -q "ZIG_COMMIT = \"$_zigver\"" scripts/build/zig.ts \
+    || (echo "Zig version mismatch"; exit 1)
+
+  # Place the WebKit checkout where bun's build system expects local WebKit sources
+  # See also https://bun.sh/docs/project/contributing#building-webkit-locally-+-debug-mode-of-jsc
+  mkdir -p vendor
+  cp -r "$srcdir/$_pkgname-WebKit" vendor/WebKit
+
+  # unzip can't strip dirs but we want to get rid of the first contained dir so we have to do a little dance
+  mkdir -p vendor/zig.extract
+  unzip -q "$srcdir/$_pkgname-zig-$_zigver-x86_64.zip" -d vendor/zig.extract
+  mv vendor/zig.extract/* vendor/zig
+  printf '%s\n' "$_zigver" > vendor/zig/.zig-commit
+
+  rustup target add riscv64gc-unknown-linux-gnu
+}
+
+build() {
+  export RUSTUP_TOOLCHAIN=stable
+  export TARGET_ARCH=riscv64
+  export CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER=riscv64-linux-gnu-gcc
+
+  case "$CARCH" in
+    x86_64)
+      _bundir="bun-linux-x64"
+      _arch_args=(--arch=riscv64)
+      ;;
+  esac
+
+  cd $_pkgname
+  BUN_RISCV64_ROOTFS="$srcdir/rootfs" \
+  PATH="/usr/lib/llvm21/bin:$srcdir/$_bundir:$PATH" \
+    bun scripts/build.ts \
+    --profile=release-local \
+    "${_arch_args[@]}" \
+    --target=bun \
+    --build-dir=build/release \
+    --cache-dir="$srcdir/build-cache"
+}
+
+check() {
+  cd $_pkgname
+  qemu-riscv64-static -L "$srcdir/rootfs" ./build/release/bun --version
+  echo 'console.log("ok")' | qemu-riscv64-static -L "$srcdir/rootfs" ./build/release/bun run -
+}
+
+package() {
+  cd $_pkgname
+  install -vDm755 build/release/bun "$pkgdir/usr/bin/bun"
+  ln -vs /usr/bin/bun "$pkgdir/usr/bin/bunx"
+  install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE.md
+
+  install -vDm644 completions/bun.bash "$pkgdir/usr/share/bash-completion/completions/bun"
+  install -vDm644 completions/bun.fish "$pkgdir/usr/share/fish/vendor_completions.d/bun.fish"
+  install -vDm644 completions/bun.zsh "$pkgdir/usr/share/zsh/site-functions/_bun"
+}
