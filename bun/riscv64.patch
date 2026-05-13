@@ -1,0 +1,78 @@
+diff --git PKGBUILD PKGBUILD
+index 0c96862..9b92159 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,6 +29,10 @@
+   ruby-getoptlong # webkit
+   unzip
+ )
++makedepends_riscv64=(
++  bun
++  zig
++)
+ options=('!lto')
+ source=(
+   "git+$url.git#tag=bun-v$pkgver"
+@@ -68,15 +72,35 @@
+   mkdir -p vendor
+   cp -r "$srcdir/$pkgname-WebKit" vendor/WebKit
+ 
++  rm -rf vendor/zig vendor/zig.extract
+   case "$CARCH" in
+     x86_64)  _zigzip="$srcdir/$pkgname-zig-$_zigver-x86_64.zip" ;;
+     aarch64) _zigzip="$srcdir/$pkgname-zig-$_zigver-aarch64.zip" ;;
++    riscv64)
++      patch -Np1 -d vendor/WebKit < "$srcdir/$pkgname-webkit-riscv64.patch"
++      patch -Np1 < "$srcdir/$pkgname-riscv64.patch"
++
++      _zigbin="$(command -v zig)"
++      _ziglib="$(zig env | sed -n \
++        -e 's/^[[:space:]]*"lib_dir": "\(.*\)",\?$/\1/p' \
++        -e 's/^[[:space:]]*\.lib_dir = "\(.*\)",\?$/\1/p')"
++      if [[ -z "$_ziglib" || ! -d "$_ziglib" ]]; then
++        echo "Could not determine Zig lib_dir"
++        exit 1
++      fi
++      mkdir -p vendor/zig
++      ln -s "$_zigbin" vendor/zig/zig
++      ln -s "$_ziglib" vendor/zig/lib
++      printf '%s\n' "system-$(zig version)" > vendor/zig/.zig-commit
++      ;;
+   esac
+-  # unzip can't strip dirs but we want to get rid of the first contained dir so we have to do a little dance
+-  mkdir -p vendor/zig.extract
+-  unzip -q "$_zigzip" -d vendor/zig.extract
+-  mv vendor/zig.extract/* vendor/zig
+-  printf '%s\n' "$_zigver" > vendor/zig/.zig-commit
++  if [[ -n "${_zigzip:-}" ]]; then
++    # unzip can't strip dirs but we want to get rid of the first contained dir so we have to do a little dance
++    mkdir -p vendor/zig.extract
++    unzip -q "$_zigzip" -d vendor/zig.extract
++    mv vendor/zig.extract/* vendor/zig
++    printf '%s\n' "$_zigver" > vendor/zig/.zig-commit
++  fi
+ }
+ 
+ build() {
+@@ -87,7 +111,9 @@
+     aarch64) _bundir="bun-linux-aarch64" ;;
+   esac
+ 
+-  export PATH="$srcdir/$_bundir:$PATH"
++  if [[ -n "${_bundir:-}" ]]; then
++    export PATH="$srcdir/$_bundir:$PATH"
++  fi
+ 
+   cd $pkgname
+   bun scripts/build.ts \
+@@ -112,3 +138,10 @@
+   install -vDm644 completions/bun.fish "$pkgdir/usr/share/fish/vendor_completions.d/bun.fish"
+   install -vDm644 completions/bun.zsh "$pkgdir/usr/share/zsh/site-functions/_bun"
+ }
++
++source_riscv64=(
++  "$pkgname-riscv64.patch"
++  "$pkgname-webkit-riscv64.patch"
++)
++b2sums_riscv64=('d815fa6f73e37b3c2d20183fc3418a313592752b8e381fc7d3217952a5ba7b65c278bcca63173eb083a7a3f04d00ea25ccc67ec75418b7d6d75de4183ca05fb7'
++                'b64777e7bf3fb030235f3a53ad035c835a9c4335e3508ab9d94c93804041e5d3380a0c63803c6dd5612ecbef765a998cf9496ca8d612c9c361cff4cf8c187292')

@@ -1,0 +1,254 @@
+diff --git a/scripts/build/bun.ts b/scripts/build/bun.ts
+index f641f6c81c..6855dd1b57 100644
+--- a/scripts/build/bun.ts
++++ b/scripts/build/bun.ts
+@@ -68,7 +68,16 @@ function systemLibs(cfg: Config): string[] {
+     // Linux local WebKit: link system ICU (prebuilt bundles its own).
+     // Assumes system ICU is in default lib paths — true on most distros.
+     if (cfg.webkit === "local") {
+-      libs.push("-licudata", "-licui18n", "-licuuc");
++      if (cfg.crossIcuRoot !== undefined) {
++        const icuLib = resolve(cfg.crossIcuRoot, "usr/lib");
++        libs.push(
++          resolve(icuLib, "libicudata.so"),
++          resolve(icuLib, "libicui18n.so"),
++          resolve(icuLib, "libicuuc.so"),
++        );
++      } else {
++        libs.push("-licudata", "-licui18n", "-licuuc");
++      }
+     }
+   }
+ 
+diff --git a/scripts/build/config.ts b/scripts/build/config.ts
+index 8ba9135e82..6b3e3f2dda 100644
+--- a/scripts/build/config.ts
++++ b/scripts/build/config.ts
+@@ -182,6 +182,15 @@ export interface Config {
+   /** Windows: llvm-mt for nested cmake (CMAKE_MT). May be absent in some LLVM distros. */
+   mt: string | undefined;
+ 
++  /** Clang target triple for C/C++ cross-compiles. */
++  crossTarget: string | undefined;
++  /** Target sysroot for C/C++ cross-compiles. */
++  crossSysroot: string | undefined;
++  /** GCC toolchain root used by clang for target libgcc/libstdc++ discovery. */
++  crossGccToolchain: string | undefined;
++  /** Target rootfs containing riscv64 ICU. */
++  crossIcuRoot: string | undefined;
++
+   // ─── macOS SDK (darwin only, undefined elsewhere) ───
+   /** e.g. "13.0". Passed to deps as -DCMAKE_OSX_DEPLOYMENT_TARGET. */
+   osxDeploymentTarget: string | undefined;
+@@ -328,6 +337,39 @@ export function detectLinuxAbi(): Abi {
+   return existsSync("/etc/alpine-release") ? "musl" : "gnu";
+ }
+ 
++function resolveRiscv64CrossToolchain(enabled: boolean): {
++  crossTarget: string | undefined;
++  crossSysroot: string | undefined;
++  crossGccToolchain: string | undefined;
++} {
++  if (!enabled) {
++    return { crossTarget: undefined, crossSysroot: undefined, crossGccToolchain: undefined };
++  }
++
++  const crossGcc = "riscv64-linux-gnu-gcc";
++  let crossSysroot: string;
++  let libgccPath: string;
++  try {
++    crossSysroot = execSync(`${crossGcc} -print-sysroot`, { encoding: "utf8" }).trim();
++    libgccPath = execSync(`${crossGcc} -print-libgcc-file-name`, { encoding: "utf8" }).trim();
++  } catch (cause) {
++    throw new BuildError("Failed to query riscv64 cross GCC toolchain", {
++      hint: "Install riscv64-linux-gnu-gcc and riscv64-linux-gnu-glibc",
++      cause,
++    });
++  }
++
++  assert(crossSysroot.length > 0 && existsSync(crossSysroot), `riscv64 sysroot does not exist: ${crossSysroot}`);
++
++  const marker = `${sep}lib${sep}gcc${sep}`;
++  const markerIndex = libgccPath.indexOf(marker);
++  assert(markerIndex > 0, `Could not derive GCC toolchain root from ${libgccPath}`);
++  const crossGccToolchain = libgccPath.slice(0, markerIndex);
++  assert(existsSync(crossGccToolchain), `riscv64 GCC toolchain root does not exist: ${crossGccToolchain}`);
++
++  return { crossTarget: "riscv64-unknown-linux-gnu", crossSysroot, crossGccToolchain };
++}
++
+ /**
+  * Resolve a PartialConfig into a full Config.
+  *
+@@ -355,6 +397,8 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+   const arm64 = arch === "aarch64";
+   const riscv64 = arch === "riscv64";
+ 
++  const { crossTarget, crossSysroot, crossGccToolchain } = resolveRiscv64CrossToolchain(linux && riscv64);
++
+   // Platform file conventions — MSVC style on Windows, Unix everywhere else.
+   const exeSuffix = windows ? ".exe" : "";
+   const objSuffix = windows ? ".obj" : ".o";
+@@ -454,12 +498,22 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+         ? resolve(buildDir, "cache")
+         : resolve(bunInstall, "build-cache");
+   const vendorDir = resolve(cwd, "vendor");
++  const crossIcuRoot = crossTarget !== undefined ? resolve(process.env.BUN_RISCV64_ROOTFS ?? "") : undefined;
+ 
+   // ─── Validation ───
+   assert(!baseline || x64, "baseline=true requires arch=x64 (baseline disables AVX which is x64-only)");
+   assert(!valgrind || linux, "valgrind=true requires os=linux");
+   assert(!(asan && valgrind), "Cannot enable both asan and valgrind simultaneously");
+   assert(os !== "linux" || abi !== undefined, "Linux builds require an abi (gnu or musl)");
++  assert(crossTarget === undefined || process.env.BUN_RISCV64_ROOTFS !== undefined, "BUN_RISCV64_ROOTFS must point to the riscv64 rootfs");
++  assert(
++    crossIcuRoot === undefined || existsSync(resolve(crossIcuRoot, "usr/include/unicode")),
++    `riscv64 ICU headers do not exist under ${crossIcuRoot}`,
++  );
++  assert(
++    crossIcuRoot === undefined || existsSync(resolve(crossIcuRoot, "usr/lib")),
++    `riscv64 ICU libraries do not exist under ${crossIcuRoot}`,
++  );
+ 
+   // ─── Versioning ───
+   const pkgJsonPath = resolve(cwd, "package.json");
+@@ -534,7 +588,7 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+     ar: toolchain.ar,
+     ranlib: toolchain.ranlib,
+     ld: toolchain.ld,
+-    strip: toolchain.strip,
++    strip: crossTarget !== undefined ? "riscv64-linux-gnu-strip" : toolchain.strip,
+     dsymutil: toolchain.dsymutil,
+     zig: toolchain.zig,
+     bun: toolchain.bun,
+@@ -548,6 +602,10 @@ export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Con
+     msvcLinker: toolchain.msvcLinker,
+     rc: toolchain.rc,
+     mt: toolchain.mt,
++    crossTarget,
++    crossSysroot,
++    crossGccToolchain,
++    crossIcuRoot,
+     osxDeploymentTarget,
+     osxSysroot,
+     version,
+diff --git a/scripts/build/deps/lolhtml.ts b/scripts/build/deps/lolhtml.ts
+index 901f12f461..19e4c4b527 100644
+--- a/scripts/build/deps/lolhtml.ts
++++ b/scripts/build/deps/lolhtml.ts
+@@ -44,6 +44,9 @@ export const lolhtml: Dependency = {
+     if (cfg.windows && cfg.arm64) {
+       spec.rustTarget = "aarch64-pc-windows-msvc";
+     }
++    if (cfg.linux && cfg.riscv64) {
++      spec.rustTarget = "riscv64gc-unknown-linux-gnu";
++    }
+ 
+     return spec;
+   },
+diff --git a/scripts/build/deps/webkit.ts b/scripts/build/deps/webkit.ts
+index 160fa78bfd..b0c55eba8f 100644
+--- a/scripts/build/deps/webkit.ts
++++ b/scripts/build/deps/webkit.ts
+@@ -42,7 +42,7 @@ export const WEBKIT_VERSION = "4d5e75ebd84a14edbc7ae264245dcd77fe597c10";
+ import { homedir } from "node:os";
+ import { join, resolve } from "node:path";
+ import type { Config } from "../config.ts";
+-import { computeCpuTargetFlags } from "../flags.ts";
++import { computeCrossCompileFlags, computeCpuTargetFlags } from "../flags.ts";
+ import { slash } from "../shell.ts";
+ import { type Dependency, type NestedCmakeBuild, type Source, depBuildDir, depSourceDir } from "../source.ts";
+ 
+@@ -220,7 +220,7 @@ export const webkit: Dependency = {
+     // WebKit's cmake finds it via ICU_ROOT. On posix, system ICU is used
+     // (macOS: Homebrew headers + system libs; Linux: libicu-dev) — cmake
+     // auto-detects.
+-    const optFlags: string[] = computeCpuTargetFlags(cfg);
++    const optFlags: string[] = [...computeCrossCompileFlags(cfg), ...computeCpuTargetFlags(cfg)];
+     if (cfg.lto) optFlags.push("-flto=full");
+     if (cfg.pgoGenerate) optFlags.push(`-fprofile-generate=${cfg.pgoGenerate}`);
+     if (cfg.pgoUse) {
+@@ -262,6 +262,12 @@ export const webkit: Dependency = {
+         ENABLE_WEBASSEMBLY_BBQJIT: "OFF",
+         ENABLE_WEBASSEMBLY_OMGJIT: "OFF",
+       });
++      if (cfg.crossIcuRoot !== undefined) {
++        const icu = resolve(cfg.crossIcuRoot, "usr");
++        args.ICU_ROOT = slash(icu);
++        args.ICU_LIBRARY = slash(resolve(icu, "lib"));
++        args.ICU_INCLUDE_DIR = slash(resolve(icu, "include"));
++      }
+     }
+ 
+     const spec: NestedCmakeBuild = {
+@@ -357,6 +363,7 @@ export const webkit: Dependency = {
+     ];
+     // Windows: ICU headers from preBuild output.
+     if (cfg.windows) includes.push(resolve(icuDir(cfg), "include"));
++    if (cfg.crossIcuRoot !== undefined) includes.push(resolve(cfg.crossIcuRoot, "usr/include"));
+ 
+     return { libs, includes };
+   },
+diff --git a/scripts/build/flags.ts b/scripts/build/flags.ts
+index 525a545b52..6aadb97686 100644
+--- a/scripts/build/flags.ts
++++ b/scripts/build/flags.ts
+@@ -75,6 +75,11 @@ export const cpuTargetFlags: Flag[] = [
+ // ═══════════════════════════════════════════════════════════════════════════
+ 
+ export const globalFlags: Flag[] = [
++  {
++    flag: c => computeCrossCompileFlags(c),
++    when: c => c.crossTarget !== undefined,
++    desc: "C/C++ cross target and toolchain",
++  },
+   // ─── CPU target ───
+   ...cpuTargetFlags,
+   {
+@@ -598,6 +603,11 @@ export const defines: Flag[] = [
+ // ═══════════════════════════════════════════════════════════════════════════
+ 
+ export const linkerFlags: Flag[] = [
++  {
++    flag: c => computeCrossCompileFlags(c),
++    when: c => c.crossTarget !== undefined,
++    desc: "Link for the cross target and toolchain",
++  },
+   // ─── Sanitizers ───
+   {
+     flag: "-fsanitize=address",
+@@ -1051,6 +1061,14 @@ export function computeCpuTargetFlags(cfg: Config): string[] {
+   return out;
+ }
+ 
++export function computeCrossCompileFlags(cfg: Config): string[] {
++  if (cfg.crossTarget === undefined) return [];
++  const out = [`--target=${cfg.crossTarget}`];
++  if (cfg.crossSysroot !== undefined) out.push(`--sysroot=${cfg.crossSysroot}`);
++  if (cfg.crossGccToolchain !== undefined) out.push(`--gcc-toolchain=${cfg.crossGccToolchain}`);
++  return out;
++}
++
+ /**
+  * Per-file extra flags lookup. Call after computeFlags() when compiling a
+  * specific source. Returns extra flags to append (may be empty).
+diff --git a/scripts/build/source.ts b/scripts/build/source.ts
+index 4cdc14c587..738fb4132e 100644
+--- a/scripts/build/source.ts
++++ b/scripts/build/source.ts
+@@ -1030,6 +1030,15 @@ function emitNestedCmake(
+     args.push(`-DCMAKE_EXE_LINKER_FLAGS=${linkerFlags.join(" ")}`);
+     args.push(`-DCMAKE_SHARED_LINKER_FLAGS=${linkerFlags.join(" ")}`);
+   }
++  if (cfg.crossTarget !== undefined) {
++    args.push(`-DCMAKE_SYSTEM_NAME=Linux`);
++    args.push(`-DCMAKE_SYSTEM_PROCESSOR=${cfg.arch}`);
++    args.push(`-DCMAKE_C_COMPILER_TARGET=${cfg.crossTarget}`);
++    args.push(`-DCMAKE_CXX_COMPILER_TARGET=${cfg.crossTarget}`);
++    if (cfg.crossSysroot !== undefined) {
++      args.push(`-DCMAKE_SYSROOT=${slash(cfg.crossSysroot)}`);
++    }
++  }
+   if (cfg.windows) {
+     // Windows-specific toolchain forwarding. When CMAKE_C_COMPILER is
+     // an explicit path, cmake's find_program for the supporting tools
