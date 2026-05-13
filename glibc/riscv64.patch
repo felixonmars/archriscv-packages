@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -44,21 +44,21 @@
+@@ -58,10 +58,11 @@ pkgver() {
  }
  
  prepare() {
@@ -10,9 +10,10 @@
    [[ -d glibc-$pkgver ]] && ln -s glibc-$pkgver glibc
    cd glibc
 +  patch -Np1 -i ../mremap-fix-test.patch
- }
- 
- build() {
+   # Fix build with linux 7.0+
+   patch -Np1 < ../0001-include-isolate-__O_CLOEXEC-flag-for-sys-mount.h-and.patch
+   patch -Np1 < ../0002-Linux-Only-define-OPEN_TREE_-macros-in-sys-mount.h-i.patch
+@@ -76,7 +77,7 @@ build() {
    local _configure_flags=(
        --prefix=/usr
        --with-headers=/usr/include
@@ -21,11 +22,7 @@
        --enable-bind-now
        --enable-fortify-source
        --enable-kernel=4.4
--      --enable-multi-arch
-       --enable-stack-protector=strong
-       --enable-systemtap
-       --disable-nscd
-@@ -70,9 +70,13 @@
+@@ -92,9 +93,13 @@ build() {
    # actual builds (support is built-in via --enable-fortify-source).
    CFLAGS=${CFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}
  
@@ -41,7 +38,15 @@
       _configure_flags+=(--enable-memory-tagging)
    fi
  
-@@ -154,7 +158,7 @@
+@@ -110,7 +115,6 @@ build() {
+         --libdir=/usr/lib \
+         --libexecdir=/usr/lib \
+         --enable-cet \
+-        --enable-sframe \
+         "${_configure_flags[@]}"
+ 
+     make -O
+@@ -177,7 +181,7 @@ check() (
    _skip_test tst-shstk-legacy-1g     sysdeps/x86_64/Makefile
    _skip_test tst-adjtime             time/Makefile
  
@@ -50,7 +55,7 @@
  )
  
  package_glibc() {
-@@ -239,3 +243,6 @@
+@@ -262,3 +266,6 @@ package_glibc-locales() {
    # deduplicate locale data
    hardlink -c "${pkgdir}"/usr/lib/locale
  }
