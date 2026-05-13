@@ -48,7 +48,7 @@ for _dir in $(git diff --merge-base --name-only upstream/master | cut -d / -f 1 
 
   sudo -u nobody patch -p0 -i ./riscv64.patch || exit 1
 
-  sudo -u nobody makepkg --verifysource --skippgpcheck || exit 1
+  sudo -u nobody env CARCH=riscv64 makepkg --verifysource --skippgpcheck --ignorearch || exit 1
 
   popd
 done
