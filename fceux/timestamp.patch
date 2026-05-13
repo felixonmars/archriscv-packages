@@ -1,16 +1,25 @@
 diff --git src/utils/timeStamp.cpp src/utils/timeStamp.cpp
-index 524b57a3..48b5d68f 100644
+index f62d019f..dfc70dba 100644
 --- src/utils/timeStamp.cpp
 +++ src/utils/timeStamp.cpp
-@@ -40,6 +40,11 @@ static uint64_t rdtsc()
-     asm volatile("mrs %0, cntvct_el0" : "=r" (val));
+@@ -17,13 +17,19 @@
+ #if defined(WIN32)
+ #include <intrin.h>
+ #pragma intrinsic(__rdtsc)
+-#else
++#elif defined(__x86_64__)
+ #include <x86intrin.h>
+ #endif
  
-     return val;
-+#elif defined(__riscv) && __riscv_xlen == 64
+ static uint64_t rdtsc()
+ {
++#if (defined(__riscv) && __riscv_xlen == 64)
 +	uint64_t current_time;
 +	asm volatile ("rdtime %0" : "=r"(current_time));
 +	return current_time;
-+
- #else
++#else
  	return __rdtsc();
- #endif
++#endif
+ }
+ 
+ namespace FCEU
