@@ -1,0 +1,24 @@
+Backport the relevant part of upstream e7d74e49b0dd91e679aa9063311a4513339cedd0
+("declare linker test bankruptcy").
+
+The old linker test harness runs cross-target ELF executables under any
+available binfmt/qemu handler. In a riscv64 build chroot hosted by x86_64
+qemu-user-static-binfmt, this makes `zig build test -Dskip-non-native=true`
+try to execute aarch64-linux-gnu test binaries via qemu-aarch64-static, which
+then fails because the chroot does not contain the aarch64 dynamic loader.
+
+Upstream master removed this test entry entirely, so only backport that small
+piece instead of carrying the full 11k-line test deletion.
+
+diff --git a/build.zig b/build.zig
+index 908887d3b5..9181573594 100644
+--- a/build.zig
++++ b/build.zig
+@@ -618,7 +618,6 @@ pub fn build(b: *std.Build) !void {
+         .skip_release = skip_release,
+         .max_rss = 3_300_000_000,
+     }));
+-    test_step.dependOn(tests.addLinkTests(b, enable_macos_sdk, enable_ios_sdk, enable_symlinks_windows));
+     test_step.dependOn(tests.addStackTraceTests(b, test_filters, skip_non_native));
+     test_step.dependOn(tests.addErrorTraceTests(b, test_filters, optimization_modes, skip_non_native));
+     test_step.dependOn(tests.addCliTests(b));
