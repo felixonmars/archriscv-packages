@@ -1,12 +1,30 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 1142351)
-+++ PKGBUILD	(working copy)
-@@ -10,7 +10,6 @@
- license=('MIT')
- depends=('clang' 'llvm-libs' 'lld')
- makedepends=('cmake' 'llvm')
+diff --git PKGBUILD PKGBUILD
+index 177151f..da8d4ca 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,19 +11,22 @@
+ options=('!lto')
+ depends=('clang21' 'lld21' 'llvm21-libs')
+ makedepends=('cmake' 'llvm21')
 -checkdepends=('lib32-glibc')
  source=("https://ziglang.org/download/$pkgver/zig-$pkgver.tar.xz"
-         "resolve_DNS.patch")
- sha256sums=('cd1be83b12f8269cc5965e59877b49fdd8fa638efb6995ac61eb4cea36a2e381'
+         "https://codeberg.org/ziglang/zig/commit/9df02121d0d87c17173f79d55692bed9cb65722c.patch"
+-        "skip-futex2-test.patch")
++        "skip-futex2-test.patch"
++        "skip-link-tests.patch")
+ sha256sums=('43186959edc87d5c7a1be7b7d2a25efffd22ce5807c7af99067f86f99641bfdf'
+             'cc513105cd250a107fcdefa6fed1147040f3cac4d377d545617840bd830da8d3'
+-            'eb30e0eb00e6ced4c99383f0658a0351f42882e303300ed1828d162d27171cd0')
++            'eb30e0eb00e6ced4c99383f0658a0351f42882e303300ed1828d162d27171cd0'
++            '0debe8de8b92f4ffa589983e577017dc1401b9046de84847389376a933e1fa1f')
+ 
+ prepare() {
+     cd "$pkgname-$pkgver"
+ 
+     patch -p1 -i ../9df02121d0d87c17173f79d55692bed9cb65722c.patch
+     patch -p1 -i ../skip-futex2-test.patch
++    # Backport https://codeberg.org/ziglang/zig/commit/e7d74e49b0
++    patch -p1 -i ../skip-link-tests.patch
+ }
+ 
+ build() {
