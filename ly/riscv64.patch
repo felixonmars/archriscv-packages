@@ -1,0 +1,25 @@
+diff --git PKGBUILD PKGBUILD
+index ef5d751..7b9c902 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,7 +41,12 @@
+ prepare() {
+     cd "$pkgname"
+     for dep in "${_zig_deps[@]}"; do
+-        zig fetch --global-cache-dir ../zig-global-cache "../${dep%%::*}"
++        dep_hash=$(zig fetch --global-cache-dir ../zig-global-cache "../${dep%%::*}")
++        case $dep_hash in
++            aro-*)
++                patch -Np1 -d "zig-pkg/$dep_hash" -i "$srcdir/$pkgname-aro-riscv-float-abi-macros.patch"
++                ;;
++        esac
+     done
+ }
+ 
+@@ -76,3 +81,6 @@
+ 
+     install -Dm644 license.md "$pkgdir/usr/share/licenses/$pkgname/WTFPL"
+ }
++
++source+=("$pkgname-aro-riscv-float-abi-macros.patch::https://github.com/Vexu/arocc/commit/76ef75d9b9dbedd12275cc08dc69994653c44eb5.patch?full_index=1")
++b2sums+=('2e2b288016acbc2afebd9a92b0b4cadba7c3aee0cf8019ff1907a9f2ddf14f35f2583e3fbc2f8d92bf2c8340022ddeedf078b5a1f78838ae6d77a1b31dd13bd4')
