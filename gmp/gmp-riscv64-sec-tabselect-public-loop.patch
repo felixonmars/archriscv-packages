@@ -1,0 +1,109 @@
+From: Felix Yan <felixonmars@archlinux.org>
+Subject: [PATCH] mpn/riscv64: keep sec_tabselect loop control public
+
+
+The current RISC-V mpn_sec_tabselect implementation derives the inner
+loop terminator from the selected table index:
+
+  k = which - nents
+
+The resulting branches still execute a fixed number of iterations, but
+their operands are derived from which.  Code which uses Valgrind
+undefinedness to check for secret-dependent control flow, such as
+Nettle's side-channel tests, therefore reports the branches as depending
+on secret data.
+
+Preserve nents by allocating k to a different register, and use it as the inner
+loop counter.  i is still used to form the selection mask, but not to control
+loop termination.  The function continues to scan every table entry and perform
+the same masked selection, while making the control flow independent of the
+selected entry.
+
+Improved-by: @dramforever
+
+---
+--- a/mpn/riscv/64/sec_tabselect.asm
++++ b/mpn/riscv/64/sec_tabselect.asm
+@@ -40,7 +40,7 @@ define(`which',	`a4')
+ define(`i',	`a6')
+ define(`j',	`a7')
+ define(`mask',	`s0')
+-define(`k',	`nents')
++define(`k',	`s1')
+ define(`one',	`s3')
+ 
+ ASM_START()
+@@ -55,7 +55,6 @@ PROLOGUE(mpn_sec_tabselect)
+ 	slli	n, n, 3
+ 	li	one, 1
+ 
+-	sub	k, which, nents
+ 	blt	j, zero, L(outer_end)
+ L(outer_top):
+ 	mv	s2, tp
+@@ -65,12 +64,15 @@ L(outer_top):
+ 	li	t3, 0
+ 	addi	j, j, -4
+ 	mv	i, which
++C Keep loop termination independent of which, since which is secret.
++	mv	k, nents
+ 
+ 	ALIGN(16)
+ L(top):	ld	t4, 0(tp)
+ 	ld	t5, 8(tp)
+ 	sltu	mask, i, one
+ 	addi	i, i, -1
++	addi	k, k, -1
+ 	neg	mask, mask
+ 	ld	t6, 16(tp)
+ 	ld	a5, 24(tp)
+@@ -83,7 +85,7 @@ L(top):	ld	t4, 0(tp)
+ 	or	t2, t6, t2
+ 	or	t3, a5, t3
+ 	add	tp, tp, n
+-	bne	i, k, L(top)
++	bne	k, zero, L(top)
+ 
+ 	sd	t0, 0(rp)
+ 	sd	t1, 8(rp)
+@@ -99,18 +101,20 @@ L(b1x):	mv	s2, tp
+ 	li	t0, 0
+ 	li	t1, 0
+ 	mv	i, which
++	mv	k, nents
+ 	ALIGN(16)
+ L(tp2):	ld	t4, 0(tp)
+ 	ld	t5, 8(tp)
+ 	sltu	mask, i, one
+ 	neg	mask, mask
+ 	addi	i, i, -1
++	addi	k, k, -1
+ 	and	t4, mask, t4
+ 	and	t5, mask, t5
+ 	or	t0, t4, t0
+ 	or	t1, t5, t1
+ 	add	tp, tp, n
+-	bne	i, k, L(tp2)
++	bne	k, zero, L(tp2)
+ 	sd	t0, 0(rp)
+ 	sd	t1, 8(rp)
+ 	addi	tp, s2, 16
+@@ -120,15 +124,17 @@ L(b0x):	andi	t0, n, 1*8
+ 	beq	t0, zero, L(b00)
+ L(b01):	li	t0, 0
+ 	mv	i, which
++	mv	k, nents
+ 	ALIGN(16)
+ L(tp1):	ld	t4, 0(tp)
+ 	sltu	mask, i, one
+ 	neg	mask, mask
+ 	addi	i, i, -1
++	addi	k, k, -1
+ 	and	t4, mask, t4
+ 	or	t0, t4, t0
+ 	add	tp, tp, n
+-	bne	i, k, L(tp1)
++	bne	k, zero, L(tp1)
+ 	sd	t0, 0(rp)
+ 
+ L(b00):	ld	s0,24(sp)
