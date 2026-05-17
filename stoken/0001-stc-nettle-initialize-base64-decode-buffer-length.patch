@@ -1,0 +1,30 @@
+From b4078fc16f3ed3b4d2690be91867bb5aec893a0a Mon Sep 17 00:00:00 2001
+From: Felix Yan <felixonmars@archlinux.org>
+Date: Sun, 17 May 2026 18:16:03 +0800
+Subject: [PATCH] stc-nettle: initialize base64 decode buffer length
+
+nettle's base64_decode_update() treats *dst_length as the size of the output buffer on input and updates it with the number of bytes written on success.
+
+stoken passed an uninitialized local variable for that argument, which makes SDTID import depend on stack contents. In practice this can make valid SDTID test fixtures fail to decode their Seed field with 'missing required xml node Seed'.
+
+Initialize dst_length to the size of the temporary decode buffer before calling into nettle.
+---
+ src/stc-nettle.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/stc-nettle.c b/src/stc-nettle.c
+index ab7876d..4bb7ee6 100644
+--- a/src/stc-nettle.c
++++ b/src/stc-nettle.c
+@@ -137,7 +137,7 @@ int stc_b64_decode(const uint8_t *in,  unsigned long len,
+ 	struct base64_decode_ctx ctx;
+ 	char tmp[BASE64_DECODE_LENGTH(len)];
+ 	int ret;
+-	size_t dst_length;
++	size_t dst_length = sizeof(tmp);
+ 
+ 	base64_decode_init(&ctx);
+ 	ret = base64_decode_update(&ctx, &dst_length, tmp, len, in);
+-- 
+2.54.0
+
