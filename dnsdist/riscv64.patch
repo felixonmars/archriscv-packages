@@ -1,0 +1,38 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -7,9 +7,11 @@
+ url='https://dnsdist.org/'
+ license=('GPL-2.0-only')
+ source=(https://downloads.powerdns.com/releases/${pkgname}-${pkgver}.tar.xz{,.asc}
++        https://github.com/PowerDNS/pdns/commit/53cb738795278a0f3f7b792bc6adf8f36268b944.patch
+         sysusers.conf)
+ sha512sums=('82eb29c378ac05e1a029a8bd04ca4144a9636ac777020c97090ce0bea3ad215cd7a6fde9218ec4bcb8a4d773730f34ba9f476484f42e7fea34e84717a43f9286'
+             'SKIP'
++            '20f7647c72cb7aebff6ca2e66f22056a1667f7b9537b26e1a8ad6a94d710cd876e5c356ab0dc2daa4d73837cb36faeefda1e5e4e13f5ba543063df801d24732a'
+             'd55ccd612cbe08b353815027d30a3b0f0ec7bf6b0d74a0a634939be53ce6e6b41d23e54c2328946f00738c03e9f306ce4f2dabe5e4b11d9fb28d0abf49917893')
+ validpgpkeys=('D6300CABCBF469BBE392E503A208ED4F8AF58446')  # Remi Gacogne <remi.gacogne@powerdns.com>
+ makedepends=('boost' 'boost-libs' 'cargo' 'clang' 'meson' 'lld' 'python-yaml' 'systemd') # remove 'boost-libs' once https://github.com/mesonbuild/meson/issues/15470 has been fixed
+@@ -17,11 +19,23 @@
+ # We are actually enabling LTO via meson, but the -flto=auto option set up by makepkg conflicts with our -flto=thin
+ options=(!lto)
+ 
++prepare() {
++  cd "${pkgname}-${pkgver}"
++
++  # Backport upstream Boost 1.91 compatibility fix.
++  patch -Np3 -i "${srcdir}/53cb738795278a0f3f7b792bc6adf8f36268b944.patch"
++}
++
+ build() {
+   # Note that adding RUSTFLAGS="-Z cf-protection=full" does not help with the
+   # "ELF file ('usr/bin/dnsdist') lacks GNU_PROPERTY_X86_FEATURE_1_SHSTK" warning
+   # because Rust's standard library does not ship with CET enabled by default:
+   # https://doc.rust-lang.org/beta/unstable-book/compiler-flags/cf-protection.html
++  # clang treats -fno-plt as unused on riscv64, and dnsdist's Meson
++  # probes promote unused command-line arguments to errors.
++  CFLAGS=${CFLAGS/-fno-plt/}
++  CXXFLAGS=${CXXFLAGS/-fno-plt/}
++
+   CC=clang \
+   CXX=clang++ \
+   CXX_LD=lld \
