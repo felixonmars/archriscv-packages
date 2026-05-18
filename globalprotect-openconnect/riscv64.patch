@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -45,15 +45,19 @@
+ 	"git+https://gitlab.com/openconnect/openconnect.git"
+ 	"git+https://gitlab.gnome.org/GNOME/libxml2.git"
+   "$pkgname-hipreport-install-location.patch"
++  "https://github.com/yuezk/GlobalProtect-openconnect/commit/48d96dbb9d19c5444a825a71ef292781a9a87af1.patch"
+ )
+ b2sums=('f9ebb58dbb978a8df56a4ea73afd9b304630485d030826ed2214a0899bf6448197f2cfc41b702dd873a59fdaaadfd5b89e2f69907c8a7c2962d405abf7bd207d'
+         'SKIP'
+         'SKIP'
+-        '06a9c5d3d854912720a9f38ba80ee96e7743213d9f62e1152f9445f6a13fc9089367f2dc0b258af60608665e1414776759c0652d889b0362283e9747a243f568')
++        '06a9c5d3d854912720a9f38ba80ee96e7743213d9f62e1152f9445f6a13fc9089367f2dc0b258af60608665e1414776759c0652d889b0362283e9747a243f568'
++        '4b198c3a7992e46bd7276fbce43b359ac176f104057d3e2c32b191537c13d46bb0031da9386cf9aeab6de99c785166a098f59eeb7e3ace11a6fdb240cfecd492')
+ 
+ prepare() {
+   cd $pkgname
+   patch -Np1 < ../$pkgname-hipreport-install-location.patch
++  # The GUI updater only publishes x86_64/aarch64 assets; avoid leaving arch undefined on other targets.
++  patch -Np1 < ../48d96dbb9d19c5444a825a71ef292781a9a87af1.patch
+ 
+   git submodule init
+   git config submodule.crates/openconnect/deps/openconnect.url ../openconnect
