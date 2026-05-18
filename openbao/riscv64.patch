@@ -1,0 +1,41 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,6 +8,7 @@
+ arch=("x86_64")
+ url="https://openbao.org"
+ license=('MPL-2.0')
++depends=(glibc)
+ optdepends=(
+   openbao-plugin-auth-aws
+   openbao-plugin-auth-azure
+@@ -41,6 +42,7 @@
+   sed -i 's|/etc/openbao/openbao.env|/etc/default/openbao|g' .release/linux/package/usr/lib/systemd/system/openbao.service
+ 
+   pushd ui
++  node .yarn/releases/yarn-3.5.0.cjs set version 4.9.2
+   yarn install
+   popd
+ 
+@@ -56,7 +58,12 @@
+   yarn run build
+   popd
+ 
+-  export CGO_ENABLED=0
++  # Go requires external linking for PIE on linux/riscv64.
++  export CGO_ENABLED=1
++  export CGO_CPPFLAGS="${CPPFLAGS}"
++  export CGO_CFLAGS="${CFLAGS}"
++  export CGO_CXXFLAGS="${CXXFLAGS}"
++  export CGO_LDFLAGS="${LDFLAGS}"
+   export GOPATH="${srcdir}"
+ 
+   # https://openbao.org/docs/contributing/packaging/
+@@ -71,7 +78,7 @@
+     -buildmode=pie \
+     -mod=readonly \
+     -modcacherw \
+-    -ldflags "-X github.com/openbao/openbao/version.fullVersion=${pkgver} -X github.com/openbao/openbao/version.GitCommit=${_commit} -X github.com/openbao/openbao/version.BuildDate=${_build_date}" \
++    -ldflags "-linkmode=external -X github.com/openbao/openbao/version.fullVersion=${pkgver} -X github.com/openbao/openbao/version.GitCommit=${_commit} -X github.com/openbao/openbao/version.BuildDate=${_build_date}" \
+     -tags 'openbao ui' \
+     -o dist/bao \
+     .
