@@ -1,0 +1,27 @@
+--- a/build_support/platform/linux.rs
++++ b/build_support/platform/linux.rs
+@@ -55,6 +55,7 @@
+         add_pkg_config_libs(&mut libs, "libpng", &["png16"]);
+         add_pkg_config_libs(&mut libs, "zlib", &["z"]);
+         add_pkg_config_libs(&mut libs, "harfbuzz", &["harfbuzz"]);
++        add_pkg_config_libs(&mut libs, "harfbuzz-subset", &["harfbuzz-subset", "harfbuzz"]);
+         add_pkg_config_libs(&mut libs, "expat", &["expat"]);
+ 
+         // ICU libraries - try pkg-config first, fallback to manual linking
+--- a/build_support/skia/config.rs
++++ b/build_support/skia/config.rs
+@@ -286,6 +286,14 @@
+         println!("Synchronizing Skia dependencies");
+         #[cfg(feature = "binary-cache")]
+         crate::build_support::binary_cache::resolve_dependencies();
++        if gn_command.is_some() {
++            let fetch_gn = build.skia_source_dir.join("bin").join("fetch-gn");
++            let fetch_gn_wrapper = "import sys\nsys.exit(0)\n";
++            if !fetch_gn.exists() {
++                std::fs::create_dir_all(fetch_gn.parent().unwrap()).unwrap();
++            }
++            std::fs::write(&fetch_gn, fetch_gn_wrapper).unwrap();
++        }
+         assert!(
+             Command::new(python)
+                 // Explicitly providing `GIT_SYNC_DEPS_PATH` fixes a problem with `git-sync-deps`

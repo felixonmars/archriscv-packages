@@ -1,11 +1,34 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -40,6 +40,8 @@ sha256sums=('21c8eaa53cf3290d2b1405c8cb2cde5f39bc14ef597b328e76f1789b0ef3539a')
+@@ -19,7 +19,7 @@
+          neovim
+          sndio
+          libpng libpng16.so
+-         harfbuzz libharfbuzz.so
++         harfbuzz libharfbuzz.so libharfbuzz-subset.so
+          icu libicuuc.so
+          expat libexpat.so
+          zlib libz.so)
+@@ -34,12 +34,20 @@
+             'libxkbcommon-x11: run on X11 (not needed for wayland)')
+ options=(!lto)
+ _archive=("$pkgname-$pkgver")
+-source=("$url/archive/$pkgver/$_archive.tar.gz")
+-sha256sums=('a2016cceab3cba50b6a8b2f6787ae9017a85923575e89a83ebb9d428e8f80ca9')
++source=("$url/archive/$pkgver/$_archive.tar.gz"
++        "skia-bindings-0.93.1.tar.gz::https://crates.io/api/v1/crates/skia-bindings/0.93.1/download"
++        "skia-bindings-riscv.patch")
++sha256sums=('a2016cceab3cba50b6a8b2f6787ae9017a85923575e89a83ebb9d428e8f80ca9'
++            '2359f7e30c9da3f322f8ca3d4ec0abbc12a40035ce758309db0cdab07b5d4476'
++            'd7811d4194fd1c8bd04a9dd7ea1fbc4099c59b9fbf70ae5f5ce8d2fce587a17a')
+ 
  prepare() {
++	patch -Np1 -d skia-bindings-0.93.1 -i "$srcdir/skia-bindings-riscv.patch"
++
  	cd "$_archive"
  	sed -r -i -e '/^incremental/a opt-level = 3' Cargo.toml
-+	echo -e "\n[patch.crates-io]\nskia-bindings = { git = 'https://github.com/hack3ric/rust-skia', branch = 'archrv-0.75.0' }" >> Cargo.toml
++	echo -e "\n[patch.crates-io]\nskia-bindings = { path = '../skia-bindings-0.93.1' }" >> Cargo.toml
 +	cargo update -p skia-bindings
- 	cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+ 	cargo fetch --locked --target "$(rustc --print host-tuple)"
  }
  
