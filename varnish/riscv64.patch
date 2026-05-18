@@ -1,0 +1,40 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,9 +19,26 @@
+ backup=('etc/varnish/default.vcl')
+ install=$pkgname.install
+ source=("https://varnish-cache.org/_downloads/varnish-$pkgver.tgz"
+-        "git+https://github.com/varnishcache/pkg-varnish-cache.git#commit=$_pkg_varnish_cache_commit")
++        "git+https://github.com/varnishcache/pkg-varnish-cache.git#commit=$_pkg_varnish_cache_commit"
++        "https://github.com/varnishcache/varnish-cache/commit/7ee64e2a51be0805b2a2ea4ff8a025fb6db5f149.patch"
++        "https://github.com/vtest/VTest2/commit/cffabbb558599869fae2425bab76645d67e845cc.patch")
+ sha512sums=('c381928e23deaacb863dcf389a494f30a56d22a4e88fe0c5dc7d4a93828f3dc0595c7ae41837f3549795828aca1a30e08f4456d4a752a6d12c19b61943dd99e9'
+-            '9265b46a3ccff071acffdbfd26d1f4f1022137017ac3d17e36b1d3c5294a97ac603d60635d5bbc4c23c5e4148f12e582fed897d8bea16bcc4a09df5834c0aaf0')
++            '9265b46a3ccff071acffdbfd26d1f4f1022137017ac3d17e36b1d3c5294a97ac603d60635d5bbc4c23c5e4148f12e582fed897d8bea16bcc4a09df5834c0aaf0'
++            'f42fa71e078c3732f7e00dc440b87178952e93c5114d9cff6983825e7bb369ecfbe0d91be8ca19960b3c5599689b9926f1c070bf787deb3c1c0b7246a0521da8'
++            '9254f094d368e89eeda62a2049bf9005588d13dbaca65cea307467b29a3f993be6a5df7aebfcd163d6071bcd707bba9ae71b32d5929f7119023ebad107703588')
++
++prepare() {
++  cd "varnish-$pkgver"
++
++  # Fix const-generic strchr() discarded-qualifiers warning in varnishncsa.
++  patch -Np1 -i "$srcdir/7ee64e2a51be0805b2a2ea4ff8a025fb6db5f149.patch"
++
++  # Fix const-generic bsearch() discarded-qualifiers warning in embedded VTest2.
++  patch -Np1 -d bin/varnishtest/vtest2 -i "$srcdir/cffabbb558599869fae2425bab76645d67e845cc.patch"
++
++  # VCL compilation can exceed varnishadm's default 5s CLI timeout on riscv64.
++  sed -i 's|varnishadm -n ${tmpdir}/v1 vcl.load|varnishadm -n ${tmpdir}/v1 -t 60 vcl.load|' bin/varnishtest/tests/u00000.vtc
++}
+ 
+ build() {
+   cd "varnish-$pkgver"
+@@ -39,7 +56,7 @@
+   cd "varnish-$pkgver"
+ 
+   rm bin/varnishtest/tests/m00000.vtc
+-  make check
++  VARNISHTEST_DURATION=180 make check
+ }
+ 
+ package() {
