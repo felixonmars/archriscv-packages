@@ -1,0 +1,21 @@
+--- a/build.rs
++++ b/build.rs
+@@ -41,6 +41,7 @@
+     "RUSTY_V8_ARCHIVE",
+     "RUSTY_V8_MIRROR",
+     "RUSTY_V8_SRC_BINDING_PATH",
++    "RUSTY_V8_SKIP_RUST_TOOLCHAIN_DOWNLOAD",
+     "SCCACHE",
+     "V8_FORCE_DEBUG",
+     "V8_FROM_SOURCE",
+@@ -253,7 +254,9 @@
+     download_ninja_gn_binaries();
+   }
+ 
+-  download_rust_toolchain();
++  if env::var_os("RUSTY_V8_SKIP_RUST_TOOLCHAIN_DOWNLOAD").is_none() {
++    download_rust_toolchain();
++  }
+ 
+   // `#[cfg(...)]` attributes don't work as expected from build.rs -- they refer to the configuration
+   // of the host system which the build.rs script will be running on. In short, `cfg!(target_<os/arch>)`
