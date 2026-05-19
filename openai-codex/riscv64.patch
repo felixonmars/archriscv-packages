@@ -1,0 +1,74 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,7 +20,16 @@
+   xz
+   zlib
+ )
+-makedepends=(cargo)
++makedepends=(
++  cargo
++  clang
++  gn
++  libffi
++  lld
++  ninja
++  python
++  rust-bindgen
++)
+ optdepends=(
+   'git: allow for repository actions'
+   'nodejs: enable the js_repl experimental tool'
+@@ -31,7 +40,13 @@
+ b2sums=('61a4a87ad506b5cdb2707e2951c1867b79780c2a14cbcf5bc88cad6ec8839191086c1c27fbffac07689b057e1b704c7d61282dd21fde2f2a30df1e9bffd4cb5c')
+ 
+ prepare() {
++  patch -Np1 -d v8-146.4.0 -i "$srcdir/v8-skip-rust-toolchain-download.patch"
++  patch -Np1 -d v8-146.4.0 -i "$srcdir/v8-compiler-rt-adjust-paths.patch"
++  printf '%s\n' x86_64-unknown-linux-gnu riscv64gc-unknown-linux-gnu > v8-146.4.0/build/rust/known-target-triples.txt
++
+   cd codex-rust-v$pkgver/codex-rs
++  sed -i '/^\[patch\.crates-io\]$/a v8 = { path = "../../v8-146.4.0" }' Cargo.toml
++  cargo update -p v8
+ 
+   cargo fetch --target "$(rustc --print host-tuple)"
+ }
+@@ -40,6 +55,28 @@
+   cd codex-rust-v$pkgver/codex-rs
+   # Reduces build time by about 10 minutes
+   export CARGO_PROFILE_RELEASE_LTO=thin
++
++  local _clang_version=$(clang -dumpversion | cut -d . -f 1)
++  local _rustc_version=$(rustc --version)
++  local _extra_gn_args=(
++    'custom_toolchain="//build/toolchain/linux/unbundle:default"'
++    'host_toolchain="//build/toolchain/linux/unbundle:default"'
++    "clang_version=\"$_clang_version\""
++    'rust_sysroot_absolute="/usr"'
++    'rust_bindgen_root="/usr"'
++    "rustc_version=\"$_rustc_version\""
++    'use_system_libffi=true'
++    # The crates.io v8 source omits third_party/rust/chromium_crates_io/vendor.
++    'v8_enable_temporal_support=false'
++  )
++
++  export CC=clang CXX=clang++ AR=ar NM=nm
++  export V8_FROM_SOURCE=1
++  export RUSTY_V8_SKIP_RUST_TOOLCHAIN_DOWNLOAD=1
++  export CLANG_BASE_PATH=/usr
++  export GN=/usr/bin/gn NINJA=/usr/bin/ninja
++  export EXTRA_GN_ARGS="${_extra_gn_args[*]}"
++
+   cargo build --frozen --release --bin codex --bin codex-responses-api-proxy
+ }
+ 
+@@ -59,3 +96,10 @@
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++source+=("v8-146.4.0.tar.gz::https://crates.io/api/v1/crates/v8/146.4.0/download"
++         "v8-skip-rust-toolchain-download.patch"
++         "v8-compiler-rt-adjust-paths.patch")
++b2sums+=('623da35878451e84728b8afd0b35a975fcfa01e1af3ac266975f2635e515dc8585ddfbaf6b7a8dcfa65d8d6a939accaa0c7004eb1533be723bbc05df03e310c0'
++         '705796e3675e5f67fa6999a2f4ba7591511c2c3b00001d9b4f2d4106b5f27dc036c89c48923429e9ab350f2a9dd47ca8f6b30c807f5e55902d698555605ea835'
++         '232da9d87d9bda14be5b766c1fc164ee797fd58f4e8c97c26ae854fdb67cae12bfe97a546a941441565e1f632f4a5f3cbca3bd5849e1e8f8514e034087ac14db')
