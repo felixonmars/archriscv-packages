@@ -1,19 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,6 +31,7 @@ prepare() {
-   # https://github.com/eventlet/eventlet/issues/730
-   # https://github.com/eventlet/eventlet/issues/739
-   patch -Np1 -i ../python310.patch
-+  patch -Np1 -i ../increase-test-thread-sleep-time.patch
-   sed -r 's|(check_idle_cpu_usage\(.*,) .*\)|\1 0.8\)|g' -i tests/*_test.py
+@@ -64,3 +64,8 @@ package() {
+   cp -vr doc/build/html "$pkgdir/usr/share/doc/$pkgname"
+   cp -vr examples "$pkgdir/usr/share/doc/$pkgname"
  }
- 
-@@ -55,4 +56,8 @@ package() {
-   cp -r examples "${pkgdir}/usr/share/doc/${pkgname}"
- }
- 
 +
-+source+=(increase-test-thread-sleep-time.patch)
-+sha512sums+=(86dffff4fee9dcd4d17cd7c7ad04908874a68e6328641f72903f2e92438b537344712957f45476b872a489ef530915fc4c67916830e557b17c6b9cdbfd5a36cd)
-+b2sums+=(b2415a0e47894115fd785e458cd4f8972c1c2128dd815e7e12479db4b6573a01d1ad2e73d7f36463c25c0b80eb789528ee94d4a86bfd24b50d094456178700ad)
- # vim: ts=2 sw=2 et:
++prepare() {
++  cd ${pkgname#python-}-$pkgver
++  sed -i "s|eventlet.sleep(0.001)|eventlet.sleep(1)|g" tests/isolated/patcher_fork_after_monkey_patch.py
++}
