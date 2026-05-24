@@ -1,0 +1,23 @@
+diff --git PKGBUILD PKGBUILD
+index 9f0da2e..30eeb1c 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,7 +9,7 @@ pkgdesc="Manage Podman and other container engines from a single UI and tray."
+ arch=("x86_64")
+ url="https://podman-desktop.io"
+ license=('Apache-2.0')
+-_electron=electron38
++_electron=electron37
+ depends=(${_electron} "hicolor-icon-theme")
+ makedepends=(
+     'pnpm' 'node-gyp' 'npm' 'nodejs-lts-jod' 'libvips' 'lcms2'
+@@ -27,6 +27,9 @@ b2sums=('e8cc0b4079575764046138985d51369127de10f87dd9ae0307ff57b45606de493f55674
+ prepare(){
+     cd "${srcdir}/podman-desktop-$pkgver"
+     sed -i 's/run.sh/podman-desktop/' '.flatpak.desktop'
++    sed -i "/export default defineConfig({/a \ \ css: { transformer: 'esbuild' }," packages/renderer/vite.config.js
++    find . -name "vite.config.js" -exec sed -i "/import tailwindcss/d" {} +
++    find . -name "vite.config.js" -exec sed -i "s/tailwindcss(),//g" {} +
+     _elver=$(cat /usr/lib/${_electron}/version)
+     echo -n Replacing $(cat package.json|grep '"electron":')
+     npm pkg set devDependencies.electron=${_elver}
