@@ -1,0 +1,18 @@
+diff --git PKGBUILD PKGBUILD
+index 840299f..4d22aaa 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -59,3 +59,13 @@
+   # license
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" "$pkgname/LICENSE"
+ }
++
++if declare -F prepare > /dev/null 2>&1; then
++  echo "Warning: 'prepare' function already exists. Aborting." >&2
++  exit 1
++else
++  prepare() {
++    # Fix is_address when char is unsigned
++    git -C "$pkgname" cherry-pick -n 9e26e992069d766852cd87abfa868834357812e5
++  }
++fi
