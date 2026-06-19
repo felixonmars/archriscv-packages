@@ -1,0 +1,54 @@
+--- a/ecc-secp256r1.c
++++ b/ecc-secp256r1.c
+@@ -153,7 +153,9 @@
+       u1 = xp[--n];
+       u0 = xp[n-1];
+ 
+-      /* divappr2, specialized for d1 = 2^64 - 2^32, d0 = 2^64-1.
++      /* Schoolbook-division based on divappr2, see
++	 https://www.lysator.liu.se/~nisse/misc/schoolbook-divappr.pdf.
++	 Specialized for d1 = 2^64 - 2^32, d0 = 2^64-1.
+ 
+ 	 <q1, q0> = v * u1 + <u1,u0>, with v = 2^32 - 1:
+ 
+@@ -173,10 +175,14 @@
+       q0 += t;
+       q1 += (q0 < t);
+       t = u1 >> 32;
+-      /* The divappr2 algorithm handles only q < B - 1. If we check
+-	 for u1 >= d1 = 2^{64}-2^{32}, we cover all cases where q =
+-	 2^64-1, and some when q = 2^64-2. The latter case is
+-	 corrected by the final adjustment. */
++      /* The divappr2 algorithm checks for
++
++	   {u1, u0} >= {d1, d0} - d1 = {d1, 2^32 - 1}
++
++	 and returns 2^64 - 1 in this case. We instead check for u1 >=
++	 d1 = 2^{64}-2^{32}. That covers some additional inputs where
++	 divappr2 should return q = 2^64-2, but this is corrected by
++	 the final bignum adjustment. */
+       qmax = - (mp_limb_t) (t == 0xffffffff);
+       q1 += t + 1;
+ 
+@@ -185,14 +191,18 @@
+ 
+ 	 For general divappr2, the expression is
+ 
+-	   r = u_0 - q1 d1 - floor(q1 d0 / B) - 1
++	   r = u0 - q1 d1 - floor(q1 d0 / B) - 1 (mod B)
++
++	 but in our case floor(q1 d0 / B) simplifies to q1 - 1, and
+ 
+-	 but in our case floor(q1 d0 / B) simplifies to q1 - 1.
++	   r = u0 - q1 (2^64 - 2^32) - (q1 - 1) - 1 = u0 + q1 2^32 - q1 (mod B)
+       */
+       r = u0 + (q1 << 32) - q1;
+       mask = - (mp_limb_t) (r >= q0);
+       q1 += mask;
+-      r += (mask & (d1 + 1));
++      /* Equivalent to r += (mask & (d1 + 1)),
++	 but that expression makes gcc-15 on riscv64 generate a branch instruction. */
++      r += (mask << 32) | (mask & 1);
+       q1 += (r >= d1 - 1);
+ 
+       /* Replace by qmax, when that is needed */
