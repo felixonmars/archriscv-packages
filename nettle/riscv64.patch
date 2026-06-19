@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,11 +11,19 @@
+ depends=('glibc' 'gmp')
+ provides=('libnettle.so' 'libhogweed.so')
+ checkdepends=('valgrind')
+-source=(https://ftp.gnu.org/gnu/$pkgname/$pkgname-$pkgver.tar.gz{,.sig})
++source=(https://ftp.gnu.org/gnu/$pkgname/$pkgname-$pkgver.tar.gz{,.sig}
++        nettle-7e784d89875f6247f72ea251c28017fcd6616ff2.patch)
+ sha256sums=('3addbc00da01846b232fb3bc453538ea5468da43033f21bb345cb1e9073f5094'
+-            'SKIP')
++            'SKIP'
++            '25091cc7ab6fe194d54cb14e14b6bc9358d8c4db1fa63acd010a52bb6672dbd9')
+ validpgpkeys=('343C2FF0FBEE5EC2EDBEF399F3599FF828C67298') # Niels Möller <nisse@lysator.liu.se>
+ 
++prepare() {
++  cd $pkgname-$pkgver
++  # Backport upstream 7e784d89875f6247f72ea251c28017fcd6616ff2 to avoid GCC riscv64 branches.
++  patch -p1 < ../nettle-7e784d89875f6247f72ea251c28017fcd6616ff2.patch
++}
++
+ 
+ build() {
+   cd $pkgname-$pkgver
