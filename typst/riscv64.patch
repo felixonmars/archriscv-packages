@@ -1,0 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index 8a99939..4f08c36 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,7 +24,12 @@
+ 
+ prepare() {
+ 	cd "$_archive"
++	patch -Np1 -i "$srcdir/$pkgname-module-file-id-eq.patch"
+ 	cargo fetch --locked --target "$(rustc --print host-tuple)"
++	local _moxcms
++	_moxcms=$(find "${CARGO_HOME:-$HOME/.cargo}"/registry/src -path '*/moxcms-0.8.1/src/conversions/transform_lut4_to_3.rs' -print -quit)
++	[[ -n $_moxcms ]]
++	patch -d "${_moxcms%/src/conversions/transform_lut4_to_3.rs}" -Np1 -i "$srcdir/$pkgname-moxcms-q0-15-lut4-to-3.patch"
+ }
+ 
+ build() {
+@@ -52,3 +57,8 @@
+ 	install -Dm0644 -t "$pkgdir/usr/share/fish/vendor_completions.d/" "$_artifacts/$pkgname.fish"
+ 	install -Dm0644 "$_artifacts/$pkgname.bash" "$pkgdir/usr/share/bash-completion/completions/$pkgname"
+ }
++
++source+=("$pkgname-moxcms-q0-15-lut4-to-3.patch::https://github.com/awxkee/moxcms/commit/77e494e73871c0f323bc5b15423f8f667577ab86.patch?full_index=1"
++         "$pkgname-module-file-id-eq.patch::https://github.com/typst/typst/commit/f0a1b836d9de18a6f19c253544c1975bafa6089e.patch?full_index=1")
++sha256sums+=('ee9d9e9eef64e3fe19ca81dc57d9e435934d785f3e968aa83b22b0e68d50eb80'
++             '21e7b1a24dcc5eaa60c3b244dbb7d3241c7b15cee764a81b040438cd175abbfd')
