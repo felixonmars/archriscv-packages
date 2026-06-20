@@ -1,0 +1,43 @@
+diff --git a/src/snmalloc/aal/aal.h b/src/snmalloc/aal/aal.h
+index f0d1207..3ce0703 100644
+--- a/src/snmalloc/aal/aal.h
++++ b/src/snmalloc/aal/aal.h
+@@ -173,6 +173,7 @@ namespace snmalloc
+       else
+       {
+ #if __has_builtin(__builtin_readcyclecounter) && !defined(__APPLE__) && \
++  !defined(__riscv) && \
+   !defined(SNMALLOC_NO_AAL_BUILTINS)
+         return __builtin_readcyclecounter();
+ #else
+diff --git a/src/snmalloc/aal/aal_riscv.h b/src/snmalloc/aal/aal_riscv.h
+index 42d510c..b3dba74 100644
+--- a/src/snmalloc/aal/aal_riscv.h
++++ b/src/snmalloc/aal/aal_riscv.h
+@@ -21,6 +21,26 @@ namespace snmalloc
+
+     static constexpr AalName aal_name = RISCV;
+
++    static inline uint64_t tick() noexcept
++    {
++#if __riscv_xlen == 64
++      uint64_t t;
++      __asm__ volatile("rdtime %0" : "=r"(t));
++      return t;
++#else
++      uint32_t hi;
++      uint32_t hi2;
++      uint32_t lo;
++      do
++      {
++        __asm__ volatile("rdtimeh %0" : "=r"(hi));
++        __asm__ volatile("rdtime %0" : "=r"(lo));
++        __asm__ volatile("rdtimeh %0" : "=r"(hi2));
++      } while (hi != hi2);
++      return (static_cast<uint64_t>(hi) << 32) | lo;
++#endif
++    }
++
+     static void inline pause()
+     {
+       /*
