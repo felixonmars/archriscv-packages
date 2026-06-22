@@ -1,0 +1,45 @@
+diff --git a/src/processor.cpp b/src/processor.cpp
+index 6f95ee7f37..fd7f6eb3c6 100644
+--- a/src/processor.cpp
++++ b/src/processor.cpp
+@@ -959,6 +959,38 @@ static std::string jl_get_cpu_features_llvm(void)
+ #else
+     llvm::StringMap<bool> HostFeatures;
+     llvm::sys::getHostCPUFeatures(HostFeatures);
++#endif
++#if defined(_CPU_RISCV64_)
++    // LLVM 18 does not support RISC-V CPU feature detection.
++    HostFeatures["i"] = true;
++# if defined(__riscv_mul) || defined(__riscv_m)
++    HostFeatures["m"] = true;
++# endif
++# if defined(__riscv_atomic)
++    HostFeatures["a"] = true;
++# endif
++# if defined(__riscv_float_abi_double)
++    HostFeatures["f"] = true;
++    HostFeatures["d"] = true;
++# elif defined(__riscv_float_abi_single)
++    HostFeatures["f"] = true;
++# elif defined(__riscv_flen)
++#  if __riscv_flen >= 32
++    HostFeatures["f"] = true;
++#  endif
++#  if __riscv_flen >= 64
++    HostFeatures["d"] = true;
++#  endif
++# endif
++# if defined(__riscv_compressed)
++    HostFeatures["c"] = true;
++# endif
++# if defined(__riscv_zicsr)
++    HostFeatures["zicsr"] = true;
++# endif
++# if defined(__riscv_zifencei)
++    HostFeatures["zifencei"] = true;
++# endif
+ #endif
+     std::string attr;
+     for (auto &ele: HostFeatures) {
+
+
