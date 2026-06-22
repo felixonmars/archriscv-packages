@@ -1,0 +1,22 @@
+--- PKGBUILD	2026-06-23 00:51:15.238734739 +0800
++++ PKGBUILD.riscv	2026-06-23 00:51:15.274550043 +0800
+@@ -52,11 +52,19 @@
+   git config submodule."perfetto".url "${srcdir}/rocm-system-perfetto"
+   git -c protocol.file.allow=always submodule update --init --recursive
+
++  # Respect ROCPROFILER_BUILD_TESTS=OFF; the forced CI tests include x86-only headers.
++  sed -i '/# Temporarily for CI to work/,+2d' CMakeLists.txt
++
+   # Use system packages for rocprofv3
+   # See https://github.com/ROCm/rocm-systems/pull/2319
+   cd "${srcdir}/rocm-systems"
+   git cherry-pick -n 86ee7b2eb2273adaf1181ef9a6b2091465c6f0c7
+
++  # rocprofv3-attach uses x86_64 ptrace registers and injected x86_64 opcodes.
++  sed -i '/add_subdirectory(rocprofv3-attach)/d' projects/rocprofiler-sdk/source/lib/CMakeLists.txt
++  sed -i '/configure_file(rocprofv3-attach.py/,/COMPONENT tools)/d' projects/rocprofiler-sdk/source/bin/CMakeLists.txt
++
++  grep -rl "fmt::format" projects/rocprofiler-sdk/source/ | grep -E '\.(cpp|hpp)$' | xargs sed -i '1i #include <fmt/format.h>'
+   grep -rl "fmt::join" projects/rocprofiler-sdk/source/ | grep -E '\.(cpp|hpp)$' | xargs sed -i '1i #include <fmt/ranges.h>'
+
+   # Add missing <cstdint> include
