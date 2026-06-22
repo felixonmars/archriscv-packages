@@ -1,23 +1,35 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,17 +41,17 @@ build() {
-   # Use LTO
+@@ -24,10 +24,6 @@
+   'valkey: Redis support'
+ )
+ options=(!lto)
+-backup=(
+-  etc/sccache/scheduler.conf
+-  etc/sccache/server.conf
+-)
+ source=(
+   git+https://github.com/mozilla/sccache.git#tag=v${pkgver}
+   sccache-scheduler.service
+@@ -54,12 +50,12 @@
    export CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
- 
+   # Dynamically link system libraries
+   export ZSTD_SYS_USE_PKG_CONFIG=1
 -  cargo build --release --frozen --features all,dist-server
 +  cargo build --release --frozen --features all
  }
  
- #check() {
- #  cd sccache
--#  cargo test --frozen --features all,dist-server
-+#  cargo test --frozen --features all
- #}
- 
  package() {
    cd sccache
--  install -Dt "$pkgdir/usr/bin" target/release/sccache{,-dist}
-+  install -Dt "$pkgdir/usr/bin" target/release/sccache
-   install -Dt "$pkgdir/usr/share/doc/$pkgname" -m644 README.md docs/*
+-  install -Dm 755 target/release/sccache{,-dist} -t "${pkgdir}/usr/bin/"
++  install -Dm 755 target/release/sccache -t "${pkgdir}/usr/bin/"
+   install -dm 755 "${pkgdir}/usr/share/doc/${pkgname}"
+   install -m 644 README.md docs/* -t "${pkgdir}/usr/share/doc/${pkgname}/"
+   install -dm 755 "${pkgdir}/usr/lib/sccache/bin"
+@@ -71,6 +67,4 @@
+   for _prog in cc clang clang++ rustc; do
+     ln -s /usr/bin/sccache "${pkgdir}/usr/lib/sccache/bin/$_prog"
+   done
+-  install -Dm 644 ../sccache-{scheduler,server}.service -t "${pkgdir}/usr/lib/systemd/system/"
+-  install -Dm 644 ../{scheduler,server}.conf -t "${pkgdir}/etc/sccache/"
  }
- 
