@@ -1,8 +1,6 @@
-diff --git a/hipamd/src/hip_graph_internal.cpp b/hipamd/src/hip_graph_internal.cpp
 --- a/hipamd/src/hip_graph_internal.cpp
 +++ b/hipamd/src/hip_graph_internal.cpp
-@@ -1234,9 +1234,17 @@
-       
+@@ -2078,7 +2078,15 @@
        // Read-modify-write sequence with memory barriers
        volatile unsigned char kSentinel = *sentinel_ptr;
 +#if defined(__x86_64__)
@@ -18,12 +16,9 @@ diff --git a/hipamd/src/hip_graph_internal.cpp b/hipamd/src/hip_graph_internal.c
 +#endif
        kSentinel = *sentinel_ptr;
        (void)kSentinel; // Suppress unused variable warning
-     }
-diff --git a/rocclr/device/rocm/rocvirtual.cpp b/rocclr/device/rocm/rocvirtual.cpp
 --- a/rocclr/device/rocm/rocvirtual.cpp
 +++ b/rocclr/device/rocm/rocvirtual.cpp
-@@ -3805,9 +3805,17 @@
-         *dev().info().hdpMemFlushCntl = 1u;
+@@ -3841,7 +3841,15 @@
          auto kSentinel = *reinterpret_cast<volatile int*>(dev().info().hdpMemFlushCntl);
        } else if (kernArgImpl == KernelArgImpl::DeviceKernelArgsReadback && argSize != 0) {
 +#if defined(__x86_64__)
@@ -39,4 +34,3 @@ diff --git a/rocclr/device/rocm/rocvirtual.cpp b/rocclr/device/rocm/rocvirtual.c
 +#endif
          auto kSentinel = *reinterpret_cast<volatile unsigned char*>(argBuffer + argSize - 1);
        }
-     }
