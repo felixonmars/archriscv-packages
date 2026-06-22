@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -36,11 +36,13 @@ makedepends=(cmake
+              python)
+ optdepends=('gnuplot: If using the Gaston Package from julia')
+ source=(https://github.com/JuliaLang/julia/releases/download/v$pkgver/$pkgname-$pkgver-full.tar.gz{,.asc}
++        rv-cpu.diff
+         c12e8515.patch
+         julia-hardcoded-libs.patch)
+ backup=(etc/julia/startup.jl)
+ sha256sums=('711f3aa8d6ec5c9004593eb8f3d53e3564cd759acba8ad4adae967afc20332cc'
+             'SKIP'
++            '7b893f0453a4cd269c25f25cea332f5e7bfbe35ecb6a03863a049603a63e6f92'
+             '2cc294b63e601d50341979fb936826bdba59de2165a5929eae927e152652f367'
+             '120c3b77a1aecfdb045ac64902164210ea8dd139d2fb8e8b098155b344a8e1fb')
+ validpgpkeys=('3673DF529D9049477F76B37566E3C7DC03D6E495') # Julia (Binary signing key) <buildbot@julialang.org>
+@@ -49,6 +51,7 @@ options=(!lto)
+ prepare() {
+   cd $pkgname-$pkgver
+ 
++  patch -Np1 -i ../rv-cpu.diff
+ # Revert test that depends on patched gmp
+   patch -Rp1 -i ../c12e8515.patch
+ # Don't hardcode library names
+@@ -99,6 +102,7 @@ _make() {
+ 
+   [[ ${CARCH} == 'aarch64' ]] && make_options+=(MARCH=armv8.2-a JULIA_CPU_TARGET="generic;armv8.2-a,crypto,fullfp16,lse,rdm")
+   [[ ${CARCH} == 'x86_64' ]] &&  make_options+=(MARCH=x86-64 JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)")
++  [[ ${CARCH} == 'riscv64' ]] &&  make_options+=(MARCH=rv64gc JULIA_CPU_TARGET="generic-rv64,+i,+m,+a,+f,+d,+zicsr,+zifencei,+c" USE_BINARYBUILDER=0)
+ 
+   make "${make_options[@]}" "$@"
+ }
