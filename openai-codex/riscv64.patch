@@ -1,8 +1,8 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,7 +20,16 @@
-   xz
+@@ -23,7 +23,16 @@
    zlib
+   zstd
  )
 -makedepends=(cargo)
 +makedepends=(
@@ -18,24 +18,29 @@
  optdepends=(
    'git: allow for repository actions'
    'nodejs: enable the js_repl experimental tool'
-@@ -31,7 +40,15 @@
- b2sums=('2d4b5b1aa7e5ca2b5d83736711ce6e45c3530ed8eee08c950161464c3159a9e5f0c446b261fd2c7df19cd28d6e212a69a05a3e1a19060d2c8cc31753639bbebb')
+@@ -34,7 +43,20 @@
+ b2sums=('c62169fff7975f2fc675632925d5edda9f43093ed83422821a825b4ed6575fd1edb19be082ac2b2cbfde1f9ba4494f88d4d5f88233cd52fd4373312e57b14eed')
  
  prepare() {
-+  patch -Np1 -d v8-147.4.0 -i "$srcdir/v8-skip-rust-toolchain-download.patch"
-+  patch -Np1 -d v8-147.4.0 -i "$srcdir/v8-compiler-rt-adjust-paths.patch"
-+  patch -Np1 -d v8-147.4.0 -i "$srcdir/v8-drop-unsupported-clang-flags.patch"
-+  printf '%s\n' x86_64-unknown-linux-gnu riscv64gc-unknown-linux-gnu > v8-147.4.0/build/rust/known-target-triples.txt
++  install -dm755 v8-149.2.0/third_party/icu/common
++  base64 -d "$srcdir/v8-icu-icudtl.dat.base64" \
++    > v8-149.2.0/third_party/icu/common/icudtl.dat
++  base64 -d "$srcdir/v8-icu-icudtb.dat.base64" \
++    > v8-149.2.0/third_party/icu/common/icudtb.dat
++
++  patch -Np1 -d v8-149.2.0 -i "$srcdir/v8-skip-rust-toolchain-download.patch"
++  patch -Np1 -d v8-149.2.0 -i "$srcdir/v8-compiler-rt-adjust-paths.patch"
++  patch -Np1 -d v8-149.2.0 -i "$srcdir/v8-drop-unsupported-clang-flags.patch"
 +
    cd codex-rust-v$pkgver/codex-rs
 +  patch -Np1 -d .. -i "$srcdir/codex-landlock-riscv64-seccomp.patch"
-+  sed -i '/^\[patch\.crates-io\]$/a v8 = { path = "../../v8-147.4.0" }' Cargo.toml
++  sed -i '/^\[patch\.crates-io\]$/a v8 = { path = "../../v8-149.2.0" }' Cargo.toml
 +  cargo update -p v8
  
    cargo fetch --target "$(rustc --print host-tuple)"
  }
-@@ -40,6 +57,28 @@
-   cd codex-rust-v$pkgver/codex-rs
+@@ -47,6 +69,28 @@
+   export ZSTD_SYS_USE_PKG_CONFIG=1
    # Reduces build time by about 10 minutes
    export CARGO_PROFILE_RELEASE_LTO=thin
 +
@@ -63,18 +68,23 @@
    cargo build --frozen --release --bin codex --bin codex-responses-api-proxy
  }
  
-@@ -59,3 +98,14 @@
+@@ -66,3 +110,19 @@
  }
  
  # vim:set ts=2 sw=2 et:
 +
-+source+=("v8-147.4.0.tar.gz::https://crates.io/api/v1/crates/v8/147.4.0/download"
++_v8_icu_commit=ee5f27adc28bd3f15b2c293f726d14d2e336cbd5
++source+=("v8-149.2.0.tar.gz::https://static.crates.io/crates/v8/v8-149.2.0.crate"
++         "v8-icu-icudtl.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtl.dat?format=TEXT"
++         "v8-icu-icudtb.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtb.dat?format=TEXT"
 +         "v8-skip-rust-toolchain-download.patch"
 +         "v8-compiler-rt-adjust-paths.patch"
 +         "v8-drop-unsupported-clang-flags.patch"
 +         "codex-landlock-riscv64-seccomp.patch")
-+b2sums+=('cd31f952973fe76535641a3d6901328de55ec6b331f8997f025c8601ce458f66ad3b2064193a545e6814b6d38e56c493eb240823de94d4a41f547a32b36d93ae'
-+         '705796e3675e5f67fa6999a2f4ba7591511c2c3b00001d9b4f2d4106b5f27dc036c89c48923429e9ab350f2a9dd47ca8f6b30c807f5e55902d698555605ea835'
-+         '2a020432f57be950466617b3d0a8fc93233ded9ebed060a1f7b4f1635f5bca8001aa0cf0339331f99339bce6052efe8dd7edcfcb9e881d1e0116f91d3dfbf9b1'
-+         '86e864f998e7755ab902c4f3dde08c9ad2bfaf0378cad7127f3ed491fa818afdcec9e3e6617917811e03a41664c5e8900446a480065efe9493f0a5d0ec7e3c0e'
-+         'e37f8db50ca7dc8ad916f98dffb7b69f9461a1e9f196880172d199a0d0b8f30a9fd5fdc60d011159b0aafcb41608909014db3e24077550617d9d282b94ab6a58')
++b2sums+=('78e4221dee5e9ff0c96721efcf6758d6f97881de951c4319fe60afa151f20b7dbd6224b2465d7a724de6725497530e77edcce7e0ba46c0c612f6cea939cf4c1f'
++         'a9bfd3930f95972ff329e81614ff1e3cc8db8504c720256ddc25925f023f06fa5bdd4dea5a958b8481d3d19785d61ba56f3cbaac607ae81cc01e19ba0d3e565e'
++         'dd45cc773db031f47817cf50f6a5026f25c48dc0a5231b7e5eaee4c5904d1d0a691f31d7e17da283ae2334189d804ab69bfdaff4c9a85ce76f11d338d0ec2807'
++         'c799148351662c9d570ea368a709827181eea96926ec6005c91e242162048bcfd4c977efb0fcefb44f89a0c8e2c2f255a1b99b51035d85a65e9f8fa3e3cdb231'
++         'db93dc759e55867b754dfa072a65ce9abe13c6c5a8151b82ef458359da964e29dcdffe00f053ad9dc8721ecaccf54548ba11de0c535ec1ba5d77e21431f1fa5c'
++         'ee3b59587b5592544b42cb8683bb05515a546617e23fbe541bbd76ca3049436a72ab23cbcd1f5b7448dd615999812de1bcb4dad8e087988b6dc32d8d9d501bbf'
++         '1aaf2c34d1476d55ad365fd100c04f86ded9a6fe01b66b88347a9f22a162db99f21d05af23328fcf9609791b953b319cdfd6e16449f9928d6adaa59396ae562c')
