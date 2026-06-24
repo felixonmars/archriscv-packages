@@ -1,6 +1,19 @@
 --- a/build/config/compiler/BUILD.gn
 +++ b/build/config/compiler/BUILD.gn
-@@ -625,13 +625,6 @@
+@@ -600,12 +600,6 @@
+   if (is_clang) {
+     # Flags for diagnostics.
+     cflags += [ "-fcolor-diagnostics" ]
+-    if (!is_win) {
+-      cflags += [ "-fdiagnostics-show-inlining-chain" ]
+-    } else {
+-      # Combine after https://github.com/llvm/llvm-project/pull/192241
+-      cflags += [ "/clang:-fdiagnostics-show-inlining-chain" ]
+-    }
+     if (diagnostics_print_source_range_info && !is_win) {
+       cflags += [ "-fdiagnostics-print-source-range-info" ]
+     }
+@@ -636,13 +630,6 @@
        ]
      }
  
@@ -14,16 +27,18 @@
      # TODO(hans): Remove this once Clang generates better optimized debug info
      # by default. https://crbug.com/765793
      cflags += [
-@@ -1893,12 +1886,6 @@
-       "-fsanitize=array-bounds",
-       "-fsanitize-trap=array-bounds",
+--- a/build/config/sanitizers/sanitizers.gni
++++ b/build/config/sanitizers/sanitizers.gni
+@@ -535,12 +535,6 @@
+         "-fsanitize=${invoker.sanitizer}",
+         "-fsanitize-trap=${invoker.sanitizer}",
  
--      # Some code users feature detection to determine if UBSAN (or any
--      # sanitizer) is enabled, they then do expensive debug like operations. We
--      # want to suppress this behaviour since we want to keep performance costs
--      # as low as possible while having these checks.
--      "-fsanitize-ignore-for-ubsan-feature=array-bounds",
--
-       # Because we've enabled array-bounds sanitizing we also want to suppress
-       # the related warning about "unsafe-buffer-usage-in-static-sized-array",
-       # since we know that the array bounds sanitizing will catch any out-of-
+-        # Prevents `__has_feature(undefined_behavior_sanitizer)`
+-        # from evaluating true. Configs defined here are intended to
+-        # be usable even in release builds, i.e. as widely as possible.
+-        # It's important not to have full-on UBSan workarounds activate
+-        # just because we built support for a specific sanitizer.
+-        "-fsanitize-ignore-for-ubsan-feature=${invoker.sanitizer}",
+       ]
+       if (defined(invoker.cflags)) {
+         cflags += invoker.cflags
