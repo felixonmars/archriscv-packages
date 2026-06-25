@@ -1,0 +1,47 @@
+From d09009f9e5030c0e8d567a32d36845da1d6812fe Mon Sep 17 00:00:00 2001
+From: Felix Yan <felixonmars@archlinux.org>
+Date: Thu, 25 Jun 2026 02:43:08 +0800
+Subject: [PATCH] clocksource/drivers/timer-sun4i: Advertise a real minimum
+ delta
+
+sun4i_clkevt_next_event() compensates for the timer stop/start
+synchronization delay by programming evt - TIMER_SYNC_TICKS into the
+hardware interval register. The clockevent device currently advertises
+TIMER_SYNC_TICKS as min_delta_ticks, so the clockevents core is allowed
+to call set_next_event() with evt == TIMER_SYNC_TICKS.
+
+That programs a zero-tick interval. With oneshot/highres/nohz timer
+operation this can leave the next event stuck, which was observed as a
+boot hang on Allwinner D1 after the clockevents core started reusing
+forced minimum-delta events.
+
+Advertise one extra tick instead, so the smallest event accepted by the
+core still programs at least one hardware tick after the synchronization
+compensation.
+
+Fixes: 12e1480bcb49 ("clocksource: sun4i: Report the minimum tick that we can program")
+Cc: stable@vger.kernel.org
+Reported-by: Indrek Kruusa <indrek.kruusa@gmail.com>
+Closes: https://lore.kernel.org/linux-riscv/CA+fTLhgLmTY+exGujKf8OYYQvcEW5X5NJ_5sLq2AYL6zER2c0A@mail.gmail.com/
+Assisted-by: Codex:gpt-5.5
+Signed-off-by: Felix Yan <felixonmars@archlinux.org>
+---
+ drivers/clocksource/timer-sun4i.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/clocksource/timer-sun4i.c b/drivers/clocksource/timer-sun4i.c
+index 7bdcc60ad43c..c2d04ab7cf2d 100644
+--- a/drivers/clocksource/timer-sun4i.c
++++ b/drivers/clocksource/timer-sun4i.c
+@@ -208,7 +208,7 @@ static int __init sun4i_timer_init(struct device_node *node)
+ 	sun4i_timer_clear_interrupt(timer_of_base(&to));
+ 
+ 	clockevents_config_and_register(&to.clkevt, timer_of_rate(&to),
+-					TIMER_SYNC_TICKS, 0xffffffff);
++					TIMER_SYNC_TICKS + 1, 0xffffffff);
+ 
+ 	/* Enable timer0 interrupt */
+ 	val = readl(timer_of_base(&to) + TIMER_IRQ_EN_REG);
+-- 
+2.54.0
+

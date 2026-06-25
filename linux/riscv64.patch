@@ -1,8 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index 4ecc97d..f01811e 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -46,8 +46,22 @@ _srctag=v${pkgver%.*}-${pkgver##*.}
+@@ -46,24 +46,61 @@
  source=(
    https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
@@ -16,6 +14,8 @@ index 4ecc97d..f01811e 100644
 +  0401-rust1.patch::https://github.com/revyos/linux/commit/e5dbd930828f455c0161a72a198c73a3c5b06972.patch?full_index=1
 +  0402-rust2.patch::https://github.com/revyos/linux/commit/09539b5244d8a1f87d83ac5f53c0d3e5746902f7.patch?full_index=1
 +  0403-rust3.patch::https://github.com/revyos/linux/commit/5545a0d3db17b6858d2311fa29d284963c846698.patch?full_index=1
++  # clocksource/drivers/timer-sun4i: Advertise a real minimum delta
++  timer-sun4i-min-delta.patch
  )
  source_x86_64=(config.x86_64)
 +source_riscv64=(
@@ -25,20 +25,11 @@ index 4ecc97d..f01811e 100644
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
    647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
-@@ -54,16 +68,35 @@ validpgpkeys=(
    83BC8889351B5DEBBB68416EB8AC08600F108CDF  # Jan Alexander Steffens (heftig)
  )
--b2sums=('2c53f205a940b0f9f68653b92ef46d49f828cbef3cfa8cf94d050c8e6df05c4fcaa4f9b9681b9130b14e3c790d31208eb244d123249a93e35e8e6165f3d858c9'
--        'SKIP'
--        '26230d1a111b24fe9239273acdfacda37c5bf009f861c448ad25392dcca433514246d629a077ce5c66478c7e0f4e5477ce5f95c91d08b3a02cc87bb35b849bcf'
--        'SKIP')
--b2sums_x86_64=('7082013345352c95303ee87cd78bf5d93ab49ec9f270e6cb803a05cb7f9a67c554bbd260de922d6d44145fd3712b410c13d67c8f76dc2b9f4088be86aeaec835')
--
--# https://www.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
- sha256sums=('57edc9a41efc1ca6b797afa8f4a587a30da2af6bca7356eb56e1e1a4ada265da'
-             'SKIP'
-             'ce38af1268931b099993cf01c537d6c3b21007e08cad84d2f1e71f95cc5cb75b'
--            'SKIP')
++sha256sums=('3c81edd0f716aca3dd48dff691681827580cc53d35a8eec3be47d346d1f89913'
++            'SKIP'
++            'd37578467eefea5a8bb8e9832fd7cce73d1cb4a974ea3e13efe5dd65ad23821b'
 +            'SKIP'
 +            '5f1f62f1082a6299cf6456f12287613aa9ebfc5be8291181258e9690b94c0fb1'
 +            'f21649265bb4b7b60535e9945ba0754a0065f31aed7d98d6853570e35c432706'
@@ -46,13 +37,15 @@ index 4ecc97d..f01811e 100644
 +            '469ed3f727e7648af25925bd0bb2b666334e256f8b51fffb4e77196882e7a869'
 +            '3d6ef0a0ff2dacde9c698492bfdf3798560174f706d6cc1b0bb7ea83382a2d41'
 +            '6a29cee605a2d4188d905266e588a0871c7206e67be22889cdf09277761dd622'
-+            'f6b48feecacf0960bb630397a19bde9ad9bb1cff164358e9a16a41edbfa18011')
-+sha256sums_x86_64=('0ed8c43b4ad6c3c3f3affe1317581992ba0eac6697d421a5c6d8210bf1e29ad7')
-+sha256sums_riscv64=('0ed8c43b4ad6c3c3f3affe1317581992ba0eac6697d421a5c6d8210bf1e29ad7'
-+                   'a5b22b9502f5425a02da62be1d3043b92711d7063159f75cabd8c4d995f2015e')
-+b2sums=('2c53f205a940b0f9f68653b92ef46d49f828cbef3cfa8cf94d050c8e6df05c4fcaa4f9b9681b9130b14e3c790d31208eb244d123249a93e35e8e6165f3d858c9'
-+        'SKIP'
-+        '26230d1a111b24fe9239273acdfacda37c5bf009f861c448ad25392dcca433514246d629a077ce5c66478c7e0f4e5477ce5f95c91d08b3a02cc87bb35b849bcf'
++            'f6b48feecacf0960bb630397a19bde9ad9bb1cff164358e9a16a41edbfa18011'
++            '32296242c4abc6af3b6f9fa1362c4c4770c4bbd6894bf3bc59a91720ce04ef06')
++sha256sums_x86_64=('e76f1e4197fbb84efcdd6e5e6669e4b404ec7f1df8b12188d5cfa0aa1be44ce6')
++sha256sums_riscv64=('e76f1e4197fbb84efcdd6e5e6669e4b404ec7f1df8b12188d5cfa0aa1be44ce6'
++                   'a1e9b9baa64f06181b7ba458cea2d059e08bd6bf0b49da6b27c39e9e07309cc0')
+ b2sums=('c92878038062d7f41f805fa8d2bcbc4f1621c7d07e6b210b0ed03b3aa078832b4978761c391db3583459902acb1b22072ee5ebbcd6e37e9e263308b9c9521a5d'
+         'SKIP'
+         'ae188d8aea54fcf1d0851951d44071914171c880fb635467fd11e10585b886b65cf4f7313b6005c050c1eceb8f640d2a22bcc0699ecda9847fdec050765baef4'
+-        'SKIP')
 +        'SKIP'
 +        '6748c004b274b187c3f3a8c0ab9548fd09dc4c962a7e59f74c4ce0181fe1dc1ff8bf0adb07688e4bb8776e21d63aa06b1494338ac6a9fcb2db5df881ef38135c'
 +        '2c6453510ac9c3f1ce65c620fa36f133adbd949bf9582222fbef32536de902e323781d8a79fdf0d84f75d2ff41abde3c995416cd74298aabfbb33e4e44bb9490'
@@ -60,16 +53,21 @@ index 4ecc97d..f01811e 100644
 +        '52544a7d684a00206812c16468c3dfc19eeb0d1caff8d3710002ef184557ff4ae190cce056c5a896c80d531213e8715348d7095be6fcc7375cd9839ed3c7567b'
 +        '22bce836b92fbcc48032218139f3e75f84cd3fa6b4b0d51ea0b1460776db12ad35983aac7bed611303cc708094cc466522e6040172e5204dc720cbed593618e2'
 +        '94be17594b686d08988d2fff12b94fea3a4773002efb178998b839df43066a7188a8081d337516bebd04c393743254f74091a27db51d31f6658599b6fc441b85'
-+        '0ca0802103e018c6fc5f4697f89c3353afb38006a7e2684da3a5c12ac29b1335624ebb7b9b46b9d59a31cdaba9663830acbf93934badbda416ae5750c52b429a')
-+b2sums_x86_64=('7082013345352c95303ee87cd78bf5d93ab49ec9f270e6cb803a05cb7f9a67c554bbd260de922d6d44145fd3712b410c13d67c8f76dc2b9f4088be86aeaec835')
-+b2sums_riscv64=('7082013345352c95303ee87cd78bf5d93ab49ec9f270e6cb803a05cb7f9a67c554bbd260de922d6d44145fd3712b410c13d67c8f76dc2b9f4088be86aeaec835'
-+                '809f8cf7ba91605bcd0ad45051c9dfadb76701bf572e029cdd44f44cecc20ad237d0f8183037a3fd6028b2e856fbdc65a565981ee49b810c5e9c51462219cffd')
-+
-+# https://www.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
++        '0ca0802103e018c6fc5f4697f89c3353afb38006a7e2684da3a5c12ac29b1335624ebb7b9b46b9d59a31cdaba9663830acbf93934badbda416ae5750c52b429a'
++        '08ab6615ca167efd001e5a4a937e56687a0b917f0ff36b78ba641806e973c8fa1d78fda1de223fc997a3ae1796aa152f773461dfde3b8ca6bb5cf8ed34fb4a04')
+ b2sums_x86_64=('495c3240f45022ad0f2dba561b9ea1684427cfbb4b24abc092298a471b3cd043bd7915cff0acb62612bf283c4cad73531c1370f69b575d318919ea57da5f45eb')
++b2sums_riscv64=('495c3240f45022ad0f2dba561b9ea1684427cfbb4b24abc092298a471b3cd043bd7915cff0acb62612bf283c4cad73531c1370f69b575d318919ea57da5f45eb'
++                '475b5388f2624514b9c23c60600916b817c7f8a80708aeb0dab54f4056d3c9edd739fc8d6658ed881edea61731db21b2063794c7fe5eabd2376e37f7d5598ed8')
+ 
+ # https://www.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
+-sha256sums=('3c81edd0f716aca3dd48dff691681827580cc53d35a8eec3be47d346d1f89913'
+-            'SKIP'
+-            'd37578467eefea5a8bb8e9832fd7cce73d1cb4a974ea3e13efe5dd65ad23821b'
+-            'SKIP')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -87,9 +112,14 @@ prepare() {
+@@ -87,9 +124,14 @@
    done
  
    echo "Setting config..."
@@ -86,7 +84,7 @@ index 4ecc97d..f01811e 100644
  
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
-@@ -97,7 +127,8 @@ prepare() {
+@@ -97,7 +139,8 @@
  
  build() {
    cd $_srcname
@@ -96,7 +94,7 @@ index 4ecc97d..f01811e 100644
    make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
    make htmldocs SPHINXOPTS=-QT
  }
-@@ -141,6 +172,9 @@ _package() {
+@@ -141,6 +184,9 @@
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -106,7 +104,7 @@ index 4ecc97d..f01811e 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -166,6 +200,7 @@ _package-headers() {
+@@ -166,6 +212,7 @@
    local karch
    case $CARCH in
      x86_64) karch=x86 ;;
