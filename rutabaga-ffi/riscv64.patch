@@ -1,0 +1,16 @@
+diff --git PKGBUILD PKGBUILD
+index e3aace5..e3f5a97 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -25,6 +25,11 @@
+ # Use LTO
+ export CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+ 
++prepare() {
++  cd rutabaga_gfx-$pkgver
++  sed -i "s/host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'aarch64'/host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'aarch64' or host_machine.cpu_family() == 'riscv64'/" subprojects/packagefiles/serde_json-1-rs/meson.build
++}
++
+ build() {
+   cd rutabaga_gfx-$pkgver
+   arch-meson . build -Dfeatures=gfxstream -Dffi=true --buildtype=release --wrap-mode=forcefallback
