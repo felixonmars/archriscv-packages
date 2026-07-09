@@ -1,0 +1,51 @@
+diff --git PKGBUILD.bootstrap.orig PKGBUILD.bootstrap
+index e02b730..52ad9f5 100644
+--- PKGBUILD.bootstrap.orig
++++ PKGBUILD.bootstrap
+@@ -17,7 +17,7 @@
+ conflicts=(${pkgname%-bootstrap})
+ source=(https://ftp.gnu.org/gnu/gcc/gcc-$pkgver/gcc-$pkgver.tar.xz{,.sig}
+         #ftp://gcc.gnu.org/pub/gcc/snapshots/$_snapshot/gcc-$_snapshot.tar.xz
+-        http://isl.gforge.inria.fr/isl-$_islver.tar.bz2)
++        https://libisl.sourceforge.io/isl-$_islver.tar.bz2) # https://groups.google.com/g/isl-development/c/JGaMo2VUu_8
+ sha512sums=('4b9e3639eef6e623747a22c37a904b4750c93b6da77cf3958d5047e9b5ebddb7eebe091cc16ca0a227c0ecbd2bf3b984b221130f269a97ee4cc18f9cf6c444de'
+             'SKIP'
+             'fc2c9796979610dd51143dcefe4f5c989c4354571cc5a1fcc6b932fd41f42a54f6b43adfd289af61be7bd06f3a523fa6a7d7ee56680e32d8036beb4c188fa668')
+@@ -58,6 +58,11 @@
+   CFLAGS=${CFLAGS/-pipe/}
+   CXXFLAGS=${CXXFLAGS/-pipe/}
+ 
++  # https://bugs.archlinux.org/task/70701
++  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100431
++  CFLAGS=${CFLAGS/-Werror=format-security/}
++  CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
++
+   "$srcdir"/$_basedir/configure \
+       --target=$_target \
+       --prefix=/usr \
+
+diff --git PKGBUILD.orig PKGBUILD
+index 879ead8..e12948e 100644
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -18,7 +18,7 @@
+ options=(!emptydirs !strip)
+ source=(https://ftp.gnu.org/gnu/gcc/gcc-$pkgver/gcc-$pkgver.tar.xz{,.sig}
+         #ftp://gcc.gnu.org/pub/gcc/snapshots/$_snapshot/gcc-$_snapshot.tar.xz
+-        http://isl.gforge.inria.fr/isl-$_islver.tar.bz2)
++        https://libisl.sourceforge.io/isl-$_islver.tar.bz2) # https://groups.google.com/g/isl-development/c/JGaMo2VUu_8
+ sha512sums=('fd6bba0f67ff48069d03073d1a9b5e896383b1cfc9dde008e868e60a9ec5014a837d56af0ecbf467b3fb9b37ec74a676e819a18b44393a0a3c4280175b5d7ad8'
+             'SKIP'
+             'fc2c9796979610dd51143dcefe4f5c989c4354571cc5a1fcc6b932fd41f42a54f6b43adfd289af61be7bd06f3a523fa6a7d7ee56680e32d8036beb4c188fa668')
+@@ -51,6 +51,11 @@
+   export CFLAGS_FOR_TARGET='-g -Os -ffunction-sections -fdata-sections'
+   export CXXFLAGS_FOR_TARGET='-g -Os -ffunction-sections -fdata-sections'
+ 
++  # https://bugs.archlinux.org/task/70701
++  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100431
++  CFLAGS=${CFLAGS/-Werror=format-security/}
++  CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
++
+   "$srcdir"/$_basedir/configure \
+     --target=$_target \
+     --prefix=/usr \
