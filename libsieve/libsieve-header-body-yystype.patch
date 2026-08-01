@@ -1,0 +1,21 @@
+--- a/src/sv_parser/header.y
++++ b/src/sv_parser/header.y
+@@ -64,13 +64,14 @@
+                 libsieve_headerentry(context, $1, $3);
+                 };
+ 
+-body: /* empty */ | TEXT                      {
+-                /* Default action is $$ = $1 */
++body: /* empty */		{ $$ = NULL; }
++	| TEXT			{
+                 TRACE_DEBUG( "body: TEXT: %s", $1 );
++                $$ = $1;
+                 }
+         | body WRAP             {
+-                TRACE_DEBUG( "body: body WRAP: %s %s", $1, $2 );
+-                $$ = libsieve_strbuf(context->strbuf, libsieve_strconcat( $1 ? $1 : "", $2, NULL ), strlen($1 ? $1 : "")+strlen($2), FREEME);
++                TRACE_DEBUG( "body: body WRAP: %s %s", $1 ? $1 : "", $2 ? $2 : "" );
++                $$ = libsieve_strbuf(context->strbuf, libsieve_strconcat( $1 ? $1 : "", $2 ? $2 : "", NULL ), strlen($1 ? $1 : "")+strlen($2 ? $2 : ""), FREEME);
+                 };
+ 
+ %%
