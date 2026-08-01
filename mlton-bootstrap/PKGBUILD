@@ -1,0 +1,41 @@
+# Maintainer: Alexander F. Rødseth <xyproto@archlinux.org>
+# Contributor: Michael Koloberdin <koloberdin@gmail.com>
+# Contributor: tochiro@no.spam.mail.berlios.de
+# Contributor: Andreas W. Hauser <andy-aur@splashground.de>
+# Contributor: Brian De Wolf <arch@bldewolf.com>
+
+_pkgname=mlton
+pkgname=$_pkgname-bootstrap
+pkgver=20241230
+pkgrel=1
+pkgdesc='Whole-program optimizing Standard ML compiler'
+arch=(x86_64)
+url='http://mlton.org/' # HTTPS is not available
+license=(HPND MIT)
+depends=(gmp)
+makedepends=(git polyml)
+provides=($_pkgname)
+conflicts=($_pkgname)
+options=(staticlibs)
+source=("git+https://github.com/MLton/mlton#tag=on-$pkgver-release")
+b2sums=('be2850460ce452f029714303d9d812b34e7330e645f5c1ed10be9e760cfbb77a451fe049681e521a8efde8b8a80bebb5d4b8046474618541244205244953ab32')
+
+prepare() {
+  make -C $_pkgname MLTON_VERSION="$pkgver" version
+}
+
+build() {
+  make -C $_pkgname bootstrap-polyml MLTON_COMPILE_ARGS="-link-opt -Wl,-z,relro,-z,now"
+}
+
+check() {
+  echo 'print("42");' > simple.sml
+  $_pkgname/build/bin/mlton simple.sml && test $(./simple) -eq 42
+}
+
+package() {
+  make -C $_pkgname PREFIX=/usr DESTDIR="$pkgdir" install
+  for f in $_pkgname/doc/license/*-LICENSE; do
+    install -Dm644 "$f" "$pkgdir/usr/share/licenses/$_pkgname/$f"
+  done
+}
