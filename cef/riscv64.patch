@@ -1,0 +1,80 @@
+diff --git PKGBUILD PKGBUILD
+index 63d07ce..0236acb 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -205,6 +205,13 @@
+   # CEF: Remove libxml_visibility patch (fails with system libxml2)
+   patch -Np1 -i ../cef-no-libxml-visibility-patch.patch
+ 
++  patch -Np1 -i "../$pkgname-riscv64-build-support.patch"
++  patch -Np0 -i ../swiftshader-use-llvm16.patch
++  patch -Np1 -i ../riscv-sandbox.patch
++
++  # Dawn tools only know amd64/arm64 for CIPD platform paths
++  sed -i "/raise ValueError('Unable to determine architecture')/i\\    if platform.machine().lower() in ('riscv64', 'riscv'):\\n        return 'riscv64'" third_party/dawn/tools/python/cipd_deps.py
++
+   # CEF: Override clang_exe to use system clang
+   echo 'clang_exe = "clang"' >>cef/tools/clang_util.py
+ 
+@@ -212,12 +219,12 @@
+   mkdir -p third_party/node/linux/node-linux-x64/bin \
+     third_party/jdk/current/bin \
+     third_party/rust-toolchain/bin \
+-    third_party/dawn/tools/golang/linux-amd64/bin
++    third_party/dawn/tools/golang/linux-riscv64/bin
+ 
+   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
+   ln -s /usr/bin/java third_party/jdk/current/bin/
+   ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
+-  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
++  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-riscv64/bin/
+ 
+   # remove x86_64 binary and use our own
+   rm -f third_party/gperf/cipd/bin/gperf
+@@ -346,9 +353,11 @@
+     )
+   fi
+ 
++  _flags+=('target_cpu="riscv64"')
++
+   export GN_DEFINES="${_flags[*]}"
+   # Only build Release config
+-  export GN_OUT_CONFIGS="Release_GN_x64"
++  export GN_OUT_CONFIGS="Release_GN_riscv64"
+ 
+   # Facilitate deterministic builds (taken from build/config/compiler/BUILD.gn)
+   CFLAGS+='   -Wno-builtin-macro-redefined'
+@@ -377,16 +386,19 @@
+   # https://crbug.com/957519#c122
+   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS/}
+ 
++  CFLAGS=${CFLAGS/-march=rv64gc/}
++  CXXFLAGS=${CXXFLAGS/-march=rv64gc/}
++
+   python3 cef/tools/gclient_hook.py
+   sed -i '/__sanitizer_set_death_callback/d' v8/src/sandbox/testing.cc
+-  ninja -C out/Release_GN_x64 libcef chrome_sandbox
++  ninja -C out/Release_GN_riscv64 libcef chrome_sandbox
+ 
+   # Build the CEF binary distribution
+   python3 cef/tools/make_distrib.py \
+     --distrib-subdir=distrib \
+     --output-dir=.. \
+     --ninja-build \
+-    --x64-build \
++    --riscv64-build \
+     --minimal \
+     --no-docs \
+     --no-archive
+@@ -420,4 +432,11 @@
+   install -Dm644 ../chromium-$_chromium_ver/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-CHROMIUM"
+ }
+ 
++source_riscv64=("$pkgname-riscv64-build-support.patch"
++                swiftshader-use-llvm16.patch
++                riscv-sandbox.patch)
++sha256sums_riscv64=('3e712a9dbf86194c1bc9c000657008c8b4452eb2995ba445b86dcdaac61b4d75'
++                    '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
++                    '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821')
++
+ # vim:set ts=2 sw=2 et:
