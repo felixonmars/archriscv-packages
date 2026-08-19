@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,6 +23,13 @@
+ b2sums=('474b69bb8753270757cacd78d98c12e257e326bfedc933a1a72c341d569c26fe37b38b004dd340713af875ead2231004e07d2013715dbe8d74398a04d22a6403'
+         '6cea74df1b6bd914e7845635a5a4b72bd6bd71f8135d900a744bc156dd256e97b9e179e47958cf135cd77726ce2a22a19c71343f49dfc1f34ba8958e3a76e5e8')
+ 
++prepare() {
++  cd "${pkgname}-${pkgver}"
++
++  # The DoH restart test's 100ms client timeout is too tight on riscv64 builders.
++  sed -i 's/Timeout:            100 \* time.Millisecond,/Timeout:            testTimeout,/' upstream/doh_internal_test.go
++}
++
+ build() {
+   cd "${pkgname}-${pkgver}"
+ 
