@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -57,3 +57,14 @@
+ 
+   install -Dm755 node_exporter "$pkgdir"/usr/bin/prometheus-node-exporter
+ }
++
++prepare() {
++  cd node_exporter-$pkgver
++
++  # riscv64 disables x86-only cpu_info e2e metrics, so use the fixture
++  # that omits those metrics; see https://github.com/prometheus/node_exporter/issues/3180.
++  patch -F0 -p1 -i ../fix-riscv64-e2e-output.patch
++}
++
++source+=(fix-riscv64-e2e-output.patch)
++sha256sums+=('fe96ec518f80645fc1a41fdf08fe3ee863e3f3603c1876061d3c1cd3cb4117bd')
+ 
