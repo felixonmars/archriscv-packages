@@ -1,40 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -30,11 +30,17 @@
+@@ -29,14 +29,24 @@
+ replaces=(go-pie)
  provides=(go-pie)
  options=(!strip staticlibs)
- source=("https://go.dev/dl/go${pkgver}.src.tar.gz"{,.asc}
--        fix-avx512ScanPackedReqsMet.patch)
-+        fix-avx512ScanPackedReqsMet.patch
-+        "5d5c7ff1f012bb70d653c1a2b282ee46161b6914.patch::https://github.com/golang/go/commit/5d5c7ff1f012bb70d653c1a2b282ee46161b6914.patch"
-+        fix-mergelocals-opgen-context.patch
+-source=("https://go.dev/dl/go${pkgver}.src.tar.gz"{,.asc})
++source=("https://go.dev/dl/go${pkgver}.src.tar.gz"{,.asc}
 +        fix-debuglog-test-cputicks-order.patch)
  validpgpkeys=('EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796')
- sha256sums=('a0721c54c688901448d77ad9b3ec7ea7c474730755ff891382e92ecb93ff2cb1'
-             'SKIP'
--            'f1257d86f88526987d0130f4764e7b1d9cd8423676e5fc1f0fb0da146165d551')
-+            'f1257d86f88526987d0130f4764e7b1d9cd8423676e5fc1f0fb0da146165d551'
-+            '7ffa36085dd6037804bfaf6f60d069d88ec4789e54444f5a9fafe1bf99642907'
-+            '44470e23a0a86519b04016236a731102a2718d768e28b63683af89e553bb4f5c'
-+            '6a871190f570336636787f1e6aaf7f9fd8de1ab006f6db429edc04f4b992c286')
- 
- prepare() {
-   cd $pkgname
-@@ -43,11 +49,21 @@
- 
-   # Fix AMD test failures on build.archlinux.org; see https://github.com/golang/go/issues/77674.
-   patch -p1 -i ../fix-avx512ScanPackedReqsMet.patch
+ sha256sums=('7002403d7cc44529ef6d26f69a44818263395ead7c16c05a5808ae047ebeb0e5'
+-  'SKIP')
++  'SKIP'
++  '6a871190f570336636787f1e6aaf7f9fd8de1ab006f6db429edc04f4b992c286')
 +
-+  # Backport https://github.com/golang/go/commit/5d5c7ff1f012 for
-+  # "expected trace output on 8 vars got 0" in TestMergeLocalsIntegration.
-+  git apply --exclude=src/cmd/compile/internal/ssa/opGen.go ../5d5c7ff1f012bb70d653c1a2b282ee46161b6914.patch
-+  # The upstream opGen.go hunk fuzz-matches the wrong LoweredZero block on go1.26.6.
-+  patch -F0 -p1 -i ../fix-mergelocals-opgen-context.patch
++prepare() {
++  cd $pkgname
 +
 +  # TestDebugLogInterleaving failed with "got (uncanonicalized)" even though
 +  # all records were present; cputicks may drift across CPUs.
 +  patch -F0 -p1 -i ../fix-debuglog-test-cputicks-order.patch
- }
++}
  
  build() {
 -  export GOARCH=amd64
@@ -44,7 +29,7 @@
    export GOROOT_FINAL=/usr/lib/go
    export GOROOT_BOOTSTRAP=/usr/lib/go
  
-@@ -71,7 +87,7 @@
+@@ -60,7 +70,7 @@
    cd "$pkgname"
  
    install -d "$pkgdir/usr/bin" "$pkgdir/usr/lib/go" "$pkgdir/usr/share/doc/go" \
