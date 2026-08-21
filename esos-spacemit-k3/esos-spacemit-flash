@@ -1,0 +1,209 @@
+#!/bin/bash
+set -euo pipefail
+
+_esos_itb=/usr/lib/esos/esos.itb
+_dry_run=0
+
+usage() {
+    cat <<USAGE
+Usage: esos-spacemit-flash [--dry-run]
+
+Flash $_esos_itb to the detected SpacemiT boot device.
+USAGE
+}
+
+running_in_chroot() {
+    if [[ "${SYSTEMD_IGNORE_CHROOT:-0}" == "1" ]]; then
+        return 1
+    fi
+    if [[ -e /proc/1/root ]]; then
+        local root_dev_ino proc1_root_dev_ino
+        root_dev_ino=$(stat -c '%d:%i' / 2>/dev/null) || return 0
+        proc1_root_dev_ino=$(stat -L -c '%d:%i' /proc/1/root 2>/dev/null) || return 0
+        [[ "$root_dev_ino" == "$proc1_root_dev_ino" ]] && return 1 || return 0
+    fi
+    if [[ ! -d /proc || ! -r /proc/version ]]; then
+        [[ $$ == 1 ]] && return 1 || return 0
+    fi
+    return 0
+}
+
+boot_device_from_mode() {
+    local mode=$1
+
+    case $mode in
+        emmc) echo /dev/mmcblk2 ;;
+        sdcard) echo /dev/mmcblk0 ;;
+        nor|nand)
+            if [[ -e /dev/mtdblock0 ]]; then
+                echo /dev/mtdblock0
+            fi
+            ;;
+        ufs) echo /dev/sda ;;
+    esac
+}
+
+base_device() {
+    local dev=$1
+
+    case $dev in
+        /dev/mmcblk0*) echo /dev/mmcblk0 ;;
+        /dev/mmcblk2*) echo /dev/mmcblk2 ;;
+        /dev/sda*) echo /dev/sda ;;
+        /dev/nvme0n1*) echo /dev/nvme0n1 ;;
+    esac
+}
+
+resolve_root_device() {
+    local root_spec=$1
+
+    case $root_spec in
+        UUID=*) blkid -U "${root_spec#UUID=}" 2>/dev/null || true ;;
+        /dev/*) echo "$root_spec" ;;
+    esac
+}
+
+detect_target_device() {
+    local boot_mode= root_spec= root= x
+
+    for x in $(cat /proc/cmdline); do
+        case $x in
+            root=*) root_spec=${x#root=} ;;
+            boot_mode=*) boot_mode=${x#boot_mode=} ;;
+        esac
+    done
+
+    if [[ -n $root_spec ]]; then
+        root=$(resolve_root_device "$root_spec")
+    fi
+
+    if [[ -n $boot_mode ]]; then
+        local boot_device
+        boot_device=$(boot_device_from_mode "$boot_mode")
+        if [[ -n $boot_device && -n $root ]]; then
+            local root_base_device
+            root_base_device=$(base_device "$root")
+            if [[ $boot_device != "$root_base_device" ]]; then
+                echo "$boot_device"
+            else
+                echo "$root_base_device"
+            fi
+            return 0
+        elif [[ -n $boot_device ]]; then
+            echo "$boot_device"
+            return 0
+        else
+            echo "Unsupported boot_mode=$boot_mode" >&2
+            return 1
+        fi
+    fi
+
+    if [[ -n $root ]]; then
+        base_device "$root"
+        return 0
+    fi
+
+    echo "Unable to determine target device (missing root= or boot_mode= in cmdline)" >&2
+    return 1
+}
+
+detect_esos_location() {
+    local target_device=$1
+
+    case $target_device in
+        /dev/mmcblk0|/dev/mmcblk2|/dev/sda)
+            echo "$target_device 4096"
+            ;;
+        /dev/mtdblock0)
+            if [[ -f /proc/mtd ]]; then
+                local mtd0_name
+                mtd0_name=$(grep '^mtd0:' /proc/mtd | awk -F'"' '{print $2}')
+                if [[ $mtd0_name == "bootinfo" ]]; then
+                    echo "/dev/mtdblock3 0"
+                else
+                    echo "/dev/mtdblock0 704"
+                fi
+            else
+                echo "/dev/mtdblock0 704"
+            fi
+            ;;
+        /dev/nvme0n1)
+            if [[ -f /proc/mtd ]]; then
+                local mtd0_name
+                mtd0_name=$(grep '^mtd0:' /proc/mtd | awk -F'"' '{print $2}')
+                if [[ $mtd0_name == "bootinfo" ]]; then
+                    echo "/dev/mtdblock3 0"
+                else
+                    echo "/dev/mtdblock0 704"
+                fi
+            elif [[ -e /dev/mtdblock4 ]]; then
+                echo "/dev/mtdblock4 0"
+            elif [[ -e /dev/mtdblock0 ]]; then
+                echo "/dev/mtdblock0 704"
+            else
+                echo "/dev/mmcblk2 704"
+            fi
+            ;;
+        *)
+            echo "Unsupported target device=$target_device" >&2
+            return 1
+            ;;
+    esac
+}
+
+flash_esos() {
+    if ! grep -q 'Spacemit(R) X100' /proc/cpuinfo 2>/dev/null; then
+        echo "Not running on SpacemiT X100, skipping esos.itb flash."
+        return 0
+    fi
+
+    if running_in_chroot; then
+        echo "Running in chroot, skipping esos.itb flash."
+        return 0
+    fi
+
+    if [[ ! -f $_esos_itb ]]; then
+        echo "Missing $_esos_itb" >&2
+        return 1
+    fi
+
+    local target_device esos seek
+    target_device=$(detect_target_device)
+    read -r esos seek < <(detect_esos_location "$target_device")
+
+    if [[ ! -e $esos ]]; then
+        echo "Missing device $esos" >&2
+        return 1
+    fi
+
+    if (( _dry_run )); then
+        echo "Would flash $_esos_itb to $esos at offset ${seek}K."
+        return 0
+    fi
+
+    if (( EUID != 0 )); then
+        echo "Run as root to flash $esos." >&2
+        return 1
+    fi
+
+    echo "Flashing $_esos_itb to $esos at offset ${seek}K ..."
+    dd if="$_esos_itb" of="$esos" seek="$seek" bs=1K && sync
+    echo "Done."
+}
+
+while (( $# )); do
+    case $1 in
+        --dry-run) _dry_run=1 ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+flash_esos
