@@ -1,0 +1,62 @@
+--- a/cef/tools/gn_args.py
++++ b/cef/tools/gn_args.py
+@@ -430,7 +430,7 @@
+   # Target CPU architecture.
+   # - Windows supports "x86", "x64" and "arm64".
+   # - Mac supports "x64" and "arm64".
+-  # - Linux supports only "x64" unless using a sysroot environment.
++  # - Linux supports "x86", "x64", "arm", "arm64" and "riscv64".
+   if platform == 'mac':
+     assert target_cpu in ('x64', 'arm64'), 'target_cpu must be "x64" or "arm64"'
+   elif platform == 'windows':
+@@ -439,7 +439,8 @@
+   elif platform == 'linux':
+     assert target_cpu in (
+         'x86', 'x64', 'arm',
+-        'arm64'), 'target_cpu must be "x86", "x64", "arm" or "arm64"'
++        'arm64',
++        'riscv64'), 'target_cpu must be "x86", "x64", "arm", "arm64" or "riscv64"'
+ 
+   # ASAN requires Release builds.
+   if is_asan:
+--- a/cef/tools/make_distrib.py
++++ b/cef/tools/make_distrib.py
+@@ -701,6 +701,12 @@
+       default=False,
+       help='create an ARM64 binary distribution (Linux only)')
+   parser.add_option(
++      '--riscv64-build',
++      action='store_true',
++      dest='riscv64build',
++      default=False,
++      help='create a RISC-V 64-bit binary distribution (Linux only)')
++  parser.add_option(
+       '--minimal',
+       action='store_true',
+       dest='minimal',
+@@ -755,12 +761,15 @@
+     return '--output-dir is required.'
+   if options.minimal and options.client:
+     return 'Cannot specify both --minimal and --client.'
+-  if options.x64build + options.armbuild + options.arm64build > 1:
++  if options.x64build + options.armbuild + options.arm64build + \
++      options.riscv64build > 1:
+     return 'Invalid combination of build options.'
+   if options.armbuild and platform != 'linux':
+     return '--arm-build is only supported on Linux.'
+   if options.sandbox and not platform in ('mac', 'windows'):
+     return '--sandbox is only supported on macOS and Windows.'
++  if options.riscv64build and platform != 'linux':
++    return '--riscv64-build is only supported on Linux.'
+   if not options.ninjabuild:
+     return '--ninja-build is required.'
+   if options.ozone and platform != 'linux':
+@@ -779,6 +788,8 @@
+     return ('arm', 'arm', '_GN_arm')
+   if options.arm64build:
+     return ('arm64', 'arm64', '_GN_arm64')
++  if options.riscv64build:
++    return ('riscv64', 'riscv64', '_GN_riscv64')
+   return ('32', 'x86', '_GN_x86')
+ 
+ 
