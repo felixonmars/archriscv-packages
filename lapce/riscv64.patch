@@ -1,18 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -40,12 +40,13 @@
+@@ -32,9 +32,10 @@
+ 	export CARGO_HOME="$srcdir"
  	export CARGO_PROFILE_RELEASE_DEBUG=2
- 	export LIBGIT2_NO_VENDOR=1
- 	export OPENSSL_NO_VENDOR=true
--	cargo build --frozen --profile release-lto --all-features
+ 	export CARGO_PROFILE_RELEASE_STRIP=false
+-	export CARGO_PROFILE_RELEASE_LTO=true
++	export CARGO_PROFILE_RELEASE_LTO=false
+ 	export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+ 	export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
 +	export RUSTFLAGS="-C code-model=large"
-+	cargo build --frozen --profile release --all-features
- }
- 
- package() {
- 	cd "$_archive"
--	install -Dm0755 -t "$pkgdir/usr/bin/" "target/release-lto/$pkgname"{,-proxy}
-+	install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$pkgname"{,-proxy}
- 	local lname=dev.lapce.lapce
- 	install -Dm0644 -t "$pkgdir/usr/share/applications/" extra/linux/$lname.desktop
- 	install -Dm0644 -t "$pkgdir/usr/share/metainfo/" extra/linux/$lname.metainfo.xml
+ 	CFLAGS+=' -ffat-lto-objects'
+ 	export LIBGIT2_NO_VENDOR=1
+ 	export LIBSSH2_SYS_USE_PKG_CONFIG=1
