@@ -1,8 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index 63d07ce..0236acb 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -205,6 +205,13 @@
+@@ -201,6 +201,13 @@
    # CEF: Remove libxml_visibility patch (fails with system libxml2)
    patch -Np1 -i ../cef-no-libxml-visibility-patch.patch
  
@@ -16,57 +14,64 @@ index 63d07ce..0236acb 100644
    # CEF: Override clang_exe to use system clang
    echo 'clang_exe = "clang"' >>cef/tools/clang_util.py
  
-@@ -212,12 +219,12 @@
-   mkdir -p third_party/node/linux/node-linux-x64/bin \
+@@ -211,7 +218,8 @@
      third_party/jdk/current/bin \
      third_party/rust-toolchain/bin \
--    third_party/dawn/tools/golang/linux-amd64/bin
+     third_party/dawn/tools/golang/linux-amd64/bin \
+-    third_party/dawn/tools/golang/linux-arm64/bin
++    third_party/dawn/tools/golang/linux-arm64/bin \
 +    third_party/dawn/tools/golang/linux-riscv64/bin
  
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-   ln -s /usr/bin/java third_party/jdk/current/bin/
+   ln -s /usr/bin/node third_party/node/linux/node-linux-arm64/bin/
+@@ -219,6 +227,7 @@
    ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
--  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
+   ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
+   ln -s /usr/bin/go third_party/dawn/tools/golang/linux-arm64/bin/
 +  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-riscv64/bin/
  
    # remove x86_64 binary and use our own
    rm -f third_party/gperf/cipd/bin/gperf
-@@ -346,9 +353,11 @@
-     )
+@@ -352,6 +361,9 @@
+   if [[ $CARCH == "aarch64" ]]; then
+     export GN_DEFINES+=' target_cpu="arm64"'
+     export GN_OUT_CONFIGS="Release_GN_arm64"
++  elif [[ $CARCH == "riscv64" ]]; then
++    export GN_DEFINES+=' target_cpu="riscv64"'
++    export GN_OUT_CONFIGS="Release_GN_riscv64"
+   else
+     export GN_OUT_CONFIGS="Release_GN_x64"
    fi
- 
-+  _flags+=('target_cpu="riscv64"')
-+
-   export GN_DEFINES="${_flags[*]}"
-   # Only build Release config
--  export GN_OUT_CONFIGS="Release_GN_x64"
-+  export GN_OUT_CONFIGS="Release_GN_riscv64"
- 
-   # Facilitate deterministic builds (taken from build/config/compiler/BUILD.gn)
-   CFLAGS+='   -Wno-builtin-macro-redefined'
-@@ -377,16 +386,19 @@
+@@ -383,8 +395,8 @@
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS/}
  
-+  CFLAGS=${CFLAGS/-march=rv64gc/}
-+  CXXFLAGS=${CXXFLAGS/-march=rv64gc/}
-+
-   python3 cef/tools/gclient_hook.py
-   sed -i '/__sanitizer_set_death_callback/d' v8/src/sandbox/testing.cc
--  ninja -C out/Release_GN_x64 libcef chrome_sandbox
-+  ninja -C out/Release_GN_riscv64 libcef chrome_sandbox
+-  # aarch64: strip -march= as chromium sub-targets need their own arch flags
+-  if [[ $CARCH == "aarch64" ]]; then
++  # strip -march= as chromium sub-targets need their own arch flags
++  if [[ $CARCH == "aarch64" || $CARCH == "riscv64" ]]; then
+     CFLAGS="${CFLAGS/-march=*([^ ]) }"
+     CXXFLAGS="${CXXFLAGS/-march=*([^ ]) }"
+   fi
+@@ -394,6 +406,8 @@
  
+   if [[ $CARCH == "aarch64" ]]; then
+     ninja -C out/Release_GN_arm64 libcef chrome_sandbox
++  elif [[ $CARCH == "riscv64" ]]; then
++    ninja -C out/Release_GN_riscv64 libcef chrome_sandbox
+   else
+     ninja -C out/Release_GN_x64 libcef chrome_sandbox
+   fi
+@@ -401,6 +415,8 @@
    # Build the CEF binary distribution
-   python3 cef/tools/make_distrib.py \
-     --distrib-subdir=distrib \
-     --output-dir=.. \
-     --ninja-build \
--    --x64-build \
-+    --riscv64-build \
-     --minimal \
-     --no-docs \
-     --no-archive
-@@ -420,4 +432,11 @@
+   if [[ $CARCH == "aarch64" ]]; then
+     local _distrib_arch_flag="--arm64-build"
++  elif [[ $CARCH == "riscv64" ]]; then
++    local _distrib_arch_flag="--riscv64-build"
+   else
+     local _distrib_arch_flag="--x64-build"
+   fi
+@@ -443,4 +459,11 @@
    install -Dm644 ../chromium-$_chromium_ver/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-CHROMIUM"
  }
  
