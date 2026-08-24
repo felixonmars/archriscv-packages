@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,14 +16,25 @@
+ 	ninja
+ 	gtest
+ )
+-source=("${pkgname}::git+${url}#commit=$_commit")
+-sha256sums=('879843097951d76bd8b234332ff438e2a0959e2429ddf9e74612a1558292465b')
++source=(
++	"${pkgname}::git+${url}#commit=$_commit"
++	fix-riscv-linux-init.patch
++)
++sha256sums=(
++	'879843097951d76bd8b234332ff438e2a0959e2429ddf9e74612a1558292465b'
++	'c3aaabf151c0ea26effa49dd1dc9cd46e9a0b15e6fdb76c40a5cbe032cfd3b24'
++)
+ 
+ pkgver() {
+ 	cd ${pkgname}
+ 	printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+ }
+ 
++prepare() {
++	cd ${pkgname}
++	patch -Np1 -i ../fix-riscv-linux-init.patch
++}
++
+ build() {
+ 	local cmake_args=(
+ 		-Wno-dev

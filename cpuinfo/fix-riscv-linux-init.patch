@@ -1,0 +1,494 @@
+--- a/src/riscv/linux/init.c
++++ b/src/riscv/linux/init.c
+@@ -1,3 +1,6 @@
++#include <inttypes.h>
++#include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ 
+ #include <cpuinfo/internal-api.h>
+@@ -5,6 +8,28 @@
+ #include <linux/api.h>
+ #include <riscv/linux/api.h>
+ 
++#define RISCV_LINUX_CACHE_INDEX_MAX 8
++#define RISCV_LINUX_CACHE_PATH_SIZE 256
++
++enum riscv_linux_cache_type {
++	riscv_linux_cache_type_unknown = 0,
++	riscv_linux_cache_type_data,
++	riscv_linux_cache_type_instruction,
++	riscv_linux_cache_type_unified,
++};
++
++struct riscv_linux_cache_info {
++	enum cpuinfo_cache_level level;
++	struct cpuinfo_cache cache;
++};
++
++struct riscv_linux_cache_span {
++	const uint32_t* linux_cpu_to_processor_index_map;
++	uint32_t max_processor_id;
++	uint32_t processor_start;
++	uint32_t processor_end;
++};
++
+ /* ISA structure to hold supported extensions. */
+ struct cpuinfo_riscv_isa cpuinfo_isa = {0};
+ 
+@@ -13,6 +38,227 @@
+ 	return (flags & mask) == mask;
+ }
+ 
++static bool uint32_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
++	uint32_t value = 0;
++	const char* parsed = text_start;
++	for (; parsed != text_end; parsed++) {
++		const uint32_t digit = (uint32_t)(uint8_t)(*parsed) - (uint32_t)'0';
++		if (digit >= 10) {
++			break;
++		}
++		value = value * UINT32_C(10) + digit;
++	}
++	if (parsed == text_start) {
++		return false;
++	}
++
++	*((uint32_t*)context) = value;
++	return true;
++}
++
++static bool cache_size_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
++	uint32_t value = 0;
++	const char* parsed = text_start;
++	for (; parsed != text_end; parsed++) {
++		const uint32_t digit = (uint32_t)(uint8_t)(*parsed) - (uint32_t)'0';
++		if (digit >= 10) {
++			break;
++		}
++		value = value * UINT32_C(10) + digit;
++	}
++	if (parsed == text_start || value == 0) {
++		return false;
++	}
++
++	uint64_t size = value;
++	if (parsed != text_end) {
++		switch (*parsed) {
++			case 'K':
++			case 'k':
++				size *= UINT64_C(1024);
++				break;
++			case 'M':
++			case 'm':
++				size *= UINT64_C(1024) * UINT64_C(1024);
++				break;
++			case 'G':
++			case 'g':
++				size *= UINT64_C(1024) * UINT64_C(1024) * UINT64_C(1024);
++				break;
++			default:
++				break;
++		}
++	}
++	if (size > UINT32_MAX) {
++		return false;
++	}
++
++	*((uint32_t*)context) = (uint32_t)size;
++	return true;
++}
++
++static bool cache_type_parser(const char* filename, const char* text_start, const char* text_end, void* context) {
++	while (text_end != text_start && (text_end[-1] == '\n' || text_end[-1] == '\r')) {
++		text_end--;
++	}
++
++	enum riscv_linux_cache_type* type = (enum riscv_linux_cache_type*)context;
++	const size_t type_length = (size_t)(text_end - text_start);
++	if (type_length == 4 && memcmp(text_start, "Data", 4) == 0) {
++		*type = riscv_linux_cache_type_data;
++		return true;
++	}
++	if (type_length == 11 && memcmp(text_start, "Instruction", 11) == 0) {
++		*type = riscv_linux_cache_type_instruction;
++		return true;
++	}
++	if (type_length == 7 && memcmp(text_start, "Unified", 7) == 0) {
++		*type = riscv_linux_cache_type_unified;
++		return true;
++	}
++
++	return false;
++}
++
++static bool format_cache_path(
++	char path[restrict static RISCV_LINUX_CACHE_PATH_SIZE],
++	uint32_t processor,
++	uint32_t cache_index,
++	const char* filename) {
++	const int chars_formatted = snprintf(
++		path,
++		RISCV_LINUX_CACHE_PATH_SIZE,
++		"/sys/devices/system/cpu/cpu%" PRIu32 "/cache/index%" PRIu32 "/%s",
++		processor,
++		cache_index,
++		filename);
++	return chars_formatted > 0 && (unsigned int)chars_formatted < RISCV_LINUX_CACHE_PATH_SIZE;
++}
++
++static bool cache_shared_cpu_parser(uint32_t processor_start, uint32_t processor_end, void* context) {
++	struct riscv_linux_cache_span* span = (struct riscv_linux_cache_span*)context;
++	for (uint32_t processor = processor_start; processor < processor_end && processor < span->max_processor_id;
++	     processor++) {
++		const uint32_t processor_index = span->linux_cpu_to_processor_index_map[processor];
++		if (processor_index == UINT32_MAX) {
++			continue;
++		}
++		if (span->processor_start == UINT32_MAX || processor_index < span->processor_start) {
++			span->processor_start = processor_index;
++		}
++		if (processor_index + 1 > span->processor_end) {
++			span->processor_end = processor_index + 1;
++		}
++	}
++	return true;
++}
++
++static bool read_cache_file(
++	uint32_t processor,
++	uint32_t cache_index,
++	const char* filename,
++	cpuinfo_smallfile_callback parser,
++	void* context) {
++	char path[RISCV_LINUX_CACHE_PATH_SIZE];
++	if (!format_cache_path(path, processor, cache_index, filename)) {
++		return false;
++	}
++	return cpuinfo_linux_parse_small_file(path, 64, parser, context);
++}
++
++static bool read_riscv_linux_cache(
++	uint32_t processor,
++	uint32_t cache_index,
++	const uint32_t* linux_cpu_to_processor_index_map,
++	uint32_t max_processor_id,
++	struct riscv_linux_cache_info cache_info[restrict static 1]) {
++	uint32_t level = 0;
++	if (!read_cache_file(processor, cache_index, "level", uint32_parser, &level)) {
++		return false;
++	}
++	if (level == 0 || level > 4) {
++		return false;
++	}
++
++	enum riscv_linux_cache_type type = riscv_linux_cache_type_unknown;
++	if (!read_cache_file(processor, cache_index, "type", cache_type_parser, &type)) {
++		return false;
++	}
++
++	enum cpuinfo_cache_level cache_level;
++	if (level == 1) {
++		switch (type) {
++			case riscv_linux_cache_type_instruction:
++				cache_level = cpuinfo_cache_level_1i;
++				break;
++			case riscv_linux_cache_type_data:
++			case riscv_linux_cache_type_unified:
++				cache_level = cpuinfo_cache_level_1d;
++				break;
++			default:
++				return false;
++		}
++	} else if (type == riscv_linux_cache_type_unified || type == riscv_linux_cache_type_data) {
++		cache_level = (enum cpuinfo_cache_level)level;
++	} else {
++		return false;
++	}
++
++	struct cpuinfo_cache cache = {0};
++	if (!read_cache_file(processor, cache_index, "size", cache_size_parser, &cache.size)) {
++		return false;
++	}
++	if (!read_cache_file(processor, cache_index, "coherency_line_size", uint32_parser, &cache.line_size)) {
++		return false;
++	}
++	if (!read_cache_file(processor, cache_index, "ways_of_associativity", uint32_parser, &cache.associativity)) {
++		return false;
++	}
++	read_cache_file(processor, cache_index, "number_of_sets", uint32_parser, &cache.sets);
++	cache.partitions = 1;
++	read_cache_file(processor, cache_index, "physical_line_partition", uint32_parser, &cache.partitions);
++	if (type == riscv_linux_cache_type_unified) {
++		cache.flags = CPUINFO_CACHE_UNIFIED;
++	}
++
++	if (cache.sets == 0 && cache.associativity != 0 && cache.partitions != 0 && cache.line_size != 0) {
++		cache.sets = cache.size / (cache.associativity * cache.partitions * cache.line_size);
++	}
++	if (cache.associativity == 0 && cache.sets != 0 && cache.partitions != 0 && cache.line_size != 0) {
++		cache.associativity = cache.size / (cache.sets * cache.partitions * cache.line_size);
++	}
++	if (cache.size == 0 || cache.associativity == 0 || cache.sets == 0 || cache.partitions == 0 ||
++	    cache.line_size == 0 ||
++	    cache.size != cache.associativity * cache.sets * cache.partitions * cache.line_size) {
++		return false;
++	}
++
++	struct riscv_linux_cache_span span = {
++		.linux_cpu_to_processor_index_map = linux_cpu_to_processor_index_map,
++		.max_processor_id = max_processor_id,
++		.processor_start = UINT32_MAX,
++		.processor_end = 0,
++	};
++	char path[RISCV_LINUX_CACHE_PATH_SIZE];
++	if (format_cache_path(path, processor, cache_index, "shared_cpu_list")) {
++		cpuinfo_linux_parse_cpulist(path, cache_shared_cpu_parser, &span);
++	}
++	if (span.processor_start == UINT32_MAX) {
++		const uint32_t processor_index = linux_cpu_to_processor_index_map[processor];
++		if (processor_index == UINT32_MAX) {
++			return false;
++		}
++		span.processor_start = processor_index;
++		span.processor_end = processor_index + 1;
++	}
++
++	cache.processor_start = span.processor_start;
++	cache.processor_count = span.processor_end - span.processor_start;
++	cache_info->level = cache_level;
++	cache_info->cache = cache;
++	return true;
++}
++
+ static int compare_riscv_linux_processors(const void* a, const void* b) {
+ 	/**
+ 	 * For our purposes, it is only relevant that the list is sorted by
+@@ -230,9 +476,15 @@
+ 	struct cpuinfo_cluster* clusters = NULL;
+ 	struct cpuinfo_core* cores = NULL;
+ 	struct cpuinfo_uarch_info* uarchs = NULL;
++	struct cpuinfo_cache* l1i = NULL;
++	struct cpuinfo_cache* l1d = NULL;
++	struct cpuinfo_cache* l2 = NULL;
++	struct cpuinfo_cache* l3 = NULL;
++	struct cpuinfo_cache* l4 = NULL;
+ 	const struct cpuinfo_processor** linux_cpu_to_processor_map = NULL;
+ 	const struct cpuinfo_core** linux_cpu_to_core_map = NULL;
+ 	uint32_t* linux_cpu_to_uarch_index_map = NULL;
++	uint32_t* linux_cpu_to_processor_index_map = NULL;
+ 
+ 	/**
+ 	 * The interesting set of processors are the number of 'present'
+@@ -504,6 +756,18 @@
+ 		goto cleanup;
+ 	}
+ 
++	linux_cpu_to_processor_index_map = calloc(max_processor_id, sizeof(uint32_t));
++	if (linux_cpu_to_processor_index_map == NULL) {
++		cpuinfo_log_error(
++			"failed to allocate %zu bytes for %" PRIu32 " processor index map.",
++			max_processor_id * sizeof(uint32_t),
++			max_processor_id);
++		goto cleanup;
++	}
++	for (uint32_t processor = 0; processor < max_processor_id; processor++) {
++		linux_cpu_to_processor_index_map[processor] = UINT32_MAX;
++	}
++
+ 	/* Transfer contents of processor list to ABI structures. */
+ 	size_t valid_processors_index = 0;
+ 	size_t valid_cores_index = 0;
+@@ -574,7 +838,124 @@
+ 		linux_cpu_to_processor_map[linux_id] = &processors[valid_processors_index - 1];
+ 		linux_cpu_to_core_map[linux_id] = &cores[valid_cores_index - 1];
+ 		linux_cpu_to_uarch_index_map[linux_id] = valid_uarchs_index - 1;
++		linux_cpu_to_processor_index_map[linux_id] = valid_processors_index - 1;
++	}
++
++	uint32_t cache_count[cpuinfo_cache_level_max] = {0};
++	for (uint32_t processor = 0; processor < valid_processors_count; processor++) {
++		const uint32_t linux_id = processors[processor].linux_id;
++		for (uint32_t cache_index = 0; cache_index < RISCV_LINUX_CACHE_INDEX_MAX; cache_index++) {
++			struct riscv_linux_cache_info cache_info = {0};
++			if (read_riscv_linux_cache(
++				    linux_id,
++				    cache_index,
++				    linux_cpu_to_processor_index_map,
++				    max_processor_id,
++				    &cache_info) &&
++			    cache_info.cache.processor_start == processor) {
++				cache_count[cache_info.level] += 1;
++			}
++		}
++	}
++
++	if (cache_count[cpuinfo_cache_level_1i] != 0) {
++		l1i = calloc(cache_count[cpuinfo_cache_level_1i], sizeof(struct cpuinfo_cache));
++		if (l1i == NULL) {
++			cpuinfo_log_error(
++				"failed to allocate %zu bytes for %" PRIu32 " L1I caches.",
++				cache_count[cpuinfo_cache_level_1i] * sizeof(struct cpuinfo_cache),
++				cache_count[cpuinfo_cache_level_1i]);
++			goto cleanup;
++		}
++	}
++	if (cache_count[cpuinfo_cache_level_1d] != 0) {
++		l1d = calloc(cache_count[cpuinfo_cache_level_1d], sizeof(struct cpuinfo_cache));
++		if (l1d == NULL) {
++			cpuinfo_log_error(
++				"failed to allocate %zu bytes for %" PRIu32 " L1D caches.",
++				cache_count[cpuinfo_cache_level_1d] * sizeof(struct cpuinfo_cache),
++				cache_count[cpuinfo_cache_level_1d]);
++			goto cleanup;
++		}
++	}
++	if (cache_count[cpuinfo_cache_level_2] != 0) {
++		l2 = calloc(cache_count[cpuinfo_cache_level_2], sizeof(struct cpuinfo_cache));
++		if (l2 == NULL) {
++			cpuinfo_log_error(
++				"failed to allocate %zu bytes for %" PRIu32 " L2 caches.",
++				cache_count[cpuinfo_cache_level_2] * sizeof(struct cpuinfo_cache),
++				cache_count[cpuinfo_cache_level_2]);
++			goto cleanup;
++		}
++	}
++	if (cache_count[cpuinfo_cache_level_3] != 0) {
++		l3 = calloc(cache_count[cpuinfo_cache_level_3], sizeof(struct cpuinfo_cache));
++		if (l3 == NULL) {
++			cpuinfo_log_error(
++				"failed to allocate %zu bytes for %" PRIu32 " L3 caches.",
++				cache_count[cpuinfo_cache_level_3] * sizeof(struct cpuinfo_cache),
++				cache_count[cpuinfo_cache_level_3]);
++			goto cleanup;
++		}
++	}
++	if (cache_count[cpuinfo_cache_level_4] != 0) {
++		l4 = calloc(cache_count[cpuinfo_cache_level_4], sizeof(struct cpuinfo_cache));
++		if (l4 == NULL) {
++			cpuinfo_log_error(
++				"failed to allocate %zu bytes for %" PRIu32 " L4 caches.",
++				cache_count[cpuinfo_cache_level_4] * sizeof(struct cpuinfo_cache),
++				cache_count[cpuinfo_cache_level_4]);
++			goto cleanup;
++		}
++	}
++
++	struct cpuinfo_cache* cache[cpuinfo_cache_level_max] = {l1i, l1d, l2, l3, l4};
++	uint32_t cache_index[cpuinfo_cache_level_max] = {0};
++	for (uint32_t processor = 0; processor < valid_processors_count; processor++) {
++		const uint32_t linux_id = processors[processor].linux_id;
++		for (uint32_t sysfs_cache_index = 0; sysfs_cache_index < RISCV_LINUX_CACHE_INDEX_MAX; sysfs_cache_index++) {
++			struct riscv_linux_cache_info cache_info = {0};
++			if (!read_riscv_linux_cache(
++				    linux_id,
++				    sysfs_cache_index,
++				    linux_cpu_to_processor_index_map,
++				    max_processor_id,
++				    &cache_info) ||
++			    cache_info.cache.processor_start != processor) {
++				continue;
++			}
++
++			const enum cpuinfo_cache_level cache_level = cache_info.level;
++			struct cpuinfo_cache* current_cache = &cache[cache_level][cache_index[cache_level]++];
++			*current_cache = cache_info.cache;
++			for (uint32_t cache_processor = current_cache->processor_start;
++			     cache_processor < current_cache->processor_start + current_cache->processor_count &&
++			     cache_processor < valid_processors_count;
++			     cache_processor++) {
++				switch (cache_level) {
++					case cpuinfo_cache_level_1i:
++						processors[cache_processor].cache.l1i = current_cache;
++						break;
++					case cpuinfo_cache_level_1d:
++						processors[cache_processor].cache.l1d = current_cache;
++						break;
++					case cpuinfo_cache_level_2:
++						processors[cache_processor].cache.l2 = current_cache;
++						break;
++					case cpuinfo_cache_level_3:
++						processors[cache_processor].cache.l3 = current_cache;
++						break;
++					case cpuinfo_cache_level_4:
++						processors[cache_processor].cache.l4 = current_cache;
++						break;
++					case cpuinfo_cache_level_max:
++						break;
++				}
++			}
++		}
+ 	}
++	free(linux_cpu_to_processor_index_map);
++	linux_cpu_to_processor_index_map = NULL;
+ 
+ 	/* Commit */
+ 	cpuinfo_processors = processors;
+@@ -587,6 +968,17 @@
+ 	cpuinfo_packages_count = valid_packages_count;
+ 	cpuinfo_uarchs = uarchs;
+ 	cpuinfo_uarchs_count = valid_uarchs_count;
++	cpuinfo_cache[cpuinfo_cache_level_1i] = l1i;
++	cpuinfo_cache[cpuinfo_cache_level_1d] = l1d;
++	cpuinfo_cache[cpuinfo_cache_level_2] = l2;
++	cpuinfo_cache[cpuinfo_cache_level_3] = l3;
++	cpuinfo_cache[cpuinfo_cache_level_4] = l4;
++	cpuinfo_cache_count[cpuinfo_cache_level_1i] = cache_count[cpuinfo_cache_level_1i];
++	cpuinfo_cache_count[cpuinfo_cache_level_1d] = cache_count[cpuinfo_cache_level_1d];
++	cpuinfo_cache_count[cpuinfo_cache_level_2] = cache_count[cpuinfo_cache_level_2];
++	cpuinfo_cache_count[cpuinfo_cache_level_3] = cache_count[cpuinfo_cache_level_3];
++	cpuinfo_cache_count[cpuinfo_cache_level_4] = cache_count[cpuinfo_cache_level_4];
++	cpuinfo_max_cache_size = cpuinfo_compute_max_cache_size(&processors[0]);
+ 
+ 	cpuinfo_linux_cpu_max = max_processor_id;
+ 	cpuinfo_linux_cpu_to_processor_map = linux_cpu_to_processor_map;
+@@ -604,6 +996,11 @@
+ 	clusters = NULL;
+ 	packages = NULL;
+ 	uarchs = NULL;
++	l1i = NULL;
++	l1d = NULL;
++	l2 = NULL;
++	l3 = NULL;
++	l4 = NULL;
+ 	linux_cpu_to_processor_map = NULL;
+ 	linux_cpu_to_core_map = NULL;
+ 	linux_cpu_to_uarch_index_map = NULL;
+@@ -614,7 +1011,13 @@
+ 	free(clusters);
+ 	free(packages);
+ 	free(uarchs);
++	free(l1i);
++	free(l1d);
++	free(l2);
++	free(l3);
++	free(l4);
+ 	free(linux_cpu_to_processor_map);
+ 	free(linux_cpu_to_core_map);
+ 	free(linux_cpu_to_uarch_index_map);
++	free(linux_cpu_to_processor_index_map);
+ }
+--- a/test/init.cc
++++ b/test/init.cc
+@@ -298,7 +298,10 @@
+ 		const cpuinfo_core* core = cpuinfo_get_core(i);
+ 		ASSERT_TRUE(core);
+ 
++		/* RISC-V Linux can legitimately omit vendor and uarch IDs from hwprobe. */
++#if !CPUINFO_ARCH_RISCV32 && !CPUINFO_ARCH_RISCV64
+ 		EXPECT_NE(cpuinfo_vendor_unknown, core->vendor);
++#endif
+ 	}
+ 	cpuinfo_deinitialize();
+ }
+@@ -309,7 +312,10 @@
+ 		const cpuinfo_core* core = cpuinfo_get_core(i);
+ 		ASSERT_TRUE(core);
+ 
++		/* RISC-V has no public cpuinfo_uarch values yet. */
++#if !CPUINFO_ARCH_RISCV32 && !CPUINFO_ARCH_RISCV64
+ 		EXPECT_NE(cpuinfo_uarch_unknown, core->uarch);
++#endif
+ 	}
+ 	cpuinfo_deinitialize();
+ }
