@@ -1,0 +1,20 @@
+--- a/src/enrichment_tables/memory/table.rs
++++ b/src/enrichment_tables/memory/table.rs
+@@ -424,12 +424,11 @@
+     async fn run(mut self: Box<Self>, mut input: BoxStream<'_, Event>) -> Result<(), ()> {
+         let events_sent = register!(EventsSent::from(Output(None)));
+         let bytes_sent = register!(BytesSent::from(Protocol("memory_enrichment_table".into(),)));
+-        let mut flush_interval = IntervalStream::new(interval(
+-            self.config
+-                .flush_interval
+-                .map(Duration::from_secs)
+-                .unwrap_or(Duration::MAX),
+-        ));
++        let mut flush_interval = self
++            .config
++            .flush_interval
++            .map(|secs| IntervalStream::new(interval(Duration::from_secs(secs))).boxed())
++            .unwrap_or_else(|| futures::stream::empty().boxed());
+         let mut scan_interval = IntervalStream::new(interval(Duration::from_secs(
+             self.config.scan_interval.into(),
+         )));

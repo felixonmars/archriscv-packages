@@ -1,0 +1,13 @@
+--- a/build.rs
++++ b/build.rs
+@@ -5,7 +5,9 @@
+ mod zeroparser_proto_build;
+ 
+ fn main() {
+-    env::set_var("PROTOC", protoc_bin_vendored::protoc_bin_path().unwrap());
++    if env::var_os("PROTOC").is_none() {
++        env::set_var("PROTOC", protoc_bin_vendored::protoc_bin_path().unwrap());
++    }
+     tonic_prost_build::compile_protos("zerobus_service.proto")
+         .unwrap_or_else(|e| panic!("Failed to compile protos {:?}", e));
+ 
