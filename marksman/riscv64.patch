@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,11 +20,18 @@
+   export DOTNET_CLI_TELEMETRY_OPTOUT=1
+ 
+   make build
+-  make publish
++  dotnet publish -c Release --no-self-contained \
++    -p:DebugType=embedded \
++    -p:UseAppHost=false \
++    -o publish \
++    Marksman/Marksman.fsproj
+ }
+ 
+ package() {
+   cd "marksman"
+-  install -Dm755 Marksman/bin/Release/net*/linux-*/publish/marksman $pkgdir/usr/bin/marksman
++  install -dm755 "$pkgdir/usr/lib/$pkgname" "$pkgdir/usr/bin"
++  cp -dr --no-preserve=ownership publish/* "$pkgdir/usr/lib/$pkgname/"
++  printf '#!/bin/sh\nexec dotnet /usr/lib/%s/marksman.dll "$@"\n' "$pkgname" > "$pkgdir/usr/bin/marksman"
++  chmod 755 "$pkgdir/usr/bin/marksman"
+   install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+ }
