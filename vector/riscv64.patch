@@ -1,20 +1,44 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -5,7 +5,7 @@ pkgver=0.28.2
- pkgrel=1
- pkgdesc="A high-performance observability data pipeline"
- arch=("x86_64")
--_target="x86_64-unknown-linux-gnu"
-+_target="riscv64gc-unknown-linux-gnu"
- url="https://vector.dev"
- license=("MPL2")
- options=(!lto) # TODO: Build with LTO
-@@ -38,6 +38,8 @@ sha512sums=('5326f333a560bcb06a4eb048b6d950dfaa5e512abae0d74d439ab7f2cbdb2e0f70b
- prepare() {
-     cd "${pkgname}-${pkgver}"
+@@ -45,8 +45,13 @@
+ }
  
-+    sed -i "/\[patch.crates-io\]/a ring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" Cargo.toml
-+    cargo update -p ring
+ prepare() {
++    patch -d databricks-zerobus-ingest-sdk-2.3.0 -p1 -i "$srcdir/databricks-zerobus-ingest-sdk-honor-protoc.patch"
++
+     cd "${pkgname}"
+ 
++    patch -p1 -i "$srcdir/fix-unused-trace-stream-ext-import.patch"
++    sed -i '/^\[patch\.crates-io\]$/a databricks-zerobus-ingest-sdk = { path = "../databricks-zerobus-ingest-sdk-2.3.0" }' Cargo.toml
++    cargo update -p databricks-zerobus-ingest-sdk
      cargo fetch \
          --locked
  }
+@@ -59,6 +64,7 @@
+ 
+     # https://github.com/vectordotdev/vector/issues/22888
+     export CFLAGS="${CFLAGS} -std=gnu17"
++    export PROTOC=/usr/bin/protoc
+ 
+     cargo build \
+         --frozen \
+@@ -73,6 +79,8 @@
+ check() {
+     cd "${pkgname}"
+ 
++    export PROTOC=/usr/bin/protoc
++
+     # Unit-Tests only, integration tests require services.
+     # UDP syslog/socket sources currently take too long, so we skip them.
+     # Test sources::file::tests::file_start_position_server_restart_unfinalized is flaky,
+@@ -119,3 +127,10 @@
+     install -Dm644 "distribution/systemd/hardened-vector.service" "${pkgdir}/usr/lib/systemd/system/hardened-vector.service"
+     install -Dm644 "distribution/systemd/vector.default" "${pkgdir}/etc/default/vector"
+ }
++
++source+=("databricks-zerobus-ingest-sdk-2.3.0.tar.gz::https://static.crates.io/crates/databricks-zerobus-ingest-sdk/databricks-zerobus-ingest-sdk-2.3.0.crate"
++         "databricks-zerobus-ingest-sdk-honor-protoc.patch"
++         "fix-unused-trace-stream-ext-import.patch")
++sha512sums+=('f220200b85e5ed029a4f700ec70eb13a3f53989571e1d170f35ffdd10eefb0408b9622e58f38cba8a52de48131dae0edf52ff63908f820cbd1f8f3cf03ebb85f'
++             '819f00f9d3224ffb9c5120a942c432aeff4a781845f29c3b419d65a958eab39e5a00a06349b65b2e8d9321d950b981d7486b170c87e7a7237d2cfa8e7b2d74a2'
++             'a5f8fa046b7b7da4aad2caaf83d8e68ec9ad94b5a48b8bafe6a9dcc07743e7f45a1b6f9067bdc4d545a09683d0dc3582fd93ab1efbb4ae230415602c8a8e61e0')
