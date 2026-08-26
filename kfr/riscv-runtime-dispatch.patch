@@ -1,0 +1,322 @@
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -198,7 +198,7 @@
+ include(sources.cmake)
+ include(CMakeDependentOption)
+ 
+-if (NOT X86)
++if (NOT X86 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "riscv")
+     set(KFR_ENABLE_MULTIARCH
+         OFF
+         CACHE INTERNAL "" FORCE)
+@@ -284,14 +284,22 @@
+ 
+ if (NOT X86)
+     if (KFR_ARCH IN_LIST DETECT_NAMES)
+-        message(
+-            STATUS
+-                "Cpu detection is disabled on non-x86, setting neon (KFR_ARCH=${KFR_ARCH})"
+-        )
+-        if (BITNESS64)
+-            set(KFR_ARCH neon64)
++        if (CMAKE_SYSTEM_PROCESSOR MATCHES "riscv")
++            message(
++                STATUS
++                    "Cpu detection is disabled on non-x86, setting generic (KFR_ARCH=${KFR_ARCH})"
++            )
++            set(KFR_ARCH generic)
+         else ()
+-            set(KFR_ARCH neon)
++            message(
++                STATUS
++                    "Cpu detection is disabled on non-x86, setting neon (KFR_ARCH=${KFR_ARCH})"
++            )
++            if (BITNESS64)
++                set(KFR_ARCH neon64)
++            else ()
++                set(KFR_ARCH neon)
++            endif ()
+         endif ()
+     endif ()
+ endif ()
+--- cmake/add_kfr_library.cmake
++++ cmake/add_kfr_library.cmake
+@@ -25,7 +25,7 @@
+             list(APPEND ${LIB_NAME}_TARGETS ${LIB_NAME}_${ARCH})
+             target_link_libraries(${LIB_NAME} INTERFACE ${LIB_NAME}_${ARCH})
+             target_set_arch(${LIB_NAME}_${ARCH} PRIVATE ${ARCH})
+-            if (NOT ARCH STREQUAL BASE_ARCH)
++            if (NOT ARCH STREQUAL BASE_ARCH AND NOT ARCH STREQUAL "rvv")
+                 target_compile_definitions(${LIB_NAME}_${ARCH}
+                                            PRIVATE KFR_SKIP_IF_NON_X86=1)
+             endif ()
+--- cmake/target_set_arch.cmake
++++ cmake/target_set_arch.cmake
+@@ -65,6 +65,16 @@
+         endif ()
+     endfunction ()
+ 
++elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "riscv")
++
++    function (target_set_arch TARGET MODE ARCH)
++
++        set(ARCH_FLAGS_GNU_generic -DKFR_FORCE_GENERIC_CPU)
++        set(ARCH_FLAGS_GNU_rvv -march=rv64gcv)
++
++        target_compile_options(${TARGET} ${MODE} ${ARCH_FLAGS_GNU_${ARCH}})
++    endfunction ()
++
+ else ()
+ 
+     function (target_set_arch TARGET MODE ARCH)
+--- include/kfr/cident.h
++++ include/kfr/cident.h
+@@ -189,16 +189,17 @@
+ #define KFR_ARCH_RISCV32 1
+ #endif
+ 
+-#if defined(__riscv_v)
++#if defined(__riscv_v) && !defined(KFR_FORCE_GENERIC_CPU)
+ #define KFR_ARCH_RVV 1
+ #define KFR_ARCH_NAME rvv
+-#else
+-#error "KFR requires Vector extension on RISC-V"
+ #endif
+ #endif
+ 
+ #ifndef KFR_ARCH_NAME
+ #define KFR_ARCH_NAME generic
++#ifndef KFR_ARCH_IS_GENERIC
++#define KFR_ARCH_IS_GENERIC 1
++#endif
+ #endif
+ 
+ #define KFR_ARCH_ID_GENERIC 0
+@@ -685,6 +686,7 @@
+ #define KFR_NARGS2(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, ...) _10
+ #define KFR_NARGS(...) KFR_NARGS2(__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+ 
++#define KFR_IF_IS_GENERIC(...)
+ #define KFR_IF_IS_AVX512(...)
+ #define KFR_IF_IS_AVX2(...)
+ #define KFR_IF_IS_AVX(...)
+@@ -693,8 +695,12 @@
+ #define KFR_IF_IS_SSSE3(...)
+ #define KFR_IF_IS_SSE3(...)
+ #define KFR_IF_IS_SSE2(...)
++#define KFR_IF_IS_RVV(...)
+ 
+-#if defined KFR_ARCH_AVX512
++#if defined KFR_ARCH_IS_GENERIC
++#undef KFR_IF_IS_GENERIC
++#define KFR_IF_IS_GENERIC(...) __VA_ARGS__
++#elif defined KFR_ARCH_AVX512
+ #undef KFR_IF_IS_AVX512
+ #define KFR_IF_IS_AVX512(...) __VA_ARGS__
+ #elif defined KFR_ARCH_AVX2
+@@ -718,6 +724,9 @@
+ #elif defined KFR_ARCH_SSE2
+ #undef KFR_IF_IS_SSE2
+ #define KFR_IF_IS_SSE2(...) __VA_ARGS__
++#elif defined KFR_ARCH_RVV
++#undef KFR_IF_IS_RVV
++#define KFR_IF_IS_RVV(...) __VA_ARGS__
+ #endif
+ 
+ #ifdef KFR_COMPILER_GNU
+--- include/kfr/kfr.h
++++ include/kfr/kfr.h
+@@ -104,11 +104,6 @@
+     "ARM builds require NEON support. Add -march=native for native build or skip the check with KFR_FORCE_GENERIC_CPU=1"
+ #endif
+ 
+-#if defined KFR_ARCH_RISCV && !defined KFR_ARCH_RVV && !defined KFR_FORCE_GENERIC_CPU
+-#error                                                                                                       \
+-    "ARM builds require NEON support. Add -march=native for native build or skip the check with KFR_FORCE_GENERIC_CPU=1"
+-#endif
+-
+ #if !defined KFR_ARCH_X86 && !defined KFR_COMPILER_CLANG
+ #error "Non-x86 builds require Clang compiler"
+ #endif
+--- include/kfr/multiarch.h
++++ include/kfr/multiarch.h
+@@ -164,6 +164,78 @@
+ #else
+ #endif
+ 
++#elif defined(KFR_ARCH_RISCV)
++
++// RISC-V
++
++#ifdef KFR_MULTI_ENABLED_GENERIC
++#define KFR_IF_ENABLED_GENERIC(...) __VA_ARGS__
++#else
++#define KFR_IF_ENABLED_GENERIC(...)
++#endif
++
++#ifdef KFR_MULTI_ENABLED_RVV
++#define KFR_IF_ENABLED_RVV(...) __VA_ARGS__
++#else
++#define KFR_IF_ENABLED_RVV(...)
++#endif
++
++#ifdef KFR_MULTI
++
++#define KFR_MULTI_PROTO_GATE(...)                                                                            \
++    if (cpu == cpu_t::runtime)                                                                               \
++        cpu = get_cpu();                                                                                     \
++    switch (cpu)                                                                                             \
++    {                                                                                                        \
++    case cpu_t::rvv:                                                                                         \
++        KFR_IF_ENABLED_RVV(return rvv::__VA_ARGS__;)                                                         \
++    default:                                                                                                 \
++        KFR_IF_ENABLED_GENERIC(return generic::__VA_ARGS__;)                                                 \
++        KFR_UNREACHABLE;                                                                                     \
++    }
++
++#define KFR_MULTI_GATE(...)                                                                                  \
++    switch (get_cpu())                                                                                       \
++    {                                                                                                        \
++    case cpu_t::rvv:                                                                                         \
++        KFR_IF_ENABLED_RVV({                                                                                 \
++            namespace ns = kfr::rvv;                                                                         \
++            __VA_ARGS__;                                                                                     \
++            break;                                                                                           \
++        })                                                                                                   \
++    default:                                                                                                 \
++        KFR_IF_ENABLED_GENERIC({                                                                             \
++            namespace ns = kfr::generic;                                                                     \
++            __VA_ARGS__;                                                                                     \
++            break;                                                                                           \
++        })                                                                                                   \
++        KFR_UNREACHABLE;                                                                                     \
++    }
++
++#define KFR_MULTI_PROTO(...)                                                                                 \
++    KFR_IF_ENABLED_GENERIC(KFR_IF_IS_GENERIC(inline) namespace generic{ __VA_ARGS__ })                       \
++    KFR_IF_ENABLED_RVV(KFR_IF_IS_RVV(inline) namespace rvv{ __VA_ARGS__ })
++#else
++#define KFR_MULTI_GATE(...)                                                                                  \
++    do                                                                                                       \
++    {                                                                                                        \
++        namespace ns = kfr::KFR_ARCH_NAME;                                                                   \
++        __VA_ARGS__;                                                                                         \
++        break;                                                                                               \
++    } while (0)
++
++#define KFR_MULTI_PROTO(...)                                                                                 \
++    inline namespace KFR_ARCH_NAME                                                                           \
++    {                                                                                                        \
++    __VA_ARGS__                                                                                              \
++    }
++#endif
++
++#if defined(KFR_BASE_ARCH) || !defined(KFR_MULTI)
++#define KFR_MULTI_NEEDS_GATE
++#else
++#endif
++
+ #else
+ 
+ // ARM
+--- include/kfr/runtime/cpuid.hpp
++++ include/kfr/runtime/cpuid.hpp
+@@ -29,6 +29,13 @@
+ #include "../simd/platform.hpp"
+ #include "../simd/types.hpp"
+ #include <cstring>
++#if defined(KFR_ARCH_RISCV) && defined(KFR_OS_LINUX)
++#include <asm/hwcap.h>
++#include <sys/auxv.h>
++#ifndef COMPAT_HWCAP_ISA_V
++#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
++#endif
++#endif
+ 
+ namespace kfr
+ {
+@@ -315,7 +322,13 @@
+ template <size_t = 0>
+ cpu_t detect_cpu()
+ {
++#if defined(KFR_ARCH_RISCV) && defined(KFR_OS_LINUX)
++    if (getauxval(AT_HWCAP) & COMPAT_HWCAP_ISA_V)
++        return cpu_t::rvv;
++    return cpu_t::generic;
++#else
+     return cpu_t::native;
++#endif
+ }
+ } // namespace internal_generic
+ 
+--- include/kfr/simd/bitshuffle.hpp
++++ include/kfr/simd/bitshuffle.hpp
+@@ -31,9 +31,9 @@
+ namespace kfr
+ {
+ 
+-#if defined(KFR_ARCH_RVV) || defined(KFR_ARCH_AVX512)
+-/// @brief Disables the bit-shuffle permutation machinery on targets (RVV, AVX-512) that
+-/// provide native arbitrary shuffles, where the generic fallback is preferable.
++#if defined(KFR_ARCH_RVV) || defined(KFR_ARCH_AVX512) || (defined(KFR_ARCH_RISCV) && defined(KFR_ARCH_IS_GENERIC))
++/// @brief Disables the bit-shuffle permutation machinery on targets that lack
++/// specialized pair-permutation operations or provide native arbitrary shuffles.
+ #define KFR_DISABLE_BITSHUFFLE 1
+ #endif
+ 
+--- include/kfr/simd/platform.hpp
++++ include/kfr/simd/platform.hpp
+@@ -60,7 +60,7 @@
+ #endif
+ #ifdef KFR_ARCH_RISCV
+     rvv     = 1,
+-    lowest  = static_cast<int>(rvv),
++    lowest  = static_cast<int>(generic),
+     highest = static_cast<int>(rvv),
+ #endif
+     native = static_cast<int>(KFR_ARCH_NAME),
+@@ -103,7 +103,7 @@
+ constexpr auto cpu_list = cvals<cpu_t, cpu_t::neon>;
+ #endif
+ #ifdef KFR_ARCH_RISCV
+-constexpr auto cpu_list = cvals<cpu_t, cpu_t::rvv>;
++constexpr auto cpu_list = cvals<cpu_t, cpu_t::rvv, cpu_t::generic>;
+ #endif
+ } // namespace internal_generic
+ 
+--- src/dft/bitrev.hpp
++++ src/dft/bitrev.hpp
+@@ -122,7 +122,7 @@
+ template <typename T, size_t N>
+ KFR_INTRINSIC void br_simd_two(bool swap, complex<T>* data0, complex<T>* data1, size_t stride)
+ {
+-    if constexpr ((N * N * 2) <= complex_vector_capacity<T>)
++    if constexpr (N == 1 || (N * N * 2) <= complex_vector_capacity<T>)
+     {
+         cvec<T, N * N> v0 = read_group<N, N, 2>(reinterpret_cast<const T*>(data0), stride);
+         v0                = bitreverse<2>(v0);
+--- src/dft/ft.hpp
++++ src/dft/ft.hpp
+@@ -2732,7 +2732,7 @@
+ }
+ 
+ template <typename T>
+-constexpr inline size_t bfly_max_packed_radix = complex_vector_capacity<T> / 2;
++constexpr inline size_t bfly_max_packed_radix = std::max(size_t(2), complex_vector_capacity<T> / 2);
+ 
+ template <typename T, size_t cols, size_t rows, size_t col_w, bool split, bool store0 = false>
+ struct fourstep_twiddles
+--- src/dft/ngfft-impl.hpp
++++ src/dft/ngfft-impl.hpp
+@@ -338,8 +338,9 @@
+             return 3;
+     }
+ 
+-    constexpr static uint8_t l2basewidth =
+-        arch.l2regbitwidth + arch.l2regcount - l2complex_bitwidth - 1 - l2baseradix;
++    constexpr static int l2basewidth_value =
++        int(arch.l2regbitwidth) + int(arch.l2regcount) - int(l2complex_bitwidth) - 1 - int(l2baseradix);
++    constexpr static uint8_t l2basewidth = static_cast<uint8_t>(std::max(0, l2basewidth_value));
+ 
+     constexpr static uint8_t l2radixlimit = l2basewidth + l2baseradix;
+ 

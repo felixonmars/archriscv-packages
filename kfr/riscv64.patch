@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,9 +15,19 @@
+   clang
+   cmake
+ )
+-source=("$pkgname-$pkgver.tar.gz::${url}archive/refs/tags/$pkgver.tar.gz")
+-sha512sums=('109a38f849b64ce3a96ab9995583dd89cbb1d91fa179f9a74eec0784b3926b17bfaaf3033af935efb2a747eec39f726f7e00bdd00f6dc104bb69696b7206a7d1')
+-b2sums=('8f6d972d955e0f53f44430ee918890bc54f1699c3450423d92433c4b572ed4f907be40a34c4526c2b925a917a604f6dc9f6cb788ff4814ba1ff918c17b063cd9')
++source=("$pkgname-$pkgver.tar.gz::${url}archive/refs/tags/$pkgver.tar.gz"
++        riscv-runtime-dispatch.patch)
++sha512sums=('109a38f849b64ce3a96ab9995583dd89cbb1d91fa179f9a74eec0784b3926b17bfaaf3033af935efb2a747eec39f726f7e00bdd00f6dc104bb69696b7206a7d1'
++            '68c6901b2dbbc29fc89f09440f6286c9d24e6d23e9d51999e4ecc5ab77ed1e600d5a2c6afc128ef1a8d52a81a041df5414bff0bac80fa2a77c6274b892131dfa')
++b2sums=('8f6d972d955e0f53f44430ee918890bc54f1699c3450423d92433c4b572ed4f907be40a34c4526c2b925a917a604f6dc9f6cb788ff4814ba1ff918c17b063cd9'
++        '680aa094f491bc1b8ce787e95f89d4368a54be9f54897eef280505afd32c57b31df98073951cfde5e598d60abe592e54e226bda2504b594b32fc0ff8ce20d74a')
++
++prepare() {
++  cd "$pkgname-$pkgver"
++
++  # Keep rv64gc as the baseline and dispatch to RVV only when the runtime host supports it.
++  patch -Np0 -i ../riscv-runtime-dispatch.patch
++}
+ 
+ build() {
+   local cmake_options=(
+@@ -28,6 +38,8 @@
+     -D CMAKE_POSITION_INDEPENDENT_CODE=ON
+     -D KFR_ENABLE_CAPI_BUILD=ON
+     -D KFR_ENABLE_DFT=ON
++    -D KFR_ARCH=generic
++    -D KFR_ARCHS='generic;rvv'
+     -D KFR_ENABLE_MULTIARCH=ON
+     -D KFR_USE_BOOST=ON
+     -S "$pkgname-$pkgver"
