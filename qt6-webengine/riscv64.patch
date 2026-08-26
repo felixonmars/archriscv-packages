@@ -1,11 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -94,6 +94,12 @@
+@@ -93,6 +93,13 @@
    # Bump chromium to head of stable branch
    cd src/3rdparty
    [[ -n $_chromium ]] && git checkout $_chromium || true
 +
-+  for _patch in sandbox dav1d; do
++  # Qt's Chromium snapshot has RISC-V gaps in sandbox, dav1d, and V8.
++  for _patch in sandbox dav1d v8; do
 +    patch -d chromium -Np1 < "$srcdir"/riscv-$_patch.patch
 +  done
 +  patch -d chromium -Np1 < "$srcdir"/fix-linux-syscall-ranges.patch
@@ -13,7 +14,7 @@
  }
  
  build() {
-@@ -106,7 +112,10 @@
+@@ -105,7 +112,10 @@
      -DQT_FEATURE_webengine_system_openh264=ON \
      -DQT_FEATURE_webengine_proprietary_codecs=ON \
      -DQT_FEATURE_webengine_kerberos=ON \
@@ -25,16 +26,17 @@
    cmake --build build
  }
  
-@@ -117,3 +126,12 @@
- # Remove cmake module that breaks corrosion
-   rm "$pkgdir"/usr/lib/cmake/Qt6/FindRust.cmake
+@@ -114,3 +124,13 @@
+ 
+   install -Dm644 "$srcdir"/${_pkgfn}/src/3rdparty/chromium/LICENSE "$pkgdir"/usr/share/licenses/${pkgname}/LICENSE.chromium
  }
 +
 +makedepends+=(clang)
-+source+=(riscv-{sandbox,dav1d}.patch
++source+=(riscv-{sandbox,dav1d,v8}.patch
 +         fix-linux-syscall-ranges.patch::https://github.com/rockos-riscv/chromium-129.0.6668.100/commit/f699f4ed684e413e508e1f3c5e30d806473ff13b.patch
 +         blink-webaudio-delay-complete-upstream-span-fix.patch)
-+sha256sums+=('716b51af60ed290dba4a85703a213a1bfde55a76b8eab13a641b8765976c52e4'
-+             '5689e9422624c8725509b6fdc277e20c3e8862cf515656faef7507978489bc4e'
++sha256sums+=('5819a62edfc654c40e5d2f3d77e17d2a13b0c6faa7d2a6b1674c469657d5dd9a'
++             '15cca2c973fc989cd10b9ca4b7e555747b262b64adf9136ae2b3d1758cf88de5'
++             '11c25d3bff5ee801273515a93fb1dd82113c385124eee9263bcb0f8ad5ca8419'
 +             '0ac16adaebe4e3c347ab67647ae0e1ff1db1d710d0b64b469ab77d27eb9f4192'
-+             '236cdf8ae68b7cc3d3833db3b4e71af0512ee0e3d78e577c09069988be36cf05')
++             'a904766fcb502a30a8f50b9fc580d717310e56d5acd6f96312a8f890ede56fce')
