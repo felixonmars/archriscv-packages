@@ -1,6 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -23,7 +23,16 @@
+@@ -7,6 +7,7 @@
+ pkgver=0.149.1
+ pkgrel=1
+ _v8ver=150.4.0
++_v8_icu_commit=ee5f27adc28bd3f15b2c293f726d14d2e336cbd5
+ pkgdesc='OpenAIs lightweight coding agent that runs in your terminal'
+ arch=(x86_64)
+ url='https://github.com/openai/codex'
+@@ -24,7 +25,17 @@
    zlib
    zstd
  )
@@ -12,38 +20,75 @@
 +  libffi
 +  lld
 +  ninja
++  protobuf
 +  python
 +  rust-bindgen
 +)
  optdepends=(
    'git: allow for repository actions'
    'nodejs: enable the js_repl experimental tool'
-@@ -34,7 +43,20 @@
- b2sums=('c62169fff7975f2fc675632925d5edda9f43093ed83422821a825b4ed6575fd1edb19be082ac2b2cbfde1f9ba4494f88d4d5f88233cd52fd4373312e57b14eed')
+@@ -33,19 +44,45 @@
+ options=('!debug' '!lto')
+ source=(
+   "$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/rust-v$pkgver.tar.gz"
+-  "librusty_v8-$_v8ver.a.gz::$url/releases/download/rusty-v8-v$_v8ver/librusty_v8_ptrcomp_sandbox_release_x86_64-unknown-linux-gnu.a.gz"
+-  "src_binding-$_v8ver.rs::$url/releases/download/rusty-v8-v$_v8ver/src_binding_ptrcomp_sandbox_release_x86_64-unknown-linux-gnu.rs"
++  "v8-$_v8ver.tar.gz::https://static.crates.io/crates/v8/v8-$_v8ver.crate"
++  "v8-icu-icudtl.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtl.dat?format=TEXT"
++  "v8-icu-icudtb.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtb.dat?format=TEXT"
+   increase-recursion-limits.patch
++  codex-code-mode-protocol-respect-PROTOC.patch
++  v8-skip-rust-toolchain-download.patch
++  v8-compiler-rt-adjust-paths.patch
++  v8-drop-unsupported-clang-flags.patch
++  codex-landlock-riscv64-seccomp.patch
+ )
+-noextract=("librusty_v8-$_v8ver.a.gz")
+ b2sums=('1a057530434c7a319a0f287ca0fc004a802e763d056e089a1dc6eb2999f85e608bdaa5de627a7888f65ca6da6b91bbb4a5b140ed05030f2ef870f2e539534660'
+-        '816509947f4062124bd4f5fe581b8ae2762f3f50562c84558e58fed657a9bd17360120879deb9838a73664e4fc3aa3b8d1ed09bf11093d289f81d9eb9533c9b6'
+-        'b21381b7f09d0205455ba541b2a38ff79b9535c4b8436b309f39f4b40d819e604b3689298ae81deb00c07a12a21ef0fd1bd0bbddb196d63f24d8621ace7165c1'
+-        '7069b2803eddd217171d3724451cbee8a49a0995c407959bdabc7665b108c1681514df962cad58388df416f301b533807d35db3a7c2eb14bbb083d02426ffc70')
++        'ee216ec48e21b6af358741e21d000bf72f991e9ef48f2877ecfe0e84adf9afd985ef3b9f011b040236cbf707e9b03033bae48ab5ff050fa30532f92576c6fcda'
++        'a9bfd3930f95972ff329e81614ff1e3cc8db8504c720256ddc25925f023f06fa5bdd4dea5a958b8481d3d19785d61ba56f3cbaac607ae81cc01e19ba0d3e565e'
++        'dd45cc773db031f47817cf50f6a5026f25c48dc0a5231b7e5eaee4c5904d1d0a691f31d7e17da283ae2334189d804ab69bfdaff4c9a85ce76f11d338d0ec2807'
++        '7069b2803eddd217171d3724451cbee8a49a0995c407959bdabc7665b108c1681514df962cad58388df416f301b533807d35db3a7c2eb14bbb083d02426ffc70'
++        'ce0fe425b6085168268ad5e917f12e0fcd40639348db07f0b230e4a8968122d0c604601cb03977a76eff8e111b2cd7207bfd0c43ee524a7ab30b569bdc5e64fa'
++        '485c6732b4d1a238661080693d694ae1e40f2a80291852d472b9b9a7807f7c6a5e1e3aa390fb9667b2f6052a1713fbdb4a7e696c76dbaa639a0b925bf0126145'
++        'db93dc759e55867b754dfa072a65ce9abe13c6c5a8151b82ef458359da964e29dcdffe00f053ad9dc8721ecaccf54548ba11de0c535ec1ba5d77e21431f1fa5c'
++        '4fd324c6740d3ab22e50a322350f3fa3a4aa4bfa5d9946541943bfc67a5457fb7e30e100f05fc1a99596ac33a3037c1dcaabc8b6c585df65b685a000e98fd358'
++        '1aaf2c34d1476d55ad365fd100c04f86ded9a6fe01b66b88347a9f22a162db99f21d05af23328fcf9609791b953b319cdfd6e16449f9928d6adaa59396ae562c')
  
  prepare() {
-+  install -dm755 v8-149.2.0/third_party/icu/common
++  install -dm755 "v8-$_v8ver/third_party/icu/common"
 +  base64 -d "$srcdir/v8-icu-icudtl.dat.base64" \
-+    > v8-149.2.0/third_party/icu/common/icudtl.dat
++    > "v8-$_v8ver/third_party/icu/common/icudtl.dat"
 +  base64 -d "$srcdir/v8-icu-icudtb.dat.base64" \
-+    > v8-149.2.0/third_party/icu/common/icudtb.dat
++    > "v8-$_v8ver/third_party/icu/common/icudtb.dat"
 +
-+  patch -Np1 -d v8-149.2.0 -i "$srcdir/v8-skip-rust-toolchain-download.patch"
-+  patch -Np1 -d v8-149.2.0 -i "$srcdir/v8-compiler-rt-adjust-paths.patch"
-+  patch -Np1 -d v8-149.2.0 -i "$srcdir/v8-drop-unsupported-clang-flags.patch"
++  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-skip-rust-toolchain-download.patch"
++  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-compiler-rt-adjust-paths.patch"
++  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-drop-unsupported-clang-flags.patch"
 +
    cd codex-rust-v$pkgver/codex-rs
 +  patch -Np1 -d .. -i "$srcdir/codex-landlock-riscv64-seccomp.patch"
-+  sed -i '/^\[patch\.crates-io\]$/a v8 = { path = "../../v8-149.2.0" }' Cargo.toml
++  patch -Np1 -d .. -i "$srcdir/codex-code-mode-protocol-respect-PROTOC.patch"
+   patch -Np1 -i "$srcdir/increase-recursion-limits.patch"
++  sed -i "/^\[patch\.crates-io\]$/a v8 = { path = \"../../v8-$_v8ver\" }" Cargo.toml
 +  cargo update -p v8
- 
++
    cargo fetch --target "$(rustc --print host-tuple)"
  }
-@@ -47,6 +69,28 @@
+ 
+@@ -53,12 +90,35 @@
+   cd codex-rust-v$pkgver/codex-rs
+   # Used for dynamic linking
+   export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
+-  export RUSTY_V8_ARCHIVE="$srcdir/librusty_v8-$_v8ver.a.gz"
+-  export RUSTY_V8_SRC_BINDING_PATH="$srcdir/src_binding-$_v8ver.rs"
+   export RUSTONIG_DYNAMIC_LIBONIG=1
    export ZSTD_SYS_USE_PKG_CONFIG=1
    # Reduces build time by about 10 minutes
    export CARGO_PROFILE_RELEASE_LTO=thin
-+
 +  local _clang_version=$(clang -dumpversion | cut -d . -f 1)
 +  local _rustc_version=$(rustc --version)
 +  local _extra_gn_args=(
@@ -58,33 +103,17 @@
 +    'v8_enable_temporal_support=false'
 +  )
 +
-+  export CC=clang CXX=clang++ AR=ar NM=nm
++  # Do not let Arch's default CXXFLAGS override V8's per-target exception mode.
++  export CXXFLAGS="${CXXFLAGS//-fexceptions/}"
++  export CC=/usr/bin/clang CXX=/usr/bin/clang++ AR=/usr/bin/ar NM=/usr/bin/nm
 +  export V8_FROM_SOURCE=1
 +  export RUSTY_V8_SKIP_RUST_TOOLCHAIN_DOWNLOAD=1
 +  export CLANG_BASE_PATH=/usr
 +  export GN=/usr/bin/gn NINJA=/usr/bin/ninja
++  export PROTOC=/usr/bin/protoc
++  export BUILD_CC=/usr/bin/clang BUILD_CXX=/usr/bin/clang++ BUILD_AR=/usr/bin/ar BUILD_NM=/usr/bin/nm
 +  export EXTRA_GN_ARGS="${_extra_gn_args[*]}"
 +
-   cargo build --frozen --release --bin codex --bin codex-responses-api-proxy
- }
- 
-@@ -66,3 +110,19 @@
- }
- 
- # vim:set ts=2 sw=2 et:
-+
-+_v8_icu_commit=ee5f27adc28bd3f15b2c293f726d14d2e336cbd5
-+source+=("v8-149.2.0.tar.gz::https://static.crates.io/crates/v8/v8-149.2.0.crate"
-+         "v8-icu-icudtl.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtl.dat?format=TEXT"
-+         "v8-icu-icudtb.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtb.dat?format=TEXT"
-+         "v8-skip-rust-toolchain-download.patch"
-+         "v8-compiler-rt-adjust-paths.patch"
-+         "v8-drop-unsupported-clang-flags.patch"
-+         "codex-landlock-riscv64-seccomp.patch")
-+b2sums+=('78e4221dee5e9ff0c96721efcf6758d6f97881de951c4319fe60afa151f20b7dbd6224b2465d7a724de6725497530e77edcce7e0ba46c0c612f6cea939cf4c1f'
-+         'a9bfd3930f95972ff329e81614ff1e3cc8db8504c720256ddc25925f023f06fa5bdd4dea5a958b8481d3d19785d61ba56f3cbaac607ae81cc01e19ba0d3e565e'
-+         'dd45cc773db031f47817cf50f6a5026f25c48dc0a5231b7e5eaee4c5904d1d0a691f31d7e17da283ae2334189d804ab69bfdaff4c9a85ce76f11d338d0ec2807'
-+         'c799148351662c9d570ea368a709827181eea96926ec6005c91e242162048bcfd4c977efb0fcefb44f89a0c8e2c2f255a1b99b51035d85a65e9f8fa3e3cdb231'
-+         'db93dc759e55867b754dfa072a65ce9abe13c6c5a8151b82ef458359da964e29dcdffe00f053ad9dc8721ecaccf54548ba11de0c535ec1ba5d77e21431f1fa5c'
-+         'ee3b59587b5592544b42cb8683bb05515a546617e23fbe541bbd76ca3049436a72ab23cbcd1f5b7448dd615999812de1bcb4dad8e087988b6dc32d8d9d501bbf'
-+         '1aaf2c34d1476d55ad365fd100c04f86ded9a6fe01b66b88347a9f22a162db99f21d05af23328fcf9609791b953b319cdfd6e16449f9928d6adaa59396ae562c')
+   cargo build --frozen --release \
+               --bin codex \
+               --bin codex-code-mode-host \
