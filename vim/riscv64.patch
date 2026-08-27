@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -37,14 +37,20 @@
+ source=(git+https://github.com/vim/vim.git?signed#tag=v${pkgver}
+         vimrc
+         archlinux.vim
+-        vimdoc.hook)
++        vimdoc.hook
++        fix-termdebug-remote-test-wait.patch)
+ sha256sums=('a98f0d84e0f4647350f6cbb198a1bf02fd2faeacb5627d3a0a5f76d7af10ece5'
+             'b16e85e457397ab2043a7ee0a3c84307c6b4eac157fd0b721694761f25b3ed5b'
+             'cc3d931129854c298eb22e993ec14c2ad86cc1e70a08a64496f5e06559289972'
+-            '8e9656934d9d7793063230d15a689e10455e6db9b9fe73afa0f294792795d8ae')
++            '8e9656934d9d7793063230d15a689e10455e6db9b9fe73afa0f294792795d8ae'
++            'dcf2ed45abf4e07117a95d5a619ca3ea4fb6018c35dceec1de589e3a67bbd8bc')
+ validpgpkeys=('4F19708816918E19AAE19DEEF3F92DA383FDDE09') # Christian Brabandt <cb@256bit.org>
+ 
+ prepare() {
++  (cd vim
++    # Wait for asynchronous gdb output before checking breakpoint signs.
++    patch -Np1 -i ../fix-termdebug-remote-test-wait.patch
++  )
+   (cd vim/src
+     # define the place for the global (g)vimrc file (set to /etc/vimrc)
+     sed -E 's|^.*(#define SYS_.*VIMRC_FILE.*").*$|\1|g' -i feature.h
