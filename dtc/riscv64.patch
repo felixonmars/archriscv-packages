@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,8 +24,15 @@
+ )
+ optdepends=('python: Python bindings')
+ provides=(libfdt.so)
+-source=("git+git://git.kernel.org/pub/scm/utils/dtc/dtc.git#tag=v$pkgver")
+-sha256sums=('eebcca9d985422a2e244650eaf766880329111a11314509a3678c08e0799636a')
++source=("git+git://git.kernel.org/pub/scm/utils/dtc/dtc.git#tag=v$pkgver"
++        "pylibfdt-swig-4.5.patch::https://git.kernel.org/pub/scm/utils/dtc/dtc.git/patch/?id=5008d1d6a356b8d0a78060da2e1021507d529cff")
++sha256sums=('eebcca9d985422a2e244650eaf766880329111a11314509a3678c08e0799636a'
++            'f8f730eef36600a6854daf8230b459cf5c1b834fcc7c0ed5d03673e12e6becde')
++
++prepare() {
++  # Fix pylibfdt with SWIG 4.5, which no longer provides Python 2 compatibility macros.
++  patch -d "$pkgname" -Np1 -i ../pylibfdt-swig-4.5.patch
++}
+ 
+ build() {
+   arch-meson $pkgname build
