@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,12 @@
+ b2sums=('adbfdeb5afb88b96cc8821253fb02f931df998031b162edb1f339d289676fe07fcc3331406a7be6cb3a69dd0b4bb79ac51ae6dbf3b72b47db75ea0d28b286036')
+ validpgpkeys=('149325FD15904E9C4EB89E95E81444E9CE1F695D') # Rick van Hattem <wolph@wol.ph>
+ 
++prepare() {
++  cd $pkgname
++  # Arch's system uv-build is newer than upstream's conservative backend cap.
++  sed -i 's/uv_build>=0.11,<0.12/uv_build>=0.11/' pyproject.toml
++}
++
+ build() {
+   cd $pkgname
+   python -m build --wheel --no-isolation
