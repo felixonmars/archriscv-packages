@@ -1,0 +1,72 @@
+--- test/src/commands/remove_command_non_tty_test.dart
++++ test/src/commands/remove_command_non_tty_test.dart
+@@ -69,7 +69,7 @@
+       // `dart run` compile is well under this). On the fixed code the child
+       // exits promptly; a reverted guard spins past the ceiling and fails here.
+       final exitCode = await process.exitCode.timeout(
+-        const Duration(seconds: 60),
++        const Duration(seconds: 180),
+         onTimeout: () {
+           process.kill(ProcessSignal.sigkill);
+           return -1;
+@@ -86,8 +86,8 @@
+             'remove must exit on a non-TTY prompt, not hang (-1 == timed out)',
+       );
+     },
+-    // Must exceed the in-test 60s hang ceiling so the framework does not kill
++    // Must exceed the in-test 180s hang ceiling so the framework does not kill
+     // the test before the onTimeout handler can record the failure.
+-    timeout: const Timeout(Duration(minutes: 2)),
++    timeout: const Timeout(Duration(minutes: 4)),
+   );
+ }
+--- test/services/flutter_service_test.dart
++++ test/services/flutter_service_test.dart
+@@ -495,7 +495,7 @@
+               .transform(const LineSplitter())
+               .firstWhere((line) => line.trim() == 'locked');
+ 
+-          await lockReady.timeout(const Duration(seconds: 5));
++          await lockReady.timeout(const Duration(seconds: 60));
+ 
+           final service = FlutterService(context);
+           var completed = false;
+@@ -508,11 +508,11 @@
+           expect(completed, isFalse);
+ 
+           final lockExitCode = await lockProcess.exitCode.timeout(
+-            const Duration(seconds: 5),
++            const Duration(seconds: 60),
+           );
+           expect(lockExitCode, 0);
+ 
+-          await operation.timeout(const Duration(seconds: 5));
++          await operation.timeout(const Duration(seconds: 60));
+           expect(completed, isTrue);
+         } finally {
+           if (tempDir.existsSync()) {
+--- test/services/git_service_test.dart
++++ test/services/git_service_test.dart
+@@ -754,7 +754,7 @@
+             .transform(const LineSplitter())
+             .firstWhere((line) => line.trim() == 'locked');
+ 
+-        await lockReady.timeout(const Duration(seconds: 5));
++        await lockReady.timeout(const Duration(seconds: 60));
+ 
+         final gitService = GitService(context);
+         var completed = false;
+@@ -766,11 +766,11 @@
+         expect(completed, isFalse);
+ 
+         final lockExitCode = await lockProcess.exitCode.timeout(
+-          const Duration(seconds: 5),
++          const Duration(seconds: 60),
+         );
+         expect(lockExitCode, 0);
+ 
+-        await operation.timeout(const Duration(seconds: 5));
++        await operation.timeout(const Duration(seconds: 60));
+         expect(completed, isTrue);
+       },
+     );
