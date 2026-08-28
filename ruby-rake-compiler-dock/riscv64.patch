@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,13 +20,18 @@
+ checkdepends=(
+   ruby-erb
+ )
+-source=("${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha512sums=('a0e7c8d2cab1a520b8f17f29aa4897794f1364a96f50684c476a8da628daca8fbcb7edaf3bf83b1fea4025fe64060d3241b429db8ba6703775b2d407e3c26905')
+-b2sums=('c2bfb9031f8f4d1333b5db42a6f55ca07766c20bad9229f4104f60da6ebdb692f488e6b8813627b95751733bc78978554c3c8376765dd8950172cffb9b29c720')
++source=("${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz"
++        allow-rake-test-on-unsupported-host.patch)
++sha512sums=('a0e7c8d2cab1a520b8f17f29aa4897794f1364a96f50684c476a8da628daca8fbcb7edaf3bf83b1fea4025fe64060d3241b429db8ba6703775b2d407e3c26905'
++            'c59efb5cff80a78566c855973eed65df3e74385ff237167c77be35736e57f916a7148818ef125bb6ac4378f6a997f75c201a237da926412c0a635e1be4302ba6')
++b2sums=('c2bfb9031f8f4d1333b5db42a6f55ca07766c20bad9229f4104f60da6ebdb692f488e6b8813627b95751733bc78978554c3c8376765dd8950172cffb9b29c720'
++        '7d9b19fa8eadd8ec1ee945024e6085746ca7c2cf86caa65421f93de16df925ce1aa749fedfaa50849fed14b33bc1cf6f0e4789519027c46dd31197cb163aade1')
+ 
+ prepare() {
+   cd "${_gemname}-${pkgver}"
+ 
++  patch -Np1 -i ../allow-rake-test-on-unsupported-host.patch
++
+   # update gemspec/Gemfile to allow newer version of the dependencies
+   sed --in-place --regexp-extended 's|~>|>=|g' "${_gemname}.gemspec"
+ 
