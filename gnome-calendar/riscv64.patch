@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,13 +39,18 @@
+ )
+ groups=(gnome)
+ source=("git+https://gitlab.gnome.org/GNOME/gnome-calendar.git#tag=${pkgver/[a-z]/.&}"
+-         libical-4.patch)
++         libical-4.patch
++         fix-event-tzid-test-libical-system-tzdata.patch)
+ b2sums=('d56765b7cd680fc1e3b324b7820dea56f7dc0c32059fc5f6ea3f1dcc735100ef83990f232129f62d992766a923e6fef8dd8c58e3fca531574b922de683f037fd'
+-        '6cfe91eda112dad310903cde4e6d31b013e231886d56a46177a7c1c0c8bf64057d95009c1ffd2d8ef95b85405ca431efa1c6a7dc694d618efb850027916c7a43')
++        '6cfe91eda112dad310903cde4e6d31b013e231886d56a46177a7c1c0c8bf64057d95009c1ffd2d8ef95b85405ca431efa1c6a7dc694d618efb850027916c7a43'
++        'f6ff41055dbe2130b9d13075a762ec342a0dfdf3c72aae3fa36d59506a1fc879bb9dccb23557545a2d6bcc5b4c9c713629ad0e9d0d9ebda62080a7ade5a665c6')
+ 
+ prepare() {
+   cd $pkgname
+   patch -p1 -i ../libical-4.patch # Fix build with libical 4.0
++
++  # libical can fold system-zone TZIDs differently, e.g. with a Tzfile prefix.
++  patch -Np1 -i ../fix-event-tzid-test-libical-system-tzdata.patch
+ }
+ 
+ build() {

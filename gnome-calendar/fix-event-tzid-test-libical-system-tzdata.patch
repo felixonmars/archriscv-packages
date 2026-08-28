@@ -1,0 +1,32 @@
+--- a/tests/test-event.c
++++ b/tests/test-event.c
+@@ -310,10 +310,13 @@
+   g_autoptr (GDateTime) datetime = NULL;
+   g_autoptr (GTimeZone) tz = NULL;
+   g_autofree gchar *ical_string = NULL;
++  g_autofree gchar *unfolded_ical_string = NULL;
++  g_auto (GStrv) folded_lines = NULL;
+ 
+   ECalComponent *comp = NULL;
+   ICalComponent *ical_comp = NULL;
+   ECalComponentDateTime *dt_end = NULL;
++  const gchar *dtend_line = NULL;
+ 
+   g_test_bug ("172");
+ 
+@@ -340,8 +343,14 @@
+   gcal_event_set_date_end (event, datetime);
+ 
+   ical_string = i_cal_component_as_ical_string (ical_comp);
++  /* Unfold the line before checking it, since libical may fold long TZIDs. */
++  folded_lines = g_strsplit (ical_string, "\r\n ", -1);
++  unfolded_ical_string = g_strjoinv ("", folded_lines);
++  dtend_line = strstr (unfolded_ical_string, "DTEND;TZID=");
++
+   g_assert_true (strstr (ical_string, "DTSTART;TZID=Europe/London:20170818T010000\r\n") != NULL);
+-  g_assert_true (strstr (ical_string, "DTEND;TZID=/freeassociation.sourceforge.net/Europe/London:\r\n 20170818T030000\r\n") != NULL);
++  g_assert_nonnull (dtend_line);
++  g_assert_true (strstr (dtend_line, "Europe/London:20170818T030000\r\n") != NULL);
+   g_clear_pointer (&ical_string, g_free);
+ 
+   g_setenv ("TZ", "UTC", TRUE);
