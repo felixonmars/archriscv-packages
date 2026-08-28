@@ -1,35 +1,45 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -56,6 +56,14 @@ _set_flags() {
+@@ -56,6 +56,9 @@
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
 +  # https://github.com/riscv-forks/electron/issues/7
 +  export CC=/usr/bin/clang
 +  export CXX=/usr/bin/clang++
-+}
+ }
+ 
+ prepare() {
+@@ -64,6 +67,12 @@
+   # Fix the CCM empty-message test with newer OpenSSL behavior:
+   # https://github.com/nodejs/node/commit/7e2254fc8ba5ac88fe6f35715e7bb6e78597846b
+   git cherry-pick -n 7e2254fc8ba5ac88fe6f35715e7bb6e78597846b
 +
-+prepare() {
-+  cd node
++  # Disable Highway RVV code; Arch RISC-V targets rv64gc, not RVV.
 +  patch -Np1 -i ../hwy-broken-rvv.diff
++
++  # Ten WPT workers still exhaust Node.js worker heaps on riscv64 builders.
++  sed -i 's/concurrency = Math.min(10, concurrency);/concurrency = Math.min(2, concurrency);/' test/common/wpt.js
  }
  
  build() {
-@@ -88,6 +96,8 @@ build() {
- check() {
-   _set_flags
-   cd node
-+  rm test/parallel/test-snapshot-reproducible.js
-+  # TODO: figure out why the above test is failing on RISC-V
-   rm test/parallel/test-http-outgoing-end-cork.js
-   rm test/parallel/test-http2-client-set-priority.js
-   rm test/parallel/test-http2-client-unescaped-path.js
-@@ -109,4 +119,8 @@ package() {
+@@ -112,6 +121,9 @@
+   # https://github.com/nodejs/node/issues/63914
+   rm test/parallel/test-snapshot-reproducible.js
+ 
++  # https://github.com/nodejs/node/issues/59146
++  rm test/wasi/test-wasi-pthread.js
++
+   make test-only
+ }
+ 
+@@ -122,4 +134,9 @@
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
 +
 +makedepends+=(clang)
 +source+=("hwy-broken-rvv.diff")
-+sha512sums+=('de07b0d9c3481036ee97a22941ff444fee86c78abbc26afef36f17508bb479ce3ab83ca160109fbf4f0b9b3266dcce30860873dc8ffbcac1a70e98d17638ca55')
++sha512sums+=('b4f21e06bef85f8eba9536e9a110d4aec3d230f9f3e76ee3d98a8cd88086c77f8593427c6379de51e5e7fe668273803f8e9ea8c30ab225010186dcb404c0b164')
++
  # vim:set ts=2 sw=2 et:
