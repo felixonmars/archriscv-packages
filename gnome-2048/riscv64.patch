@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -30,8 +30,12 @@
+ options=(!lto)
+ source=(
+   "git+https://gitlab.gnome.org/GNOME/gnome-2048.git#tag=${pkgver/[a-z]/.&}"
++  0001-Remove-timeout-option-for-unit-tests.patch::https://gitlab.gnome.org/GNOME/gnome-2048/-/commit/ecdf8e39eab3e4b4fb86a4cdc53f0aa02af2353d.patch
++  0002-Set-timeout-option-to-0-for-unit-tests.patch::https://gitlab.gnome.org/GNOME/gnome-2048/-/commit/24d6df1c822f8ae2ce6d1f403e39c12be357423f.patch
+ )
+-b2sums=('4d9e06cdb5c4ceac88b8863083a67354066cec31b48cafb5995a5cf0a83f96f587b471b7202638230daf834044ad6ab817259e1fbae16eed08c58799f0d158fe')
++b2sums=('4d9e06cdb5c4ceac88b8863083a67354066cec31b48cafb5995a5cf0a83f96f587b471b7202638230daf834044ad6ab817259e1fbae16eed08c58799f0d158fe'
++        'b282039226cecceddffa703212ee9201a01cc2baeb7a47ab48fb6c41217edca695770fc1e81a2750427c0a20c099cc816944cffdab8cdc6d5e5db37bc173e038'
++        '74bb3933ec842f911407fd50eeddb666ce680cfcf44f5d8f7df094354c5f1355eb08d750942b4f4e213c87829d7c425582bbdcc4a4ca4f1a6b56525baa517b7a')
+ 
+ # Use debug
+ export CARGO_PROFILE_RELEASE_DEBUG=2 CARGO_PROFILE_RELEASE_STRIP=false
+@@ -42,6 +46,10 @@
+ prepare() {
+   cd $pkgname
+ 
++  # Let cargo tests finish on slower RISC-V builders.
++  patch -Np1 -i ../0001-Remove-timeout-option-for-unit-tests.patch
++  patch -Np1 -i ../0002-Set-timeout-option-to-0-for-unit-tests.patch
++
+   CARGO_HOME="$srcdir/build/cargo-home" cargo fetch --locked --target host-tuple
+ }
+ 
