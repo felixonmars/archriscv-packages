@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,6 +14,15 @@
+ 
+ export PYSTEMMER_SYSTEM_LIBSTEMMER=1
+ 
++prepare() {
++  cd pystemmer
++
++  # The doctest hard-codes PyStemmer's bundled algorithms, but Arch links
++  # against system libstemmer, whose algorithm list can differ.
++  git cherry-pick -n 301c074791708ab2c479808b410480c34183cd9a
++  git cherry-pick -n 77ee7b34fdcd61c78146ae4c6e536a63755db0e6
++}
++
+ build() {
+   cd pystemmer
+   python -m build --wheel --no-isolation
