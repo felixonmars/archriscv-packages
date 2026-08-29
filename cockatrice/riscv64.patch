@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,8 +17,17 @@
+ 	    'mariadb-libs: MySQL/MariaDB connection')
+ provides=('cockatrice-client' 'cockatrice-server')
+ conflicts=('cockatrice-client' 'cockatrice-server')
+-source=("git+https://github.com/Cockatrice/Cockatrice.git#tag=$_tag")
+-sha512sums=('c99f6e8852a055237dccd0370cf70e5da9170818fed7ca2d7e0f4d1e1c1ec6a58e148037badb3a62af3f87e5f36eaa7f3821463922718a9bbd48b35305358e90')
++source=("git+https://github.com/Cockatrice/Cockatrice.git#tag=$_tag"
++        "increase-deck-hash-test-timeout.patch")
++sha512sums=('c99f6e8852a055237dccd0370cf70e5da9170818fed7ca2d7e0f4d1e1c1ec6a58e148037badb3a62af3f87e5f36eaa7f3821463922718a9bbd48b35305358e90'
++            '2a0e24ab8a7558b8ac0bf970975878b67aa1623299056f66bc2bc9adde86ac5c22b81367d44fcdbecbbbd1acaa4f483e8ba4331255b332ff0729178ce7446bf1')
++
++prepare() {
++  cd $_pkgname
++
++  # The deck hash performance test exceeds its 5s timeout on riscv64 builders.
++  patch -Np1 -i ../increase-deck-hash-test-timeout.patch
++}
+ 
+ build() {
+   mkdir -p $_pkgname/build
