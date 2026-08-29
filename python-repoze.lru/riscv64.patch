@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,6 +15,13 @@
+ source=("https://pypi.io/packages/source/r/repoze_lru/repoze_lru-$pkgver.tar.gz")
+ sha512sums=('6c958af8dc885971d8a6f13cccf13d0f0fa5e2d0dd9eda82bb89c736d3ea47676bb29d4d9aa44e489bee622f56780b0fdffb24f26afe862c5d98442643d4b46c')
+ 
++prepare() {
++  cd repoze_lru-$pkgver
++  # The expiring-cache tests use 100ms boundaries, which are too tight under emulation.
++  sed -i -e 's/0\.1/1.0/g' -e 's/0\.2/2.0/g' -e 's/0\.3/3.0/g' \
++    tests/unit/test_package.py
++}
++
+ build() {
+   cd repoze_lru-$pkgver
+   python -m build --wheel --no-isolation
