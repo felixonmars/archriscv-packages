@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,9 +35,20 @@
+   'python-defusedxml: guard against various XML vulnerabilities'
+   'python-pandas: for iteration over Pandas DataFrames'
+ )
+-source=("https://foss.heptapod.net/openpyxl/openpyxl/-/archive/${pkgver}/openpyxl-${pkgver}.tar.bz2")
+-sha512sums=('556d3f1660ae5d045b0801b99740b2cd1eea1fc69c07c87c4bdd7e78999b5094e84db6fcb107b2a80f4648004810d18eea22779e2d3c231a996bbe2a12d33288')
+-b2sums=('7a70de814c39945ce4ed8c1e8105da9db4347b4a5f90e6620f6a22f85ba55e2330a305a9d6f78ab27f2055b589b6f3beba6943d8c15cbb9a24e94d663bffcf1d')
++source=("https://foss.heptapod.net/openpyxl/openpyxl/-/archive/${pkgver}/openpyxl-${pkgver}.tar.bz2"
++        'fix-lxml-6-tests.patch')
++sha512sums=('556d3f1660ae5d045b0801b99740b2cd1eea1fc69c07c87c4bdd7e78999b5094e84db6fcb107b2a80f4648004810d18eea22779e2d3c231a996bbe2a12d33288'
++            '49d9c5345c25f7316cbe9e241c295142f880417031e10544d15a5c25d168eb2a5edeb284fb0554b4e8dd965f83f113a0374b4280494080313b45494da66051d4')
++b2sums=('7a70de814c39945ce4ed8c1e8105da9db4347b4a5f90e6620f6a22f85ba55e2330a305a9d6f78ab27f2055b589b6f3beba6943d8c15cbb9a24e94d663bffcf1d'
++        'fae2b66157c0d67407b88165114359f91a0d0364290899382166a355990c708fd4459e459a73999d7c3f795dab51d27080c42ac85bb9d77cf5fc210cbb3d2851')
++
++prepare() {
++  cd "$_pkgname-$pkgver"
++
++  # Backport upstream lxml 6.x XML parser test fix.
++  # https://foss.heptapod.net/openpyxl/openpyxl/-/commit/a8da54586190b0e7fd1a3692167b1cccd3ed8b45
++  patch -Np1 -i ../fix-lxml-6-tests.patch
++}
+ 
+ build() {
+   cd "$_pkgname-$pkgver"

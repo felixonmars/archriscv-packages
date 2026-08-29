@@ -1,0 +1,64 @@
+--- a/openpyxl/xml/tests/test_functions.py
++++ b/openpyxl/xml/tests/test_functions.py
+@@ -34,22 +34,22 @@
+           <!ENTITY d "&c;&c;&c;&c;&c;&c;&c;&c;">
+           ]>
+           <foo>&d;</foo>""",
++    b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
++        <!DOCTYPE bomb [
++        <!ENTITY a "{loads_of_bs}">
++        ]>,
++        <foo>&a;&a;&a;</foo>""",
+     b"""<?xml version="1.0" encoding="UTF-8"?>
+           <!DOCTYPE test [
+           <!ENTITY % one SYSTEM "http://127.0.0.1:8100/x.xml" >
+           %one;
+           ]>""",
+-    b"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+-        <!DOCTYPE bomb [
+-        <!ENTITY a "{loads_of_bs}">
+-        ]>
+-        <foo>&a;&a;&a;</foo>""",
+ )
+ 
+ 
+ @pytest.mark.defusedxml_required
+ @pytest.mark.parametrize("xml_input", vulnerable_xml_strings)
+-def test_fromstring(xml_input):
++def test_fromstring_defused(xml_input):
+     from defusedxml.common import DefusedXmlException
+     with pytest.raises(DefusedXmlException):
+         fromstring(xml_input)
+@@ -57,7 +57,7 @@
+ 
+ @pytest.mark.defusedxml_required
+ @pytest.mark.parametrize("xml_input", vulnerable_xml_strings)
+-def test_iterparse(xml_input):
++def test_iterparse_defused(xml_input):
+     from defusedxml.common import DefusedXmlException
+     with pytest.raises(DefusedXmlException):
+         f = BytesIO(xml_input)
+@@ -65,11 +65,18 @@
+ 
+ 
+ @pytest.mark.lxml_required
+-@pytest.mark.parametrize("xml_input", vulnerable_xml_strings)
+-def test_iterparse(xml_input):
+-    f = BytesIO(xml_input)
+-    with pytest.raises(ValueError):
+-        fromstring(f)
++@pytest.mark.parametrize("xml_input", vulnerable_xml_strings[:2])
++def test_fromstring_lxml_no_exception(xml_input):
++    import lxml
++    fromstring(xml_input)
++
++
++@pytest.mark.lxml_required
++@pytest.mark.parametrize("xml_input", vulnerable_xml_strings[2:])
++def test_fromstring_lxml_exception(xml_input):
++    import lxml
++    with pytest.raises(lxml.etree.XMLSyntaxError):
++        fromstring(xml_input)
+ 
+ 
+ from ..functions import Element, whitespace, XML_NS
