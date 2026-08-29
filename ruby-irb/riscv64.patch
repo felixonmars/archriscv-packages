@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -25,12 +25,16 @@
+   ruby-tracer
+ )
+ options=('!emptydirs')
+-source=("${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
+-sha512sums=('0df3d4d942833ffddae8cde197d3bbc0171b8e3b9a9699d59450050b19cb4ebdbe9d042bcbb9cb9d1051fc63e4051f645a0c36866d6a89158be48fa591b2d362')
++source=("${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz"
++        increase-integration-test-timeout-on-ci.patch)
++sha512sums=('0df3d4d942833ffddae8cde197d3bbc0171b8e3b9a9699d59450050b19cb4ebdbe9d042bcbb9cb9d1051fc63e4051f645a0c36866d6a89158be48fa591b2d362'
++            '136a92abd6b87cc54529db06be2241fd2de33221c964129e7fca82f3deb6370c267876ebb5af0d0b4220b43691febd5996ac2bb5b71512c8b262297ca02fee32')
+ 
+ prepare() {
+   cd "${_gemname}-${pkgver}"
+ 
++  patch -Np1 -i ../increase-integration-test-timeout-on-ci.patch
++
+   # update gemspec/Gemfile to allow newer version of the dependencies
+   sed --in-place --regexp-extended 's|~>|>=|g' "${_gemname}.gemspec"
+ }
+@@ -44,7 +48,7 @@
+ check() {
+   cd "${_gemname}-${pkgver}"
+ 
+-  rake test
++  CI=1 rake test
+   rake test_yamatanooroti
+ }
+ 
