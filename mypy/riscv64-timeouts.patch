@@ -1,0 +1,38 @@
+--- a/mypy/defaults.py
++++ b/mypy/defaults.py
+@@ -47,12 +47,12 @@
+ 
+ RECURSION_LIMIT: Final = 2**14
+ 
+-# It looks like Windows is slow with processes, causing test flakiness even
+-# with our generous timeouts, so we set them higher.
++# Process startup can be slow on Windows and heavily loaded builders, so use
++# generous timeouts for worker startup and IPC connection setup.
+ WORKER_START_INTERVAL: Final = 0.01 if sys.platform != "win32" else 0.03
+-WORKER_START_TIMEOUT: Final = 3 if sys.platform != "win32" else 10
++WORKER_START_TIMEOUT: Final = 30
+ WORKER_SHUTDOWN_TIMEOUT: Final = 1 if sys.platform != "win32" else 3
+ 
+-WORKER_CONNECTION_TIMEOUT: Final = 10
++WORKER_CONNECTION_TIMEOUT: Final = 60
+ WORKER_IDLE_TIMEOUT: Final = 600
+ WORKER_DONE_TIMEOUT: Final = 600
+--- a/mypy/test/config.py
++++ b/mypy/test/config.py
+@@ -28,4 +28,4 @@
+ # Ref. https://github.com/python/mypy/issues/12615
+ # Ref. mypy/test/testpep561.py
+ pip_lock = os.path.join(package_path, ".pip_lock")
+-pip_timeout = 60
++pip_timeout = 300
+--- a/mypyc/test/librt_cache.py
++++ b/mypyc/test/librt_cache.py
+@@ -162,7 +162,7 @@
+ 
+     os.makedirs(cache_root, exist_ok=True)
+ 
+-    with filelock.FileLock(lock_file, timeout=300):  # 5 min timeout
++    with filelock.FileLock(lock_file, timeout=1200):  # 20 min timeout
+         if os.path.exists(marker):
+             return build_dir
+ 
