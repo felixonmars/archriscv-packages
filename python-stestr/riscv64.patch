@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,6 +16,12 @@
+ source=("git+https://github.com/mtreinish/stestr.git#tag=$pkgver")
+ sha512sums=('698d0585df0c3599ca89407e5950db9fadb425c325513f5659022bf7fc800786121bc7ec3510a1f55be5fb4af516c3c8302aae89961b7ece2f1c62575c664eaa')
+ 
++prepare() {
++  cd stestr
++  # Arch ships flit_core 4, which supports stestr's PEP 621 metadata.
++  sed -i -e '/flit_core/s/,<4//' pyproject.toml
++}
++
+ build() {
+   cd stestr
+   python -m build --wheel --no-isolation
