@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,8 +34,16 @@
+   'python-watchdog'
+ )
+ optdepends=('python-watchdog: faster and more advanced reloader')
+-source=("git+https://github.com/pallets/werkzeug.git#tag=${pkgver}")
+-sha512sums=('e0f8e867cd1c4b4d72e9a9af29817b5036449e8f5b0d62414c3386cf29fe65fa7b2a16db776e241009e3bf409a9accc955a27b03373ef3b57a97b7457a2726fe')
++source=("git+https://github.com/pallets/werkzeug.git#tag=${pkgver}"
++        allow-flit-core-4.patch)
++sha512sums=('e0f8e867cd1c4b4d72e9a9af29817b5036449e8f5b0d62414c3386cf29fe65fa7b2a16db776e241009e3bf409a9accc955a27b03373ef3b57a97b7457a2726fe'
++            '8b613ace3fbaaa5dd2fa65866e4c5fe55104062c76ce2c3a2a524c2951bbb70dd64e815b02e1d11b96399bb7e75c285ff8fbde39cf5573e1219590cc47f2ffb3')
++
++prepare() {
++  cd werkzeug
++  # Arch ships flit_core 4, which supports Werkzeug's PEP 621 metadata.
++  patch -Np1 -i ../allow-flit-core-4.patch
++}
+ 
+ build() {
+   cd werkzeug
