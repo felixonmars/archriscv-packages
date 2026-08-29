@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -46,6 +46,15 @@
+ sha512sums=('be9278d0f8306415041fc512f9fac66b14b505836383a5fdebf4e27177bb8360cfdeb3de13145ac607bba8d18f22271ef6431e93f320ab9f85c8dddae752de65')
+ b2sums=('bbba0ff5bafea725d56557b9dec04b6dd4ebd49a09e74c98e3613f7b0c021e24000a4c665c89fae6f5c6e84ec17cc2a177f65f641323cc5d718956bb78aaf575')
+ 
++prepare() {
++  cd $pkgbase
++  # The 10ms deadline can expire during HTTP/2 setup on slower riscv64 builders.
++  sed -i \
++    -e '/test_h2_timeout_during_request/,/assert conn.is_idle()/s/move_on_after(0\.01)/move_on_after(1)/' \
++    -e '/test_h2_timeout_during_response/,/assert conn.is_idle()/s/move_on_after(0\.01)/move_on_after(1)/' \
++    tests/httpcore2/test_cancellations.py
++}
++
+ build() {
+   cd $pkgbase
+   python -m build --wheel --no-isolation --outdir dist src/httpcore2
