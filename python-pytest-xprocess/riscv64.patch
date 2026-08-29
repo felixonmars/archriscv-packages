@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,9 +21,18 @@
+   python-setuptools-scm
+   python-wheel
+ )
+-source=($_name-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz)
+-sha512sums=('e072995a63ac19086268471a708f3576dc588a2a4700d19b53511039f49e3fb3229eadfebba35da21f1d1dd524ea20a4cb79e57844f44d56138d08b486c16690')
+-b2sums=('0b7ddbe27eb81614f1af67437e76911e1c383b09af22054f503f2d3bca1be65f767617676f43a0e64dfc24fe08bda0c6c61461931317a827abf65148cca927e5')
++source=($_name-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz
++        fix-startup-check-race.patch)
++sha512sums=('e072995a63ac19086268471a708f3576dc588a2a4700d19b53511039f49e3fb3229eadfebba35da21f1d1dd524ea20a4cb79e57844f44d56138d08b486c16690'
++            '76fd84a642b13c1fa26aa3eb918f9b32a5a6758c092373afb85e6fbf5fbed3a6d193a13ca913560fe52a2c9e430054c7e5060be6b5704abfd2409a143f816cbc')
++b2sums=('0b7ddbe27eb81614f1af67437e76911e1c383b09af22054f503f2d3bca1be65f767617676f43a0e64dfc24fe08bda0c6c61461931317a827abf65148cca927e5'
++        'fd62d33a7244992efb7421e5e590275498d33cb950955322793f4a273a94760689b1c05a85271a54504e8116386fe89b6d66026de3c5dd6566ea7bcc6dbfc98e')
++
++prepare() {
++  cd $_name-$pkgver
++  # RISC-V builders can probe startup_check before the subprocess listens.
++  patch -Np1 < ../fix-startup-check-race.patch
++}
+ 
+ build() {
+   cd $_name-$pkgver
