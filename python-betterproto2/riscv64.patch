@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,6 +22,12 @@
+ source=(${pkgname}-${pkgver}.tar.gz::https://github.com/betterproto/${pkgname}/archive/refs/tags/lib-v${pkgver}.tar.gz)
+ b2sums=('e1d6be8c711591f7ef7d5fa9e0cda243b20f19930ae38d4c628f02f2c89688706786b36916a4dab82d44710f329a0440c5a9a7c154ca03a207bd8e751c7c368a')
+ 
++prepare() {
++  cd "${pkgname}-lib-v${pkgver}/betterproto2"
++  # Arch's system uv-build is newer than upstream's conservative backend cap.
++  sed -i 's/uv_build>=0.9.7,<0.12/uv_build>=0.9.7/' pyproject.toml
++}
++
+ build() {
+   cd "${pkgname}-lib-v${pkgver}/betterproto2"
+   python -m build --wheel --no-isolation
