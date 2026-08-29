@@ -1,0 +1,40 @@
+--- a/eventlet/green/thread.py
++++ b/eventlet/green/thread.py
+@@ -6,6 +6,8 @@
+ from eventlet.lock import Lock
+ import sys
+ 
++_real_get_ident = __thread.get_ident
++
+ 
+ __patched__ = ['Lock', 'LockType', '_ThreadHandle', '_count',
+                '_get_main_thread_ident', '_local', '_make_thread_handle',
+@@ -36,7 +38,10 @@
+ 
+ def get_ident(gr=None):
+     if gr is None:
+-        return id(greenlet.getcurrent())
++        try:
++            return id(greenlet.getcurrent())
++        except RuntimeError:
++            return _real_get_ident()
+     else:
+         return id(gr)
+ 
+--- a/eventlet/semaphore.py
++++ b/eventlet/semaphore.py
+@@ -94,7 +94,13 @@
+         if not blocking and self.locked():
+             return False
+ 
+-        current_thread = eventlet.getcurrent()
++        try:
++            current_thread = eventlet.getcurrent()
++        except RuntimeError:
++            if self.counter > 0:
++                self.counter -= 1
++                return True
++            return False
+ 
+         if self.counter <= 0 or self._waiters:
+             if current_thread not in self._waiters:

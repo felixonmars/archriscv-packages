@@ -1,19 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,6 +31,7 @@ prepare() {
-   # https://github.com/eventlet/eventlet/issues/730
-   # https://github.com/eventlet/eventlet/issues/739
-   patch -Np1 -i ../python310.patch
-+  patch -Np1 -i ../increase-test-thread-sleep-time.patch
-   sed -r 's|(check_idle_cpu_usage\(.*,) .*\)|\1 0.8\)|g' -i tests/*_test.py
- }
- 
-@@ -55,4 +56,8 @@ package() {
-   cp -r examples "${pkgdir}/usr/share/doc/${pkgname}"
- }
- 
+@@ -34,9 +34,23 @@
+   'python-pyopenssl: non-blocking SSL support'
+   'python-pyzmq: non-blocking ZeroMQ support'
+ )
+-source=("https://github.com/eventlet/eventlet/archive/$pkgver/${pkgname#python-}-$pkgver.tar.gz")
+-sha512sums=('fc913b05fddb8690b9136fc87777655e4e4398f0fb9156bb8995c2bb5481e88f01451348141196fb0f12371796a410c0e81e5bc2ac81aacc7cc939729c4d6b70')
+-b2sums=('165d9cb9ef29cd176618f013e9240bc782bf487dbe63dc732098640d91e39c9524e5ff1955f2bba98faca3941a59f10081cf6a88ad63baa7bfe50b80a8222d8d')
++source=(
++  "https://github.com/eventlet/eventlet/archive/$pkgver/${pkgname#python-}-$pkgver.tar.gz"
++  greenlet-3.5.1-finalization.patch
++)
++sha512sums=('fc913b05fddb8690b9136fc87777655e4e4398f0fb9156bb8995c2bb5481e88f01451348141196fb0f12371796a410c0e81e5bc2ac81aacc7cc939729c4d6b70'
++            '901830d1e5167d4602812dd709cc9fdb661b00d476a520df7ebf2d8cf6b7f49c5f0bc476d154b2ec82192e1fb7308b260e9f30ea6a0b630fabe6050180911d7f')
++b2sums=('165d9cb9ef29cd176618f013e9240bc782bf487dbe63dc732098640d91e39c9524e5ff1955f2bba98faca3941a59f10081cf6a88ad63baa7bfe50b80a8222d8d'
++        '6a9a9e4eff2d47a4521e80766975d5f2d1960ea0750f5f30b571ab4ebfba98beb5d15ca6d555ac838ca3eaa4e3cb95e964eba6b6321543f9473846ccea393c00')
 +
-+source+=(increase-test-thread-sleep-time.patch)
-+sha512sums+=(86dffff4fee9dcd4d17cd7c7ad04908874a68e6328641f72903f2e92438b537344712957f45476b872a489ef530915fc4c67916830e557b17c6b9cdbfd5a36cd)
-+b2sums+=(b2415a0e47894115fd785e458cd4f8972c1c2128dd815e7e12479db4b6573a01d1ad2e73d7f36463c25c0b80eb789528ee94d4a86bfd24b50d094456178700ad)
- # vim: ts=2 sw=2 et:
++prepare() {
++  cd ${pkgname#python-}-$pkgver
++  # Backport compatibility with greenlet 3.5.1 finalization behavior.
++  patch -Np1 -i ../greenlet-3.5.1-finalization.patch
++
++  # Relax idle CPU checks for slower riscv64 builders.
++  sed -r 's|(check_idle_cpu_usage\(.*,) .*\)|\1 0.8\)|g' -i tests/*_test.py
++}
+ 
+ build() {
+   cd ${pkgname#python-}-$pkgver
