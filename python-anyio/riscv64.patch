@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,6 +29,12 @@
+ 
+   # Remove "error" from pytest filterwarnings
+   sed -i '/"error"/d' pyproject.toml
++
++  # pytest 9 validates native TOML types for pytest-timeout settings.
++  sed -i 's/timeout = "20"/timeout = 20.0/' pyproject.toml
++
++  # 3 seconds is too short for nested pytest subprocesses on riscv64 builders.
++  sed -i 's/timeout=3)/timeout=30)/g' tests/test_pytest_plugin.py
+ }
+ 
+ build() {
