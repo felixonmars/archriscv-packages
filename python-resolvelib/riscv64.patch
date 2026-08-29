@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,9 +20,18 @@
+   python-packaging
+   python-pytest
+ )
+-source=($_name-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz)
+-sha512sums=('516e74b532cdb48434dc1bb4eeeac64cdf73bcd717e83aa81e75f8c0dfaecddd11e4404b41a4296c4f696470352b080d58271dda90b41c966537adee630adfab')
+-b2sums=('1ce96c359deaadc9707ca7fb334278bfe84255bfe579ff8ca3881f42a0d48a4ee9c873c8b24400ed898fa8c453ca192f77a4b342885e0f338ae285163c2a97f6')
++source=($_name-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz
++        $pkgname-fix-tests-with-packaging-26.patch::$url/commit/017d3a7a9ecdd01f5349d263e31d196f4f27e483.patch)
++sha512sums=('516e74b532cdb48434dc1bb4eeeac64cdf73bcd717e83aa81e75f8c0dfaecddd11e4404b41a4296c4f696470352b080d58271dda90b41c966537adee630adfab'
++            '35292a2a4b4cd8a2920bc40cb101209c911b790d69837a4ac1e58d771a61ba7d4010d08890e98dfdb0516b1bd970c5ee2e3709dfa69c9256d67a4ea9576ccaac')
++b2sums=('1ce96c359deaadc9707ca7fb334278bfe84255bfe579ff8ca3881f42a0d48a4ee9c873c8b24400ed898fa8c453ca192f77a4b342885e0f338ae285163c2a97f6'
++        '40e2cf2ff1e3559dc156ba941d010261a18f3684afae0641c8acfaf39add8118502d16527f55800ece6ba685f1956dacc4ead6f548b3278ac3934af0b62be78b')
++
++prepare() {
++  cd $_name-$pkgver
++  # Fix resolver fixture expectations with packaging 26.x pre-release handling.
++  patch -Np1 -i ../$pkgname-fix-tests-with-packaging-26.patch
++}
+ 
+ build() {
+   cd $_name-$pkgver
