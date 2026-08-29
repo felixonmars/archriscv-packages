@@ -1,0 +1,31 @@
+--- a/xprocess/xprocess.py
++++ b/xprocess/xprocess.py
+@@ -383,18 +383,25 @@
+         """Assert that process is ready to answer queries using provided
+         callback funtion. Will raise TimeoutError if self.callback does not
+         return True before self.timeout seconds"""
++        last_error = None
+         while True:
+             sleep(0.1)
+-            if self.startup_check():
+-                return True
++            try:
++                if self.startup_check():
++                    return True
++            except OSError as exc:
++                last_error = exc
+             if datetime.now() > self._max_time:
+-                raise TimeoutError(
++                error = TimeoutError(
+                     "The provided startup callback could not assert process\
+                     responsiveness within the specified time interval of {} \
+                     seconds".format(
+                         self.timeout
+                     )
+                 )
++                if last_error is not None:
++                    raise error from last_error
++                raise error
+ 
+     def wait(self, log_file):
+         """Wait until the pattern is matched or callback returns successful."""
