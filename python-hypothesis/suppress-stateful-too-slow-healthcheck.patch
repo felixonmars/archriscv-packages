@@ -1,0 +1,27 @@
+--- a/hypothesis/tests/nocover/test_stateful.py
++++ b/hypothesis/tests/nocover/test_stateful.py
+@@ -13,7 +13,7 @@
+ 
+ import pytest
+ 
+-from hypothesis import Phase, settings as Settings, strategies as st
++from hypothesis import HealthCheck, Phase, settings as Settings, strategies as st
+ from hypothesis.stateful import (
+     Bundle,
+     RuleBasedStateMachine,
+@@ -28,8 +28,13 @@
+ 
+ def run_to_notes(TestClass):
+     TestCase = TestClass.TestCase
+-    # don't add explain phase notes to the error
+-    TestCase.settings = Settings(phases=set(Phase) - {Phase.explain}, max_examples=500)
++    # This helper checks shrink output, not generation speed; slow builders may
++    # otherwise hit the health check before reaching the expected assertion.
++    TestCase.settings = Settings(
++        phases=set(Phase) - {Phase.explain},
++        max_examples=500,
++        suppress_health_check=[HealthCheck.too_slow],
++    )
+     try:
+         TestCase().runTest()
+     except AssertionError as err:
