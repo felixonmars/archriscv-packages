@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,6 +24,13 @@
+ source=("git+$url.git#tag=v$pkgver")
+ b2sums=('90786a347999bd644ad8e6fd5fb6d857c05295e899f0430fbd75dc1741cf2f00cbb8e5f39ce182417154ee12f523ee938e74656b271363a498ad3995af8ca3d2')
+ 
++prepare() {
++  cd "${pkgname#python-}"
++
++  # The extended roundtrip property test exceeds Hypothesis' 200 ms default on riscv64 builders.
++  sed -i '/@example("0|0")/,/def test_roundtrip_extended/s/@settings(max_examples=20)/@settings(max_examples=20, deadline=1000)/' tests/test_roundtrip.py
++}
++
+ build() {
+   cd "${pkgname#python-}"
+   python -m build --wheel --no-isolation
