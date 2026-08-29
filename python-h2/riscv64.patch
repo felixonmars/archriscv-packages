@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,16 @@
+ depends=('python-hpack' 'python-hyperframe')
+ makedepends=('git' 'python-setuptools' 'python-build' 'python-installer' 'python-wheel')
+ checkdepends=('python-pytest' 'python-hypothesis')
+-source=("git+https://github.com/python-hyper/h2.git#tag=v$pkgver")
+-sha512sums=('ee9c44f335c992e393fec386b915c984c1d54e8ddafb5d30db005d75732555a2a9cc230922809be7c0c8395b6c58ff31ca93552ae7ddc3342ce32a9f15b3f531')
++source=("git+https://github.com/python-hyper/h2.git#tag=v$pkgver"
++        'relax-frame-size-hypothesis-deadline.patch')
++sha512sums=('ee9c44f335c992e393fec386b915c984c1d54e8ddafb5d30db005d75732555a2a9cc230922809be7c0c8395b6c58ff31ca93552ae7ddc3342ce32a9f15b3f531'
++            '357843156f322b7659d3210c30ce0ddece51797e2c08b587752bc5b67bcb3baa1d094367358f2fd0b9443e6ee08fd9cd28752ee1e401e277e4abf4d5f99601a1')
++
++prepare() {
++  cd h2
++  # Large DATA-frame examples only exceed Hypothesis' timing deadline on riscv64.
++  patch -Np1 -i ../relax-frame-size-hypothesis-deadline.patch
++}
+ 
+ build() {
+   cd h2
