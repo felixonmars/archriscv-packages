@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -37,6 +37,12 @@
+ source=("$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+ b2sums=('5809b883e880dca6322d5bd0c147ec731076d1c9f1601e12335b7870d673d309bfe32d7b9a1f651c5cd28ff13c52bf078ad573090fe906d1e72793b8a07e15c4')
+ 
++prepare() {
++  cd ${pkgname#python-}-$pkgver
++  # Arch ships flit_core 4, which supports Flask-Caching's PEP 621 metadata.
++  sed -i -e '/flit_core/s/,<4//' pyproject.toml
++}
++
+ build() {
+   cd ${pkgname#python-}-$pkgver
+   python -m build --wheel --no-isolation
