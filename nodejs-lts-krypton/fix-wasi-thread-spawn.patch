@@ -1,0 +1,31 @@
+--- a/test/fixtures/wasi-preview-1.js
++++ b/test/fixtures/wasi-preview-1.js
+@@ -68,6 +68,9 @@
+       const name = `pthread-${tid}`;
+       const sab = new SharedArrayBuffer(8 + 8192);
+       const result = new Int32Array(sab);
++      // The thread stores 0 once it has loaded or 1 with an error; wait on a
++      // value neither of them writes so an early notify cannot be missed.
++      Atomics.store(result, 0, -1);
+ 
+       const workerData = {
+         name,
+@@ -106,7 +109,7 @@
+         throw new Error(e);
+       });
+ 
+-      const r = Atomics.wait(result, 0, 0, 1000);
++      const r = Atomics.wait(result, 0, -1, common.platformTimeout(30_000));
+       if (r === 'timed-out') {
+         workers[tid].terminate();
+         delete workers[tid];
+--- a/test/wasi/wasi.status
++++ b/test/wasi/wasi.status
+@@ -14,7 +14,3 @@
+ [$system==win32 || $system==android]
+ # Unsupported on Windows and Android
+ test-wasi-readdir: SKIP
+-
+-[$system==linux]
+-# https://github.com/nodejs/node/issues/59146
+-test-wasi-pthread: PASS, FLAKY
