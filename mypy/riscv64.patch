@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,15 +43,19 @@
+ source=(
+   "$pkgname-$pkgver.tar.gz::https://github.com/python/mypy/archive/v$pkgver.tar.gz"
+   "$pkgname-exclude-tests.patch"
++  'riscv64-timeouts.patch'
+ )
+ b2sums=('37bf2f6d79377ebde68537119c0b58ae9cf6868421329b1d5b814e48788749e53cd34053bb5472385881b167cc8af7fdd85cef3c63792868668286516fe27462'
+-        '83b6d12dac919b917ba13c6a5b6da6e4cd6dc517f85b4f8e81d793d9c0e871af5a48708c4a5a54c45c7be89c5ed394b2f77007be89420fea4a1f3ca1efb04c0d')
++        '83b6d12dac919b917ba13c6a5b6da6e4cd6dc517f85b4f8e81d793d9c0e871af5a48708c4a5a54c45c7be89c5ed394b2f77007be89420fea4a1f3ca1efb04c0d'
++        'fba73dd5d8d533bfed85b7f965141e33795d6625a40231643491745758f92d1398525878b38dfc6d534306c98abc1122e40306bca5328eb8b844457357908dc7')
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
+   # -Werror, not even once
+   sed -e '/Werror/d' -i mypyc/build.py
+   patch -Np1 < ../$pkgname-exclude-tests.patch
++  # RISC-V builders can exceed upstream's short lock and worker timeouts.
++  patch -Np1 < ../riscv64-timeouts.patch
+ }
+ 
+ build() {
