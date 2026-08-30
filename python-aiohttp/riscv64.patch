@@ -1,0 +1,35 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -58,12 +58,17 @@
+   'python-aiodns: for fast DNS resolving'
+   'python-brotli: for Brotli transfer-encodings support'
+ )
+-source=("$pkgname::git+https://github.com/aio-libs/aiohttp#tag=v$pkgver")
+-b2sums=('812b02bac69cc1ee1203572673be6a491872210f2841878e9308409559c7450ec2a31a0b378045eedc8d04f5ebebd75e5b04226805333385df70f96e408eaf5a')
++source=("$pkgname::git+https://github.com/aio-libs/aiohttp#tag=v$pkgver"
++        fix-cookie-control-chars.patch)
++b2sums=('812b02bac69cc1ee1203572673be6a491872210f2841878e9308409559c7450ec2a31a0b378045eedc8d04f5ebebd75e5b04226805333385df70f96e408eaf5a'
++        'c86a5f4ee38d05b541e7cf6fcfa7ef7182d4bd97d882e73dae63fefd62df13147079c71a9bfc4f51b91ac3e813f88ec3fedc525e0125cf69724eba1ee481bdfa')
+ 
+ prepare() {
+   cd $pkgname
+   sed 's|.install-cython ||' -i Makefile
++
++  # Backport CPython CVE-2026-3644 CookieError handling from upstream.
++  patch -Np1 -i ../fix-cookie-control-chars.patch
+ }
+ 
+ build() {
+@@ -90,6 +95,12 @@
+     # venv-based testing.
+     --deselect=tests/test_circular_imports.py::test_no_warnings
+ 
++    # Internal timing guard is too strict for riscv64 build hosts.
++    --deselect=tests/test_imports.py::test_import_time
++
++    # Mocked event-loop time does not reliably trigger the keepalive timer.
++    --deselect='tests/test_web_functional.py::test_keepalive_expires_on_time[pyloop]'
++
+     --ignore=tests/autobahn/test_autobahn.py # Docker tests
+     --ignore=tests/test_benchmarks_client.py
+     --ignore=tests/test_benchmarks_client_request.py

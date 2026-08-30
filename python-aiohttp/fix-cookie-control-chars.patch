@@ -1,0 +1,268 @@
+--- a/aiohttp/_cookie_helpers.py
++++ b/aiohttp/_cookie_helpers.py
+@@ -6,7 +6,7 @@
+ """
+ 
+ import re
+-from http.cookies import Morsel
++from http.cookies import CookieError, Morsel
+ from typing import List, Optional, Sequence, Tuple, cast
+ 
+ from .log import internal_logger
+@@ -105,9 +105,16 @@
+     # bypass validation and set already validated state. This is more stable than
+     # setting protected attributes directly and unlikely to change since it would
+     # break pickling.
+-    mrsl_val.__setstate__(  # type: ignore[attr-defined]
+-        {"key": cookie.key, "value": cookie.value, "coded_value": cookie.coded_value}
+-    )
++    try:
++        mrsl_val.__setstate__(  # type: ignore[attr-defined]
++            {
++                "key": cookie.key,
++                "value": cookie.value,
++                "coded_value": cookie.coded_value,
++            }
++        )
++    except CookieError:
++        return cookie
+     return mrsl_val
+ 
+ 
+@@ -205,10 +212,18 @@
+                     invalid_names.append(key)
+                 else:
+                     morsel = Morsel()
+-                    morsel.__setstate__(  # type: ignore[attr-defined]
+-                        {"key": key, "value": _unquote(value), "coded_value": value}
+-                    )
+-                    cookies.append((key, morsel))
++                    try:
++                        morsel.__setstate__(  # type: ignore[attr-defined]
++                            {
++                                "key": key,
++                                "value": _unquote(value),
++                                "coded_value": value,
++                            }
++                        )
++                    except CookieError:
++                        pass
++                    else:
++                        cookies.append((key, morsel))
+ 
+             # Move to next cookie or end
+             i = next_semi + 1 if next_semi != -1 else n
+@@ -230,9 +245,12 @@
+         # bypass validation and set already validated state. This is more stable than
+         # setting protected attributes directly and unlikely to change since it would
+         # break pickling.
+-        morsel.__setstate__(  # type: ignore[attr-defined]
+-            {"key": key, "value": _unquote(value), "coded_value": value}
+-        )
++        try:
++            morsel.__setstate__(  # type: ignore[attr-defined]
++                {"key": key, "value": _unquote(value), "coded_value": value}
++            )
++        except CookieError:
++            continue
+ 
+         cookies.append((key, morsel))
+ 
+@@ -322,15 +340,19 @@
+                     # Create new morsel
+                     current_morsel = Morsel()
+                     # Preserve the original value as coded_value (with quotes if present)
+-                    # We use __setstate__ instead of the public set() API because it allows us to
+-                    # bypass validation and set already validated state. This is more stable than
+-                    # setting protected attributes directly and unlikely to change since it would
+-                    # break pickling.
+-                    current_morsel.__setstate__(  # type: ignore[attr-defined]
+-                        {"key": key, "value": _unquote(value), "coded_value": value}
+-                    )
+-                    parsed_cookies.append((key, current_morsel))
+-                    morsel_seen = True
++                    try:
++                        current_morsel.__setstate__(  # type: ignore[attr-defined]
++                            {
++                                "key": key,
++                                "value": _unquote(value),
++                                "coded_value": value,
++                            }
++                        )
++                    except CookieError:
++                        current_morsel = None
++                    else:
++                        parsed_cookies.append((key, current_morsel))
++                        morsel_seen = True
+             else:
+                 # Invalid cookie string - no value for non-attribute
+                 break
+--- a/tests/test_cookie_helpers.py
++++ b/tests/test_cookie_helpers.py
+@@ -1095,13 +1095,13 @@
+ @pytest.mark.parametrize(
+     ("header", "expected_name", "expected_value", "expected_coded"),
+     [
+-        # Test cookie values with octal escape sequences
+-        (r'name="\012newline\012"', "name", "\nnewline\n", r'"\012newline\012"'),
++        # Test cookie values with octal escape sequences (printable chars only)
++        (r'name="\050parens\051"', "name", "(parens)", r'"\050parens\051"'),
+         (
+-            r'tab="\011separated\011values"',
+-            "tab",
+-            "\tseparated\tvalues",
+-            r'"\011separated\011values"',
++            r'punct="\053plus\053values"',
++            "punct",
++            "+plus+values",
++            r'"\053plus\053values"',
+         ),
+         (
+             r'mixed="hello\040world\041"',
+@@ -1110,10 +1110,10 @@
+             r'"hello\040world\041"',
+         ),
+         (
+-            r'complex="\042quoted\042 text with \012 newline"',
++            r'complex="\042quoted\042 text with \055 hyphen"',
+             "complex",
+-            '"quoted" text with \n newline',
+-            r'"\042quoted\042 text with \012 newline"',
++            '"quoted" text with - hyphen',
++            r'"\042quoted\042 text with \055 hyphen"',
+         ),
+     ],
+ )
+@@ -1134,6 +1134,65 @@
+     assert morsel.coded_value == expected_coded
+ 
+ 
++@pytest.mark.parametrize(
++    ("header", "expected_name", "expected_coded"),
++    [
++        pytest.param(
++            r'name="\012newline\012"',
++            "name",
++            r'"\012newline\012"',
++            id="newline-octal-012",
++        ),
++        pytest.param(
++            r'tab="\011separated\011values"',
++            "tab",
++            r'"\011separated\011values"',
++            id="tab-octal-011",
++        ),
++    ],
++)
++def test_parse_set_cookie_headers_ctl_chars_from_octal(
++    header: str, expected_name: str, expected_coded: str
++) -> None:
++    """Ensure octal escapes that decode to control characters don't crash the parser.
++
++    CPython builds with the CVE-2026-3644 patch reject control characters in
++    cookies.  When octal unquoting produces a control character, the parser
++    skips the cookie entirely instead of raising CookieError.
++    """
++    result = parse_set_cookie_headers([header])
++
++    # On CPython with CVE-2026-3644 patch the cookie is rejected (result is empty);
++    # on older builds it may be accepted with the decoded value.
++    # Either way, no crash.
++    if result:
++        name, morsel = result[0]
++        assert name == expected_name
++        assert morsel.coded_value == expected_coded
++
++
++def test_parse_set_cookie_headers_literal_ctl_chars() -> None:
++    r"""Ensure literal control characters in a cookie value don't crash the parser.
++
++    If the raw header itself contains a control character (e.g. BEL \\x07),
++    both the decoded value and coded_value are unsalvageable.  The parser
++    should gracefully skip the cookie instead of raising CookieError.
++    """
++    result = parse_set_cookie_headers(['name="a\x07b"'])
++    # On CPython with CVE-2026-3644 patch the cookie is skipped;
++    # on older builds it may be accepted.  Either way, no crash.
++    if result:
++        assert result[0][0] == "name"
++
++
++def test_parse_set_cookie_headers_literal_ctl_chars_preserves_others() -> None:
++    """Ensure a cookie with literal control chars doesn't break subsequent cookies."""
++    result = parse_set_cookie_headers(['bad="a\x07b"; good=value', "another=cookie"])
++    # "good" is an attribute of "bad" (same header), so it's not a separate cookie.
++    # "another" is in a separate header and must always be preserved.
++    assert any(name == "another" for name, _ in result)
++
++
+ # Tests for parse_cookie_header (RFC 6265 compliant Cookie header parser)
+ 
+ 
+@@ -1601,6 +1660,18 @@
+     assert "''" in caplog.text
+ 
+ 
++def test_parse_cookie_header_literal_ctl_chars() -> None:
++    r"""Ensure literal control characters in a cookie value don't crash the parser.
++
++    If the raw header itself contains a control character (e.g. BEL \\x07),
++    the cookie is unsalvageable.  The parser should gracefully skip it.
++    """
++    result = parse_cookie_header('name="a\x07b"; good=cookie')
++    # On CPython with CVE-2026-3644 patch the bad cookie is skipped;
++    # on older builds it may be accepted.  Either way, no crash.
++    assert any(name == "good" for name, _ in result)
++
++
+ @pytest.mark.parametrize(
+     ("input_str", "expected"),
+     [
+@@ -1789,3 +1860,47 @@
+         f"our={_unquote(test_value)!r}, "
+         f"SimpleCookie={simplecookie_unquote(test_value)!r}"
+     )
++
++@pytest.fixture
++def mock_strict_morsel(
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    original_setstate = Morsel.__setstate__  # type: ignore[attr-defined]
++
++    def _mock_setstate(self: Morsel[str], state: dict[str, str]) -> None:
++        if any(ord(c) < 32 for c in state.get("value", "")):
++            raise CookieError()
++        original_setstate(self, state)
++
++    monkeypatch.setattr(
++        "aiohttp._cookie_helpers.Morsel.__setstate__",
++        _mock_setstate,
++    )
++
++
++@pytest.mark.usefixtures("mock_strict_morsel")
++def test_cookie_helpers_cve_fallback() -> None:
++    # Clean value: mock delegates to original_setstate -> succeeds
++    m: Morsel[str] = Morsel()
++    m.__setstate__({"key": "k", "value": "clean", "coded_value": "clean"})  # type: ignore[attr-defined]
++    assert m.key == "k"
++
++    # With strict morsel: any CTL char in value -> CookieError -> rejected
++    with pytest.raises(CookieError):
++        Morsel().__setstate__(  # type: ignore[attr-defined]
++            {"key": "k", "value": "v\n", "coded_value": "v\\012"}
++        )
++    with pytest.raises(CookieError):
++        Morsel().__setstate__(  # type: ignore[attr-defined]
++            {"key": "k", "value": "v\n", "coded_value": "v\n"}
++        )
++
++    cookie: Morsel[str] = Morsel()
++    cookie._key, cookie._value, cookie._coded_value = "k", "v\n", "v\n"  # type: ignore[attr-defined]
++    assert preserve_morsel_with_coded_value(cookie) is cookie
++
++    assert parse_cookie_header("f=b\x07r;") == []
++    assert parse_cookie_header("f=b\x07r") == []
++    assert parse_cookie_header('f="b\x07r";') == []
++    assert parse_set_cookie_headers(['f="b\x07r";']) == []
++    assert parse_set_cookie_headers([r'name="\012newline\012"']) == []
