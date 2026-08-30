@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -78,6 +78,12 @@
+ sha512sums=('d2ec6818ab3b5722f8e2c26d8d167ed7a70bd449e20a7498bded68e647f0a80e9df5bb90fe129ab3d59a2fdc91a6114153e2d61411c8b4e8d8b07ba437df8f72')
+ b2sums=('25d8e7a6a53633502d6b21ceaeda7e0a333f167bd0bd2ed14e0255f01bf8647dc86bacf4cd59e2179faac46d43b6fedbea412b7f82a16a125ed0dfbc1c7f950f')
+ 
++prepare() {
++  cd $pkgname
++  # Backport upstream 5.8.2's flit_core 4 build-backend cap fix.
++  sed -i 's/flit_core >=3.8,<4/flit_core >=3.8,<5/' pyproject.toml
++}
++
+ build() {
+   cd $pkgname
+   python -m build --wheel --no-isolation
