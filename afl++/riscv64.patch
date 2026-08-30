@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -50,9 +50,12 @@
+ options=(!lto)
+ source=(
+   "https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/v${pkgver}/${pkgname}-${pkgver}.tar.gz"
++  fix-riscv64-tests.patch
+ )
+-sha256sums=('b0c005a1d28883ad1cad17ac01837d5c6b0cc7a72d19db700823e42ce3848534')
+-b2sums=('88fe7ebc95d4f116eb2ed183bc92d6d90fbb2cab03fc12132a5c1c5eabe057deb7dc710cd538159ffe7d1c1f38f05f497e08afa64e69912d9137ff0937cbb0dc')
++sha256sums=('b0c005a1d28883ad1cad17ac01837d5c6b0cc7a72d19db700823e42ce3848534'
++            'bcf8ac617dac641cc616d5feaf29f71d36b2d612d2aa23c1917c5f7082dfad44')
++b2sums=('88fe7ebc95d4f116eb2ed183bc92d6d90fbb2cab03fc12132a5c1c5eabe057deb7dc710cd538159ffe7d1c1f38f05f497e08afa64e69912d9137ff0937cbb0dc'
++        '5385446940e7f09003a0284cec5cd98fd8ee861e0e81dc60d4441f05939002629b21226cc7f62b9614c3ae41f50620afd0a46ba0e83c1a606d4607cc3e047672')
+ 
+ prepare() {
+   # https://github.com/AFLplusplus/AFLplusplus/issues/2643
+@@ -83,7 +86,7 @@
+   rm -v test/test-performance.sh
+   # Unset our CFLAGS/CXXFLAGS for the tests since these may
+   # interact in unexpected ways with afl-cc instrumentation.
+-  CFLAGS= CXXFLAGS= make ARCH= test
++  CFLAGS= CXXFLAGS= make ARCH= NO_UNICORN=1 test
+ }
+ 
+ package() {
