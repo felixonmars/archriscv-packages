@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -38,6 +38,8 @@
+ prepare() {
+   cd ${pkgbase}
+   sed 's/VERSION =.*/VERSION = "'"${pkgver}"'"/' -i bindings/ruby/unicorn_gem/lib/unicorn_engine/version.rb
++  # Backport the riscv64 TCG host fix for UC_HOOK_MEM_READ/WRITE.
++  patch -Np1 -i ../qemu-tcg-riscv-fix-hookmem.patch
+ }
+ 
+ build() {
+@@ -148,4 +150,8 @@
+     -delete
+ }
+ 
++source+=(qemu-tcg-riscv-fix-hookmem.patch::https://github.com/unicorn-engine/unicorn/commit/f11f9492bf9e7522c422a677330bb01460720ed4.patch)
++sha512sums+=('471b7009268741e8aa6edc58541821d0c3557b868ae5399253aa20e8ecc80b393093cb18c451e184370c3d532277379e75e3e8a7c9360e3f8e88eb907a570aef')
++b2sums+=('2e619b1fe776bfcff94de0a49422211e3ea3329fa46400ec453e9ac376fcd6377fc00009e8068b41d898754383c7036d27f6946129d61245005dfd6c05cd18b9')
++
+ # vim: ts=2 sw=2 et:
