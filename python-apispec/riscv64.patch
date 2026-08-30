@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,8 +19,16 @@
+ checkdepends=('python-tornado' 'python-bottle' 'python-marshmallow'
+               'python-flask' 'python-yaml'
+               'python-openapi-spec-validator' 'python-pytest')
+-source=("git+https://github.com/marshmallow-code/apispec.git#tag=$pkgver")
+-sha512sums=('b1cb30bc120c5339b32ac349640b22408ef0805850b2a1cdf2076a46705972dbd8f2521b7b57ddcc9e2b4a2ec34a315c0f1bfaeced2e7e8e6b908a78a656eea9')
++source=("git+https://github.com/marshmallow-code/apispec.git#tag=$pkgver"
++        allow-flit-core-4.patch)
++sha512sums=('b1cb30bc120c5339b32ac349640b22408ef0805850b2a1cdf2076a46705972dbd8f2521b7b57ddcc9e2b4a2ec34a315c0f1bfaeced2e7e8e6b908a78a656eea9'
++            '2de754a3b69ca9067f4c3176f229626deb483de750f751bca29d4889cb28739f308e670d77370fd848fcf68b9ead008a0122d639e63ec0137e4b6501bec6dab3')
++
++prepare() {
++  cd apispec
++  # Arch ships flit_core 4, which supports apispec's PEP 621 metadata.
++  patch -Np1 -i ../allow-flit-core-4.patch
++}
+ 
+ build() {
+   cd apispec
