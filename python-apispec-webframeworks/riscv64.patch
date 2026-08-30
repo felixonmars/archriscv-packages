@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,8 +10,16 @@
+ depends=('python-apispec' 'python-yaml')
+ makedepends=('python-flit-core' 'python-build' 'python-installer' 'python-wheel')
+ checkdepends=('python-pytest' 'python-bottle' 'python-flask' 'python-tornado' 'python-aiohttp')
+-source=("$pkgname-$pkgver.tar.gz::https://github.com/marshmallow-code/apispec-webframeworks/archive/$pkgver.tar.gz")
+-sha512sums=('82a43a8c3a888f1d8745751bde6dfe3a59e3b4418a3019962d86a1922cb7e7be8746d9faebc70f010bfdd90b13cdf123feef2f4f6877d205258788620e6707a8')
++source=("$pkgname-$pkgver.tar.gz::https://github.com/marshmallow-code/apispec-webframeworks/archive/$pkgver.tar.gz"
++        allow-flit-core-4.patch)
++sha512sums=('82a43a8c3a888f1d8745751bde6dfe3a59e3b4418a3019962d86a1922cb7e7be8746d9faebc70f010bfdd90b13cdf123feef2f4f6877d205258788620e6707a8'
++            '748bd6f0ae0d355c0024d627e43921543c502b1485890b2f01e2866c2de1b74077b7be28ba3c8dcdb93555ecda9087194d2799d47601a5515023f1499f26bc07')
++
++prepare() {
++  cd apispec-webframeworks-$pkgver
++  # Arch ships flit_core 4, which supports apispec-webframeworks' PEP 621 metadata.
++  patch -Np1 -i ../allow-flit-core-4.patch
++}
+ 
+ build() {
+   cd apispec-webframeworks-$pkgver
