@@ -1,0 +1,33 @@
+diff --git a/PKGBUILD b/PKGBUILD
+index f0d4d66..45d2636 100644
+--- a/PKGBUILD
++++ b/PKGBUILD
+@@ -42,9 +42,15 @@ checkdepends=(
+   procps-ng
+ )
+ options=('!emptydirs')
+-source=("https://cache.ruby-lang.org/pub/ruby/${pkgver:0:3}/ruby-${pkgver}.tar.xz")
+-sha512sums=('dd5c6a7f74854e143e0ca46b9d7c0d1983fc4886f5f733cd108345dbf4b21f61ad978ad6806e05a57b7af28fd9216dd38d7145808188bbb3695a7f3a4eda3883')
+-b2sums=('4fa242ceeaf0dbf0d048b3f116f149f299c1a0ccca500a47929344da523cd3c49365381777e56546fe94003ee90ccc1f2cc957697eb82cd8beb7311b0b00287c')
++source=("https://cache.ruby-lang.org/pub/ruby/${pkgver:0:3}/ruby-${pkgver}.tar.xz"
++        "test_https.patch"
++        "test_x509req.patch")
++sha512sums=('dd5c6a7f74854e143e0ca46b9d7c0d1983fc4886f5f733cd108345dbf4b21f61ad978ad6806e05a57b7af28fd9216dd38d7145808188bbb3695a7f3a4eda3883'
++            '77aafecb9d3ae3417ad1fd69ad30fc453e88a2c14768983f6411ea9d8c52c204'
++            '177d920a02965c4628824f3c94951de779cdf2127f6d85c21b456edaa215d9ba')
++b2sums=('4fa242ceeaf0dbf0d048b3f116f149f299c1a0ccca500a47929344da523cd3c49365381777e56546fe94003ee90ccc1f2cc957697eb82cd8beb7311b0b00287c'
++        '74cc6c6c65dd56847da195347371007ca03b7b233b87a74fa2393c08781c4ba9272f94d94d039ed3956761e643eb183bdd4bcbf2791f372114c51375a793a21b'
++        '778d518d7c51036f237ac7dd0dd1112e2ba75f1010683dae276f72be4ea600bf10746582868ad70661bf03e823006c08b91559a7a141eaba0ea46ead23807b10')
+ 
+ _bootstrap=0
+ _rubyver="${pkgver:0:3}.0"
+@@ -182,6 +188,9 @@ build() {
+ check() {
+   cd "ruby-${pkgver}"
+ 
++  patch -Np1 -i "../test_x509req.patch"
++  patch -Np1 -i "../test_https.patch"
++
+   # this uses malloc_usable_size, which is incompatible with fortification level 3
+   export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+   export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
