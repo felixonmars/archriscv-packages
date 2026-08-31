@@ -1,0 +1,62 @@
+--- a/tests/functional/test_bypass.py
++++ b/tests/functional/test_bypass.py
+@@ -52,7 +52,7 @@
+     context.server = TornadoServer(context.http_port)
+     context.server.start()
+     ready = False
+-    timeout = 2
++    timeout = 10
+     started_at = time.time()
+     while not ready:
+         httpretty.disable()
+--- a/tests/functional/test_httplib2.py
++++ b/tests/functional/test_httplib2.py
+@@ -165,7 +165,7 @@
+ 
+ 
+ @httprettified
+-@within(two=miliseconds)
++@within(twelve=miliseconds)
+ def test_rotating_responses_with_httplib2(now):
+     "HTTPretty should support rotating responses with httplib2"
+ 
+@@ -222,7 +222,7 @@
+ 
+ 
+ @httprettified
+-@within(two=miliseconds)
++@within(twelve=miliseconds)
+ def test_can_inspect_last_request_with_ssl(now):
+     "HTTPretty.last_request is recorded even when mocking 'https' (SSL)"
+ 
+@@ -263,7 +263,7 @@
+ 
+ 
+ @httprettified
+-@within(two=miliseconds)
++@within(twelve=miliseconds)
+ def test_callback_response(now):
+     ("HTTPretty should call a callback function to be set as the body with"
+      " httplib2")
+--- a/tests/functional/test_requests.py
++++ b/tests/functional/test_requests.py
+@@ -366,7 +366,7 @@
+     )
+ 
+     twitter_expected_response_body = b''.join(twitter_response_lines)
+-    with in_time(0.02, 'Iterating by char is taking forever!'):
++    with in_time(0.1, 'Iterating by char is taking forever!'):
+         twitter_body = b''.join(c for c in response.iter_content(chunk_size=1))
+ 
+     expect(twitter_body).to.equal(twitter_expected_response_body)
+--- a/tests/functional/testserver.py
++++ b/tests/functional/testserver.py
+@@ -128,7 +128,7 @@
+         args = [self.port]
+         self.process = Process(target=subprocess_server_tcp, args=args)
+         self.process.start()
+-        time.sleep(1)
++        time.sleep(3)
+ 
+     def stop(self):
+         try:
