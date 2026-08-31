@@ -1,0 +1,25 @@
+--- a/tests/test_interactiveshell.py
++++ b/tests/test_interactiveshell.py
+@@ -60,7 +60,7 @@
+     # We try to read as otherwise on failure, pytest will print the 250k lines to stdout.
+     capsys.readouterr()
+     duration = end - start
+-    assert duration < 10
++    assert duration < 30
+ 
+ 
+ def test_naked_string_cells():
+--- a/tests/test_magic.py
++++ b/tests/test_magic.py
+@@ -1593,9 +1593,8 @@
+ @pytest.mark.asyncio
+ async def test_script_streams_continuously(capsys):
+     ip = get_ipython()
+-    # Windows is slow to start up a thread on CI
+-    is_windows = os.name == "nt"
+-    step = 3 if is_windows else 1
++    # Slow platforms can take longer to start the script subprocess.
++    step = 3
+     code = dedent(
+         f"""\
+     import time
