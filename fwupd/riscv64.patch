@@ -1,0 +1,31 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -66,15 +66,26 @@
+   "git+https://github.com/fwupd/fwupd.git#tag=${pkgver}?signed"
+   fwupd.sysusers
+   fwupd-refresh.rules
++  increase-daemon-start-timeout.patch
+ )
+ sha512sums=('560fde8c73f68b2611786255c5bfffc3f30cbcf02b45ab54d9ac79dd93990c9be1421b952c1c7a0437baca1f208ce7f886dd0d9806fbdb04913c0141d6103fff'
+             'f9a99c60786a2b98e0de439a9288af61b2c0716f8339a4c93e2df7108d2a7f9ef8128967dcaa1e12022ffa647945bf5eb3749e38cac83e00a28cbc5b015fbee9'
+-            '21e04acbae83d8ca548d6e7f9b2344e7b4dc8e1ab1c0a7799ded3160c99c54c2116b158a559d2b3243e960a6e4c72a3391599d68327209fa79a291622de3c1b8')
++            '21e04acbae83d8ca548d6e7f9b2344e7b4dc8e1ab1c0a7799ded3160c99c54c2116b158a559d2b3243e960a6e4c72a3391599d68327209fa79a291622de3c1b8'
++            '587d08a7cd8592014b52c1c86d2e59b795a357c523f1cd904c0ce133f8f14568f0c9a696a931d71188af7cd71f482ffd1c170b36277dbd2fb6d436537a27813a')
+ b2sums=('098893b6ec9e0592b0647740e928fbad2665976f95d24dd232a6ea0ab141fa9ea01f5203430569dc20a2966f5f06e2aa574398805a8ad48de13cabef0fb25d92'
+         'c294c6dd324c0ad0d752affdc459d427d34f4bf865def099ac0e25db6b5dfbfcf645ca325e4e7732d1256e75c624ff27094d5c814726909c7e348128a9dd93f9'
+-        'b9e1c1c66452adb29378cbb42bd18152a2760750696644ee8dd4c09c6f23116d3e66fd405fc69c4694a5ea0f47b75d5959356a12da56ab1cc8345fe926098b3b')
++        'b9e1c1c66452adb29378cbb42bd18152a2760750696644ee8dd4c09c6f23116d3e66fd405fc69c4694a5ea0f47b75d5959356a12da56ab1cc8345fe926098b3b'
++        '4e95f48667ee8fb6a27c973b9a97eb4bf0c70d69a148f8c8a8aa0b06c287046af63dd8add99635717111d9c6d78979a2724fe4d696e12a51bea7d6e3c54311b8')
+ validpgpkeys=(163EB50119225DB3DF8F49EA17ACBA8DFA970E17) # Richard Hughes <richard@hughsie.com>
+ 
++
++prepare() {
++  cd ${pkgbase}
++
++  # Daemon startup can exceed 5s while indexing hwdata on riscv64 builders.
++  patch -Np1 -i ../increase-daemon-start-timeout.patch
++}
++
+ build() {
+   local meson_options=(
+     -D docs=enabled
