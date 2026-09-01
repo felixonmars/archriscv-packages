@@ -1,8 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index d035c8f..860bd27 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -28,8 +28,6 @@
+@@ -31,8 +31,6 @@
    graphviz
    texlive-bin
    texlive-latexextra
@@ -10,16 +8,39 @@ index d035c8f..860bd27 100644
 -  cuda
    # -hip
    hip-runtime-amd
-   hipblas
-@@ -81,16 +79,6 @@
+   rocm-llvm
+@@ -42,11 +40,6 @@
+   hipsparse
+   rocthrust
+   roctracer
+-  # -sycl
+-  intel-oneapi-dpcpp-cpp
+-  onedpl
+-  intel-oneapi-mkl
+-  intel-oneapi-mkl-sycl
+ )
+ source=(
+   "$_pkgname-$pkgver.tar.gz::https://github.com/ginkgo-project/ginkgo/archive/refs/tags/v$pkgver.tar.gz"
+@@ -110,6 +103,10 @@
+   # building for more architectures does not work since rocm 7.2.0
+   local amdgpu_archs="gfx908,gfx90a,gfx942,gfx950"
+ 
++  # The riscv64 builders run out of memory when Ninja links many LTO-heavy
++  # test executables at once.
++  export CMAKE_BUILD_PARALLEL_LEVEL=2
++
+   # base package
+   cmake -B build "${common_cmake_options[@]}" \
+     -DGINKGO_BUILD_CUDA=OFF \
+@@ -117,16 +114,6 @@
      -DGINKGO_BUILD_SYCL=OFF
    cmake --build build
  
 -  # -cuda package
 -  # Compile source code for supported GPU archs in parallel
--  export CUDAFLAGS="--threads $(nproc)"
+-  export CUDAFLAGS="--threads 8"
 -  cmake -B build-cuda "${common_cmake_options[@]}" \
--    -DCMAKE_CUDA_ARCHITECTURES="$_cuda_archs" \
+-    -DCMAKE_CUDA_ARCHITECTURES="$cuda_archs" \
 -    -DGINKGO_BUILD_CUDA=ON \
 -    -DGINKGO_BUILD_HIP=OFF \
 -    -DGINKGO_BUILD_SYCL=OFF
@@ -28,10 +49,36 @@ index d035c8f..860bd27 100644
    # -hip package
    # LTO does not work with HIP
    export HIPFLAGS="${CXXFLAGS/-flto=auto/}"
-@@ -188,4 +176,6 @@
-   _package -hip
+@@ -145,24 +132,6 @@
+     -DGINKGO_BUILD_SYCL=OFF
+   cmake --build build-hip
+ 
+-  # -sycl package
+-  # With debug symbols, memory consumption of icpx blows up
+-  export CXXFLAGS="${CXXFLAGS/-g/}"
+-  # memcpy to device fails with FORTIFIY_SOURCE
+-  export CXXFLAGS="${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=3/}"
+-  # LTO does not work with device code
+-  CXXFLAGS+=" -fno-lto"
+-  # Disable tests, benchmarks, examples as they currently fail with a linker error.
+-  # We don't run them anyways.
+-  cmake -B build-sycl "${common_cmake_options[@]}" \
+-    -DCMAKE_CXX_COMPILER=/opt/intel/oneapi/compiler/latest/bin/icpx \
+-    -DGINKGO_BUILD_CUDA=OFF \
+-    -DGINKGO_BUILD_HIP=OFF \
+-    -DGINKGO_BUILD_SYCL=ON \
+-    -DGINKGO_BUILD_TESTS=OFF \
+-    -DGINKGO_BUILD_BENCHMARKS=OFF \
+-    -DGINKGO_BUILD_EXAMPLES=OFF
+-  cmake --build build-sycl
+ }
+ 
+ check() {
+@@ -264,4 +233,7 @@
+   _package -sycl
  }
  
 +pkgname=(${pkgname[@]/ginkgo-hpc-cuda})
++pkgname=(${pkgname[@]/ginkgo-hpc-sycl})
 +
  # vim:set ts=2 sw=2 et:
