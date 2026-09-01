@@ -1,6 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -59,7 +59,7 @@ build() {
+@@ -38,12 +38,16 @@
+ validpgpkeys=(
+   D4C501DA48EB797A081750939449C2F50996635F # Marco Trevisan (Treviño) <mail@3v1n0.net>
+ )
++source+=(slow-delete-storage-error-test.patch)
++b2sums+=('fae2d1a119853b83a0af035d62e59f7e2eabace489c03a831c9a4c34d5b54e82331c374be1d960842b5ef7b47b37b8286aa5f752fae564ed3e423ea546260e5d')
+ 
+ prepare() {
+   cd fprintd
+ 
+   # Fix tests
+   git cherry-pick -n ec2a995c36f0757e1f5c695a80d89f41d2fa03bb
++  # Slow riscv64 builders can miss the legacy API test's async race window.
++  patch -Np1 -i ../slow-delete-storage-error-test.patch
+ }
+ 
+ build() {
+@@ -57,7 +61,7 @@
  }
  
  check() {
