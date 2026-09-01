@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,6 +35,13 @@
+ source=(git+https://github.com/ipython/ipykernel#tag=v$pkgver)
+ sha256sums=('f61869af964940b63be777d8cc560a8d887a9af8b248a6dee01125e6ee4b06fe')
+ 
++prepare() {
++  cd $_pyname
++
++  # The fixed 1s delay races with IPKernelApp.io_loop setup on riscv64.
++  sed -i 's/time.sleep(1)/time.sleep(10)/' tests/test_embed_kernel.py
++}
++
+ build() {
+   cd $_pyname
+   python -m build --wheel --no-isolation
