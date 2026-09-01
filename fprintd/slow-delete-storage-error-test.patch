@@ -1,0 +1,19 @@
+--- a/tests/fprintd.py
++++ b/tests/fprintd.py
+@@ -2641,11 +2641,14 @@
+ 
+     def test_delete_enrolled_fingers_storage_error_has_higher_priority(self):
+         self.enroll_print('deleted-print', finger='left-thumb')
+-        self.send_sleep(get_timeout('device_sleep'))
++        # The legacy API does extra async authorization/logging before the
++        # daemon reaches device-side deletion, so keep a wider race window.
++        device_sleep = get_timeout('device_sleep') * 4
++        self.send_sleep(device_sleep)
+         self.send_error(FPrint.DeviceError.BUSY)
+ 
+         self.call_device_method_async('DeleteEnrolledFingers', '(s)', ['testuser'])
+-        self.wait_for_result(max_wait=get_timeout('device_sleep') / 2)
++        self.wait_for_result(max_wait=device_sleep / 2)
+         self.assertFalse(self.get_all_async_replies())
+ 
+         self.set_print_not_writable('testuser', FPrint.Finger.LEFT_THUMB)
