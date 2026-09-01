@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -37,6 +37,13 @@
+ provides=(hdf5-java)
+ source=("git+https://github.com/HDFGroup/hdf5.git#tag=$pkgver")
+ b2sums=('af4423ed498952aea2b38146f747abe0c95a4194a7518514832cad1faae51ff7575fe9e201ee654dc72b19a6bab215518c92a4bb262c883f41be7255d816fd37')
++source+=(increase-ttsafe-test-timeout.patch)
++b2sums+=('7de1320c468cda42de58723fbdebd473c5c44471417cbb0697b45d0f1d17e385850bbc91ba0ca598b4fc660daa1e6ed6cbe37486225b1b574136229ac8d0edb5')
++
++prepare() {
++  cd $pkgbase
++  patch -Np1 -i ../increase-ttsafe-test-timeout.patch
++}
+ 
+ build() {
+   local common_cmake_args=(
+@@ -60,6 +67,7 @@
+     -DCMAKE_CXX_COMPILER=mpicxx \
+     -DCMAKE_C_COMPILER=mpicc \
+     -DCMAKE_Fortran_COMPILER=mpif90 \
++    -DMPIEXEC_MAX_NUMPROCS=4 \
+     -DHDF5_ENABLE_PARALLEL=ON \
+     -DHDF5_ALLOW_UNSUPPORTED=ON
+   cmake --build build
