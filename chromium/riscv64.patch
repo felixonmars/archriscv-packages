@@ -1,82 +1,76 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -69,7 +69,7 @@ source=(https://commondatastorage.googleapis.com/chromium-browser-official/chrom
-         enable-widevine-arm64.patch
-         use-oauth2-client-switches-as-default.patch
-         glibc-2.42-baud-rate-fix.patch)
--sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-+sha256sums=('f0aed11f2dba184a4249094e33a1840be6705bba1cdb4e2a40b31e5d12fe80d3'
-             '213e50f48b67feb4441078d50b0fd431df34323be15be97c55302d3fdac4483a'
-             '11a96ffa21448ec4c63dd5c8d6795a1998d8e5cd5a689d91aea4d2bdd13fb06e'
-             '4fc040a0656a0a524dd8ad090cd129fc5b6cb21adcc66be82080165789e8c13e'
-@@ -83,11 +83,16 @@ sha256sums=('2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-             'd634d2ce1fc63da7ac41f432b1e84c59b7cceabf19d510848a7cff40c8025342'
-             '9c766b82d1143cb3413fe2057361bd2655e46287eacc2c6d6f8504b4c255647a'
-             '9343afa1a4308a7cfb3317229f5aff7778688debcc03c4a74a85908aa1d0cc3a'
--            '1c1898f263eaacbc069a8e1a3e732852350350d1dad4cb1a6bba430e3b796cd0')
-+            '1c1898f263eaacbc069a8e1a3e732852350350d1dad4cb1a6bba430e3b796cd0'
-+            '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+            '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821'
-+            'fee992c21a13d32b2a646d42833862a2e63af74934d53f9edf878cf10e5e7a35'
-+            '3eb5e621757be3f2984acb76d16cf3571bfe5bbbc71ad230b21aa983041ff5ea'
-+            '1c4f34675ed826bff5eff7ee8a3d3004c2a7842072b931526f26debd040b96bb')
+@@ -121,7 +121,7 @@
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
 -  sha256sums[0]='2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-+  sha256sums[0]='f0aed11f2dba184a4249094e33a1840be6705bba1cdb4e2a40b31e5d12fe80d3'
++  sha256sums[0]='8c813ca28588154d0121c97a47ec1ae756765e9d6b739be1cd67fe42ef14ed61'
    makedepends+=('python-httplib2' 'python-pyparsing' 'python-six' 'npm' 'rsync')
  fi
  
-@@ -157,6 +162,12 @@ prepare() {
+@@ -191,6 +191,12 @@
    # runtime -- this allows signing into Chromium without baked-in values
    patch -Np1 -i ../use-oauth2-client-switches-as-default.patch
  
 +  # RISC-V
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
-+  patch -Np1 -d v8 < ../riscv-v8.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
++  patch -Np1 -i ../dawn-add-riscv64-cipd-platform.patch
 +
    # Upstream fixes
  
    # Fixes from Gentoo
-@@ -205,6 +216,7 @@ prepare() {
+@@ -247,13 +253,14 @@
+   mkdir -p third_party/node/linux/node-linux-x64/bin \
+            third_party/jdk/current/bin \
+            third_party/rust-toolchain/bin \
+-           third_party/dawn/tools/golang/linux-amd64/bin
++           third_party/gperf/cipd/bin \
++           third_party/dawn/tools/golang/linux-riscv64/bin
+ 
+   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
    ln -s /usr/bin/java third_party/jdk/current/bin/
++  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-riscv64/bin/
+   if (( !_manual_clone )); then
+     ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
+-    ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
+   fi
  
    # remove x86_64 binary and use our own
-+  mkdir -p third_party/gperf/cipd/bin/
-   rm -f third_party/gperf/cipd/bin/gperf
-   ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
- 
-@@ -421,4 +433,10 @@ package() {
+@@ -475,4 +482,15 @@
    install -Dvm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-sandbox.patch
-+         riscv-v8.patch
 +         Debian-fix-rust-linking.patch
-+         DEPS-remove-native-binaries.diff)
++         DEPS-remove-native-binaries.diff
++         dawn-add-riscv64-cipd-platform.patch)
++sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
++             '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821'
++             '41deb67bbffe54dab32415693c3db56b0cc532aecd0481dba7f2abb48e01bec3'
++             '1c4f34675ed826bff5eff7ee8a3d3004c2a7842072b931526f26debd040b96bb'
++             'c4b8214f01b53cab07c8bdbb9eb2ee73493b677da531c9cb7badc51ac6edfd7f')
 +
  # vim:set ts=2 sw=2 et:
-diff --git fetch-chromium-release fetch-chromium-release
-index 4e15b8f..7902245 100755
 --- fetch-chromium-release
 +++ fetch-chromium-release
-@@ -27,8 +27,48 @@ export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
- # system python fails to load six.moves module
- #export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
+@@ -24,11 +24,42 @@
  
-+# Python 3.12 breaks gsutils
-+# Bundled wheels are not available for riscv64
-+sed -i '/wheel: </,$d' depot_tools/.vpython3
-+sed -i '/wheel: </,$d' depot_tools/gsutil.py.vpython3
-+sed -i '/wheel: </,$d' depot_tools/recipes/recipe_modules/gitiles/resources/gerrit_client.py.vpython3
-+mkdir -p rv-site-packages
-+# Manually install required wheels
-+vpython3 -m pip install httplib2==0.13.1 six==1.10.0 requests==2.31.0 crcmod==1.7 -t rv-site-packages
-+export PYTHONPATH="$PWD/rv-site-packages:$PYTHONPATH"
+ git clone --depth=1 https://chromium.googlesource.com/chromium/tools/depot_tools
+ export PATH+=":$PWD/depot_tools" DEPOT_TOOLS_UPDATE=0
+-# system python fails to load six.moves module
+-#export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
++
++# gsutil needs Python 3.11, but depot_tools' bundled wheels are unavailable on
++# riscv64. Use a local environment for both legacy and TOML vpython configs.
++printf 'python_version: "3.11"\n' > rv.vpython3
++vpython3 -vpython-spec rv.vpython3 -m venv rv-venv
++source rv-venv/bin/activate
++python -m pip install httplib2==0.13.1 six==1.10.0 requests==2.31.0 crcmod==1.7
++export VPYTHON_BYPASS='manually managed python not supported by chrome operations'
 +
 +# Sync often fails on SG2042 with:
 +# lockfile.LockError: Error locking /build/chromium/src/chromium-checkout/depot_tools/external_bin/gsutil/gsutil_5.35 (err: [Errno 11] Resource temporarily unavailable)
@@ -100,21 +94,16 @@ index 4e15b8f..7902245 100755
 +  return 0
 +}
 +
-+
+ 
  git clone -b $VERSION --depth=2 https://chromium.googlesource.com/chromium/src
 -gclient sync --no-history --nohooks
 +patch -Np1 -d src < ../DEPS-remove-native-binaries.diff
 +retry 5 gclient sync --no-history --nohooks
 +
-+
-+# Bundled wheels are not available for riscv64 (third_party/depot_tools)
-+sed -i '/wheel: </,$d' src/third_party/depot_tools/.vpython3
-+sed -i '/wheel: </,$d' src/third_party/depot_tools/gsutil.py.vpython3
-+
  src/build/util/lastchange.py -o src/build/util/LASTCHANGE
  src/build/util/lastchange.py -m GPU_LISTS_VERSION \
    --revision-id-only --header src/gpu/config/gpu_lists_version.h
-@@ -43,5 +83,6 @@ src/tools/update_pgo_profiles.py --target=linux update \
+@@ -43,5 +74,6 @@
  src/third_party/node/update_npm_deps
  
  rm -rf src/third_party/node/linux/node-linux-x64/bin/
