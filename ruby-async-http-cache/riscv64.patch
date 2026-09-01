@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,10 +27,16 @@
+ source=("${url}/archive/v${pkgver}/${pkgname}-${pkgver}.tar.gz")
+ sha512sums=('5307d221c646236381351169be47e8473e03fba4ae8bdcf5cfc13dd8898eb26c9f66c231337b5d561cda10416aafa06e423ff24c8f2f78f6c7d2c4ee63aa93f9')
+ b2sums=('585cf6730d45170ae386b04cbc797e23644f2b8100b784f7e5ec1c70e11b51534cb8caf95d1706e860700335044ad0f0c08a73ddd5ba3d4a560c2bdf42371b29')
++source+=("use-console-fixture-module.patch::${url}/commit/82cb622ec5fa65efea08075f5d4a05bdc84ee73a.patch")
++sha512sums+=('5e94be2d0dbd3c70ba02300cefddfeea0d310999ab416a0871511741fa00fe10fbc8401544cec8b9546aac1c31d021f778be84cb2a08066b9cef3ee6058f2ea1')
++b2sums+=('9e53897e47fb8ae2c834d323bc91fb965074785053c9d68a605e06b036ab48c2375d1e3f1990e9fa66285009312bd23c6cac0976dbe3ea67b68274171f8e4f5e')
+ 
+ prepare() {
+   cd async-http-cache-$pkgver
+ 
++  # sus-fixtures-console 0.5 changed CapturedLogger from a shared context to a module.
++  patch -Np1 -i ../use-console-fixture-module.patch
++
+   sed -r -e 's|~>|>=|g' -e '/signing_key/d' -i async-http-cache.gemspec
+   sed --in-place \
+     --expression '/group :maintenance/,/end/d' \
