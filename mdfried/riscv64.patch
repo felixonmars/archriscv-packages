@@ -1,0 +1,21 @@
+diff --git PKGBUILD PKGBUILD
+index 47ae887..eaf1179 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,6 +18,8 @@
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
++  sed -i 's/Duration::from_secs(1)/Duration::from_secs(10)/' src/main.rs
++  patch -Np1 < "$srcdir/$pkgname-ignore-snapshots-on-riscv64.patch"
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+ 
+@@ -37,4 +39,7 @@
+   install -Dm 644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+ }
+ 
++source_riscv64=("$pkgname-ignore-snapshots-on-riscv64.patch::https://github.com/benjajaja/mdfried/pull/194.patch?full_index=1")
++sha512sums_riscv64=('4c5db4a21a187ac56ed1177fee102b0493cba637bac6b421c46a2c1ff4318573cd55e202ca37d6b9bdd5ed5369c25889a23a8943bb87de398dfdfdb3e9b1c6b0')
++
+ # vim:set ts=2 sw=2 et:
