@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -55,6 +55,7 @@
+   nginx.service
+   logrotate
+   perl-io-socket-ssl-2.094-tests-fix.patch
++  h3_limit_req-fix-spurious-failures.patch
+ )
+ # https://nginx.org/en/pgp_keys.html
+ validpgpkeys=(
+@@ -67,7 +68,8 @@
+             'c175c6ebee041c53ff1f93c173b64ff306ea692d04a7f94b8bc9794cc1be2e4c46351a9bad859fac107bbdc53707b8af3eb0051fa5042317ce1e4545c0f773b1'
+             'f469b3b14def666e955abf6f2d3c68a47631cad7bee90c92039ffe5bf629aa7e32bb4250844d52c0f963740fb07bf7fea5f8887cc1d5199403f07be6214fcb8d'
+             '2f4dfcfa711b8bcbc5918ba635f5e430ef7132e66276261ade62bb1cba016967432c8dce7f84352cb8b07dc7c6b18f09177aa3eb92c8e358b2a106c8ca142fe9'
+-            '2d4ba6e53ee078bbf0921d0221ea7c7acf5a391ce8b3dc9d135cc4c68c1508569a00dedcfaca382f0f912d97e3ced71691573e0aef3b62b124099b33554fbdde')
++            '2d4ba6e53ee078bbf0921d0221ea7c7acf5a391ce8b3dc9d135cc4c68c1508569a00dedcfaca382f0f912d97e3ced71691573e0aef3b62b124099b33554fbdde'
++            '166b876529fad57c691c2d8c174340d15323aad6d4cafa00023d77d25bdce221c8fd82d4d1f795569455f1f68f3be586d25652302e86013c90ac8925d6a78ba6')
+ 
+ prepare() {
+   cp -r $_pkgbase{,-src}
+@@ -79,6 +81,8 @@
+   # the tests are still passing correctly with perl-io-socket-ssl-2.089
+   cd nginx-tests
+   patch -p1 -i ../perl-io-socket-ssl-2.094-tests-fix.patch
++  # Fix h3_limit_req.t logging 400 instead of 499 if RESET_STREAM races limit_req.
++  patch -p1 -i ../h3_limit_req-fix-spurious-failures.patch
+ }
+ 
+ build() {

@@ -1,0 +1,46 @@
+
+# HG changeset patch
+# User Maxim Dounin <mdounin@mdounin.ru>
+# Date 1710372349 -10800
+# Node ID 1867428f1673214f6e2bb647a2bba0ae3a77bcb7
+# Parent  e0b55129fbbf0411524ab3436fbe08f4f6c0505a
+Tests: fixed h3_limit_req.t spurious failures.
+
+In the "reset stream - cancellation" test, HTTP/3 stream is closed without
+sending the request body when the request is waiting in the limit_req
+module, and this results in error 444.  However, when the request is received
+with some minor delay due to system load, it is not delayed by limit_req,
+and the stream is closed during reading the request body, which results
+in error 400 instead, breaking the test.
+
+Fix is to introduce yet another request before the "reset stream" test,
+so the stream in question is always delayed by limit_req.
+
+diff --git a/h3_limit_req.t b/h3_limit_req.t
+--- a/h3_limit_req.t
++++ b/h3_limit_req.t
+@@ -24,7 +24,7 @@ select STDERR; $| = 1;
+ select STDOUT; $| = 1;
+ 
+ my $t = Test::Nginx->new()->has(qw/http http_v3 proxy limit_req cryptx/)
+-	->has_daemon('openssl')->plan(6);
++	->has_daemon('openssl')->plan(7);
+ 
+ $t->write_file_expand('nginx.conf', <<'EOF');
+ 
+@@ -131,6 +131,14 @@ select undef, undef, undef, 1.1;
+ ($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
+ is($frame->{headers}->{':status'}, 200, 'request body - limit req - empty');
+ 
++# another request
++
++$sid = $s->new_stream({ path => '/' });
++$frames = $s->read(all => [{ sid => $sid, fin => 1 }]);
++
++($frame) = grep { $_->{type} eq "HEADERS" } @$frames;
++is($frame->{headers}->{':status'}, '200', 'request body - limit req - next');
++
+ # detect RESET_STREAM while request is delayed
+ 
+ $s = Test::Nginx::HTTP3->new();
+
