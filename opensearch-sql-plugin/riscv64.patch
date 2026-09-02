@@ -1,10 +1,26 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,6 +29,7 @@ build() {
+@@ -10,7 +10,7 @@ arch=('x86_64')
+ url="https://docs.opensearch.org/latest/install-and-configure/plugins/#bundled-plugins"
+ license=('Apache-2.0')
+ depends=("opensearch=${_opensearchver}")
+-makedepends=("java-environment=${_jdkver}" 'unzip')
++makedepends=("java-environment=${_jdkver}" 'unzip' 'gradle')
+ source=(
+   "${pkgname}-${pkgver}.tar.gz::https://github.com/opensearch-project/sql/archive/${pkgver}.tar.gz"
+ )
+@@ -23,12 +23,13 @@ build() {
+   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
+   # :doctest requires python 3.7
+   # :sql:build and :integ-test (reaper) require JDK 14
+-  ./gradlew build \
++  gradle build \
+     --exclude-task ":doctest:bootstrap" \
+     --exclude-task ":doctest:stopOpenSearch" \
      --exclude-task ":doctest:doctest" \
      --exclude-task ":jacocoTestReport" \
      --exclude-task ":sql:build" \
 +    --exclude-task ":integ-test:yamlRestTest" \
-     --exclude-task ":integ-test:integTest"
+     --exclude-task ":integ-test:integTest" \
+     --exclude-task ":prometheus:test"
  }
- 
