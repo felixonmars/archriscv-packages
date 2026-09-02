@@ -1,0 +1,14 @@
+diff --git PKGBUILD PKGBUILD
+index 0933f06..fbf0ace 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -38,3 +38,9 @@
+   install -Dm0644 graphics/gfx_classic/icons/icon.png "$pkgdir"/usr/share/icons/hicolor/128x128/apps/$pkgname.png
+   install -Dm0644 "$srcdir"/rocksndiamonds.desktop "$pkgdir"/usr/share/applications/rocksndiamonds.desktop
+ }
++
++prepare() {
++  cd "$srcdir"/rocksndiamonds-$pkgver
++  # Avoid two recursive makes racing on the same archive under -j
++  sed -i 's/^all: $(AUTOCONF) libgame_dir game_bd_dir game_em_dir game_sp_dir game_mm_dir $(PROGNAME) graphics_dir$/all: $(AUTOCONF) $(PROGNAME) graphics_dir/' src/Makefile
++}
