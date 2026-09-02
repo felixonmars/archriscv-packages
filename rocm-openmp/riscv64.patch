@@ -1,0 +1,20 @@
+diff --git PKGBUILD PKGBUILD
+index d90cda5..5ccbf53 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,15 @@
+ 
+ _prefix=/opt/rocm/lib/llvm
+ 
++prepare() {
++    # Keep CUDA on the existing x86_64/ppc64le/aarch64 whitelist; only
++    # skip dropping the AMDGPU plugin on riscv64. The plugin talks to
++    # HSA through a portable C API. Without this, LIBOMPTARGET_PLUGINS_TO_BUILD
++    # is emptied and CMake fails string(STRIP) on an empty plugin list.
++    sed -i 's/if("amdgpu" IN_LIST LIBOMPTARGET_PLUGINS_TO_BUILD)/if("amdgpu" IN_LIST LIBOMPTARGET_PLUGINS_TO_BUILD AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64$")/' \
++        "$pkgname/offload/CMakeLists.txt"
++}
++
+ build() {
+     # flang errors out on the C-only flags makepkg exports in FFLAGS (see
+     # /usr/share/makepkg/buildenv/fortran.sh) instead of ignoring them, which
