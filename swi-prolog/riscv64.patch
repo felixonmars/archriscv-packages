@@ -1,0 +1,22 @@
+diff --git PKGBUILD PKGBUILD
+index ea5de5e..42ee086 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -25,6 +25,10 @@
+ source=("$pkgname-$pkgver.tar.gz::$url/download/stable/src/swipl-$pkgver.tar.gz")
+ b2sums=('2dd39c14030f88a6450530d46f95c57917a887bb9da9325bc565ab5f460cfc5894425d0ec84fe7a9539a98b449905534d61b0ef7255a95ebadfd047d2a04bcbe')
+ 
++prepare() {
++  patch -d swipl-$pkgver -Np1 < $pkgname-cmake-lto-try-compile.patch
++}
++
+ build() {
+   cmake \
+     -B build \
+@@ -46,3 +50,6 @@
+   DESTDIR="$pkgdir" make -C build install
+   install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" swipl-$pkgver/LICENSE
+ }
++
++source_riscv64=("$pkgname-cmake-lto-try-compile.patch::https://github.com/SWI-Prolog/swipl-devel/pull/1520.patch?full_index=1")
++b2sums_riscv64=('89e704b7f26cf1e4c3df4bba880bf4ddc40ab1c55e199a329314097d37646b7d4ec2616ac35ff978d3a6f56f1f1c1db9762926a67d76c62d38b7cd07b68e8a54')
