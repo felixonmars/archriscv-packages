@@ -1,0 +1,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,7 +18,9 @@
+ build() {
+   cd pypy2.7-v${pkgver}-src/pypy/goal
+ 
+-  pypy ../../rpython/bin/rpython -Ojit --shared targetpypystandalone
++  # Work around the 7.3.21 bootstrap PyPy JIT crash while translating on riscv64.
++  # This only disables the bootstrap interpreter JIT; -Ojit still builds a JIT target.
++  pypy --jit off ../../rpython/bin/rpython -Ojit --shared targetpypystandalone
+ 
+   # Compile binary modules
+   PYTHONPATH=../.. ./pypy-c ../../lib_pypy/pypy_tools/build_cffi_imports.py
