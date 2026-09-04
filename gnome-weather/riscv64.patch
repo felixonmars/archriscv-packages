@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -53,6 +53,13 @@
+   # https://gitlab.gnome.org/GNOME/gnome-weather/-/merge_requests/194
+   git apply -3 ../0003-Raise-existing-window-instead-of-opening-new-one-on-.patch
+ 
++  # TypeScript 6 requires an explicit emit root and errors on the deprecated baseUrl.
++  sed -i \
++    -e '/"baseUrl": ".",/i\        "rootDir": "src",' \
++    -e '/"baseUrl": ".",/d' \
++    tsconfig.json
++  sed -i "s|from 'src/shared/world.js'|from '../shared/world.js'|" src/service/searchProvider.ts
++
+   git submodule init
+   git submodule set-url gi-types "$srcdir/gi-typescript-definitions"
+   git -c protocol.file.allow=always -c protocol.allow=never submodule update
