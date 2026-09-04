@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,15 @@
+ source=("$pkgname-$pkgver.tar.gz::https://github.com/docker/compose/archive/v$pkgver.tar.gz")
+ b2sums=('2156a68670c96560f10e1b65abb0568b182f0c5a71a1fd3239e589b31bc38af3add5e194943b7001ff334cfdf64e0adbb3730d080c1930eb2a4fc8c448c6db91')
+ 
++prepare() {
++  cd "compose-$pkgver"
++
++  # The fixture uses riscv64 as a non-host platform; on riscv64 it is native.
++  sed -i \
++    '/imageManifest("sha256:s390x", "s390x", true)/,+1 s/"sha256:riscv64", "riscv64"/"sha256:arm64", "arm64"/' \
++    pkg/compose/images_test.go
++}
++
+ build() {
+   cd "compose-$pkgver"
+   export CGO_CPPFLAGS="${CPPFLAGS}"
