@@ -1,0 +1,70 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+
+pkgname=u-boot-spacemit-k3
+pkgver=1.0.0
+_tag=k3-br-v${pkgver}
+pkgrel=1
+pkgdesc='U-Boot bootloader for SpacemiT K3 platforms'
+arch=('riscv64')
+url='https://github.com/spacemit-com/uboot-2022.10'
+license=('GPL-2.0-or-later')
+install=u-boot-spacemit.install
+depends=(
+  'bash'
+  'opensbi-spacemit-k3'
+)
+makedepends=(
+  'bc'
+  'bison'
+  'dtc'
+  'flex'
+  'git'
+  'gnutls'
+  'ncurses'
+  'openssl'
+  'python'
+  'python-pyelftools'
+  'python-setuptools'
+  'swig'
+  'util-linux-libs'
+)
+options=('!strip' '!debug')
+source=(
+  "git+https://github.com/spacemit-com/uboot-2022.10.git#tag=${_tag}"
+  'u-boot-spacemit-flash'
+)
+sha512sums=('SKIP'
+            'e93489dc06609873bc2c5cc76fdb184e572865f15960e946e519ccd14c133dadb93a0aac06aef81f441222533ce3181177912944f9296a7b87da22b86545f31b')
+
+build() {
+  cd uboot-2022.10
+
+  local _opensbi=/usr/share/opensbi/lp64/spacemit-k3/firmware/fw_dynamic.bin
+
+  make k3_defconfig
+  sed -i "s/^CONFIG_LOCALVERSION=.*/CONFIG_LOCALVERSION=\"-${pkgrel}\"/" .config
+
+  make OPENSBI="$_opensbi"
+  cp -f u-boot-env-default.bin env.bin
+}
+
+package() {
+  cd uboot-2022.10
+
+  local _dest="$pkgdir"/usr/lib/u-boot/spacemit
+  install -d "$_dest"
+
+  install -Dm644 u-boot.itb "$_dest"/u-boot.itb
+
+  local _artifact
+  for _artifact in FSBL.bin bootinfo*.bin env.bin; do
+    [[ -e $_artifact ]] && install -Dm644 "$_artifact" "$_dest"/"$_artifact"
+  done
+
+  if [[ -f tools/logos/bianbu.bmp ]]; then
+    install -Dm644 tools/logos/bianbu.bmp "$pkgdir"/boot/bianbu.bmp
+  fi
+
+  install -Dm755 "$srcdir"/u-boot-spacemit-flash "$pkgdir"/usr/bin/u-boot-spacemit-flash
+  install -Dm644 Licenses/gpl-2.0.txt "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}
