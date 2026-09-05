@@ -1,0 +1,22 @@
+--- PKGBUILD.orig
++++ PKGBUILD
+@@ -37,14 +37,17 @@
+ 
+ prepare() {
+   cd $_name-$_name-$pkgver
++  # Vite+ has no riscv64 binary; invoke pnpm directly.
++  sed -i 's/^npm = "vp"$/npm = "pnpm"/' pyproject.toml
++  # Enable Rspack's WASM fallback for both pnpm 9 and pnpm 11.
++  sed -i '/"packageManager":/i\  "pnpm": {"supportedArchitectures": {"cpu": ["current", "wasm32"]}},' package.json
++  printf '\nsupportedArchitectures:\n  cpu: [current, wasm32]\n' >> pnpm-workspace.yaml
+   # install required npm packages for building the frontend
+   pnpm install --frozen-lockfile
+ }
+ 
+ build() {
+   cd $_name-$_name-$pkgver
+-  # build system expects `vp` on PATH
+-  PATH="$PWD/node_modules/.bin:$PATH" \
+   python -m build --wheel --no-isolation
+ }
+ 
