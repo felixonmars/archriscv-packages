@@ -1,17 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,7 +21,13 @@
+@@ -21,7 +21,12 @@
  
  prepare() {
    cd $pkgname/$pkgname
 -  pnpm install --frozen-lockfile
 +  rm -r artifacts
-+  sed -i '/@yao-pkg\/pkg/d' ../package.json
-+  sed -i '/@yao-pkg\/pkg/d' ../pnpm-workspace.yaml
-+  sed -i '/patchedDependencies/d' ../pnpm-workspace.yaml
-+  sed -i '/__patches__/d' ../pnpm-workspace.yaml
-+  sed -i '/patchesDir/d' ../pnpm-workspace.yaml
-+  pnpm install
++
++  # Upstream Node.js and tsgo binaries are unavailable for riscv64.
++  sed -i '/"runtime": {/,/^    }/s/"download"/"ignore"/' ../package.json
++  sed -i 's/tsgo --build/tsc --build/; s/pnx node@runtime:24.6.0/node/' package.json
++  pnpm install --no-frozen-lockfile
  }
  
  build() {
