@@ -1,0 +1,50 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -8,7 +8,7 @@
+ arch=(x86_64)
+ depends=(glibc)
+ license=('Apache-2.0')
+-makedepends=(go git npm)
++makedepends=(go git pnpm elm-compiler)
+ options=(!lto)
+ backup=('etc/alertmanager/alertmanager.yml' 'etc/conf.d/alertmanager')
+ source=($pkgname-$pkgver.tar.gz::https://github.com/prometheus/alertmanager/archive/v${pkgver}.tar.gz
+@@ -20,11 +20,27 @@
+             '469f321f40b0dd6e1cc6d0791032c476449bb2ab2364d57b06d0e0309d09710be8751ded64d84e29dd6e28e96b71ef69e2bee6c71282500a9074a9d7ada8bdf0'
+             '505c42b175be804961215cd5581e984464c21348c82f0ba6490fc58e21a6b8d8b3e1db29a95807316d7060132f3e130ae7d604a7b60fd6f15bad55bda6a45f2e')
+
++prepare() {
++  cd "$pkgname-$pkgver/ui/app"
++
++  # Use the packaged Elm compiler; elm-format is not used by the production build.
++  sed -i '/"elm": /d; /"elm-format": /d' package.json
++  # Rolldown lacks native riscv64 bindings and its WASM requires RVV.
++  cat > pnpm-workspace.yaml <<'EOF'
++overrides:
++  vite: 7.3.6
++allowBuilds:
++  esbuild: true
++EOF
++  pnpm import
++  pnpm install --frozen-lockfile
++}
++
+ build() {
+   cd $pkgname-$pkgver
+
+   # Build JavaScript UI
+-  make ui-elm
++  pnpm --dir ui/app build
+
+   go build \
+     -trimpath \
+@@ -55,7 +71,8 @@
+ 
+ check() {
+   cd $pkgname-$pkgver
+-  go test ./...
++  # Reduce contention in timing-sensitive tests on slower builders.
++  go test -p 1 -parallel 1 ./...
+ }
+ 
+ package() {
