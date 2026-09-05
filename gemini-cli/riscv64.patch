@@ -1,0 +1,42 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,6 +39,9 @@
+ 
+ prepare() {
+   cd $pkgname
++  patch -Np1 -i ../riscv64-support.patch
++  # Match the lockfile registry so npm 12 accepts @google tarballs.
++  npm config delete @google:registry --location=project
+   npm clean-install --ignore-scripts
+ }
+ 
+@@ -54,14 +57,21 @@
+   )
+   local bundled=$(jq '.dependencies + .optionalDependencies | keys' package.json)
+   npm pkg set --json bundledDependencies="$bundled"
++  # Overrides are already applied; npm 12 rejects them in bundled packages.
++  npm pkg delete overrides
+   npm pack
+ }
+ 
+ check() {
+   cd $pkgname
+-  npm run build
++  # Avoid npm-run-all's config flags, which npm 12 rejects.
++  CI=1 npm run build
+   # Deselect failing tests
++  # FileCommandLoader/pathReader: mock-fs cannot intercept Node 26.8 fs.readFile.
++  # https://github.com/tschaub/mock-fs/issues/447
+   npm run test --workspaces --if-present -- \
++    --exclude='**/FileCommandLoader.test.ts' \
++    --exclude='**/pathReader.test.ts' \
+     --exclude='**/BuiltinCommandLoader.test.ts' \
+     --exclude='**/config.integration.test.ts' \
+     --exclude='**/gemini.test.tsx' \
+@@ -79,3 +89,6 @@
+   install -vDm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++source+=(riscv64-support.patch)
++b2sums+=('acec401a0aa0cfa735e79cf4619596c36e4faaba22e9d59bd8607df01dc07bc08489c2664cff897bb692e2fbf62258d140b6902eee3cde3efaf61f74dfef2158')
