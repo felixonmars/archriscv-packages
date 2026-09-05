@@ -10,10 +10,13 @@
  }
  
  prepare() {
-@@ -64,6 +67,12 @@
+@@ -64,6 +67,15 @@
    # Fix the CCM empty-message test with newer OpenSSL behavior:
    # https://github.com/nodejs/node/commit/7e2254fc8ba5ac88fe6f35715e7bb6e78597846b
    git cherry-pick -n 7e2254fc8ba5ac88fe6f35715e7bb6e78597846b
++
++  # Fix truncated RISC-V lazy-compilation jumps in large Wasm modules.
++  patch -Np1 -d deps/v8 -i "$srcdir/v8-wasm-lazy-jump.patch"
 +
 +  # Disable Highway RVV code; Arch RISC-V targets rv64gc, not RVV.
 +  patch -Np1 -i ../hwy-broken-rvv.diff
@@ -23,7 +26,7 @@
  }
  
  build() {
-@@ -112,6 +121,9 @@
+@@ -112,6 +124,9 @@
    # https://github.com/nodejs/node/issues/63914
    rm test/parallel/test-snapshot-reproducible.js
  
@@ -33,13 +36,15 @@
    make test-only
  }
  
-@@ -122,4 +134,9 @@
+@@ -122,4 +137,11 @@
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  
 +
 +makedepends+=(clang)
-+source+=("hwy-broken-rvv.diff")
-+sha512sums+=('b4f21e06bef85f8eba9536e9a110d4aec3d230f9f3e76ee3d98a8cd88086c77f8593427c6379de51e5e7fe668273803f8e9ea8c30ab225010186dcb404c0b164')
++source+=("hwy-broken-rvv.diff"
++         "v8-wasm-lazy-jump.patch::https://github.com/v8/v8/commit/def38dd3f8726ed595932624ee5d681a3f02ed4a.patch")
++sha512sums+=('b4f21e06bef85f8eba9536e9a110d4aec3d230f9f3e76ee3d98a8cd88086c77f8593427c6379de51e5e7fe668273803f8e9ea8c30ab225010186dcb404c0b164'
++            '1743a2759134a32324e0b271fd99a246cfd3540ccf7b1dc3011ab76f0843181366b7b749e52331c5ea41d68949cc5cfd280a3929f90ef68df9f9ffe5d2dcd2f3')
 +
  # vim:set ts=2 sw=2 et:
