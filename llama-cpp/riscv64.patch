@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,7 +35,11 @@
+ 
+ build() {
+   pushd "./llama.cpp/tools/ui"
+-  npm ci --ignore-scripts
++  # Use matching WASM CSS tooling; Oxide's cpu=wasm32 tag requires --force.
++  npm install --ignore-scripts --force --save-exact \
++    lightningcss@npm:lightningcss-wasm@1.30.1 \
++    @tailwindcss/oxide-wasm32-wasi@4.1.11
++  patch -Np1 -d node_modules/@tailwindcss/oxide-wasm32-wasi -i "$srcdir/fix-oxide-worker-exit.patch"
+   npm run build
+   popd
+ 
+@@ -60,3 +64,6 @@
+   sed -i "s/%PKGVER%/$pkgver/g" "${pkgdir}"/usr/lib/systemd/*/llama-server.service
+   mkdir -p "${pkgdir}"/usr/share/llama/models
+ }
++
++source+=(fix-oxide-worker-exit.patch)
++b2sums+=('8ccefc948e86b53c43f77cc3f3ef3de557cd4c104a444fb0eb8b2626cfc607ae20825370ffa29eab66604514c5c76eeaa0c86d45a3b65776ac15edae374278b1')

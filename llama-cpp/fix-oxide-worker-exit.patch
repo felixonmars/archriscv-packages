@@ -1,0 +1,12 @@
+--- a/tailwindcss-oxide.wasi.cjs
++++ b/tailwindcss-oxide.wasi.cjs
+@@ -62,6 +62,9 @@
+     const worker = new Worker(__nodePath.join(__dirname, 'wasi-worker.mjs'), {
+       env: process.env,
+     })
++    // Scanner calls are synchronous; idle Rayon workers must not keep Node alive.
++    // Defer until online because the WASI runtime refs the worker after creation.
++    worker.once('online', () => worker.unref())
+     worker.onmessage = ({ data }) => {
+       __wasmCreateOnMessageForFsProxy(__nodeFs)(data)
+     }
