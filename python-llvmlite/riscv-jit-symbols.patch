@@ -1,0 +1,107 @@
+--- a/ffi/targets.cpp
++++ b/ffi/targets.cpp
+@@ -209,6 +209,13 @@
+     opt.MCOptions.ShowMCInst = PrintMC;
+     opt.MCOptions.ABIName = ABIName;
+ 
++    // RISC-V ELF relocations can reference unnamed temporary symbols, all
++    // emitted as ".L0 ". RuntimeDyld looks up symbols by name, so these
++    // relocations can resolve to the wrong address. Preserve unique names
++    // even for non-JIT target machines: their objects can be loaded by MCJIT.
++    if (llvm::Triple(TripleStr).isRISCV())
++        opt.MCOptions.MCSaveTempLabels = true;
++
+     bool jit = JIT;
+ 
+     return wrap(unwrap(T)->createTargetMachine(
+--- a/llvmlite/tests/test_binding.py
++++ b/llvmlite/tests/test_binding.py
+@@ -115,6 +115,42 @@
+     }}
+     """
+ 
++asm_switch = r"""
++    target triple = "{triple}"
++
++    define i32 @switch_func(i32 %index, i32 %value) {{
++    entry:
++        switch i32 %index, label %default [
++            i32 0, label %case0
++            i32 1, label %case1
++            i32 2, label %case2
++            i32 3, label %case3
++            i32 4, label %case4
++            i32 5, label %case5
++        ]
++    case0:
++        %v0 = add i32 %value, 17
++        ret i32 %v0
++    case1:
++        %v1 = mul i32 %value, 7
++        ret i32 %v1
++    case2:
++        %v2 = xor i32 %value, 15
++        ret i32 %v2
++    case3:
++        %v3 = or i32 %value, 64
++        ret i32 %v3
++    case4:
++        %v4 = sub i32 %value, 12
++        ret i32 %v4
++    case5:
++        %v5 = and i32 %value, 37
++        ret i32 %v5
++    default:
++        ret i32 -1
++    }}
++    """
++
+ asm_square_sum = r"""
+     ; ModuleID = '<string>'
+     target triple = "{triple}"
+@@ -1405,6 +1441,17 @@
+             target_machine = self.target_machine(jit=True)
+         return llvm.create_mcjit_compiler(mod, target_machine)
+ 
++    def test_switch(self):
++        # Duplicate temporary symbol names can make every jump-table entry
++        # resolve to the same basic block on RISC-V.
++        with self.jit(self.module(asm_switch)) as ee:
++            cfunc = self.get_sum(ee, "switch_func")
++            for index, expected in enumerate((140, 861, 116, 123, 111, 33)):
++                with self.subTest(index=index):
++                    self.assertEqual(cfunc(index, 123), expected)
++            self.assertEqual(cfunc(-1, 123), -1)
++            self.assertEqual(cfunc(6, 123), -1)
++
+ 
+ # There are some memory corruption issues with OrcJIT on AArch64 - see Issue
+ # #1000. Since OrcJIT is experimental, and we don't test regularly during
+@@ -2539,6 +2586,27 @@
+ 
+         self.assertEqual(sum_twice(2, 3), 10)
+ 
++    def test_switch_object_file(self):
++        # Emitted objects need unique temporary symbols too, regardless of
++        # whether the target machine was created with jit=True.
++        for jit in (False, True):
++            with self.subTest(jit=jit):
++                tm = self.target_machine(jit=jit)
++                obj_bin = tm.emit_object(self.module(asm_switch))
++                with llvm.create_mcjit_compiler(
++                        self.module(asm_sum_declare), tm) as ee:
++                    ee.add_object_file(llvm.ObjectFileRef.from_data(obj_bin))
++                    ee.finalize_object()
++                    address = ee.get_function_address("switch_func")
++                    self.assertTrue(address)
++                    cfunc = CFUNCTYPE(c_int, c_int, c_int)(address)
++                    for index, expected in enumerate(
++                            (140, 861, 116, 123, 111, 33)):
++                        with self.subTest(index=index):
++                            self.assertEqual(cfunc(index, 123), expected)
++                    self.assertEqual(cfunc(-1, 123), -1)
++                    self.assertEqual(cfunc(6, 123), -1)
++
+     def test_add_object_file_from_filesystem(self):
+         target_machine = self.target_machine(jit=False)
+         mod = self.module()
