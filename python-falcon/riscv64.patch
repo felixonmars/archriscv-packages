@@ -1,0 +1,12 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -58,6 +58,9 @@
+
+ prepare() {
+   cd $_name-$pkgver
++  # Hypercorn startup can exceed five seconds on riscv64 builders.
++  sed -i 's/Give up after 5 seconds/Give up after 30 seconds/; s/start_ts) < 5:/start_ts) < 30:/' \
++    tests/asgi/test_asgi_servers.py
+ }
+
+ build() {
