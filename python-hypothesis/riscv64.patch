@@ -1,19 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -66,9 +66,15 @@
- source=("$pkgname::git+$_url#tag=v$pkgver")
- sha512sums=('5151fda34e809961810624d7e6f14746ff9725300c2b8b91b2c6bf4c1cc5512a4429db559b4d69c3009daa1970ee7f3981d6cdee64833d1775313f5e475ebca9')
- b2sums=('7fb47487897630ae64d3cb09fa6d4228c3952d782a2118b801a677ba17ee1857c58fbfc437c39455861c6b5ceed1d451b44c77c9332bfc2722014edd462376d5')
-+source+=(suppress-stateful-too-slow-healthcheck.patch)
-+sha512sums+=('e8df90b55134bfde8a24f7f0513b2f9d39b4c237c34a95fd74787a83f2196d70229d8d9d7ee6dfdb7a01fcb8a1767124772ac22f95fb1b09aacc51f4ec449070')
-+b2sums+=('afcaae1f8513549a99d26f16a6e345c19080cc085aad19ed29fcc40b37f56156c5aa80696a9d63e47b5939ea35c833d87986b8b54b7e09b100bd73634ae3346d')
+@@ -69,6 +69,7 @@
  
  prepare() {
--  cd $pkgname/$_name/rust/
-+  cd $pkgname
-+  patch -Np1 -i ../suppress-stateful-too-slow-healthcheck.patch
-+
-+  cd $_name/rust/
+   cd $pkgname/$_name/rust/
++  patch -Np1 -d ../.. -i "$srcdir/suppress-stateful-too-slow-healthcheck.patch"
    cargo fetch --locked --target host-tuple
  }
  
+@@ -108,3 +109,7 @@
+   cd $pkgname/$_name
+   python -m installer --destdir="$pkgdir" dist/*.whl
+ }
++
++source+=(suppress-stateful-too-slow-healthcheck.patch)
++sha512sums+=('e8df90b55134bfde8a24f7f0513b2f9d39b4c237c34a95fd74787a83f2196d70229d8d9d7ee6dfdb7a01fcb8a1767124772ac22f95fb1b09aacc51f4ec449070')
++b2sums+=('afcaae1f8513549a99d26f16a6e345c19080cc085aad19ed29fcc40b37f56156c5aa80696a9d63e47b5939ea35c833d87986b8b54b7e09b100bd73634ae3346d')
