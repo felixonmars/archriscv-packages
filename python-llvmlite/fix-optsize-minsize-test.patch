@@ -1,0 +1,44 @@
+--- a/llvmlite/tests/test_binding.py
++++ b/llvmlite/tests/test_binding.py
+@@ -2810,10 +2810,24 @@
+         self.assertIn("alloca", optimized_asm_optnone)
+ 
+     def test_optsize_minsize(self):
+-        pb = self.pb(speed_level=3)
++        # This test only inspects IR. Use a vector-capable target instead of
++        # relying on the host's default CPU (issue #1449).
++        llvm.initialize_all_targets()
++        triple = "x86_64-unknown-linux-gnu"
++        try:
++            target = llvm.Target.from_triple(triple)
++        except RuntimeError as e:
++            if "No available targets are compatible with triple" in str(e):
++                self.skipTest("X86 target unsupported by linked LLVM.")
++            else:
++                raise
++        tm = target.create_target_machine()
++        pto = llvm.create_pipeline_tuning_options(speed_level=3)
++        pb = llvm.create_pass_builder(tm, pto)
+ 
+         # Without optsize: O3 vectorises the loop
+         mod = self.module(asm_vectorize)
++        mod.triple = triple
+         mpm = pb.getModulePassManager()
+         mpm.run(mod, pb)
+         optimized = str(mod)
+@@ -2821,6 +2835,7 @@
+ 
+         # With optsize: vectorisation is suppressed
+         mod_optsize = self.module(asm_vectorize)
++        mod_optsize.triple = triple
+         fn = mod_optsize.get_function("stride1")
+         fn.add_function_attribute("optsize")
+         self.assertIn(b"optsize", list(fn.attributes))
+@@ -2832,6 +2847,7 @@
+ 
+         # With minsize: vectorisation is suppressed
+         mod_minsize = self.module(asm_vectorize)
++        mod_minsize.triple = triple
+         fn = mod_minsize.get_function("stride1")
+         fn.add_function_attribute("minsize")
+         self.assertIn(b"minsize", list(fn.attributes))
