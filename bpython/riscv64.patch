@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -54,3 +54,12 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/bpython/LICENSE"
+ }
++
++prepare() {
++  cd bpython-$pkgver
++  # Python 3.13.12/3.14.3 use cache.get() to retrieve interactive source.
++  patch -Np1 -i ../fix-linecache-get.patch
++}
++
++source+=("fix-linecache-get.patch::https://github.com/bpython/bpython/commit/870e81cb5a6860f1ba15744c81b97f71467eedf9.patch?full_index=1")
++sha256sums+=('31bed0c06a9ab79ac68c47f6a8062f253089102c2f669d920ce768316ad090f5')
