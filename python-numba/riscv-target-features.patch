@@ -1,0 +1,13 @@
+--- a/numba/core/codegen.py
++++ b/numba/core/codegen.py
+@@ -1188,6 +1188,10 @@
+         tm_options = dict(opt=config.OPT)
+         self._tm_features = self._customize_tm_features()
+         self._customize_tm_options(tm_options)
++        if target.triple.startswith('riscv64'):
++            # LLVM's generic CPU is RV64I. Start with the distro's RV64GC
++            # baseline for atomics and the LP64D ABI, then apply user features.
++            tm_options['features'] = '+m,+a,+f,+d,+c,' + tm_options['features']
+         tm = target.create_target_machine(**tm_options)
+         use_lmm = config.USE_LLVMLITE_MEMORY_MANAGER
+         engine = ll.create_mcjit_compiler(llvm_module, tm, use_lmm=use_lmm)

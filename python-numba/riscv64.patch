@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -56,6 +56,13 @@
+ sha512sums=('f64aba5d04245bee0ddc74fc8abc6eb0ad74558ce5eac77c3a5e852695d525d095b47664abfbece985b60f3b863b96e8614d3e3e72083d9313cdd498f36e646d')
+ b2sums=('48b76ff0b1f7374a3f059a26dc3dbf67671ae0f6f5bfed164bcdf946bb5ea5a9bc8b364c9f2a8440100f4c550e6481c9f2ede4b8674674b713134c85a68e8bc9')
+ 
++prepare() {
++  cd numba
++  patch -Np1 -i ../riscv-target-features.patch
++  patch -Np1 -i ../fix-cmath-nan-sign.patch
++  patch -Np1 -i ../fix-aot-linking.patch
++}
++
+ build() {
+   cd numba
+   python -m build --wheel --no-isolation
+@@ -75,3 +82,13 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=(riscv-target-features.patch
++         fix-cmath-nan-sign.patch
++         fix-aot-linking.patch)
++sha512sums+=('c226b6fa23e39b388db88fe38770d6bc1dd80321221613c906e53e655930a976f79f859b5f1e93fdd8a3bad56fdfa68a869083bb9d8f5e6cfa1a5223a531a8d9'
++             '8af78ba79e5e558f53d910b46da6f59b9db76383f7938a3e4e35279fb38340ffd16a17f963ce6049bdb267a90901016736cc4f23d5d996f53f94a9a10eacc365'
++             'd817e6a7fa6d232426c5eb98044cf812699653a19ddda7ce30ba0c5b5144bb663362684b3fdc33a16535dc595a34286c189965f554aa79fe9848f14b7f968ca4')
++b2sums+=('75770fd99c605512bd30c8634924fa669397e9dac9e556fc3925babccf276f14051635dbc387dd3ae71bf9851965279a56314db265f4e81e4a24c2f810d9f6ce'
++         '81468e4af79e4fb48dc6d9ed9726456399e121f3b10480b5b811c6d7f6c6ed0dab0ce21b8f793ccb570ba61dcfc268ce7b2bdd63fdbba9dd10fba0b177e2e744'
++         '742cc82ea746f6d39a81834e056c641ca9c347b65a638df8a7d4604cbf4a658a3503b7d2dcf324917cfab3d5b879ed04a7d30422e7e4aa4ad7d2ad0faf3d7b6a')
