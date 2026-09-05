@@ -1,0 +1,43 @@
+--- a/numba/cpython/cmathimpl.py
++++ b/numba/cpython/cmathimpl.py
+@@ -478,11 +478,7 @@
+     def atan_impl(z):
+         """cmath.atan(z) = -j * cmath.atanh(z j)"""
+         r = cmath.atanh(complex(-z.imag, z.real))
+-        if math.isinf(z.real) and math.isnan(z.imag):
+-            # XXX this is odd but necessary
+-            return complex(r.imag, r.real)
+-        else:
+-            return complex(r.imag, -r.real)
++        return complex(r.imag, -r.real)
+ 
+     res = context.compile_internal(builder, atan_impl, sig, args)
+     return impl_ret_untracked(context, builder, sig, res)
+@@ -507,7 +503,8 @@
+         ay = abs(z.imag)
+         if math.isnan(z.real) or z.real > THRES_LARGE or ay > THRES_LARGE:
+             if math.isinf(z.imag):
+-                real = math.copysign(0., z.real)
++                # CPython returns +0 for a NaN real part, regardless of its sign.
++                real = 0. if math.isnan(z.real) else math.copysign(0., z.real)
+             elif math.isinf(z.real):
+                 real = 0.
+             else:
+--- a/numba/tests/test_complex.py
++++ b/numba/tests/test_complex.py
+@@ -249,6 +249,15 @@
+     def test_atan_npm(self):
+         self.check_unary_func(atan_usecase, no_pyobj_flags, ulps=2,)
+ 
++    def test_atan_atanh_nonfinite(self):
++        nan = float('nan')
++        inf = float('inf')
++        values = [complex(x, y) for x, y in
++                  itertools.product([nan, -nan, inf, -inf], repeat=2)]
++        for pyfunc in (atan_usecase, atanh_usecase):
++            self.run_unary(pyfunc, [types.complex64, types.complex128],
++                           values, flags=no_pyobj_flags, ulps=2)
++
+     def test_cos(self):
+         self.check_unary_func(cos_usecase, enable_pyobj_flags, ulps=2)
+ 
