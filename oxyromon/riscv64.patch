@@ -1,0 +1,59 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,7 +24,6 @@
+   qt6-base
+   rust
+   wit
+-  yarn
+ )
+ optdepends=(
+   'bchunk: BIN to ISO support'
+@@ -43,8 +42,20 @@
+
+ prepare() {
+   cd oxyromon
+-  yarn install \
+-    --frozen-lockfile
++  # Use the packaged maxcso instead of the bundled x86_64 test binary.
++  rm tests/maxcso
++  # Use upstream WASM bindings where native riscv64 bindings are unavailable.
++  cat > pnpm-workspace.yaml <<'EOF'
++overrides:
++  lightningcss: npm:lightningcss-wasm@1.30.2
++supportedArchitectures:
++  cpu: [current, wasm32]
++allowBuilds:
++  esbuild: true
++  svelte-preprocess: false # Only prints an optional-dependency reminder.
++EOF
++  pnpm install \
++    --no-frozen-lockfile
+   cargo fetch \
+     --locked
+ }
+@@ -53,7 +64,8 @@
+   cd oxyromon
+   export CARGO_PROFILE_RELEASE_LTO=true
+   export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+-  yarn build
++  export SKIP_PNPM=true
++  pnpm build
+   cargo build \
+     --features server \
+     --release \
+@@ -61,6 +73,7 @@
+ }
+
+ check() {
++  export SKIP_PNPM=true
+   cargo test \
+     --features server \
+     --release \
+@@ -69,6 +82,7 @@
+ }
+
+ package() {
++  export SKIP_PNPM=true
+   cargo install \
+     --features server \
+     --frozen \
