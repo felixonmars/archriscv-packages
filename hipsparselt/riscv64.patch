@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,12 +41,19 @@
+ # https://github.com/ROCm/rocm-libraries/blob/rocm-7.1.0/projects/hipsparselt/tensilelite_tag.txt
+ _commit='25c46a44a79d748394622b0b0c7b7acf7574619a'
+ source=("rocm-libraries::git+$_git.git#tag=rocm-$pkgver"
+-        "$pkgname-tensilelite-$pkgver.tar.gz::$_tensilelite/archive/$_commit/hipBLASLt-$_commit.tar.gz")
++        "$pkgname-tensilelite-$pkgver.tar.gz::$_tensilelite/archive/$_commit/hipBLASLt-$_commit.tar.gz"
++        "hipsparselt-guard-x86.patch::$_git/commit/972f7f431b3e42daf03c70c47436f94e3d386017.patch")
+ sha256sums=('b476acbcd0f4017c800e4b05533e6dfb875bde32242729c8df557d4624379623'
+-            'e2b3c6b584e12853474315393789d0a4f2a813a2eb003560adbde735ce4140bd')
++            'e2b3c6b584e12853474315393789d0a4f2a813a2eb003560adbde735ce4140bd'
++            'ee6f453895c7be2bbd931c667dc762bfda821d1d7c86e793eeae90787d3fbc51')
+ _dirname="rocm-libraries/projects/$pkgname"
+
+ prepare() {
++  # Guard x86-only flags and headers; clients/gtest is absent in this release.
++  git -C rocm-libraries apply \
++    --exclude=projects/hipsparselt/clients/gtest/CMakeLists.txt \
++    "$srcdir/hipsparselt-guard-x86.patch"
++
+   cd hipBLASLt-$_commit
+   # Fixes from https://src.fedoraproject.org/rpms/hipsparselt/blob/rawhide/f/hipsparselt.spec
+   # Remove venv
