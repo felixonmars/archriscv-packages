@@ -1,19 +1,29 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -34,6 +34,7 @@ prepare() {
+@@ -34,11 +34,17 @@
    cd $pkgname-$pkgver
  
    patch -Np1 -i "$srcdir"/pin-java-version.patch
 +  patch -Np1 -i "$srcdir"/use-system-node.patch
++  # Use Rollup's parser instead of ast-grep's unavailable riscv64 bindings.
++  cp "$srcdir"/use-rollup-parser.patch js/
  }
  
  build() {
-@@ -83,4 +84,8 @@ package() {
-   install -Dm 644 LICENSE.txt "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE.txt"
+   cd $pkgname-$pkgver
+ 
++  # Use Kiota's managed .NET tool; its npm wrapper rejects riscv64.
++  dotnet tool install --local --create-manifest-if-needed Microsoft.OpenApi.Kiota --version 1.32.4
++
+   export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:$PATH"
+   mvn -am \
+     -s maven-settings.xml \
+@@ -84,3 +90,8 @@
  }
  
-+makedepends+=('nodejs' 'npm' 'pnpm')
-+source+=(use-system-node.patch)
-+sha512sums+=('444c7b4b729abbfb11d18a3b12de51afdc67c2fb405be55d4de8e99fe33a8dab93b2c02773ecd4bef9a392696fd1a5169712faffae75d09095452844f70db757')
-+
  # vim: ts=2 sw=2 et:
++
++makedepends+=('nodejs' 'npm' 'pnpm' 'dotnet-sdk')
++source+=(use-system-node.patch use-rollup-parser.patch)
++sha512sums+=('1d994bfba2a3972f0924d184d8e2b67f20d18717a0ade4265f1d888d3f9fcf84048c6864e5558fb928ac69dc6a8ced80d164b4e0ab675a12d8a12da85904dbba'
++            '5753aabc3a4fc533dedb2f353049116eb69675c06db81ebe3d73f1790c985ae9341acf8f39aecd75b32432275b0f8571b66097d4652e794b5a6f795a0f0da737')
