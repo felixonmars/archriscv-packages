@@ -1,0 +1,63 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,10 +19,17 @@
+             '8a782d68a6140f739f00d3eb341d742584ee0be80e85e89bc1540a21d15ad8b75274672ebd02e1e4fd1925ed9ca68b05142388e795dff81b0a864d38f5514253')
+ 
+ prepare() {
++  # Fix incomplete libuv bindings with Clang 22: https://github.com/rust-lang/rust-bindgen/pull/3278
++  sed -i 's/0\.70\.1/0.72.1/' libuv-sys-lite-1.48.3/Cargo.toml
++
+   cd rusty_v8
+   git config -f .gitmodules submodule.v8.shallow true
+   git submodule update --init --recursive
+ 
++  # The downloaded Rust toolchain is x86_64; use the system toolchain instead.
++  sed -i '/download_rust_toolchain();/d' build.rs
++  patch -Np1 -i ../deno-2.9.6-rust-system.patch
++
+   # Drop flags rejected by the clang++ invoked in our build environment.
+   sed -i \
+     -e '/-fno-lifetime-dse/d' \
+@@ -35,6 +42,7 @@
+ 
+   cd ../deno
+   echo -e "\n[patch.crates-io]\nv8 = { path = '../rusty_v8' }" >> Cargo.toml
++  echo "libuv-sys-lite = { path = '../libuv-sys-lite-1.48.3' }" >> Cargo.toml
+   # Keep the V8 backend while disabling Deno's self-upgrade and vendored zlib-ng.
+   sed -i \
+     -e '/^v8 = \[/s/"__runtime_defaults", //' \
+@@ -52,10 +60,16 @@
+   export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+ 
+   local _clang_version=$(clang -dumpversion | cut -d '.' -f 1)
++  local _rustc_version=$(rustc --version | awk '{ print $2 ;}')
+   local _extra_gn_args=(
+     'custom_toolchain="//build/toolchain/linux/unbundle:default"'
+     'host_toolchain="//build/toolchain/linux/unbundle:default"'
+     "clang_version=\"$_clang_version\""
++    # System Rust needs libutil, which is stripped from Chromium's sysroot.
++    'use_sysroot=false'
++    'rust_sysroot_absolute="/usr"'
++    'rust_bindgen_root="/usr"'
++    "rustc_version=\"$_rustc_version\""
+     'use_system_libffi=true'
+   )
+ 
+@@ -70,6 +84,7 @@
+   export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
+   export ZSTD_SYS_USE_PKG_CONFIG=1
+   export CARGO_FEATURE_SYSTEM=1 # Use system-provided libffi
++  export RUSTC_BOOTSTRAP=1
+ 
+   cargo build --frozen --release
+ }
+@@ -92,3 +107,9 @@
+ 
+   install -Dm644 LICENSE.md -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++makedepends+=('rust-bindgen')
++source+=("libuv-sys-lite-1.48.3.tar.gz::https://static.crates.io/crates/libuv-sys-lite/libuv-sys-lite-1.48.3.crate"
++         "https://gitlab.archlinux.org/archlinux/packaging/packages/deno/-/raw/ec823e23ae77020406691f04e0de04eef51fa4eb/deno-2.9.6-rust-system.patch")
++sha512sums+=('496a802b49cd9e285c283c56b0c7d35213e9e697dba58f6aee89c2ba2542d62e5ad7b93c0fbc7c6b7a89951fb8ddfb324ff2741a41f2c76c220bb7bb21d44d22'
++             '658e32634fc7463f79099d19e2e54ef59318811209d1e5f7adf5caae9b57ad06dfe9bbe41d272c47d92cd0ad1c746cc0e04775c495c8e120cbd62c88239d1945')
