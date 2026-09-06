@@ -1,0 +1,27 @@
+--- a/src/asm/trampoline-riscv64.S
++++ b/src/asm/trampoline-riscv64.S
+@@ -29,17 +29,15 @@
+ #endif
+ .globl MANGLE(bxfi_trampoline)
+ MANGLE(bxfi_trampoline):
++#ifdef __riscv_compressed
++    /* Fit the jump and address into a 16-byte PLT entry. */
++    auipc   a0, 0
++    c.ld    a0, 8(a0)
++    c.jr    a0
++#else
+     ld      a0, addr_data
+     jr      a0
+-
+-/*
+- *  On riscv64gc, these will expand into 3 instructions:
+- *  auipc   a0, 0x0         4 bytes
+- *  ld      a0, offset(a0)  4 bytes
+- *  jr      a0              2 bytes
+- *  <addr_data>
+- *  'offset' is the length between `auipc` and `addr_data`.
+- */
++#endif
+ 
+ .align 1
+ 
