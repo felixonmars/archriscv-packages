@@ -1,0 +1,35 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -54,12 +54,22 @@
+ )
+ source=(
+   "$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz"
++  'signed-iq-samples.patch'
++  'wait-for-continuous-modulator.patch'
+ )
+-b2sums=('4d68080279dea9763180a586169b07279fecd9b2df98a509db5e578432f1082a20b94e04fae3f2ed1f32621b4c683bde546e158d9ca369e2bc68c061e473b9ea')
++b2sums=('4d68080279dea9763180a586169b07279fecd9b2df98a509db5e578432f1082a20b94e04fae3f2ed1f32621b4c683bde546e158d9ca369e2bc68c061e473b9ea'
++        'ec34e21af64c0eff188bba2792403b126e1d7a53546501e727138df54fcf95519443d1576b35f769b32454cc424812048761a8b5983d4b89dce7c5d825f6e91e'
++        'bdf1569edc3d7a6a1ff2197245b3e7c5f9f75a00b6e61e0ad938481b911798bb2385a457dd70e69b962e3f7e901165babe9ccd8212fd51986d07b1e70f7a892a')
+
+ prepare() {
+   cd $pkgname-$pkgver
+
++  # Signed 8-bit IQ samples must not depend on the platform char signedness.
++  patch -Np1 -i ../signed-iq-samples.patch
++
++  # Allow more time for spawned modulation and receiver startup.
++  patch -Np1 -i ../wait-for-continuous-modulator.patch
++
+   # No need to package this build script.
+   rm -v src/urh/cythonext/build.py
+
+@@ -70,6 +80,8 @@
+
+ build() {
+   cd $pkgname-$pkgver
++  # FMA rounding can turn zero FSK phase differences into positive values.
++  export CXXFLAGS="$CXXFLAGS -ffp-contract=off"
+   python -m build --wheel --no-isolation --skip-dependency-check
+ }
+
