@@ -1,0 +1,34 @@
+--- a/hypothesis/tests/common/utils.py
++++ b/hypothesis/tests/common/utils.py
+@@ -330,8 +330,10 @@
+     for thread in threads:
+         thread.start()
+ 
++    # Do not leave threads running into later tests: they may still hold
++    # temporary process-wide state such as the recursion limit.
+     for thread in threads:
+-        thread.join(timeout=10)
++        thread.join()
+ 
+ 
+ def wait_for(condition, *, timeout=1, interval=0.01):
+--- a/hypothesis/tests/nocover/test_threading.py
++++ b/hypothesis/tests/nocover/test_threading.py
+@@ -150,7 +150,7 @@
+     for thread in threads:
+         thread.start()
+     for thread in threads:
+-        thread.join(timeout=10)
++        thread.join()
+ 
+     assert sys.getrecursionlimit() == original_recursionlimit
+ 
+@@ -194,7 +194,7 @@
+ 
+     thread = Thread(target=target)
+     thread.start()
+-    thread.join(timeout=10)
++    thread.join()
+ 
+ 
+ def test_deadline_exceeded_not_raised_under_concurrent_threads():
