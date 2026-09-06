@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -42,6 +42,12 @@
+ source=(git+https://github.com/jupyterlab/jupyterlab_server#tag=v$pkgver)
+ sha256sums=('647061d6f86246390c421be7085fbcb75dbe0218c6a26e29f61559ece10d2301')
+ 
++prepare() {
++  cd $_pyname
++  # openapi-core 0.23 removed the Spec API used by the spec loader and tests.
++  patch -Np1 -i ../openapi-core-0.23.patch
++}
++
+ build() {
+   cd $_pyname
+   python -m build --wheel --no-isolation
+@@ -59,3 +65,6 @@
+ 
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
+ }
++
++source+=("openapi-core-0.23.patch::https://github.com/jupyterlab/jupyterlab_server/commit/9ce3fc594b01b3ee5acef4a547c9ae0c17c8a9b5.patch")
++sha256sums+=('7245260d7786619f8da73a580908e6903b935d1612d3b49d90ac145485efb71f')
