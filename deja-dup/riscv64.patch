@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,6 +39,12 @@
+ b2sums=(58a8e9b98cb03dbcb6c8bc88f2f99de5e008ba43523af5881334244e1fe4d40d1bfa1a8fa16aeb430a609d323e7dcd60f6ed5e32037d9065e782c58e06358843)
+ validpgpkeys=(A3A5C2FC56AE7341D308D8571B50ECA373F3F233) # Michael Terry <mike@mterry.name>
+ 
++prepare() {
++  cd $pkgname
++  # RecursiveDelete reports errors without a destination file.
++  patch -Np1 -i ../fix-recursive-delete-error.patch
++}
++
+ build() {
+   arch-meson $pkgname build \
+     -D packagekit=disabled
+@@ -53,3 +59,6 @@
+ package() {
+   meson install -C build --destdir "$pkgdir"
+ }
++
++source+=(fix-recursive-delete-error.patch)
++b2sums+=(3ad28f860682705bc9719d88e40b916e89adc8de88b20edcfc0d1128995e3b6daa98d418d76ad2e47d4cd64e999ea2ed65d41dde248fd6cb212f55f0ff4a0a37)
