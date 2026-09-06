@@ -1,0 +1,58 @@
+--- a/src/urh/cythonext/util.pxd
++++ b/src/urh/cythonext/util.pxd
+@@ -1,5 +1,5 @@
+ ctypedef fused iq:
+-    char
++    signed char
+     unsigned char
+     short
+     unsigned short
+--- a/src/urh/cythonext/signal_functions.pyx
++++ b/src/urh/cythonext/signal_functions.pyx
+@@ -44,7 +44,7 @@
+         return 0
+ 
+ cdef get_numpy_dtype(iq cython_type):
+-    if str(cython.typeof(cython_type)) == "char":
++    if str(cython.typeof(cython_type)) == "signed char":
+         return np.int8
+     elif str(cython.typeof(cython_type)) == "short":
+         return np.int16
+@@ -62,7 +62,7 @@
+     if dtype == np.int8:
+         return __modulate(
+             bits, samples_per_symbol, modulation_type, parameters, bits_per_symbol, carrier_amplitude,
+-            carrier_frequency, carrier_phase, sample_rate, pause, start, <char>0, gauss_bt, filter_width
++            carrier_frequency, carrier_phase, sample_rate, pause, start, <signed char>0, gauss_bt, filter_width
+         )
+     elif dtype == np.int16:
+         return __modulate(
+@@ -264,7 +264,7 @@
+ 
+     cdef float[::1] result = np.empty(num_samples, dtype=np.float32)
+ 
+-    if str(cython.typeof(samples)) == "char[:, ::1]":
++    if str(cython.typeof(samples)) == "signed char[:, ::1]":
+         scale = 127.5
+         shift = 0.5
+     elif str(cython.typeof(samples)) == "unsigned char[:, ::1]":
+@@ -340,7 +340,7 @@
+     cdef float noise_sqrd = noise_mag * noise_mag, real = 0, imag = 0, magnitude = 0, max_magnitude
+     cdef float complex tmp
+ 
+-    if str(cython.typeof(samples)) == "char[:, ::1]":
++    if str(cython.typeof(samples)) == "signed char[:, ::1]":
+         max_magnitude = sqrt(127*127 + 128*128)
+     elif str(cython.typeof(samples)) == "unsigned char[:, ::1]":
+         max_magnitude = sqrt(255*255)
+--- a/src/urh/cythonext/path_creator.pyx
++++ b/src/urh/cythonext/path_creator.pyx
+@@ -25,7 +25,7 @@
+     cdef long long i,j,index, chunk_end, num_samples, pixels_on_path, samples_per_pixel
+     num_samples = end - start
+ 
+-    cdef dict type_lookup = {"char[:]": np.int8, "unsigned char[:]": np.uint8,
++    cdef dict type_lookup = {"signed char[:]": np.int8, "unsigned char[:]": np.uint8,
+                              "short[:]": np.int16, "unsigned short[:]": np.uint16,
+                              "float[:]": np.float32, "double[:]": np.float64}
+ 
