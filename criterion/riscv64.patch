@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -26,6 +26,9 @@
+ source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+ sha256sums=('6d924ee5eeaaaed7762ab968f560b9ff543fc3473aa949bf53ac56a2a1a9416c')
+ 
++source+=(boxfort-riscv64-plt.patch)
++sha256sums+=('5943f2747ba527c8c479f69d5b2ef0041f401f9c74d6307d47264f907b2c7d3d')
++
+ prepare() {
+   cd $_pkgname-$pkgver
+   # Use system packages for these instead.
+@@ -37,6 +40,9 @@
+   # file. A meson.build file is not necessary, so ignore the error.
+   meson subprojects download || :
+ 
++  # Keep BoxFort's RISC-V trampoline from overwriting the next PLT entry.
++  patch -Np1 -d subprojects/boxfort -i "$srcdir/boxfort-riscv64-plt.patch"
++
+   # Fix FTBS
+   sed -i '/#ifdef __cplusplus/a # include <cstdint>' include/criterion/alloc.h
+ }
