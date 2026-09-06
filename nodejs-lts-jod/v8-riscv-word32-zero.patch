@@ -1,0 +1,49 @@
+--- a/deps/v8/src/compiler/backend/riscv/instruction-selector-riscv64.cc
++++ b/deps/v8/src/compiler/backend/riscv/instruction-selector-riscv64.cc
+@@ -2037,6 +2037,18 @@
+ }
+
+ template <typename Adapter>
++void VisitWord32CompareZero(InstructionSelectorT<Adapter>* selector,
++                           typename Adapter::node_t value,
++                           FlagsContinuationT<Adapter>* cont) {
++  // Wasm i32 stack arguments can have unspecified upper bits.
++  RiscvOperandGeneratorT<Adapter> g(selector);
++  InstructionOperand input = g.TempRegister();
++  selector->Emit(kRiscvSignExtendWord, input, g.UseRegister(value),
++                 g.TempImmediate(0));
++  selector->EmitWithContinuation(kRiscvCmpZero, input, cont);
++}
++
++template <typename Adapter>
+ void VisitWord64Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+@@ -2410,7 +2422,11 @@
+
+     // Continuation could not be combined with a compare, emit compare against
+     // 0.
+-    EmitWordCompareZero(this, value, cont);
++    if (user->opcode() == IrOpcode::kWord64Equal) {
++      EmitWordCompareZero(this, value, cont);
++    } else {
++      VisitWord32CompareZero(this, value, cont);
++    }
+ }
+
+ template <>
+@@ -2511,7 +2527,13 @@
+
+   // Continuation could not be combined with a compare, emit compare against
+   // 0.
+-  EmitWordCompareZero(this, value, cont);
++  const ComparisonOp* comparison = Get(user).TryCast<ComparisonOp>();
++  if (comparison &&
++      comparison->rep.value() == RegisterRepresentation::Word64()) {
++    EmitWordCompareZero(this, value, cont);
++  } else {
++    VisitWord32CompareZero(this, value, cont);
++  }
+ }
+
+ template <typename Adapter>

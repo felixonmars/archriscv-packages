@@ -1,0 +1,45 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,17 @@
+
+ prepare() {
+   cd node-v${pkgver}
++  # Compare only the low 32 bits of Wasm values, even with stale upper bits.
++  # https://github.com/v8/v8/commit/1f69656648fc23f5d1d4d4c38904b76d8feceee8
++  patch -Np1 -i ../v8-riscv-word32-compare.patch
++  # Wasm zero checks must ignore stale upper bits in i32 arguments too.
++  patch -Np1 -i ../v8-riscv-word32-zero.patch
++  # Fix inverted floating-point branches in V8's RISC-V backend.
++  patch -Np1 -i ../v8-riscv-float-branch.patch
++  # Allow slow watch restarts, Sv39 Wasm, and expected closed-pipe errors.
++  patch -Np1 -i ../test-resource-limits.patch
++  # Accept both old and new OpenSSL CCM finalization behavior.
++  patch -Np1 -i ../openssl-ccm-final.patch
+   # Update ICU tests https://github.com/nodejs/node/pull/60523
+   patch -Np1 -i ../update-icu-tests.patch
+ }
+@@ -81,7 +92,8 @@
+   # https://github.com/nodejs/node/issues/63914
+   rm test/parallel/test-snapshot-reproducible.js
+
+-  make test-only
++  # The test runner otherwise uses all CPUs, ignoring MAKEFLAGS.
++  make test-only JOBS=8
+ }
+
+ package() {
+@@ -90,3 +102,14 @@
+   make DESTDIR="${pkgdir}" install
+   install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
+ }
++
++source+=(v8-riscv-word32-compare.patch
++         v8-riscv-word32-zero.patch
++         v8-riscv-float-branch.patch
++         test-resource-limits.patch
++         "openssl-ccm-final.patch::https://github.com/nodejs/node/commit/40eac4a32f3676b286fd44435be4514962a40b79.patch")
++sha256sums+=('1b12913fa8dc965815751629773d91bc3c9c9844e7dc7a7d982b73b756fd0342'
++             'a208e39a506ae4e4b6eeba2435d706092d28992aa83d9b245888ea4cac39a3c0'
++             '7ea4fb5985fcf5c5a1ecc07f71ce1ae0147f173ba3576b45098e83dcf4fe06fc'
++             '3f459ab8e8345cc1e7e18fab6bbe3aa7cdedd06a95b0952ec076bf114c07a28f'
++             'a264e9b41d6956450de7e31400398f81d98ff7e56e08f583020c8cd6b7a39e2b')
