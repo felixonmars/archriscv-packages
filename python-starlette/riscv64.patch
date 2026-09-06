@@ -1,0 +1,17 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -46,8 +46,14 @@
+ sha512sums=('b415a5fde7572a1ee1965c7fdaeb0cb5a9b5f7ab8471f3085de730141f531302e7eb0fb61546c65af54f7d8a7a5a49ff2e2f03b544b99358dcaa499082b5d3bd')
+ b2sums=('d8e72166045fdafdced1367b2f42ca4117c891577b9b0008590bd62b2d32a61eecf00f406c510511602a88d72908cb94ec3b6bb63f03027b99e7c31ab5b2a9cc')
+ 
++source+=($pkgname-anyio-4.15.patch::https://github.com/Kludex/starlette/commit/bbee894422c6cc1306327335ae385b901ccfec13.patch)
++sha512sums+=('0001f63c8c54489648f19b7ca66608da132c2ff4b4b9266f2ea2cbf0aa1e288a8c5c736df3827a2d12ec9ac6d4520407ceac3e6d8e77ae0b422f569a48d57a2e')
++b2sums+=('a6adf6313e0eeecd4f2a090d8c158db5230965bc68fb3c9bf6d3deb074dd1e2606dc0a6ea73f8e94a7218e3fffa2aed3d6e2260ac325a9bf0d1b6607f1e668d2')
++
+ prepare() {
+   cd $_name-$pkgver
++  # Avoid an import-time deprecation warning with AnyIO 4.15.
++  patch -Np1 -i ../$pkgname-anyio-4.15.patch
+   # Ignore new warnings from python-anyio 4.4.0 making check() fails
+   sed -i '/"error"/d' pyproject.toml
+ }
