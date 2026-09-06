@@ -1,0 +1,20 @@
+--- a/spec/maxitest_spec.rb
++++ b/spec/maxitest_spec.rb
+@@ -238,7 +238,7 @@
+   describe "Interrupts" do
+     it "stops on ctrl+c and prints errors" do
+       t = Thread.new { run_cmd("ruby spec/cases/cltr_c.rb", fail: true) }
+-      sleep 1 # let thread start
++      sleep 3 # let the child finish loading Bundler and Maxitest
+       kill_process_with_name("spec/cases/cltr_c.rb")
+       output = t.value
+       output.should include "4 runs, 1 assertions, 1 failures, 1 errors, 2 skips" # failed, error from interrupt (so you see a backtrace), rest skipped
+@@ -262,7 +262,7 @@
+ 
+     it "shows backtraces when in verbose mode" do
+       t = Thread.new { run_cmd("ruby spec/cases/cltr_c.rb -v", fail: true) }
+-      sleep 1 # let thread start
++      sleep 3 # let the child finish loading Bundler and Maxitest
+       kill_process_with_name("spec/cases/cltr_c.rb")
+       output = t.value
+       output.gsub(/:\d+:in/, ":D:in").should match /cltr_c.rb:D:in (`|'Kernel#)sleep'/ # let you know where it happened

@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,8 +27,13 @@
+ source=("git+https://github.com/grosser/maxitest.git#tag=v$pkgver")
+ sha512sums=('429c7d10557ac25a1c615a1441e9a48b253fc4f12255c4edf615b0c494894b56c1bde26aa103e1fab8c4d8f1219ab47ba9ccab7855e83b1aa1ff65a3c8331e67')
+ 
++source+=(interrupt-test-startup.patch)
++sha512sums+=('be4b55f3774ee2e305a956c377278b9e60911b2a769ddd546218848a8c5b6a1add0aa8148e5fcfde657b409dcd1e27253cd9b531fd6d9f3b4f2c7b692540b718')
++
+ prepare() {
+   cd "$_pkgname"
++  # Allow Ruby and Bundler to load before the interrupt tests send SIGINT.
++  patch -Np1 -i ../interrupt-test-startup.patch
+   git rm Gemfile.lock
+ 
+   # Remove dependency on bump and debug
