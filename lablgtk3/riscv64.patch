@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,6 +27,12 @@
+   echo "${dune_release_pkgs}"
+ }
+ 
++prepare() {
++  cd "${srcdir}/${_pkgname}-${pkgver}"
++  # Dune 3.24 adds ./ to dependency paths passed to propcc.
++  patch -Np1 -i "$srcdir/fix-propcc-paths.patch"
++}
++
+ build() {
+   cd "${srcdir}/${_pkgname}-${pkgver}"
+   # gcc-10 workaround
+@@ -44,3 +50,6 @@
+   install -dm755 "${pkgdir}/usr/share/"
+   mv "${pkgdir}/usr/doc" "${pkgdir}/usr/share/"
+ }
++
++source+=("fix-propcc-paths.patch::https://github.com/garrigue/lablgtk/commit/e0cd3a721b385623fe1c42e08e72f914ae64d1a4.patch?full_index=1")
++b2sums+=('1ed34cb559e9889bc7c3e07c0b2d2297b195a1daac89e80d5d9dbc7a688bc3bfb3e3fcfa3da143f9235fd5d034d09a523a44c983038d96e74d739eb63e94a959')
