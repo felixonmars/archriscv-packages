@@ -1,0 +1,38 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,10 +41,24 @@
+   # Fix migration-disabled task stalls in LAVD (upstream PR #3748).
+   git cherry-pick --no-commit 6d31ddd8973333e95ae7e3584e84029533064d69
+ 
++  # BPF targets lack the RISC-V ABI macros required by glibc's errno.h.
++  sed -i 's|<errno.h>|<asm-generic/errno.h>|' \
++    scheds/rust/*/src/bpf/*.bpf.c scheds/include/scx/task_local_data.bpf.h
++
++  # Freestanding BPF must not emit a libc memcmp call.
++  patch -Np1 -i "$srcdir/fix-lavd-memcmp.patch"
++
++  # Use system protoc; perfetto_protos has no bundled riscv64 binary.
++  patch -Np1 -d ../perfetto_protos-0.51.1 -i "$srcdir/perfetto-protos-system-protoc.patch"
++  echo -e "\n[patch.crates-io]\nperfetto_protos = { path = '../perfetto_protos-0.51.1' }" >> Cargo.toml
++  cargo update -p perfetto_protos
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+ build() {
+   cd $_gitname
++  export PERFETTO_PROTOS_PROTOC=/usr/bin/protoc
++  # Keep Clang's limits.h from including glibc headers for the BPF target.
++  export BPF_EXTRA_CFLAGS_PRE_INCL=-ffreestanding
+   cargo build \
+      --release \
+      --frozen \
+@@ -65,3 +79,10 @@
+     -maxdepth 1 -type f -executable ! -name '*.so' \
+     -exec install -Dm755 -t "$pkgdir/usr/bin/" {} +
+ }
++
++source+=("perfetto_protos-0.51.1.tar.gz::https://static.crates.io/crates/perfetto_protos/perfetto_protos-0.51.1.crate"
++        "perfetto-protos-system-protoc.patch::https://github.com/a6f/perfetto_protos/commit/faf8cd21e19313ea72f63f6fa9d8d5dde9edaa9e.patch"
++        fix-lavd-memcmp.patch)
++sha256sums+=('634f88ebef917643d9e470dbf99637fbfa8295f54525954d156641f06823f9ac'
++             '60299d1118169a69ab87d1e09fd6e123996288611163c2932c0a1eb0ef79f58b'
++             '94af5cc1a0b2a0236231559eef8c6d843d4b774c3a965f5111acceb8527d621f')
