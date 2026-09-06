@@ -1,0 +1,66 @@
+--- a/openapi_core/templating/paths/finders.py
++++ b/openapi_core/templating/paths/finders.py
+@@ -18,6 +18,8 @@
+ from openapi_core.templating.paths.protocols import PathsIterator
+ from openapi_core.templating.paths.protocols import ServersIterator
+ 
++DEFAULT_SERVER = SchemaPath.from_dict({"url": "/"})
++
+ 
+ class BasePathFinder:
+     paths_iterator: PathsIterator = NotImplemented
+@@ -63,7 +65,7 @@
+ class APICallPathFinder(BasePathFinder):
+     paths_iterator: PathsIterator = TemplatePathsIterator("paths")
+     operations_iterator: OperationsIterator = SimpleOperationsIterator()
+-    servers_iterator: ServersIterator = TemplateServersIterator()
++    servers_iterator: ServersIterator = TemplateServersIterator(DEFAULT_SERVER)
+ 
+ 
+ class WebhookPathFinder(APICallPathFinder):
+--- a/openapi_core/templating/paths/iterators.py
++++ b/openapi_core/templating/paths/iterators.py
+@@ -122,6 +122,9 @@
+ 
+ 
+ class TemplateServersIterator:
++    def __init__(self, default_server: SchemaPath):
++        self.default_server = default_server
++
+     def __call__(
+         self,
+         name: str,
+@@ -136,7 +139,7 @@
+                 or spec.get("servers", None)
+             )
+             if not servers:
+-                servers = [SchemaPath.from_dict({"url": "/"})]
++                servers = [self.default_server]
+             for server in servers:
+                 server_url_pattern = name.rsplit(path_result.resolved, 1)[0]
+                 server_url = server["url"]
+--- a/tests/unit/templating/test_paths_finders.py
++++ b/tests/unit/templating/test_paths_finders.py
+@@ -6,6 +6,7 @@
+ from openapi_core.templating.paths.exceptions import PathNotFound
+ from openapi_core.templating.paths.exceptions import PathsNotFound
+ from openapi_core.templating.paths.exceptions import ServerNotFound
++from openapi_core.templating.paths.finders import DEFAULT_SERVER
+ from openapi_core.templating.paths.finders import APICallPathFinder
+ 
+ 
+@@ -195,13 +196,12 @@
+ 
+         path = spec / "paths" / self.path_name
+         operation = spec / "paths" / self.path_name / method
+-        server = SchemaPath.from_dict({"url": "/"})
+         path_result = TemplateResult(self.path_name, {})
+         server_result = TemplateResult("/", {})
+         assert result == (
+             path,
+             operation,
+-            server,
++            DEFAULT_SERVER,
+             path_result,
+             server_result,
+         )
