@@ -1,15 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -67,9 +67,9 @@ package() {
-   install -Dm644 grafana.sysusers "$pkgdir/usr/lib/sysusers.d/grafana.conf"
-   install -Dm644 grafana.service "$pkgdir/usr/lib/systemd/system/grafana.service"
-   cd $pkgname
--  install -Dsm755 bin/linux-amd64/grafana "$pkgdir/usr/bin/grafana"
--  install -Dsm755 bin/linux-amd64/grafana-server "$pkgdir/usr/bin/grafana-server"
--  install -Dsm755 bin/linux-amd64/grafana-cli "$pkgdir/usr/bin/grafana-cli"
-+  install -Dsm755 bin/linux-riscv64/grafana "$pkgdir/usr/bin/grafana"
-+  install -Dsm755 bin/linux-riscv64/grafana-server "$pkgdir/usr/bin/grafana-server"
-+  install -Dsm755 bin/linux-riscv64/grafana-cli "$pkgdir/usr/bin/grafana-cli"
-   install -Dm640 -o207 -g207 conf/sample.ini "$pkgdir/etc/$pkgname.ini"
-   install -Dm644 conf/defaults.ini "$pkgdir/usr/share/$pkgname/conf/defaults.ini"
-   install -dm755 "$pkgdir/usr/share/grafana/"
+@@ -38,6 +38,15 @@
+   sed -ri 's,^(\s*plugins\s*=).*,\1 /var/lib/grafana/plugins,' conf/defaults.ini
+   sed -ri 's,^(\s*provisioning\s*=).*,\1 /var/lib/grafana/conf/provisioning,' conf/defaults.ini
+   sed -ri 's,^(\s*logs\s*=).*,\1 /var/log/grafana,' conf/defaults.ini
++
++  # SWC has no riscv64 binary and its automatic WASM fallback is broken.
++  # https://github.com/swc-project/swc/pull/12064
++  node <<'EOF'
++const fs = require('fs');
++const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
++pkg.resolutions['@swc/core@npm:1.13.3'] = 'npm:@swc/wasm@1.13.3';
++fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
++EOF
+ }
+
+ build() {
