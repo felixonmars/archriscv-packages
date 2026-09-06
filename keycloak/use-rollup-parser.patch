@@ -1,0 +1,55 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,11 +1,10 @@
+ // src/index.ts
+ import path from "node:path";
+-import { Lang, parse } from "@ast-grep/napi";
+ import MagicString from "magic-string";
+ import color from "picocolors";
+ var excludeTokens = [
+-  "import_statement",
+-  "expression_statement"
++  "ImportDeclaration",
++  "ExpressionStatement"
+ ];
+ var pluginName = "vite:lib-inject-css";
+ function libInjectCss() {
+@@ -69,8 +68,8 @@
+         if (chunk.type !== "chunk" || !chunk.viteMetadata?.importedCss.size) {
+           continue;
+         }
+-        const node = parse(Lang.JavaScript, chunk.code).root().children().find((node2) => !excludeTokens.includes(node2.kind()));
+-        const position = node?.range().start.index ?? 0;
++        const node = this.parse(chunk.code).body.find((node2) => !excludeTokens.includes(node2.type));
++        const position = node?.start ?? 0;
+         let code = chunk.code;
+         for (const cssFileName of chunk.viteMetadata.importedCss) {
+           let cssFilePath = path.relative(path.dirname(chunk.fileName), cssFileName).replaceAll(/[\\/]+/g, "/");
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -34,12 +34,11 @@
+ });
+ module.exports = __toCommonJS(index_exports);
+ var import_node_path = __toESM(require("path"), 1);
+-var import_napi = require("@ast-grep/napi");
+ var import_magic_string = __toESM(require("magic-string"), 1);
+ var import_picocolors = __toESM(require("picocolors"), 1);
+ var excludeTokens = [
+-  "import_statement",
+-  "expression_statement"
++  "ImportDeclaration",
++  "ExpressionStatement"
+ ];
+ var pluginName = "vite:lib-inject-css";
+ function libInjectCss() {
+@@ -103,8 +102,8 @@
+         if (chunk.type !== "chunk" || !chunk.viteMetadata?.importedCss.size) {
+           continue;
+         }
+-        const node = (0, import_napi.parse)(import_napi.Lang.JavaScript, chunk.code).root().children().find((node2) => !excludeTokens.includes(node2.kind()));
+-        const position = node?.range().start.index ?? 0;
++        const node = this.parse(chunk.code).body.find((node2) => !excludeTokens.includes(node2.type));
++        const position = node?.start ?? 0;
+         let code = chunk.code;
+         for (const cssFileName of chunk.viteMetadata.importedCss) {
+           let cssFilePath = import_node_path.default.relative(import_node_path.default.dirname(chunk.fileName), cssFileName).replaceAll(/[\\/]+/g, "/");
