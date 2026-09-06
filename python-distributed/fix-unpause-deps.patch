@@ -1,0 +1,14 @@
+--- a/distributed/worker_state_machine.py
++++ b/distributed/worker_state_machine.py
+@@ -3083,7 +3083,10 @@
+     def _handle_unpause(self, ev: UnpauseEvent) -> RecsInstrs:
+         """Emerge from paused status"""
+         self.running = True
+-        return self._ensure_computing()
++        return merge_recs_instructions(
++            self._ensure_computing(),
++            self._ensure_communicating(stimulus_id=ev.stimulus_id),
++        )
+ 
+     @_handle_event.register
+     def _handle_retry_busy_worker(self, ev: RetryBusyWorkerEvent) -> RecsInstrs:

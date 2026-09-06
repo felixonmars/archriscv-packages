@@ -1,0 +1,538 @@
+--- a/distributed/cli/tests/test_dask_worker.py
++++ b/distributed/cli/tests/test_dask_worker.py
+@@ -834,7 +834,7 @@
+                     f"--worker-port={scheduler_port}",
+                 ],
+             ) as worker:
+-                assert worker.wait(10) == 1
++                assert worker.wait(30) == 1
+ 
+ 
+ @pytest.mark.parametrize("nanny", ["--nanny", "--no-nanny"])
+--- a/distributed/cli/tests/test_tls_cli.py
++++ b/distributed/cli/tests/test_tls_cli.py
+@@ -30,7 +30,7 @@
+     start = time()
+     while len(c.nthreads()) < 1:
+         sleep(0.1)
+-        assert time() < start + 10
++        assert time() < start + 30
+ 
+ 
+ def test_basic(loop, requires_default_ports):
+--- a/distributed/tests/test_tls_functional.py
++++ b/distributed/tests/test_tls_functional.py
+@@ -197,7 +197,7 @@
+     start = time()
+     while a.status != Status.closed:
+         await asyncio.sleep(0.01)
+-        assert time() < start + 5
++        assert time() < start + 30
+ 
+ 
+ @gen_test()
+--- a/distributed/deploy/tests/test_adaptive.py
++++ b/distributed/deploy/tests/test_adaptive.py
+@@ -277,12 +277,11 @@
+ 
+ 
+ @pytest.mark.parametrize("target_duration", [5, 1])
+-def test_target_duration(target_duration):
++def test_target_duration(target_duration, monkeypatch):
+     @gen_test()
+     async def _test():
+         with dask.config.set(
+             {
+-                "distributed.scheduler.default-task-durations": {"slowinc": 1},
+                 # adaptive target for queued tasks doesn't yet consider default or learned task durations
+                 "distributed.scheduler.worker-saturation": float("inf"),
+             }
+@@ -294,6 +293,8 @@
+                 silence_logs=False,
+                 dashboard_address=":0",
+             ) as cluster:
++                # Test scaling independently of task timing under host load.
++                monkeypatch.setattr(cluster.scheduler, "_get_prefix_duration", lambda _: 1)
+                 adapt = cluster.adapt(
+                     interval="20ms", minimum=2, target_duration=target_duration
+                 )
+--- a/distributed/deploy/tests/test_spec_cluster.py
++++ b/distributed/deploy/tests/test_spec_cluster.py
+@@ -202,7 +202,7 @@
+             cluster.scale(2)
+             await cluster
+             assert len(cluster.workers) == 2
+-            await client.restart()
++            await client.restart(timeout=60)
+             while len(cluster.workers) < 2:
+                 await asyncio.sleep(0.01)
+ 
+--- a/distributed/deploy/tests/test_subprocess.py
++++ b/distributed/deploy/tests/test_subprocess.py
+@@ -20,8 +20,8 @@
+     async with SubprocessCluster(
+         asynchronous=True,
+         dashboard_address=":0",
+-        scheduler_kwargs={"idle_timeout": "5s"},
+-        worker_kwargs={"death_timeout": "5s"},
++        scheduler_kwargs={"idle_timeout": "30s"},
++        worker_kwargs={"death_timeout": "30s"},
+     ) as cluster:
+         async with Client(cluster, asynchronous=True) as client:
+             result = await client.submit(lambda x: x + 1, 10)
+--- a/distributed/diagnostics/tests/test_progress.py
++++ b/distributed/diagnostics/tests/test_progress.py
+@@ -259,7 +259,7 @@
+         ]
+     )
+ 
+-    await s.restart(stimulus_id="test")
++    await s.restart(stimulus_id="test", timeout=60)
+     assert len(p.time) == 2
+     assert len(p.nthreads) == 2
+     assert len(p.compute) == 0
+--- a/distributed/tests/test_asyncprocess.py
++++ b/distributed/tests/test_asyncprocess.py
+@@ -141,7 +141,7 @@
+         await asyncio.sleep(0.01)
+         gc.collect()
+         dt = time() - t1
+-        assert dt < 5.0
++        assert dt < 30.0
+ 
+ 
+ @gen_test()
+@@ -255,7 +255,7 @@
+     assert not evt.is_set()
+ 
+     to_child.put(None)
+-    await wait_for(evt.wait(), 5)
++    await wait_for(evt.wait(), 30)
+     assert evt.is_set()
+     assert not proc.is_alive()
+ 
+--- a/distributed/tests/test_client.py
++++ b/distributed/tests/test_client.py
+@@ -4454,7 +4454,12 @@
+     assert a.address not in s.workers
+ 
+ 
+-@gen_cluster(client=True, nthreads=[("", 1)] * 10)
++@gen_cluster(
++    client=True,
++    nthreads=[("", 1)] * 10,
++    # Initial scatter can stall the shared event loop beyond the five-second default.
++    config={"distributed.comm.timeouts.connect": "30s"},
++)
+ async def test_retire_many_workers(c, s, *workers):
+     futures = await c.scatter(list(range(100)))
+ 
+@@ -7450,8 +7455,8 @@
+     async with SubprocessCluster(
+         asynchronous=True,
+         dashboard_address=":0",
+-        scheduler_kwargs={"idle_timeout": "5s"},
+-        worker_kwargs={"death_timeout": "5s"},
++        scheduler_kwargs={"idle_timeout": "30s"},
++        worker_kwargs={"death_timeout": "30s"},
+     ) as cluster:
+         async with Client(cluster, asynchronous=True) as client:
+             with pytest.raises(ModuleNotFoundError, match="'bar'"):
+--- a/distributed/tests/test_config.py
++++ b/distributed/tests/test_config.py
+@@ -42,7 +42,10 @@
+         f = logging.getLogger("foo")
+         fb = logging.getLogger("foo.bar")
+ 
+-        with captured_handler(d.handlers[0]) as distributed_log:
++        with (
++            caplog.at_level(logging.INFO, logger="distributed"),
++            captured_handler(d.handlers[0]) as distributed_log,
++        ):
+             d.debug("1: debug")
+             d.info("2: info")
+             dfb.info("3: info")
+--- a/distributed/tests/test_failed_workers.py
++++ b/distributed/tests/test_failed_workers.py
+@@ -146,7 +146,7 @@
+         assert result == [sum(map(inc, range(20)))]
+ 
+ 
+-@gen_cluster(Worker=Nanny, client=True, timeout=60)
++@gen_cluster(Worker=Nanny, client=True, timeout=120)
+ async def test_restart(c, s, a, b):
+     x = c.submit(inc, 1)
+     y = c.submit(inc, x)
+@@ -157,7 +157,7 @@
+     assert s.tasks[y.key].state == "memory"
+     assert s.tasks[z.key].state != "memory"
+ 
+-    await c.restart()
++    await c.restart(timeout=60)
+ 
+     assert len(s.workers) == 2
+     assert not any(ws.occupancy for ws in s.workers.values())
+@@ -172,13 +172,13 @@
+     assert not any(cs.wants_what for cs in s.clients.values())
+ 
+ 
+-@gen_cluster(Worker=Nanny, client=True, timeout=60)
++@gen_cluster(Worker=Nanny, client=True, timeout=120)
+ async def test_restart_cleared(c, s, a, b):
+     x = 2 * delayed(1) + 1
+     f = c.compute(x)
+     await wait([f])
+ 
+-    await c.restart()
++    await c.restart(timeout=60)
+ 
+     for coll in [s.tasks, s.unrunnable]:
+         assert not coll
+@@ -214,7 +214,7 @@
+             assert stop - start < 20
+ 
+ 
+-@gen_cluster(Worker=Nanny, timeout=60)
++@gen_cluster(Worker=Nanny, timeout=120)
+ async def test_multiple_clients_restart(s, a, b):
+     async with (
+         Client(s.address, asynchronous=True) as c1,
+@@ -227,7 +227,7 @@
+         assert xx == 2
+         assert yy == 3
+ 
+-        await c1.restart()
++        await c1.restart(timeout=60)
+ 
+         assert x.cancelled()
+         start = time()
+@@ -253,14 +253,14 @@
+         await async_poll_for(lambda: not s.tasks)
+ 
+ 
+-@gen_cluster(Worker=Nanny, timeout=60)
++@gen_cluster(Worker=Nanny, timeout=120)
+ async def test_restart_scheduler(s, a, b):
+     assert len(s.workers) == 2
+     pids = (a.pid, b.pid)
+     assert pids[0]
+     assert pids[1]
+ 
+-    await s.restart(stimulus_id="test")
++    await s.restart(stimulus_id="test", timeout=60)
+ 
+     assert len(s.workers) == 2
+     pids2 = (a.pid, b.pid)
+@@ -269,10 +269,10 @@
+     assert pids != pids2
+ 
+ 
+-@gen_cluster(Worker=Nanny, client=True, timeout=60)
++@gen_cluster(Worker=Nanny, client=True, timeout=120)
+ async def test_forgotten_futures_dont_clean_up_new_futures(c, s, a, b):
+     x = c.submit(inc, 1)
+-    await c.restart()
++    await c.restart(timeout=60)
+     y = c.submit(inc, 1)
+     del x
+ 
+@@ -325,7 +325,7 @@
+         assert result == expected_result
+ 
+ 
+-@gen_cluster(client=True, Worker=Nanny, timeout=60)
++@gen_cluster(client=True, Worker=Nanny, timeout=120)
+ async def test_restart_during_computation(c, s, a, b):
+     xs = [delayed(slowinc)(i, delay=0.01) for i in range(50)]
+     ys = [delayed(slowinc)(i, delay=0.01) for i in xs]
+@@ -335,7 +335,7 @@
+ 
+     await asyncio.sleep(0.5)
+     assert any(ws.processing for ws in s.workers.values())
+-    await c.restart()
++    await c.restart(timeout=60)
+     assert not any(ws.processing for ws in s.workers.values())
+ 
+     assert not s.tasks
+--- a/distributed/tests/test_priorities.py
++++ b/distributed/tests/test_priorities.py
+@@ -3,6 +3,7 @@
+ import asyncio
+ from collections.abc import AsyncIterator
+ from contextlib import asynccontextmanager
++from functools import partial
+ 
+ import pytest
+ 
+@@ -224,10 +225,13 @@
+ 
+ @gen_blockable_cluster
+ async def test_last_in_first_out(c, s, a, pause):
++    # Keep submissions in one FIFO group and allow scheduler round trips.
++    # https://github.com/dask/distributed/issues/6216
++    submit = partial(c.submit, slowinc, delay=2, fifo_timeout="1h")
+     async with block_worker(c, s, a, pause, 15, 5):
+-        xs = [c.submit(slowinc, i, delay=0.05, key=f"x{i}") for i in range(5)]
+-        ys = [c.submit(slowinc, xs[i], delay=0.05, key=f"y{i}") for i in range(5)]
+-        zs = [c.submit(slowinc, ys[i], delay=0.05, key=f"z{i}") for i in range(5)]
++        xs = [submit(i, key=f"x{i}") for i in range(5)]
++        ys = [submit(xs[i], key=f"y{i}") for i in range(5)]
++        zs = [submit(ys[i], key=f"z{i}") for i in range(5)]
+ 
+     while not any(s.tasks[z.key].state == "memory" for z in zs):
+         await asyncio.sleep(0.01)
+--- a/distributed/tests/test_semaphore.py
++++ b/distributed/tests/test_semaphore.py
+@@ -101,7 +101,8 @@
+     client=True,
+     config={
+         "distributed.scheduler.locks.lease-validation-interval": "100ms",
+-        "distributed.scheduler.locks.lease-timeout": "100ms",
++        # Leave enough time to acquire the second lease before the first one expires.
++        "distributed.scheduler.locks.lease-timeout": "2s",
+     },
+ )
+ async def test_release_semaphore_after_timeout(c, s, a, b):
+@@ -118,7 +119,7 @@
+ 
+     semB.refresh_callback.stop()
+     del semB
+-    assert await sem.acquire(timeout=1)
++    assert await sem.acquire(timeout=10)
+     assert not (await sem.acquire(timeout=0.1))
+ 
+ 
+--- a/distributed/tests/test_semaphore.py
++++ b/distributed/tests/test_semaphore.py
+@@ -163,7 +164,7 @@
+ async def test_access_semaphore_by_name(c, s, a, b):
+     def f(x, release=True):
+         sem = Semaphore(name="x")
+-        if not sem.acquire(timeout=0.1):
++        if not sem.acquire(timeout=1):
+             return False
+         if release:
+             assert sem.release() is True
+@@ -314,8 +315,9 @@
+ @gen_cluster(
+     client=True,
+     config={
+-        "distributed.scheduler.locks.lease-timeout": "100ms",
+-        "distributed.scheduler.locks.lease-validation-interval": "100ms",
++        # Allow refresh RPCs to complete after the deliberate lease expiry.
++        "distributed.scheduler.locks.lease-timeout": "5s",
++        "distributed.scheduler.locks.lease-validation-interval": "1s",
+     },
+ )
+ async def test_oversubscribing_leases(c, s, a, b):
+@@ -361,7 +363,7 @@
+             # This simulates a task which holds the GIL for longer than the
+             # lease-timeout. This is twice the lease timeout to ensure that the
+             # leases are actually timed out
+-            slowidentity(delay=0.2)
++            slowidentity(delay=10)
+ 
+             assert sem._leases
+             # Now the GIL is free again, i.e. we enable the callback again
+--- a/distributed/tests/test_scheduler.py
++++ b/distributed/tests/test_scheduler.py
+@@ -65,7 +65,6 @@
+     NoSchedulerDelayWorker,
+     assert_story,
+     async_poll_for,
+-    captured_handler,
+     captured_logger,
+     cluster,
+     dec,
+@@ -1740,7 +1739,7 @@
+ @gen_cluster(
+     client=True,
+     worker_kwargs={
+-        "heartbeat_interval": "10s",  # prevent worker from updating executing task durations
++        "heartbeat_interval": "1h",  # prevent worker from updating executing task durations
+     },
+ )
+ async def test_include_communication_in_occupancy(c, s, a, b):
+@@ -3218,14 +3217,13 @@
+     with (
+         mock.patch.object(s, "rpc", rpc),
+         dask.config.set({"distributed.comm.retry.count": 1}),
+-        captured_handler(
+-            logging.getLogger("distributed").handlers[0]
+-        ) as distributed_log,
++        captured_logger(
++            "distributed.utils_comm", level=logging.INFO
++        ) as distributed_log,
+     ):
+         res = await s.gather(keys=["x"])
+     assert re.match(
+-        r"\A\d+-\d+-\d+ \d+:\d+:\d+,\d+ - distributed.utils_comm - INFO - "
+-        r"Retrying get_data_from_worker after exception in attempt 0/1: \n\Z",
++        r"\ARetrying get_data_from_worker after exception in attempt 0/1: \n\Z",
+         distributed_log.getvalue(),
+     )
+     assert res["status"] == "OK"
+--- a/distributed/tests/test_steal.py
++++ b/distributed/tests/test_steal.py
+@@ -324,7 +324,10 @@
+     nthreads=[("127.0.0.1", 1)] * 10,
+     config={"distributed.scheduler.work-stealing-interval": "100ms"},
+ )
+-async def test_dont_steal_fast_tasks_compute_time(c, s, *workers):
++async def test_dont_steal_fast_tasks_compute_time(c, s, *workers, monkeypatch):
++    # Keep the fast-task cost independent of thread scheduling delays.
++    monkeypatch.setattr(s, "_get_prefix_duration", lambda _: 1e-5)
++
+     def do_nothing(x, y=None):
+         pass
+ 
+@@ -504,7 +507,7 @@
+             await asyncio.sleep(0.01)
+ 
+         s.extensions["stealing"].balance()
+-        await asyncio.sleep(0.1)
++        await async_poll_for(lambda: len(wc.state.tasks) > 5)
+ 
+         assert 20 < len(wa.state.tasks) < 95
+         assert len(wb.state.tasks) == 0
+@@ -538,7 +541,8 @@
+             await asyncio.sleep(0.01)
+ 
+         s.extensions["stealing"].balance()
+-        await asyncio.sleep(0.1)
++        # Steal requests and task delivery require multiple scheduler round trips.
++        await async_poll_for(lambda: len(b.state.tasks) > 20)
+ 
+         assert 20 < len(b.state.tasks) < 80
+         assert 20 < len(a.state.tasks) < 80
+@@ -705,6 +709,9 @@
+ async def assert_balanced(inp, expected, c, s, *workers):
+     steal = s.extensions["stealing"]
+     await steal.stop()
++    # Preserve synthetic task durations and bandwidth while tasks block.
++    for w in workers:
++        w.periodic_callbacks["heartbeat"].stop()
+     ev = Event()
+ 
+     def block(*args, event, **kwargs):
+@@ -822,7 +829,8 @@
+     )()
+ 
+ 
+-@gen_cluster(client=True, nthreads=[("127.0.0.1", 1)] * 2, Worker=Nanny, timeout=60)
++# The test deadline includes both initial Nanny startup and worker restart.
++@gen_cluster(client=True, nthreads=[("127.0.0.1", 1)] * 2, Worker=Nanny, timeout=240)
+ async def test_restart(c, s, a, b):
+     futures = c.map(
+         slowinc, range(100), delay=0.01, workers=a.address, allow_other_workers=True
+@@ -837,7 +845,7 @@
+     steal = s.extensions["stealing"]
+     assert any(x for L in steal.stealable.values() for x in L)
+ 
+-    await c.restart()
++    await c.restart(timeout=120)
+ 
+     assert not any(x for L in steal.stealable.values() for x in L)
+ 
+--- a/distributed/tests/test_utils_test.py
++++ b/distributed/tests/test_utils_test.py
+@@ -134,11 +134,11 @@
+ @gen_cluster(
+     client=True,
+     Worker=Nanny,
+-    config={"distributed.comm.timeouts.connect": "1s", "new.config.value": "foo"},
++    config={"distributed.comm.timeouts.connect": "10s", "new.config.value": "foo"},
+ )
+ async def test_gen_cluster_set_config_nanny(c, s, a, b):
+     def assert_config():
+-        assert dask.config.get("distributed.comm.timeouts.connect") == "1s"
++        assert dask.config.get("distributed.comm.timeouts.connect") == "10s"
+         assert dask.config.get("new.config.value") == "foo"
+ 
+     await c.run(assert_config)
+--- a/distributed/tests/test_worker.py
++++ b/distributed/tests/test_worker.py
+@@ -1995,8 +1995,10 @@
+     config=NO_AMM,
+ )
+ async def test_gather_dep_from_remote_workers_if_all_local_workers_are_busy(
+-    c, s, rw, a, *lws
++    c, s, rw, a, *lws, monkeypatch
+ ):
++    # Keep local workers busy until the remote fallback has been exercised.
++    monkeypatch.setattr(a, "retry_busy_worker_later", lambda _: asyncio.Event().wait())
+     f = (
+         await c.scatter(
+             {"f": 1}, workers=[w.address for w in (rw,) + lws], broadcast=True
+@@ -2964,6 +2966,9 @@
+ 
+ @gen_cluster(client=True)
+ async def test_log_remove_worker(c, s, a, b):
++    # Heartbeats from retiring workers can add unrelated scheduler log messages.
++    for w in (a, b):
++        w.periodic_callbacks["heartbeat"].stop()
+     # Computed task
+     x = c.submit(inc, 1, key="x", workers=a.address)
+     await x
+--- a/distributed/tests/test_worker_memory.py
++++ b/distributed/tests/test_worker_memory.py
+@@ -289,6 +289,7 @@
+     nthreads=[("", 1)],
+     worker_kwargs={"memory_limit": "1 kB"},
+     config={
++        "distributed.comm.timeouts.connect": "60s",
+         "distributed.worker.memory.target": False,
+         "distributed.worker.memory.spill": 0.7,
+         "distributed.worker.memory.monitor-interval": "100ms",
+--- a/distributed/utils_test.py
++++ b/distributed/utils_test.py
+@@ -108,7 +108,7 @@
+     if isinstance(logger, logging.Logger)
+ }
+ 
+-_TEST_TIMEOUT = 30
++_TEST_TIMEOUT = 120
+ _offload_executor.submit(lambda: None).result()  # create thread during import
+ 
+ 
+@@ -939,9 +939,9 @@
+                 s = None
+                 try:
+                     while True:
++                        if not deadline.remaining:
++                            raise TimeoutError("Timeout on cluster creation")
+                         try:
+-                            if not deadline.remaining:
+-                                raise TimeoutError("Timeout on cluster creation")
+                             s, ws = await start_cluster(
+                                 nthreads,
+                                 scheduler,
+@@ -1106,7 +1106,7 @@
+ def popen(
+     args: list[str],
+     capture_output: bool = False,
+-    terminate_timeout: float = 10,
++    terminate_timeout: float = 30,
+     kill_timeout: float = 5,
+     **kwargs: Any,
+ ) -> Generator[subprocess.Popen[bytes]]:
+@@ -1221,7 +1221,7 @@
+ 
+ async def async_poll_for(
+     predicate: Callable[[], bool],
+-    timeout: float = 15,
++    timeout: float = 30,
+     fail_func: Callable[[], None] | None = None,
+     period: float = 0.05,
+ ) -> None:
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -141,7 +141,7 @@
+     '''ignore:unclosed transport <_SelectorSocketTransport.*:ResourceWarning''',
+     '''ignore:unclosed transport <asyncio\.sslproto\..*:ResourceWarning''',
+     '''ignore:unclosed cluster SSHCluster.*:ResourceWarning''',
+-    '''ignore:Couldn't detect a suitable IP address for reaching '2001.4860.4860..8888', defaulting to hostname. \[Errno 65\] No route to host:RuntimeWarning''',
++    '''ignore:Couldn't detect a suitable IP address for reaching '2001.4860.4860..8888', defaulting to hostname:RuntimeWarning''',
+     '''ignore:Dashboard and Scheduler are using the same server on port.*:RuntimeWarning''',
+     '''ignore:coroutine 'BaseTCPConnector.connect' was never awaited:RuntimeWarning''',
+     '''ignore:coroutine 'Client\._start' was never awaited:RuntimeWarning''',

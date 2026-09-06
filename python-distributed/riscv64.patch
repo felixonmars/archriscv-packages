@@ -1,0 +1,64 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -63,6 +63,28 @@
+ source=(https://github.com/dask/distributed/archive/$pkgver/$pkgname-$pkgver.tar.gz)
+ b2sums=('63dc79fabdd31a7d33259c558911ee175549071a4c166710bb4efcca68f882bdfe9086bf56db256c81bff47d2e4255ab7efd0306c6a8d10ba01248b9a567113d')
+ 
++prepare() {
++  cd $_name-$pkgver
++  # Worker metrics contain tuple keys that cannot be serialized as JSON.
++  # https://github.com/dask/distributed/issues/8370
++  patch -Np1 -i "$srcdir/fix-identity-json.patch"
++  # Losing scattered data must also release pending transfer accounting.
++  # https://github.com/dask/distributed/issues/7319
++  patch -Np1 -i "$srcdir/fix-lost-dependency-accounting.patch"
++  # Unpausing must resume dependency transfers as well as computation.
++  # https://github.com/dask/distributed/pull/6462
++  patch -Np1 -i "$srcdir/fix-unpause-deps.patch"
++  # Link-local IPv6 addresses need the interface scope from getaddrinfo().
++  patch -Np1 -i "$srcdir/fix-ipv6-scope.patch"
++  # Cluster tests assume few CPUs and short startup/scheduling latencies.
++  patch -Np1 -i "$srcdir/fix-test-cpu-count.patch"
++  patch -Np1 -i "$srcdir/relax-test-timing.patch"
++  # Cluster scheduling and lease refresh can need additional round trips on riscv64.
++  patch -Np1 -i "$srcdir/fix-test-timing.patch"
++  # A signal handler must not acquire the interrupted Event.wait() lock.
++  patch -Np1 -i "$srcdir/fix-popen-signal.patch"
++}
++
+ build() {
+   cd $_name-$pkgver
+   SETUPTOOLS_SCM_PRETEND_VERSION=$pkgver \
+@@ -76,9 +95,8 @@
+     -W ignore::DeprecationWarning
+     -W ignore::FutureWarning
+     -W ignore::UserWarning
+-    # distribute tests across multiple CPUs
+-    -n auto
+-    --dist loadscope
++    # Each test creates its own cluster; avoid contention between clusters.
++    -n 0
+     # use 'signal' which only kills the offending test
+     --timeout-method signal
+     -m "not slow and not leaking and not avoid_ci and not gpu and not extra_packages"
+@@ -141,3 +159,20 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -vDm 644 LICENSE.txt -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=(fix-identity-json.patch
++         fix-lost-dependency-accounting.patch
++         fix-unpause-deps.patch
++         fix-test-cpu-count.patch
++         relax-test-timing.patch
++         fix-test-timing.patch
++         fix-ipv6-scope.patch
++         fix-popen-signal.patch)
++b2sums+=('247072025494cabe5c2b80de81adec596c32199182ebd1391772e3e48f7a55a375cea520cc90a08ca986232230d77cf660e9f608773b84ef1766d7457857e999'
++         'fdc259c8526f157620a3324f64a2ef15f940c9fed40987e059aad23fa427913d3076818a2bb9f69a88a10fc7f2edbf5769ede974912e53a1250057eb37c9365c'
++         '4021d0fd7e5b6d2f2b0c4fa8ff878c38cc84aae30796617f817a43b2568d6dfc7b799dc2ce4b9431c1c97846ea654d90c6d2d9e8d8d4c825f0fc9102a0db2915'
++         'fee52401709fe29a6e50f374dcefd645a2a859f51e32bcee4a9620f958e3f1c3b0d1fce4468260e2a84b9447dbb117300d92ba195c174c989f8c05516ae27474'
++         '2d6bbe6bd213f291a12ff49db7590d94f4c7bc895557b8bb896c93f2bdddf77a5a6af258e5a863df869865b49ee12185c45c4e45ff246d6e99390ef63fc24a06'
++         '14831396544aa8e5a970d06068212adc68844ceb026e34fcbbfa680f581daae5324e35bfcad1fb18ec48e3eeb2e5d3813134d2b58a36fb9e9ae8fc388e872d91'
++         'cf335209388b021c9fb46c1ab8f348ac4a8a225fafd70ffb74e0a98478b526ede08bae58b672cc4e5c2b6ac74ab847b8d93745617ec903cb7e48607b88dc75e6'
++         '48a537cbac49268fd395214b02512d6f9d07393f30219a922da5f53d1e5ded1b997e99bddba0bbe42766b6334458780ff6467e6d17606aa3dbdac526fe8d8345')
