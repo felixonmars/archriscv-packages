@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,9 +43,23 @@
+   'python-tzdata: for timezone support'
+   'python-ulid: for ULID support'
+ )
+-source=($_name-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz)
+-sha512sums=('0b1a8b530a871a59840f55925efd584dd2fc62f6810ac4b5cc94ddc7f3ec881cd1bb5d2a1e60f8be771911082b973f7f26c3ad2add2a6239b3a79d7ff23d557c')
+-b2sums=('e6190084136175cdc534820df7fe7880ba280154accb9a81ca9a42bdba9fcdde9b06995eb0afa84e56e92f4ee457170eaf865f3a2ae8f20283d51cb378480bef')
++source=($_name-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz
++        pydantic-2.13-tests.patch::$url/commit/6f0217de5e26b99d09ffd9bb95da415779e6bef6.patch
++        pytest-9.1-tests.patch::$url/commit/1df1432c30471bcb1f7fc38002ba3d1d772a0823.patch)
++sha512sums=('0b1a8b530a871a59840f55925efd584dd2fc62f6810ac4b5cc94ddc7f3ec881cd1bb5d2a1e60f8be771911082b973f7f26c3ad2add2a6239b3a79d7ff23d557c'
++            '2a9fac2ad9879914e14ab59d3e7b9912488216ebb7719524ecb0491008a15a621a80c7d1e99ce6d56b3f9b5373f8fd9c48cf6aa1969314354258b15e8504bf35'
++            '8f0e10b862a288845f541d5b712a5384a67de2d39f97b3628c7694c040b957cb4516315229a65ea0f593df4c511910dff1f7ffbb46f5a305e1d85f997e60716a')
++b2sums=('e6190084136175cdc534820df7fe7880ba280154accb9a81ca9a42bdba9fcdde9b06995eb0afa84e56e92f4ee457170eaf865f3a2ae8f20283d51cb378480bef'
++        '4d30553d7a403cbe27eecd15a81911b0324604a8417ee7b28bde6160643c50cc8bea758bbbcd45996b2f381ae7aed02db0ea8525016d3c0ff9142deedee8d553'
++        'ba9b1414144393636de91e8c1d4c74b4d86eb76d40ae34db75df16b51e9107af8d81c05bd4b174f399ee5b6a876e199a743fc83f3d685824b5463439d3699126')
++
++prepare() {
++  cd $_name-$pkgver
++  # Pydantic 2.13 adds the Coordinate docstring to its JSON schema.
++  patch -Np1 -i ../pydantic-2.13-tests.patch
++  # pytest 9.1 requires collections for parametrized test cases.
++  patch -Np1 -i ../pytest-9.1-tests.patch
++}
+
+ build() {
+   cd $_name-$pkgver
