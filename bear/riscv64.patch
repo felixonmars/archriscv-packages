@@ -1,0 +1,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,6 +34,10 @@
+   # fix install script
+   patch -p1 -i "$srcdir/avoid-libexec.patch"
+ 
++  # Allow the same five-second startup window as the other signal tests.
++  sed -i '/^fn signal_tears_down_build_process_tree()/,/assert!(is_alive(gpid)/s/from_secs(2)/from_secs(5)/' \
++    tests/integration/tests/cases/exit_codes.rs
++
+   # download dependencies
+   cargo fetch --locked --target host-tuple
+ }
