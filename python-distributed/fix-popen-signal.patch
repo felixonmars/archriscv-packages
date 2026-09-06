@@ -1,0 +1,30 @@
+--- a/distributed/tests/test_utils_test.py
++++ b/distributed/tests/test_utils_test.py
+@@ -820,18 +820,21 @@
+             "-c",
+             textwrap.dedent("""
+                 import signal
+-                import threading
++                import time
+ 
+-                e = threading.Event()
++                stopped = False
+ 
+                 def cb(signum, frame):
+-                    # 131072 is 2x the size of the default Linux pipe buffer
+-                    print('x' * 131072)
+-                    e.set()
++                    # Event.set() can deadlock if the signal interrupts Event.wait().
++                    global stopped
++                    stopped = True
+ 
+                 signal.signal(signal.SIGINT, cb)
+                 print('ready', flush=True)
+-                e.wait()
++                while not stopped:
++                    time.sleep(0.01)
++                # 131072 is 2x the size of the default Linux pipe buffer
++                print('x' * 131072)
+                 """),
+         ],
+         capture_output=True,

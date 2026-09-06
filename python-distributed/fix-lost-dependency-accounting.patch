@@ -1,0 +1,12 @@
+--- a/distributed/scheduler.py
++++ b/distributed/scheduler.py
+@@ -3521,6 +3521,9 @@
+         ts.state = "forgotten"
+         for dts in ts.dependents:
+             dts.has_lost_dependencies = True
++            ws = dts.processing_on
++            if ws is not None and ts in ws.needs_what:
++                ws._dec_needs_replica(ts)
+             dts.dependencies.remove(ts)
+             if dts.waiting_on:
+                 dts.waiting_on.discard(ts)

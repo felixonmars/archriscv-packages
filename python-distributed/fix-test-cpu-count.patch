@@ -1,0 +1,26 @@
+--- a/distributed/tests/test_worker.py
++++ b/distributed/tests/test_worker.py
+@@ -654,8 +654,8 @@
+     async with (
+         Worker(s.address, nthreads=1) as a,
+         Worker(s.address, nthreads=2) as b,
+-        Worker(s.address, nthreads=100) as c,
+-        Worker(s.address, nthreads=200) as d,
++        Worker(s.address, nthreads=CPU_COUNT) as c,
++        Worker(s.address, nthreads=CPU_COUNT * 2) as d,
+     ):
+         assert isinstance(a.memory_manager.memory_limit, Number)
+         assert isinstance(b.memory_manager.memory_limit, Number)
+--- a/distributed/deploy/tests/test_slow_adaptive.py
++++ b/distributed/deploy/tests/test_slow_adaptive.py
+@@ -85,8 +85,8 @@
+     start = time()
+     async with SpecCluster(
+         scheduler=scheduler,
+-        workers={"fast": {"cls": Worker, "options": {}}},
+-        worker={"cls": SlowWorker, "options": {"delay": 5}},
++        workers={"fast": {"cls": Worker, "options": {"nthreads": 1}}},
++        worker={"cls": SlowWorker, "options": {"delay": 5, "nthreads": 1}},
+         asynchronous=True,
+     ) as cluster:
+         cluster.adapt(minimum=1, maximum=4, target_duration="1s", interval="20ms")
