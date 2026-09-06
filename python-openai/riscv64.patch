@@ -1,0 +1,45 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,8 +32,8 @@
+   'python-wheel'
+ )
+ checkdepends=(
++  'deno'
+   'nodejs-lts-jod'
+-  'npm'
+   'procps-ng'
+   'python-dirty-equals'
+   'python-httpx-aiohttp'
+@@ -70,6 +70,12 @@
+   cd "${_name}-${pkgver}"
+   grep -q "openai-$_openai_openapi_spec.yml" .stats.yml \
+     || { echo "Update _openai_openapi_spec"; exit 1; }
++
++  # Steady's npm package has no riscv64 binary; run the same release from source.
++  sed -i 's|npm exec --package=@stdy/cli@0.22.1 -- steady|deno run -A --config=../steady-0.22.1/deno.json ../steady-0.22.1/cmd/steady.ts|g' scripts/mock
++
++  # Allow more time for mTLS example subprocesses on slow builders.
++  sed -i 's/timeout=15,/timeout=60,/' tests/test_mtls_http_client.py
+ }
+ 
+ build() {
+@@ -83,9 +89,10 @@
+   local site_packages=$(python -c "import site; print(site.getsitepackages()[0])")
+   export PYTHONPATH="$PWD/tmp_install/${site_packages}"
+ 
++  # Deno 2.2 requires opting into Steady's v5 lockfile.
++  export DENO_UNSTABLE_LOCKFILE_V5=1
+   # Start mock server and make sure it's cleaned up on exit
+-  export npm_config_yes=true
+-  trap 'pkill "npm exec steady"' EXIT
++  trap 'pkill -f "^deno run .*steady"' EXIT
+   ./scripts/mock --daemon "${srcdir}/openai-${_openai_openapi_spec}.yml"
+ 
+   # Randomly generated mock API key
+@@ -105,3 +112,6 @@
+   python -m installer --destdir="${pkgdir}" dist/*.whl
+   install -vDm644 LICENSE -t "${pkgdir}/usr/share/licenses/${pkgname}/"
+ }
++
++source+=("steady-0.22.1.tar.gz::https://github.com/dgellow/steady/archive/refs/tags/v0.22.1.tar.gz")
++b2sums+=('f90f9a5ce968e2a88b9392ded27982c5cb7a0062deef1b40990acc924fb1be042a3b724e04b56c326090a81b51d4a149d483326703ee10c3f53a56ec9057f088')
