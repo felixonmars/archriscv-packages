@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,6 +21,13 @@
+ source=("https://github.com/lubyk/$_rockname/archive/REL-$pkgver/$_archive.tar.gz")
+ sha256sums=('355f427f28155c4cf3a9673aa24c3754ea782c1c5f2081cbc4c28c00ed69a0b7')
+ 
++prepare() {
++	cd "$_archive"
++	# Lua 5.5 makes loop control variables read-only.
++	# https://github.com/lubyk/lub/pull/6
++	patch -Np1 -i ../lua55.patch
++}
++
+ _package() {
+ 	cd "$_archive"
+ 	depends=("${pkgname%-*}" "${_luadeps[@]/#/${pkgname%-*}-}")
+@@ -48,3 +55,6 @@
+ package_lua51-lub() {
+ 	_package 5.1
+ }
++
++source+=(lua55.patch)
++sha256sums+=('eb8419d4381eff88cebe465707173856d07bc1092c2b76b6ce6e6bf97f96ecf4')
