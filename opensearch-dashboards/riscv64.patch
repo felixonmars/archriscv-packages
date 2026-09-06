@@ -1,0 +1,37 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -61,8 +61,26 @@
+ build() {
+   cd "OpenSearch-Dashboards"
+ 
+-  yarn osd bootstrap
+-  yarn build --skip-os-packages
++  # ChromeDriver is only needed for browser tests; no riscv64 binary is provided.
++  export CHROMEDRIVER_SKIP_DOWNLOAD=true
++
++  # Use LMDB's Node-API path; its bundled V8 headers are incompatible with Node 22.
++  export ENABLE_V8_FUNCTIONS=false
++
++  # Yarn Classic otherwise skips the wasm32 fallback bindings needed on riscv64.
++  echo '--install.ignore-platform true' >> .yarnrc
++
++  # Rspack 2.1 has native riscv64 bindings; its WASM fallback requires SIMD.
++  # Lightning CSS has no native riscv64 binding; use its same-version WASM build.
++  jq '.devDependencies["@rspack/cli", "@rspack/core"] = "2.1.0" |
++      .resolutions["**/lightningcss"] = "npm:lightningcss-wasm@1.32.0"' package.json > package.json.new
++  mv package.json{.new,}
++
++  # Rspack's GCC 11-built mimalloc lacks release ordering; avoid cross-CPU races.
++  # https://github.com/gcc-mirror/gcc/commit/d199d2e56da2379004e7e0457150409c0c99d3e6
++  local cpu=$(awk '/Cpus_allowed_list/ {split($2, cpus, /[-,]/); print cpus[1]}' /proc/self/status)
++  taskset -c "$cpu" yarn osd bootstrap
++  taskset -c "$cpu" yarn build --skip-os-packages
+ 
+   # TODO: How to tell yarn that we don't want to create a SNAPSHOT version?
+   sed -i "s/  \"version\": \"${pkgver}-SNAPSHOT\",/  \"version\": \"${pkgver}\",/" "build/opensearch-dashboards/package.json"
+@@ -101,3 +119,5 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++makedepends+=(jq)
