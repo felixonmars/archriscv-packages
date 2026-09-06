@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,7 +43,7 @@
+   python-falcon
+   python-fastapi
+   python-flask
+-  python-httpx
++  python-httpx2
+   python-multidict
+   python-pytest
+   python-pytest-aiohttp
+@@ -55,6 +55,20 @@
+ source=("git+$url#tag=$pkgver")
+ b2sums=('54bf2eea1c57779ea9144bbc56af2cd0ece68a6ef76a9d4057e251947d4a5e1f031949721deb8b2a46e3a7e5b0e9e70de23ddc8bf1256ae2bdfc2bb3c3554a6f')
+ 
++source+=(jsonschema-path-0.5.patch
++         "$pkgname-pytest-9.1.patch::https://github.com/python-openapi/openapi-core/commit/0cbab14e03c6a9f64be2df51e0c86401f791feca.patch")
++b2sums+=('279bbaf7c3f4252e7723305e9ede15c60ce2c64021d1e2a8d3b62307a5b4aae34d62896f0c1188b107d4db7d7065369cd7dc4b841aa85c5b496fa9fe99b03608'
++         '88da06ab456e4c1753f606cceb963cd1fe04a89b6df64639f3b2068ed67c3153a57410fd07b4aed4fff729d54b01cbce2b965becee028e5ce79d7dcf1d700b2f')
++
++prepare() {
++  cd "${pkgname#python-}"
++  # Use a shared default server for jsonschema-path 0.5.
++  # https://github.com/python-openapi/openapi-core/pull/1189
++  patch -Np1 -i ../jsonschema-path-0.5.patch
++  # pytest 9.1 deprecates class-scoped instance fixtures.
++  patch -Np1 -i ../$pkgname-pytest-9.1.patch
++}
++
+ build() {
+   cd "${pkgname#python-}"
+   python -m build --wheel --no-isolation
