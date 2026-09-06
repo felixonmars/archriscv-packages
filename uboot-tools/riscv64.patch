@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,6 +19,12 @@
+ sha256sums=('78e8bfc382fe388f9b55aa1daf8c563522a037779b5d4c349d1415e381f1243e'
+             'SKIP')
+ 
++prepare() {
++  cd u-boot-$pkgver
++  # SWIG 4.5 no longer provides the Python 2 C API compatibility macros.
++  patch -Np1 -i "$srcdir/fix-swig-4.5.patch"
++}
++
+ build() {
+   cd u-boot-$pkgver
+   make tools-only_defconfig
+@@ -31,3 +37,7 @@
+   ln -s fw_printenv "$pkgdir"/usr/bin/fw_setenv
+   install -m 644 -Dt "$pkgdir"/usr/share/man/man1/ u-boot-$pkgver/doc/{mkimage,dumpimage,kwboot}.1
+ }
++
++source+=(fix-swig-4.5.patch::https://github.com/u-boot/u-boot/commit/527115ef6783cec49e5610c523c124b399011361.patch)
++sha1sums+=('e71e757dc57e62b3956444364dfad63477c9bac5')
++sha256sums+=('32bdab6721d608dd2b1e18315eac5aeb1f60c1c2f0528a5e17549a42f9977942')
