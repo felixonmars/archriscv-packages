@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -46,6 +46,9 @@
+ prepare() {
+   cd "sinatra-${pkgver}"
+ 
++  # Haml 7 changed the default attribute quoting in rendered HTML.
++  patch -Np1 -i "$srcdir/fix-haml-7-tests.patch"
++
+   # update gemspec to allow newer version of the dependencies
+   sed --in-place --regexp-extended 's|~>|>=|g' sinatra.gemspec */*.gemspec
+ 
+@@ -226,3 +229,6 @@
+   install --verbose -D --mode=0644 "${_licensefile}" --target-directory "${pkgdir}/usr/share/licenses/ruby-${_gemname}/"
+   install --verbose -D --mode=0644 *.md --target-directory "${pkgdir}/usr/share/doc/ruby-${_gemname}"
+ }
++
++source+=("fix-haml-7-tests.patch::https://github.com/sinatra/sinatra/commit/0135c85402f08e8a82dc3d270d9ba5a87b13aa40.patch?full_index=1")
++sha512sums+=('c222feaac12d823363fe7b90042843d2898b78ae8cc4f9eca7cbd540345a9b5a8fe2c07a790d60d8294de71bc76d908c8c1a6bcdcff2a01703da3976fa7e4a4f')
