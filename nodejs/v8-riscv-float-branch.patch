@@ -1,0 +1,60 @@
+--- a/deps/v8/src/compiler/backend/riscv/code-generator-riscv.cc
++++ b/deps/v8/src/compiler/backend/riscv/code-generator-riscv.cc
+@@ -433,8 +433,8 @@
+       *predicate = true;
+       return GE;
+     case kFloatLessThanOrUnordered:
+-      *predicate = true;
+-      return LT;
++      *predicate = false;
++      return GE;
+     case kFloatGreaterThanOrUnordered:
+       *predicate = false;
+       return LE;
+@@ -442,8 +442,8 @@
+       *predicate = false;
+       return LT;
+     case kFloatLessThanOrEqualOrUnordered:
+-      *predicate = true;
+-      return LE;
++      *predicate = false;
++      return GT;
+     default:
+       *predicate = true;
+       break;
+--- /dev/null
++++ b/deps/v8/test/mjsunit/wasm/regress-riscv-float-branch.js
+@@ -0,0 +1,33 @@
++// Copyright 2026 the V8 project authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++// Flags: --no-liftoff --no-wasm-loop-unrolling
++
++d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
++
++// A zero left operand is commuted during instruction selection. When the
++// back-edge becomes the branch target, code generation must invert the
++// emitted comparison's result, not just swap the branch labels.
++for (const [comparison, expected] of [[kExprF32Gt, 1], [kExprF32Ge, 0]]) {
++  const builder = new WasmModuleBuilder();
++  builder.addFunction('loop', makeSig([kWasmF32], [kWasmF32]))
++      .addBody([
++        kExprBlock, kWasmVoid,
++          kExprLoop, kWasmVoid,
++            kExprLocalGet, 0,
++            ...wasmF32Const(1),
++            kExprF32Add,
++            kExprLocalTee, 0,
++            ...wasmF32Const(0),
++            comparison,
++            kExprBrIf, 1,
++            kExprBr, 0,
++          kExprEnd,
++        kExprEnd,
++        kExprLocalGet, 0,
++      ])
++      .exportFunc();
++  const instance = builder.instantiate();
++  assertEquals(expected, instance.exports.loop(-10));
++}
