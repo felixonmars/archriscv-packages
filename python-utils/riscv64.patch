@@ -1,15 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
 @@ -32,6 +32,12 @@
- b2sums=('adbfdeb5afb88b96cc8821253fb02f931df998031b162edb1f339d289676fe07fcc3331406a7be6cb3a69dd0b4bb79ac51ae6dbf3b72b47db75ea0d28b286036')
+ b2sums=('7d1477e1d1883cf6af702580286d66a3bfe568297722fa9d31f0dd236c8994feee82034bde458f075c731a15ba68c8fb16984bba00459bcf6b463fc5cd1e007a')
  validpgpkeys=('149325FD15904E9C4EB89E95E81444E9CE1F695D') # Rick van Hattem <wolph@wol.ph>
  
 +prepare() {
 +  cd $pkgname
-+  # Arch's system uv-build is newer than upstream's conservative backend cap.
-+  sed -i 's/uv_build>=0.11,<0.12/uv_build>=0.11/' pyproject.toml
++  # Give the decorator test the same timing margin as the undecorated test.
++  patch -Np1 -i "$srcdir/increase-test-timeout.patch"
 +}
 +
  build() {
    cd $pkgname
    python -m build --wheel --no-isolation
+@@ -48,3 +54,7 @@
+   install -vDm 644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+   install -vDm 644 README.md -t "$pkgdir/usr/share/doc/$pkgname/"
+ }
++
++source+=(increase-test-timeout.patch)
++sha512sums+=('6013f94f98e75414f32f1ca5856298dd5006349fcc5534fe7bd59587781f0149bcb350fa1d5328600b79575e74e85035b26de0cdb36ab73d3c913b511a9036b1')
++b2sums+=('114d13437e055307250675b02a27ac95c223a30d73c4282fd6a0526417ed3e10e2440eb7e10a9d43b17186d531d032913db3241100b5bedb934cf5a0831ac7a1')
