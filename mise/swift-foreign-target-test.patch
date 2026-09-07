@@ -1,0 +1,28 @@
+--- a/src/plugins/core/swift.rs
++++ b/src/plugins/core/swift.rs
+@@ -572,17 +572,21 @@
+         let _guard = pin_platform(None);
+         let backend = SwiftPlugin::new();
+         let tv = tool_version(&backend, "6.3.1");
+-        // riscv64 is never the platform the test suite runs on
+-        let foreign = target("linux-riscv64");
++        let (foreign_platform, archive_suffix) = if target("linux-x64").is_current() {
++            ("linux-arm64", "-ubuntu24.04-aarch64.tar.gz")
++        } else {
++            ("linux-x64", "-ubuntu24.04.tar.gz")
++        };
++        let foreign = target(foreign_platform);
+         assert!(!foreign.is_current());
+
+         assert_eq!(
+-            options(&backend, &tv, "linux-riscv64"),
++            options(&backend, &tv, foreign_platform),
+             BTreeMap::from([(
+                 "swift_platform".to_string(),
+                 format!("ubuntu{DEFAULT_UBUNTU_VERSION}")
+             )])
+         );
+-        assert!(url(&tv, &foreign).ends_with("-ubuntu24.04-riscv64.tar.gz"));
++        assert!(url(&tv, &foreign).ends_with(archive_suffix));
+     }
+ }
