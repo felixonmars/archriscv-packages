@@ -1,0 +1,14 @@
+--- a/pifpaf/drivers/rabbitmq.py
++++ b/pifpaf/drivers/rabbitmq.py
+@@ -116,8 +116,10 @@
+         self.start_node(nodename)
+ 
+     def rabbitmqctl(self, nodename, command):
++        # The CLI derives its own node name separately from the -n target.
++        env = dict(self.env, RABBITMQ_NODENAME=nodename)
+         self._exec(["rabbitmqctl", "-n", nodename] + command,
+-                   path=self._path, env=self.env)
++                   path=self._path, env=env)
+ 
+     def _setUp(self):
+         super(RabbitMQDriver, self)._setUp()
