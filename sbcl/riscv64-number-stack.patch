@@ -1,0 +1,28 @@
+--- a/src/compiler/riscv/c-call.lisp
++++ b/src/compiler/riscv/c-call.lisp
+@@ -220,21 +220,23 @@
+   (:info amount)
+   (:result-types system-area-pointer)
+   (:results (result :scs (sap-reg any-reg)))
++  (:temporary (:sc unsigned-reg) tmp)
+   (:generator 0
+     (unless (zerop amount)
+       (let ((delta (logandc2 (+ amount +number-stack-alignment-mask+)
+                              +number-stack-alignment-mask+)))
+-        (inst subi nsp-tn nsp-tn delta)))
++        (add-imm nsp-tn nsp-tn (- delta) 'alloc-number-stack-space tmp)))
+     (move result nsp-tn)))
+
+ (define-vop (dealloc-number-stack-space)
+   (:info amount)
+   (:policy :fast-safe)
++  (:temporary (:sc unsigned-reg) tmp)
+   (:generator 0
+     (unless (zerop amount)
+       (let ((delta (logandc2 (+ amount +number-stack-alignment-mask+)
+                              +number-stack-alignment-mask+)))
+-        (inst addi nsp-tn nsp-tn delta)))))
++        (add-imm nsp-tn nsp-tn delta 'dealloc-number-stack-space tmp)))))
+ 
+ ;;; Callback
+ #-sb-xc-host

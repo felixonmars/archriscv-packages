@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,6 +21,14 @@
+@@ -21,6 +21,16 @@
              'b5a6468dcbc1012cae2c3cda155762a37b6d96ef89bba4f723315063b0b5e7ce')
  
  
@@ -9,17 +9,20 @@
 +  patch -Np1 -d "$pkgname-$pkgver" < remove-qemu-workarounds.patch
 +  # Implement RV64 foreign callbacks, which currently raise "please implement".
 +  patch -Np1 -d "$pkgname-$pkgver" < riscv64-callbacks.patch
++  # Allow foreign stack allocations larger than the RISC-V 12-bit immediate.
++  patch -Np1 -d "$pkgname-$pkgver" < riscv64-number-stack.patch
 +}
 +
 +
  build() {
    cd "$srcdir/$pkgname-$pkgver"
    export CFLAGS+=" -D_GNU_SOURCE -fno-omit-frame-pointer -DSBCL_HOME=/usr/lib/sbcl"
-@@ -72,3 +80,7 @@
+@@ -72,3 +82,8 @@
    rm "$pkgdir/usr/share/sbcl-source/src/runtime/sbcl"
  
  }
 +
-+source+=(remove-qemu-workarounds.patch riscv64-callbacks.patch)
++source+=(remove-qemu-workarounds.patch riscv64-callbacks.patch riscv64-number-stack.patch)
 +sha256sums+=(3339ef8fa8736c5e5f40cff5934814cdad74e5e37226498b3434aa9fe0cd641e
-+             1a7422b90cfff41ed5deaaf9de28a06001846c9637bc1cfafa629d7224942fd2)
++             1a7422b90cfff41ed5deaaf9de28a06001846c9637bc1cfafa629d7224942fd2
++             beb420073c6fdad7bf0eb99ffbe564f3372024e71619912aa4e9834b68bf9207)
