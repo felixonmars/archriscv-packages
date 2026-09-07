@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -46,7 +46,6 @@ _appliancedeps=(
+@@ -58,7 +58,6 @@
    rsync
    squashfs-tools
    strace
@@ -8,20 +8,43 @@
    systemd-sysvcompat
    vim
    xfsprogs
-@@ -132,6 +131,8 @@ prepare() {
-   # disable php tests, as missing arginfo definition makes them fail: https://github.com/libguestfs/libguestfs/issues/78
+@@ -144,6 +143,9 @@
    patch -Np1 -d $pkgname-$pkgver -i ../$pkgname-1.48.1-disable_php_tests.patch
  
-+  patch -Np1 -d $pkgname-$pkgver -i ../fix-char-signedness.patch
-+
    cd $pkgname-$pkgver
-   autoreconf -fiv
++  patch -Np1 -i "$srcdir/refresh-udev-after-mkfs.patch"
++  patch -Np1 -i "$srcdir/recover-blkrrpart.patch"
++  patch -Np1 -i "$srcdir/riscv64-test-timeouts.patch"
+   autoreconf -fiv -I /usr/share/gettext/m4
  }
-@@ -162,3 +163,7 @@ check() {
- package() {
-   make INSTALLDIRS=vendor DESTDIR="$pkgdir" install -C $pkgname-$pkgver
+ 
+@@ -170,7 +172,8 @@
+   export SKIP_TEST_CHARSET_FIDELITY=1  # https://github.com/libguestfs/libguestfs/issues/357
+   export SKIP_TEST_VFS_MINIMUM_SIZE_3=1  # https://github.com/libguestfs/libguestfs/issues/371
+   export SKIP_TEST_EXPAND_GPT_PY=1  # https://github.com/libguestfs/libguestfs/issues/376
+-  LIBGUESTFS_DEBUG=1 LIBGUESTFS_TRACE=1 make -k check -C $pkgname-$pkgver
++  # Avoid competing software-emulated appliances during the test suite.
++  LIBGUESTFS_DEBUG=1 LIBGUESTFS_TRACE=1 make -j1 -k check -C $pkgname-$pkgver
+ }
+ 
+ _pick() {
+@@ -225,7 +228,6 @@
+     'rsync: for rsync support in the VM appliance'
+     'squashfs-tools: for squashfs support in the VM appliance'
+     'strace: for tracing support in the VM appliance'
+-    'syslinux: for syslinux support in the VM appliance'
+     'systemd-sysvcompat: for sysvinit support in the VM appliance'
+     'vim: for vim support in the VM appliance'
+     'xfsprogs: for XFS support in the VM appliance'
+@@ -358,3 +360,11 @@
+ 
+   mv -v $pkgname/* "$pkgdir"
  }
 +
-+source+=(fix-char-signedness.patch)
-+sha512sums+=('04df21407ab6c0b2415674f99cea4c2f17b3f62e563acd6b7201ea24f6c30369b118cca308b5b3a772cc0504d35ed558058f0a945c203290c907378a7b23b969')
-+b2sums+=('4fedc82af6190e9478478d6ef9705d6e7c06a9dbfe06b5c7645edd0e66409b382248fb0efed585218ce1b241255f0cf107422f9a1bb6ca84d400d380303cd68b')
++source+=(refresh-udev-after-mkfs.patch recover-blkrrpart.patch riscv64-test-timeouts.patch)
++sha512sums+=('b4a834195559d9e5a626f3ef22d6355cbf6f4c81ab73201b9e4aad67e59b2f86516ef02a11b24945f2d71c2d95d278fe2b278cd621bedb0336d93e219a0f0738'
++            '9eb9b47d9c4352d220cf3079fae464fbc5f2c5d44fca5b938bbfe189c4e2bec2d504f245e7f114825e006895e578ae6e1561cdd620e0d2dc98b129e287e59095'
++            '84d5d64ec891c9805ce7e6dd3dfffd4ce8e7dd051857d2a1fb381bfacd703920c789ffad481a24df31cee7e48a0678bd775d82154eea3fe1a78d62315ee874fa')
++b2sums+=('d94d5785a987e68e17458eb40fe00a17edd8da4698704f6e358ce2762982e027339a2274f8b6e74de6b0f84d2d70c22400a9b85967ca1fa4ef4f9c6340b56c17'
++         '2bf660f6a8e5028de2d8cf10cae7cbf9166c7cdce40d2e1c47403fbb2b0193de2a700abd6190a2d5148745a8f9bb9c2a45568f5bdd293ea02576606d5c6ef2d9'
++         'cbbc97de04464c6f2196c0052db146bd0f7c5205dbf39d180b056f5ca6b6b7cd45fc9ee5b718ddcb9a21f7823d76709a30919391a7ef16a92d3692086ba32d1e')

@@ -1,0 +1,48 @@
+--- a/tests/c-api/tests-main.c
++++ b/tests/c-api/tests-main.c
+@@ -452,7 +452,7 @@
+   }
+ 
+   /* Set a timeout in case qemu hangs during launch (RHBZ#505329). */
+-  alarm (600);
++  alarm (1200);
+ 
+   if (guestfs_launch (g) == -1) {
+     printf ("FAIL: guestfs_launch\n");
+--- a/tests/regressions/rhbz975797.sh
++++ b/tests/regressions/rhbz975797.sh
+@@ -31,7 +31,7 @@
+ 
+ rm -f rhbz975797-*.img
+ 
+-timeout="timeout 600"
++timeout="timeout 1200"
+ 
+ # Use real disk images here since the code for adding /dev/null may
+ # take shortcuts.
+--- a/run.in
++++ b/run.in
+@@ -240,9 +240,8 @@
+ # For tests (./run --test):
+ #  - timeout if the test takes too long to run
+ 
+-# Originally 1h, but that is not long enough to run the C API
+-# tests on Koji.
+-timeout_period=4h
++# The C API tests take over 21 hours under software emulation on riscv64.
++timeout_period=24h
+ timeout_kill=30s
+ 
+ # Must use the --foreground option (RHBZ#1025269).
+--- a/tests/mount-local/test-parallel-mount-local.c
++++ b/tests/mount-local/test-parallel-mount-local.c
+@@ -46,7 +46,8 @@
+ 
+ #define TOTAL_TIME 60           /* Seconds, excluding launch. */
+ #define DEBUG 1                 /* Print overview debugging messages. */
+-#define MAX_THREADS 12
++/* Keep concurrent software-emulated appliances from starving udev. */
++#define MAX_THREADS 2
+ 
+ struct thread_state {
+   pthread_t thread;             /* Thread handle. */
