@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -34,7 +34,6 @@ makedepends+=(
+@@ -36,7 +36,6 @@
    alsa-lib
    hicolor-icon-theme
    jack
@@ -8,13 +8,20 @@
    libpulse
    libsndfile
    libspeechd
-@@ -89,6 +88,9 @@ prepare() {
- }
- 
- build() {
-+  # fix signedness of char, see https://github.com/mumble-voip/mumble/issues/3845
-+  CFLAGS+=" -fsigned-char "
-+  CXXFLAGS+=" -fsigned-char "
-   local default_options=(
-     -D CMAKE_INSTALL_PREFIX=/usr
-     -D CMAKE_BUILD_TYPE=None
+@@ -103,6 +102,8 @@
+   local cmake_options_client=(
+     -D update=OFF
+     -D server=OFF
++    # No multilib on riscv64; keep the native overlay.
++    -D overlay-xcompile=OFF
+     -B build-client
+     -D bundled-json=OFF
+     -D bundled-rnnoise=OFF
+@@ -153,7 +154,6 @@
+   )
+   optdepends=(
+     'bash: for mumble-overlay'
+-    'lib32-glibc: for mumble-overlay'
+     'espeak-ng: Text-to-speech support'
+     'speech-dispatcher: Text-to-speech support'
+   )
