@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -40,6 +40,13 @@
+ prepare() {
+   cd nbdime-$pkgver
+
++  # Lerna's Nx dependency has no riscv64 native binding.
++  npm pkg delete devDependencies.lerna
++  npm pkg set 'scripts.build=npm run build -w nbdime && npm run build -w nbdime-jupyterlab && npm run build -w nbdime-webapp'
++
++  # Allow time for Mercurial repository setup on slower builders.
++  sed -i 's/timeout=WEB_TEST_TIMEOUT)/timeout=3*WEB_TEST_TIMEOUT)/' nbdime/tests/test_cli_apps.py
++
+   # Many tests need a valid git config
+   cat > gitconfig <<EOF
+ [user]
