@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,6 +31,12 @@
+ source=(git+https://github.com/jupyter/notebook#tag=v$pkgver)
+ sha256sums=('1bf5806b1581354ca86e717f4682532ec201cb0577bf9ea4de8c2d44bf6d01cf')
+ 
++prepare() {
++  cd notebook
++  # Install Rspack's WASM fallback; 2.0.4 has no riscv64 native binding.
++  jlpm config set supportedArchitectures.cpu --json '["current", "wasm32"]'
++}
++
+ build() {
+   cd notebook
+   python -m build --wheel --no-isolation --skip-dependency-check
