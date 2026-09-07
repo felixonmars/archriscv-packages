@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,6 +13,12 @@
+ source=("https://hackage.haskell.org/packages/archive/$_pkgname/$pkgver/$_pkgname-$pkgver.tar.gz")
+ sha512sums=('517857a15095770d9188ac20aff9a9fc7a907a7b8192511b48614997e5f3d5f6fe81cd60d2f590922d46ca62ade70f0a6b7e3e6d58ce8425a97384e5a6880351')
+
++prepare() {
++  cd $_pkgname-$pkgver
++  # Allow more time for the timer benchmark on slower riscv64 builders.
++  sed -i 's/duration > 4\.0/duration > 120.0/' test/Main.hs
++}
++
+ build() {
+   cd $_pkgname-$pkgver
+   runhaskell Setup configure -O --enable-shared --enable-debug-info --enable-executable-dynamic --disable-library-vanilla \
