@@ -1,21 +1,6 @@
-Index: sbcl-2.4.4/make-config.sh
-===================================================================
---- sbcl-2.4.4.orig/make-config.sh
-+++ sbcl-2.4.4/make-config.sh
-@@ -565,7 +565,7 @@ case "$sbcl_os" in
-     linux)
-         printf ' :unix :linux :elf' >> $ltf
-         case "$sbcl_arch" in
--          arm64 | ppc64 | x86 | x86-64)
-+          arm64 | ppc64 | x86 | x86-64 | riscv)
- 	        printf ' :gcc-tls' >> $ltf
-         esac
-         case "$sbcl_arch" in
-Index: sbcl-2.4.4/src/runtime/gc-common.c
-===================================================================
---- sbcl-2.4.4.orig/src/runtime/gc-common.c
-+++ sbcl-2.4.4/src/runtime/gc-common.c
-@@ -3187,9 +3187,6 @@ static inline void memset_page_range(int
+--- a/src/runtime/gc-common.c
++++ b/src/runtime/gc-common.c
+@@ -2978,9 +2978,6 @@
   *   Otherwise, pages which are already zero-filled are skipped.
   *   For each newly zeroed page, clear the need_to_zero flag.
   */
@@ -25,11 +10,9 @@ Index: sbcl-2.4.4/src/runtime/gc-common.c
  void prepare_pages(__attribute__((unused)) bool commit,
                     page_index_t start, page_index_t end,
                     int page_type, generation_index_t generation) {
-Index: sbcl-2.4.4/src/runtime/gencgc-impl.h
-===================================================================
---- sbcl-2.4.4.orig/src/runtime/gencgc-impl.h
-+++ sbcl-2.4.4/src/runtime/gencgc-impl.h
-@@ -575,11 +575,7 @@ extern os_vm_size_t auto_gc_trigger;
+--- a/src/runtime/gencgc-impl.h
++++ b/src/runtime/gencgc-impl.h
+@@ -600,11 +600,7 @@
  typedef unsigned int page_bytes_t;
  #define page_words_used(index) page_table[index].words_used_
  #define page_bytes_used(index) ((page_bytes_t)page_table[index].words_used_<<WORD_SHIFT)
@@ -41,22 +24,37 @@ Index: sbcl-2.4.4/src/runtime/gencgc-impl.h
  #define set_page_bytes_used(index,val) page_table[index].words_used_ = ((val)>>WORD_SHIFT)
  #define set_page_need_to_zero(index,val) page_table[index].need_zerofill = val
  
-Index: sbcl-2.4.4/src/runtime/linux-os.c
-===================================================================
---- sbcl-2.4.4.orig/src/runtime/linux-os.c
-+++ sbcl-2.4.4/src/runtime/linux-os.c
-@@ -275,23 +275,16 @@ extern char **environ;
+--- a/src/runtime/interrupt.c
++++ b/src/runtime/interrupt.c
+@@ -486,14 +486,8 @@
+         lose("deferrables unblocked");
+ }
+ 
+-#ifdef LISP_FEATURE_RISCV
+-int sigaction_does_not_mask;
+-#endif
+ static void assert_blockables_blocked()
+ {
+-#ifdef LISP_FEATURE_RISCV
+-    if (sigaction_does_not_mask) return; // assert nothing
+-#endif
+ #if !defined(LISP_FEATURE_WIN32)
+     /* On Windows, there are no actual signals, but since the win32 port
+      * tracks the sigmask and checks it explicitly, some functions are
+--- a/src/runtime/linux-os.c
++++ b/src/runtime/linux-os.c
+@@ -183,29 +183,6 @@
+ extern char **environ;
  int os_preinit(char *argv[], char *envp[])
  {
- #ifdef LISP_FEATURE_RISCV
+-#ifdef LISP_FEATURE_RISCV
 -    extern int riscv_user_emulation, mmap_does_not_zero, sigaction_does_not_mask;
 -    /* Accomodate buggy mmap() emulation, but detect up front whether it may be.
 -     * Full system emulation running a RISCV kernel is generally fine. User mode is not.
 -     * There's no way to know what it _will_ do, so we have to guess based on
 -     * whether the emulation looks bad. */
-+    extern int sigaction_does_not_mask;
-     char buf[100];
-     FILE *f = fopen("/proc/cpuinfo", "r");
+-    char buf[100];
+-    FILE *f = fopen("/proc/cpuinfo", "r");
 -    ignore_value(fgets(buf, sizeof buf, f));
 -    ignore_value(fgets(buf, sizeof buf, f));
 -    if (!strstr(buf, "hart")) { // look for "hardware thread" string
@@ -67,21 +65,17 @@ Index: sbcl-2.4.4/src/runtime/linux-os.c
 -        fprintf(stderr, "----\n");
 -        riscv_user_emulation = 1;
 -        mmap_does_not_zero = 1;
-+    buf[0] = 0;
-+    if (f != NULL) {
-+        while (fgets(buf, sizeof buf, f) && buf[0] != '\n')
-+            if (strncmp(buf, "uarch", strlen("uarch")) == 0)
-+                break;
-+    }
-+    if (strstr(buf, "qemu")) { // look for "uarch : qemu"
-         sigaction_does_not_mask = 1;
-     }
-     fclose(f);
-Index: sbcl-2.4.4/src/runtime/pmrgc-impl.h
-===================================================================
---- sbcl-2.4.4.orig/src/runtime/pmrgc-impl.h
-+++ sbcl-2.4.4/src/runtime/pmrgc-impl.h
-@@ -568,11 +568,7 @@ extern os_vm_size_t auto_gc_trigger;
+-        sigaction_does_not_mask = 1;
+-    }
+-    fclose(f);
+-#endif
+-
+ #if ALLOW_PERSONALITY_CHANGE
+     if (getenv("SBCL_IS_RESTARTING")) {
+         /* We restarted due to previously enabled ASLR.  Now,
+--- a/src/runtime/pmrgc-impl.h
++++ b/src/runtime/pmrgc-impl.h
+@@ -584,11 +584,7 @@
  typedef unsigned int page_bytes_t;
  #define page_words_used(index) page_table[index].words_used_
  #define page_bytes_used(index) ((page_bytes_t)page_table[index].words_used_<<WORD_SHIFT)
@@ -93,11 +87,9 @@ Index: sbcl-2.4.4/src/runtime/pmrgc-impl.h
  #define set_page_bytes_used(index,val) page_table[index].words_used_ = ((val)>>WORD_SHIFT)
  #define set_page_need_to_zero(index,val) page_table[index].need_zerofill = val
  
-Index: sbcl-2.4.4/src/runtime/riscv-arch.c
-===================================================================
---- sbcl-2.4.4.orig/src/runtime/riscv-arch.c
-+++ sbcl-2.4.4/src/runtime/riscv-arch.c
-@@ -94,27 +94,11 @@ arch_handle_single_step_trap(os_context_
+--- a/src/runtime/riscv-arch.c
++++ b/src/runtime/riscv-arch.c
+@@ -84,27 +84,11 @@
      arch_skip_instruction(context);
  }
  
@@ -125,4 +117,3 @@ Index: sbcl-2.4.4/src/runtime/riscv-arch.c
      if (trap_instruction != 0x100073) {
          lose("Unrecognized trap instruction %08x in sigtrap_handler()",
               trap_instruction);
-

@@ -1,21 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -19,6 +19,11 @@ sha256sums=('68544d2503635acd015d534ccc9b2ae9f68996d429b5a9063fd22ff0925011d2'
+@@ -21,6 +21,14 @@
              'b5a6468dcbc1012cae2c3cda155762a37b6d96ef89bba4f723315063b0b5e7ce')
  
  
 +prepare() {
-+  patch -Np1 -d "$pkgname-$pkgver" < riscv-qemu-user.patch
++  # Remove obsolete QEMU workarounds and restore signal-mask assertions.
++  patch -Np1 -d "$pkgname-$pkgver" < remove-qemu-workarounds.patch
++  # Implement RV64 foreign callbacks, which currently raise "please implement".
++  patch -Np1 -d "$pkgname-$pkgver" < riscv64-callbacks.patch
 +}
 +
 +
  build() {
    cd "$srcdir/$pkgname-$pkgver"
    export CFLAGS+=" -D_GNU_SOURCE -fno-omit-frame-pointer -DSBCL_HOME=/usr/lib/sbcl"
-@@ -57,3 +62,6 @@ package() {
+@@ -72,3 +80,7 @@
    rm "$pkgdir/usr/share/sbcl-source/src/runtime/sbcl"
  
  }
 +
-+source+=(riscv-qemu-user.patch)
-+sha256sums+=(f0facef287c9203adf0eef0a6bff4655257171e8730854b7af68641f276f05cd)
++source+=(remove-qemu-workarounds.patch riscv64-callbacks.patch)
++sha256sums+=(3339ef8fa8736c5e5f40cff5934814cdad74e5e37226498b3434aa9fe0cd641e
++             1a7422b90cfff41ed5deaaf9de28a06001846c9637bc1cfafa629d7224942fd2)

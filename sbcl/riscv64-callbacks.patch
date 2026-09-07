@@ -1,0 +1,122 @@
+--- a/make-config.sh
++++ b/make-config.sh
+@@ -783,7 +783,7 @@
+    ;;
+   riscv)
+     if [ "$xlen" = "64" ]; then
+-        printf ' :64-bit' >> $ltf
++        printf ' :64-bit :alien-callbacks' >> $ltf
+     elif [ "$xlen" = "32" ]; then
+         :
+     else
+--- a/src/compiler/riscv/c-call.lisp
++++ b/src/compiler/riscv/c-call.lisp
+@@ -243,7 +243,95 @@
+ 
+ ;;; Returns a vector in static space containing machine code for the
+ ;;; callback wrapper.
+-#-sb-xc-host
++#-(or sb-xc-host 64-bit)
+ (defun alien-callback-assembler-wrapper (index result-type argument-types)
+   (declare (ignore index result-type argument-types))
+   (error "please implement"))
++
++#+(and (not sb-xc-host) 64-bit)
++(defun alien-callback-assembler-wrapper (index result-type argument-types)
++  (flet ((scalar-type-p (type)
++           (or (and (alien-integer-type-p type)
++                    (<= (alien-type-bits type) n-word-bits))
++               (alien-pointer-type-p type)
++               (alien-type-= #.(parse-alien-type 'system-area-pointer nil) type)
++               (alien-single-float-type-p type)
++               (alien-double-float-type-p type))))
++    (dolist (type argument-types)
++      (unless (scalar-type-p type)
++        (error "Unsupported callback argument type: ~A" type)))
++    (unless (or (alien-void-type-p result-type) (scalar-type-p result-type))
++      (error "Unsupported callback result type: ~A" result-type)))
++  (let* ((segment (make-segment))
++         ;; Result slot followed by the word-aligned argument buffer.
++         (frame-size (align-up (* (1+ (length argument-types)) n-word-bytes)
++                              (1+ +number-stack-alignment-mask+)))
++         ;; Only use C caller-saved registers outside a0-a7 while saving arguments.
++         (stack-tn (make-reg-tn 5))
++         (args-tn (make-reg-tn 6))
++         (temp-tn (make-reg-tn 7))
++         (ca0 (make-reg-tn ca0-offset))
++         (ca1 (make-reg-tn ca1-offset))
++         (ca2 (make-reg-tn ca2-offset))
++         (integer-registers 0)
++         (float-registers 0))
++    (assemble (segment nil)
++      (move stack-tn nsp-tn)
++      ;; LI uses TMP (s9) for wide immediates; preserve it for the C caller.
++      (inst addi nsp-tn nsp-tn -16)
++      (storew ra-tn nsp-tn)
++      (storew tmp-tn nsp-tn 1)
++      (inst li temp-tn frame-size)
++      (inst sub nsp-tn nsp-tn temp-tn)
++      (inst addi args-tn nsp-tn n-word-bytes)
++      (dolist (type argument-types)
++        (cond ((and (alien-float-type-p type)
++                    (< float-registers n-foreign-register-args))
++               (inst fstore
++                     (if (alien-single-float-type-p type) :single :double)
++                     (make-reg-tn (+ fa0-offset float-registers) 'double-reg)
++                     args-tn 0)
++               (incf float-registers))
++              ;; Once fa0-fa7 are exhausted, floats follow the integer ABI.
++              ((< integer-registers n-foreign-register-args)
++               (storew (make-reg-tn (register-args-offset integer-registers))
++                       args-tn)
++               (incf integer-registers))
++              (t
++               (loadw temp-tn stack-tn)
++               (storew temp-tn args-tn)
++               (inst addi stack-tn stack-tn n-word-bytes)))
++        (inst addi args-tn args-tn n-word-bytes))
++      (inst li ca0 (fixnumize index))
++      (inst addi ca1 nsp-tn n-word-bytes)
++      (move ca2 nsp-tn)
++      (inst li temp-tn (callback_wrapper_trampoline))
++      (inst jalr ra-tn temp-tn 0)
++      (cond ((alien-void-type-p result-type))
++            ((alien-float-type-p result-type)
++             ;; FLW also NaN-boxes a single-float result in fa0.
++             (inst fload
++                   (if (alien-single-float-type-p result-type) :single :double)
++                   (make-reg-tn fa0-offset 'double-reg) nsp-tn 0))
++            ((and (alien-integer-type-p result-type)
++                  (= (alien-type-bits result-type) 32))
++             ;; The RV64 ABI sign-extends even unsigned 32-bit results.
++             (inst lw ca0 nsp-tn 0))
++            (t
++             (loadw ca0 nsp-tn)))
++      (inst li temp-tn frame-size)
++      (inst add nsp-tn nsp-tn temp-tn)
++      (loadw ra-tn nsp-tn)
++      (loadw tmp-tn nsp-tn 1)
++      (inst addi nsp-tn nsp-tn 16)
++      (inst jalr zero-tn ra-tn 0))
++    (finalize-segment segment)
++    (let* ((buffer (sb-assem:segment-buffer segment))
++           (vector (make-static-vector (length buffer)
++                                       :element-type '(unsigned-byte 8)
++                                       :initial-contents buffer)))
++      (alien-funcall
++       (extern-alien "os_flush_icache"
++                     (function void system-area-pointer unsigned-long))
++       (vector-sap vector) (length buffer))
++      vector)))
+--- a/tests/fcb-threads.impure.lisp
++++ b/tests/fcb-threads.impure.lisp
+@@ -15,7 +15,8 @@
+ ;;;  - garbage_collect: no SP known for thread 0x802bea000 (OS 34367133952)
+ ;;;  - failed AVER: (NOT (SB-THREAD::AVL-FIND ADDR SB-THREAD::OLD))
+ 
+-#+(or riscv (not sb-thread) freebsd) (invoke-restart 'run-tests::skip-file)
++#+(or (and riscv (not 64-bit)) (not sb-thread) freebsd)
++(invoke-restart 'run-tests::skip-file)
+ 
+ (setf (generation-number-of-gcs-before-promotion 0) 5)
+ (setf (generation-number-of-gcs-before-promotion 1) 3)
