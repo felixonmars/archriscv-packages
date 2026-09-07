@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -65,12 +65,24 @@
+@@ -65,12 +65,41 @@
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -16,16 +16,33 @@
    patch --forward --strip=1 --input=../0001-test-account-for-varied-OpenSSL-CCM-final-behaviours.patch
 +  patch -Np1 -i ../hwy-broken-rvv.diff
 +
++  # Fix stale RISC-V vector configuration after Wasm branches.
++  # https://github.com/v8/v8/commit/c81ffb7a356dc408940d479fbbec1d048181be71
++  patch -Np1 -i ../fix-wasm-vector-state.patch
++
++  # Preserve live Wasm vectors across runtime calls, including tier-up.
++  # https://github.com/v8/v8/commit/9e974a766900c7bf90625f43daebb78c35c3a82e
++  # https://github.com/v8/v8/commit/2f53cbb0d31176a4219b34310db49f26be6ceb4c
++  patch -Np1 -i ../fix-wasm-vector-spills.patch
++
++  # Avoid reading stale upper bits from Wasm i32 stack arguments.
++  # https://github.com/v8/v8/commit/6c093feb492d2f68ea0b688281076ee43ff66b7a
++  patch -Np1 -i ../fix-wasm-i32-stack-loads.patch
++
 +  # Fix missed WASI worker notifications and the short startup timeout.
 +  # https://github.com/nodejs/node/commit/bb8f1148c4437eabf9ab568dc5b199cac0b2ae93
 +  patch -Np1 -i ../fix-wasi-thread-spawn.patch
++
++  # Large Wasm modules can overflow RISC-V lazy-compile jump offsets.
++  # https://github.com/v8/v8/commit/def38dd3f8726ed595932624ee5d681a3f02ed4a
++  patch -Np1 -i ../fix-wasm-lazy-jump.patch
 +
 +  # Ten WPT workers can exhaust the Wasm address space available on Sv39.
 +  sed -i 's/concurrency = Math.min(10, concurrency);/concurrency = Math.min(2, concurrency);/' test/common/wpt.js
  }
  
  build() {
-@@ -105,6 +117,8 @@
+@@ -105,6 +134,8 @@
  check() {
    _set_flags
    cd node
@@ -34,13 +51,21 @@
    rm test/parallel/test-http2-client-set-priority.js
    rm test/parallel/test-http2-client-unescaped-path.js
    rm test/parallel/test-http2-max-invalid-frames.js
-@@ -124,3 +138,9 @@
+@@ -124,3 +155,17 @@
    make DESTDIR="$pkgdir" install
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
 +
 +makedepends+=(clang)
 +source+=("hwy-broken-rvv.diff"
-+         "fix-wasi-thread-spawn.patch")
++         "fix-wasi-thread-spawn.patch"
++         "fix-wasm-lazy-jump.patch"
++         "fix-wasm-vector-state.patch"
++         "fix-wasm-vector-spills.patch"
++         "fix-wasm-i32-stack-loads.patch")
 +b2sums+=('4717b78b17b63195ee6c4f3b989e52aa6cabb2ed565945371774d643faa235f14fd315df5eac2800709b95b5e6ba889d60410f6242e11873a995e2a78e37d5cc'
-+         'f4392dd1649f9f3e041890ca74b434f5f560a46b54ef6994826c35e5852c11897c85563504434cc03e9163049e328a7cc93162a53cc9e96a4de18611fae38131')
++         'f4392dd1649f9f3e041890ca74b434f5f560a46b54ef6994826c35e5852c11897c85563504434cc03e9163049e328a7cc93162a53cc9e96a4de18611fae38131'
++         'fc115df5c010588b446bcded60d2debec9d67cb84acd201594c4f27b8542eaf55b2f20b8f7ac5b994518032c046e81e0be24bc39e23c9e156091569a617b580e'
++         '77aea04aa568cff2572a46709b83811f4bd5b7e93ecdcbe9e3213f4db4f496bdcbcc235a2bbf475a95fd0e561ef67efcb7fcaa0e1631a5d9d288faae5a8f8681'
++         '04ba2abd06b098db9ef9e7dbed272bb42581be8474afb353a87c107ea24fbf3b226e4341e5eddf67b7315ac12dbab06ead1353383ea6b8da1c6840440dde4051'
++         '0265cc552fd5d1b7c42451f4390124a65cd9ced822448a5be319f919a7d3dc382420c9e02d76285b52f55060d7b60b33e0778346e2c035a44ec538a586f45998')

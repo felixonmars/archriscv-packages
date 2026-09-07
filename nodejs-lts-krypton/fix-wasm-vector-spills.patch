@@ -1,0 +1,51 @@
+--- a/deps/v8/src/wasm/baseline/riscv/liftoff-assembler-riscv-inl.h
++++ b/deps/v8/src/wasm/baseline/riscv/liftoff-assembler-riscv-inl.h
+@@ -2325,10 +2325,37 @@
+     }
+     DCHECK_EQ(offset, num_fp_regs * sizeof(double));
+   }
++
++  // Liftoff uses the same register codes for FP and SIMD values, but RISC-V
++  // has separate register banks. Preserve both across runtime calls.
++  fp_regs = regs & kFpCacheRegList;
++  if (CpuFeatures::SupportsWasmSimd128() && !fp_regs.is_empty()) {
++    li(kScratchReg, kSimd128Size);
++    VU.clear();
++    VU.set(zero_reg, kScratchReg, E8, m1);
++    while (!fp_regs.is_empty()) {
++      LiftoffRegister reg = fp_regs.GetFirstRegSet();
++      AddWord(sp, sp, Operand(-kSimd128Size));
++      vs(reg.fp().toV(), sp, 0, E8);
++      fp_regs.clear(reg);
++    }
++  }
+ }
+ 
+ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
+   LiftoffRegList fp_regs = regs & kFpCacheRegList;
++  if (CpuFeatures::SupportsWasmSimd128() && !fp_regs.is_empty()) {
++    li(kScratchReg, kSimd128Size);
++    VU.clear();
++    VU.set(zero_reg, kScratchReg, E8, m1);
++    while (!fp_regs.is_empty()) {
++      LiftoffRegister reg = fp_regs.GetLastRegSet();
++      vl(reg.fp().toV(), sp, 0, E8);
++      AddWord(sp, sp, Operand(kSimd128Size));
++      fp_regs.clear(reg);
++    }
++  }
++  fp_regs = regs & kFpCacheRegList;
+   int32_t fp_offset = 0;
+   while (!fp_regs.is_empty()) {
+     LiftoffRegister reg = fp_regs.GetFirstRegSet();
+@@ -2352,7 +2379,9 @@
+     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
+     LiftoffRegList ref_spills, int spill_offset) {
+   LiftoffRegList fp_spills = all_spills & kFpCacheRegList;
+-  int spill_space_size = fp_spills.GetNumRegsSet() * kSimd128Size;
++  int fp_slot_size =
++      kDoubleSize + (CpuFeatures::SupportsWasmSimd128() ? kSimd128Size : 0);
++  int spill_space_size = fp_spills.GetNumRegsSet() * fp_slot_size;
+   LiftoffRegList gp_spills = all_spills & kGpCacheRegList;
+   while (!gp_spills.is_empty()) {
+     LiftoffRegister reg = gp_spills.GetFirstRegSet();
