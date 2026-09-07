@@ -1,0 +1,19 @@
+--- a/daemon/mkfs.c
++++ b/daemon/mkfs.c
+@@ -274,6 +274,16 @@
+     return -1;
+   }
+ 
++  /* mount may read the filesystem type from udev instead of probing it. */
++  free (err);
++  err = NULL;
++  r = command (NULL, &err, "udevadm", "trigger", "--action=change",
++               "--settle", device, NULL);
++  if (r == -1) {
++    reply_with_error ("udevadm trigger: %s: %s", device, err);
++    return -1;
++  }
++
+   return 0;
+ }
+ 
