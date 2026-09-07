@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -97,6 +97,10 @@
+   sed -E 's|(else )hostname(;)|\1uname -n\2|' -i deps/rabbitmq_ct_helpers/tools/tls-certs/Makefile
+   patch -p1 < ../rabbitmq-customize-systemd-service.patch
+   patch -p1 < ../rabbitmq-devendor-rebar3.patch
++
++  # Horus 0.4.0 cannot extract Khepri transaction functions with Erlang/OTP 29.
++  make -j1 fetch-deps
++  git apply --directory=deps/horus --include=deps/horus/src/horus.erl ../horus-otp29.patch
+ }
+ 
+ build() {
+@@ -186,3 +190,6 @@
+ 
+   chown -vR 197:0 "$pkgdir/etc/rabbitmq"
+ }
++
++source+=("horus-otp29.patch::https://github.com/rabbitmq/horus/commit/0b9e33df6fba6fd3893c5e936891e9b84d24d3f7.patch")
++sha512sums+=('27ab548bae15a35dc55c8324046219e77722166e5da17569fd13aa266e1855d9efe50b889315f5bf06d4245a2e449571ef176ad451cf29dd86e71f47a8f9357f')
