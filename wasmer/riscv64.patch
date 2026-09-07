@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,4 +11,5 @@
+ depends=('libgcc' 'libstdc++' 'zlib' 'ncurses' 'libffi' 'libxkbcommon' 'llvm' 'glibc')
+ makedepends=('clang' 'git' 'rustup' 'cmake')
++makedepends_riscv64=('lld')
+ source=("git+https://github.com/wasmerio/wasmer#tag=v${pkgver}"
+         "${pkgname}-napi::git+https://github.com/wasmerio/napi"
+@@ -32,4 +33,6 @@
+ build() {
+   cd "$pkgname"
++  # The pinned Rust toolchain defaults to BFD, which rejects --icf=safe.
++  export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
+   make ENABLE_CRANELIFT=1 ENABLE_LLVM=1 WASMER_REPRODUCIBLE_BUILD=1 WASMER_INSTALL_PREFIX=/usr
+ }
+@@ -37,4 +40,5 @@
+ check() {
+   cd "$pkgname"
++  export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
+   make test-examples
+ }
