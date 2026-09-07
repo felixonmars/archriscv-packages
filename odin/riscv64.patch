@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -26,6 +26,9 @@
+ prepare() {
+   cd Odin
+ 
++  patch -Np1 -i "$srcdir/fix-register-macros.patch"
++  patch -Np1 -i "$srcdir/fix-semid-ds.patch"
++
+   # Trickery for using the shared system library for Raylib
+   rm vendor/raylib/linux/{libraylib.a,libraylib.so.600,libraygui.a,libraygui.so}
+   ln -s /usr/lib/libraylib.so.600 vendor/raylib/linux/libraylib.so.600
+@@ -76,3 +79,9 @@
+   install -Dm644 PROPOSAL-PROCESS.md "$pkgdir/usr/share/doc/$pkgname/PROPOSAL-PROCESS.md"
+   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+ }
++
++checkdepends+=(lua54)
++source+=(fix-register-macros.patch
++         fix-semid-ds.patch)
++b2sums+=('97fe75aaaf3acfea634c821f50632ff3833f6080ea38136f2d8fb691c49a1bcb9b0b017b30b2744c20037380d615b42e997b0262841e54c71ec99019abcd3311'
++         'a426a5cca8f939fd4f03b053c36cc5ec2f3f81228e542d9b30cf7943bf2978bac9d35a64f4913c6ebdc2220d488b39f9c5de1efd07b0438c15d1ae22d4624b56')
