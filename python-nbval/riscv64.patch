@@ -1,0 +1,16 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,6 +18,13 @@
+ source=("git+https://github.com/computationalmodelling/nbval.git#tag=$pkgver")
+ sha512sums=('0649b958eda9f21108a3647da60d54047101bab8035f4663e7da6aaefa58c8b67ae58852c492b5c11c2541251c21eed98932e1ad0d2ef974a4ce518f1f2f12ff')
+
++prepare() {
++  cd nbval
++  # Pass the required config argument to pytest's report hook.
++  # https://github.com/computationalmodelling/nbval/issues/230
++  sed -i 's/pytest_report_teststatus(report=rep)/pytest_report_teststatus(report=rep, config=self.config)/' nbval/nbdime_reporter.py
++}
++
+ build() {
+   cd nbval
+   python -m build --wheel --no-isolation
