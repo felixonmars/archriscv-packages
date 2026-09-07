@@ -1,0 +1,58 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -60,7 +60,7 @@
+             'trash-cli: file deletion support (trash-put)'
+             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
+ options=('!lto') # Electron adds its own flags for ThinLTO
+-source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
++source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
+         https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+         # Chromium
+         chromium-138-nodejs-version-check.patch
+@@ -465,8 +465,7 @@
+     -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
+   src/build/util/lastchange.py \
+     -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
+-  src/tools/update_pgo_profiles.py --target=linux update \
+-    --gs-url-base=chromium-optimization-profiles/pgo_profiles
++  # PGO is disabled below; no profile download is needed.
+ 
+   # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
+   src/third_party/node/update_npm_deps
+@@ -479,7 +478,8 @@
+ 
+   pushd src
+   pushd electron
+-  yarn install --frozen-lockfile
++  # sentry-cli is only used for upstream release-symbol uploads.
++  SENTRYCLI_SKIP_DOWNLOAD=1 yarn install --frozen-lockfile
+   popd
+ 
+   echo "Applying local patches..."
+@@ -581,6 +581,7 @@
+     'use_system_libffi=true'
+     'enable_hangout_services_extension=true'
+     'enable_widevine=false'
++    "override_electron_version=\"$pkgver\""
+   )
+ 
+   if [[ -n ${_system_libs[icu]+set} ]]; then
+@@ -634,9 +635,9 @@
+   # https://crbug.com/957519#c122
+   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
+ 
+-  if [[ $CARCH == aarch64 ]]; then
+-    # On aarch64, certain files (e.g. in libvpx and libyuv) needs to be compiled
+-    # with additional arch features (e.g. dotprod, sve, sme)
++  if [[ $CARCH == aarch64 || $CARCH == riscv64 ]]; then
++    # Some files need additional arch features (e.g. dotprod, sve, sme in
++    # libvpx/libyuv on aarch64, or RVV in XNNPACK on riscv64).
+     # Having an arch setting in the C(XX)FLAGS overrides those
+     # and causes compilation failure
+     CFLAGS="${CFLAGS/-march=*([^ ]) }"
+@@ -667,3 +668,5 @@
+   install -Dm644 src/electron/default_app/icon.png \
+           "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
+ }
++
++sha256sums[0]=SKIP
