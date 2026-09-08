@@ -1,8 +1,6 @@
-diff --git PKGBUILD PKGBUILD
-index 69700b6..5c25d7d 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,7 +11,7 @@ shopt -s extglob
+@@ -11,7 +11,7 @@
  
  pkgbase=ghc
  pkgname=(ghc-libs ghc ghc-static)
@@ -11,7 +9,7 @@ index 69700b6..5c25d7d 100644
  pkgrel=1
  pkgdesc='The Glasgow Haskell Compiler'
  arch=('x86_64')
-@@ -19,20 +19,27 @@ url='https://www.haskell.org/ghc/'
+@@ -19,20 +19,34 @@
  license=('custom')
  makedepends=('ghc-static' 'perl' 'libxslt' 'docbook-xsl' 'python-sphinx' 'haskell-hadrian'
               'haskell-hscolour' 'texlive-fontsrecommended' 'texlive-latexextra' 'texlive-xetex'
@@ -22,10 +20,11 @@ index 69700b6..5c25d7d 100644
          "$pkgname-gcc-15.patch::https://gitlab.haskell.org/ghc/ghc/-/commit/f983a00ffc97b779eb52b10e69e254ec107f8311.patch"
 -        ghc-rebuild-doc-index.hook ghc-register.hook ghc-unregister.hook)
 -sha512sums=('532bbf5ab44fd4a42abc7904d86ada4803ecbc3cbb499d907520610466b6c2a0c95e07167e8a10c12f3871f3d1d9e54221469ee7a75c3fae1c49b1b281b857ef'
+-            '577f8772652a371e51c185c2d1456584b5ca716df18bc99fa6a8db348c3e0ccd47510792bca5903750d0e40dbbc6cd9b75cffa1fac1434ab2f2d80784b86cb4a'
 +        ghc-rebuild-doc-index.hook ghc-register.hook ghc-unregister.hook
 +        0001-rts-posix-OSMem-Shrinking-allocation-size-when-it-s-.patch)
 +sha512sums=('SKIP'
-             '577f8772652a371e51c185c2d1456584b5ca716df18bc99fa6a8db348c3e0ccd47510792bca5903750d0e40dbbc6cd9b75cffa1fac1434ab2f2d80784b86cb4a'
++            '1c0d31bde8cf4f7e2deba38a59743b37d18382f8ca2bee37302b491a2e0c36877e0f09eb10ab4a191ad756f150f87114074f32f9e2f99efe100b2bf8bfa8d1b1'
              'd69e5222d1169c4224a2b69a13e57fdd574cb1b5932b15f4bc6c7d269a9658dd87acb1be81f52fbcf3cb64f96978b9943d10cee2c21bff0565aaa93a5d35fcae'
              '5f659651d8e562a4dcaae0f821d272d6e9c648b645b1d6ab1af61e4dd690dc5a4b9c6846753b7f935963f001bb1ae1f40cd77731b71ef5a8dbc079a360aa3f8f'
 -            '3bdbd05c4a2c4fce4adf6802ff99b1088bdfad63da9ebfc470af9e271c3dd796f86fba1cf319d8f4078054d85c6d9e6a01f79994559f24cc77ee1a25724af2e6')
@@ -42,10 +41,17 @@ index 69700b6..5c25d7d 100644
  
    patch -p1 -i ../$pkgname-gcc-15.patch
 +  patch -p1 -i ../0001-rts-posix-OSMem-Shrinking-allocation-size-when-it-s-.patch
++
++  # RISC-V float-to-integer conversions must truncate toward zero.
++  # https://github.com/ghc/ghc/commit/e8a547133031b7de8f6f9bbd70a7148eda0941ee
++  patch -p1 -i ../fix-riscv-fcvt-rounding.patch
++
++  # Keep narrow immediate arithmetic wrapped to its declared width.
++  patch -p1 -i ../riscv64-truncate-immediate.patch
  
    # devendor rtd-theme for sphinx compatibility
    rm -r docs/users_guide/rtd-theme
-@@ -43,8 +50,9 @@ prepare() {
+@@ -43,8 +57,9 @@
  }
  
  build() {
@@ -56,7 +62,7 @@ index 69700b6..5c25d7d 100644
    LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" ./configure \
      --prefix=/usr \
      --docdir=/usr/share/doc/ghc \
-@@ -53,7 +61,7 @@ build() {
+@@ -53,7 +68,7 @@
  }
  
  check() {
@@ -65,7 +71,7 @@ index 69700b6..5c25d7d 100644
    # hadrian test --flavour=perf
  }
  
-@@ -61,7 +69,7 @@ package_ghc-static() {
+@@ -61,7 +76,7 @@
    pkgdesc='The Glasgow Haskell Compiler - Static Libraries and Documentation'
    depends=('ghc')
  
@@ -74,7 +80,7 @@ index 69700b6..5c25d7d 100644
  
    DESTDIR="$pkgdir" LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" hadrian install --flavour=perf --prefix=/usr
  
-@@ -92,7 +100,7 @@ package_ghc() {
+@@ -92,7 +107,7 @@
    provides+=("haskell-ghc=$pkgver")
    replaces+=("haskell-ghc")
  
@@ -83,7 +89,7 @@ index 69700b6..5c25d7d 100644
    DESTDIR="$pkgdir" LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" hadrian install --flavour=perf --prefix=/usr
  
    # Remove static libs
-@@ -187,7 +195,7 @@ package_ghc-libs() {
+@@ -187,7 +202,7 @@
    provides+=("haskell-ghci=$pkgver")
    conflicts+=('haskell-ghci')
  
@@ -92,3 +98,12 @@ index 69700b6..5c25d7d 100644
  
    DESTDIR="$pkgdir" LDFLAGS="${LDFLAGS/-Wl,-z,pack-relative-relocs/}" hadrian install --flavour=perf --prefix=/usr
  
+@@ -211,3 +226,8 @@
+ 
+   install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+ }
++
++source+=(fix-riscv-fcvt-rounding.patch
++         riscv64-truncate-immediate.patch)
++sha512sums+=('cc2e35531f92c8a314978f2e6d633bb0c3b32b3043b19e6ee3dd2ad4d1bbfedb9925e5a5d607537922cbfbae90e6b0c1f9c84ea2d8e6f042e31ebc833770cf6d'
++             '29ca0991ebf0908f37e56ec6604628899463b60e2950cee6a1f4422898e5d5199b68925c04512914c851eae5f9ea85cf954dd0964f36acc79edffb00794b2052')
