@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,6 +39,10 @@
+ 
+   # Build Python with POSIX 2024 https://github.com/python/cpython/commit/927eb448aad6436d794ec9f55780013e25609600
+   patch -p1 < ../python-posix-2024.patch
++
++  # Stale OpenSSL errors must not cause failures on unrelated TLS connections.
++  # https://github.com/python/cpython/pull/148597
++  patch -Np1 -i ../fix-ssl-error-queue.patch
+ }
+ 
+ build() {
+@@ -145,3 +149,6 @@
+   cd "$pkgdir"/usr/lib/python*/
+   rm -r !(test)
+ }
++
++source+=(fix-ssl-error-queue.patch)
++sha512sums+=('77941802ff80acfdc24b42a54c6c85a3a8354cd6a372ce2a765e77314097bf5d1cb3a885ab6e7af3fda22bcae2bcdab98d7f343d3c7efce5143e4935caf16a51')
