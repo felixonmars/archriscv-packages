@@ -1,0 +1,33 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -42,6 +42,16 @@
+ sha512sums=('186c040dd3b4bf8fedcb6c27c35ba13bca2693881c41211af368f6ca6463609f4ba7926eea77dbba63047264d209498afe1ab35737de6274d93cc15ea64a56db')
+ b2sums=('873f06abfb5305fd795edf062957c4c5b61c770799bd01608c84371ca3433211a6654dc90157461edbbc5558d14a570175a7df6df8c456b1b66c55b03dda8c7e')
+ 
++prepare() {
++  # Use CFFI's size_t type instead of an architecture whitelist missing RISC-V.
++  patch -Np1 -d _build/cl-cffi-gtk -i "$srcdir/cl-cffi-gtk-gsize.patch"
++  # IDNA uses array access on a list, causing a fatal SBCL type warning.
++  # https://github.com/antifuchs/idna/issues/2
++  patch -Np1 -d _build/idna -i "$srcdir/fix-idna-list-access.patch"
++  # Newer SBCL uses 0 instead of NIL for empty reader-macro entries.
++  patch -Np1 -d _build/named-readtables -i "$srcdir/named-readtables-sbcl.patch"
++}
++
+ build() {
+   make all
+ }
+@@ -51,3 +61,13 @@
+ 
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" licenses/*
+ }
++
++source+=(cl-cffi-gtk-gsize.patch
++         fix-idna-list-access.patch
++         "named-readtables-sbcl.patch::https://github.com/melisgl/named-readtables/commit/6eea56674442b884a4fee6ede4c8aad63541aa5b.patch")
++sha512sums+=('1ca39de6ee86b74224f86ac44094cf61888d05d8f1908894c3c4c24b235619788315ddc696490aa402c4d79bc176039cdb4e6d7019b3e39d8abe80cf46726b21'
++             '38913b76d81b19c6ddbc5dc695d4b8b308d9e52f70d3d0a6437a40cb4ed218396df17fb11cad21519c59056baf45da1467252abab6259f8918e6f5d57b3d8ae0'
++             'b1a742f6f6f70d1373ef554f76b70155617892fec08a7f92f9d92589fd8f41ad6c5975ccb274381dcaf11ec34c19c880942303b9069286a7d2a5830d04601a73')
++b2sums+=('2ea79b700b98eb79b604ac919068416f0cb1bcbd2f99582b53cd3b4b52dfa3bda26a01bb6b8c582fa26756f6ea9de0c4580234d1ddb1c75119c0ee0e34bfa763'
++         '08feeb19a27738d547fcabe3f71c440ed9bbe7e08fbd32e09a83cbfbb9b32eb8b1719e98118080135bad17533e90bf5166a2678f853d667e770813dcfd2757c9'
++         '194a7dcc807ba36f504f47d7e5e7e8d17d71ed890c8958ddb608f864339abd0bce1d595f19d90bb7bf0e3770385e432e867cecba07b71c68363fc3a6473356eb')
