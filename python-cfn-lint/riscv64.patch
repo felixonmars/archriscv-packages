@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -44,6 +44,12 @@
+ source=("git+$url.git#tag=v$pkgver")
+ b2sums=('5cd69cae5ecd729a4d12979ea572403844386cea04a07314c4cf8858b8c6adec1f7cdd3f09c9e9ff6357aab410c0ece5e0bcb4eeacf1993c232f65183181e415')
+ 
++prepare() {
++  cd ${pkgname#python-}
++  # Keep the SAM conditions fixture valid after Java 11's Lambda end of life.
++  sed -i 's/Runtime: java11/Runtime: java25/' test/fixtures/templates/issues/sam_w_conditions.yaml
++}
++
+ build() {
+   cd ${pkgname#python-}
+   python -m build --wheel --no-isolation
