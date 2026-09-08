@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,6 +22,7 @@
+     'python-wheel'
+     'python-setuptools'
+ )
++makedepends_riscv64=('lld')
+ checkdepends=('python-pytest'
+               'python-pytest-xdist'
+               'python-matplotlib'
+@@ -54,6 +55,8 @@
+     cd polars-$_tag/py-polars
+     python -m build --wheel --no-isolation
+ 
++    # The pinned Rust toolchain defaults to BFD, which rejects --icf=safe.
++    export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
+     export ZSTD_SYS_USE_PKG_CONFIG=1
+     for runtime in 32 64 compat; do
+         maturin build -o dist --compression-enable-large-file-support --release --locked --strip --compatibility linux --manifest-path runtime/polars-runtime-$runtime/Cargo.toml
