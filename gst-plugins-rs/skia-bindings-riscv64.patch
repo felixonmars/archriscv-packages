@@ -1,0 +1,15 @@
+--- a/build_support/skia/config.rs
++++ b/build_support/skia/config.rs
+@@ -288,6 +288,12 @@
+         println!("Synchronizing Skia dependencies");
+         #[cfg(feature = "binary-cache")]
+         crate::build_support::binary_cache::resolve_dependencies();
++        if gn_command.is_some() {
++            // git-sync-deps unconditionally fetches GN, even when a system GN is selected.
++            let fetch_gn = build.skia_source_dir.join("bin").join("fetch-gn");
++            std::fs::create_dir_all(fetch_gn.parent().unwrap()).unwrap();
++            std::fs::write(&fetch_gn, "import sys\nsys.exit(0)\n").unwrap();
++        }
+         assert!(
+             Command::new(python)
+                 // Explicitly providing `GIT_SYNC_DEPS_PATH` fixes a problem with `git-sync-deps`
