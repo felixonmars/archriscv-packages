@@ -1,10 +1,31 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -70,6 +70,7 @@
-     -vv
-     --deselect tests/test_docs.py  # we are not interested in code formatting
-     --deselect tests/pydantic_core/test_docstrings.py::test_readme  # we are not interested in code formatting
-+    --deselect tests/pydantic_core/test_docstrings.py::test_docstrings  # we are not interested in code formatting
-     --deselect tests/test_types.py::test_string_fails
-     --deselect 'tests/test_networks.py::test_address_invalid[foobar-An email address must have an @-sign.]'
-   )
+@@ -20,6 +20,7 @@
+ )
+ makedepends=(
+   cython
++  git
+   python-build
+   python-installer
+   python-hatchling
+@@ -60,6 +61,12 @@
+ sha512sums=('fd607e9bb5599737638401e9dedb4baa454b7f308b461319d59913b603f6e072354c40b161802c8198ee0961052207a2a4da7b861da6fbfd14f2dbb0f61ba762')
+ b2sums=('df98b886d99a0f0df8e01f0c1081082aa6ede063ddda27a11d1d5e640dc05080599ad9fd6346786cf77caa9d28291969b68881d21118c1218ec39821596d4f27')
+ 
++prepare() {
++  cd $_name-$pkgver
++  # pytest 9.1 deprecates iterator parameters and several fixture/warning APIs.
++  git apply --exclude=uv.lock "$srcdir/pytest-9.1.patch"
++}
++
+ build() {
+   cd $_name-$pkgver
+   python -m build --wheel --no-isolation
+@@ -88,3 +95,7 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -vDm 644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++source+=("pytest-9.1.patch::https://github.com/pydantic/pydantic/commit/f257d0155c6643fbda9516af6b2c4ca082ed7651.patch")
++sha512sums+=('11584017f955c65a9ea5b58b5045e3a8138c78fb52d9350d9a7480b44a7e66a372e5a92dd53c190259de1900e3b3082efd079999e6397d5b80e812d60caef3b2')
++b2sums+=('36d6593a9032de34acd645f650e8264d82177d79b2e1a7f9ba94628c890e2f9984cfdc747c10b6cfa0da792a4f94076f00b94ac7c37c3eafbde1153f935a9ffb')
