@@ -1,0 +1,57 @@
+Backport of https://github.com/triton-lang/triton/commit/26f54dd222e1fe7a41021e9f65e441f021b81269
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -251,26 +251,6 @@
+     pybind11::headers
+ 
+   )
+-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR # Linux arm64
+-     CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR # macOS arm64
+-     CMAKE_OSX_ARCHITECTURES MATCHES "arm64")  # also macOS arm64
+-      list(APPEND TRITON_LIBRARIES
+-          LLVMAArch64CodeGen
+-          LLVMAArch64AsmParser
+-      )
+-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64")
+-      list(APPEND TRITON_LIBRARIES
+-          LLVMX86CodeGen
+-          LLVMX86AsmParser
+-      )
+-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le")
+-      list(APPEND TRITON_LIBRARIES
+-        LLVMPowerPCAsmParser
+-        LLVMPowerPCCodeGen
+-      )
+-  else()
+-    message(FATAL_ERROR "LLVM codegen/ASM parser libs: This HW architecture (${CMAKE_SYSTEM_PROCESSOR}) is not configured in cmake lib dependencies.")
+-  endif()
+ 
+   # Define triton library
+   string(JOIN "," TRITON_BACKENDS_TUPLE ${TRITON_CODEGEN_BACKENDS})
+--- a/python/src/llvm.cc
++++ b/python/src/llvm.cc
+@@ -454,11 +454,18 @@
+   m.def("init_targets", []() {
+     static std::once_flag init_flag;
+     std::call_once(init_flag, []() {
+-      llvm::InitializeAllTargetInfos();
+-      llvm::InitializeAllTargets();
+-      llvm::InitializeAllTargetMCs();
+-      llvm::InitializeAllAsmParsers();
+-      llvm::InitializeAllAsmPrinters();
++      // Initialize only the GPU targets Triton emits code for. Initializing all
++      // targets would also require linking LLVM's host target libraries.
++      LLVMInitializeNVPTXTargetInfo();
++      LLVMInitializeNVPTXTarget();
++      LLVMInitializeNVPTXTargetMC();
++      LLVMInitializeNVPTXAsmPrinter();
++
++      LLVMInitializeAMDGPUTargetInfo();
++      LLVMInitializeAMDGPUTarget();
++      LLVMInitializeAMDGPUTargetMC();
++      LLVMInitializeAMDGPUAsmParser();
++      LLVMInitializeAMDGPUAsmPrinter();
+     });
+   });
+ 
