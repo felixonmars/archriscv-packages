@@ -1,0 +1,39 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,6 +43,8 @@
+ 	sed -i 's/-Werror//' CMakeLists.txt
+ 	# Some classes in python's ast module were removed as of version 3.14
+ 	git cherry-pick -n c44b870bdd9e1ea8933fd4057b6b59a5e6e5407b
++	# Triton only needs GPU targets; the host-architecture whitelist rejects riscv64.
++	patch -Np1 -i "${srcdir}/llvm-gpu-targets.patch"
+ }
+ 
+ build() {
+@@ -54,12 +56,18 @@
+ 		-DLLVM_ENABLE_ASSERTIONS=ON
+ 		-DLLVM_ENABLE_PROJECTS="mlir;llvm;lld"
+ 		-DLLVM_TARGETS_TO_BUILD="Native;NVPTX;AMDGPU"
++		# Each GCC LTO link can use all CPUs.
++		-DLLVM_PARALLEL_LINK_JOBS=2
+ 	)
+ 	cmake "${llvm_args[@]}"
+ 	cmake --build build-llvm
+ 
+ 	cd ${pkgname}
+ 	export LLVM_BUILD_DIR="${srcdir}"/build-llvm
++	# NVIDIA redistributables and the CUPTI-dependent profiler are unavailable on riscv64.
++	export TRITON_OFFLINE_BUILD=1 TRITON_BUILD_PROTON=OFF
++	# Keep compiler unit tests enabled with pre-fetched GoogleTest sources.
++	export TRITON_APPEND_CMAKE_ARGS="-DTRITON_BUILD_UT=ON -DGOOGLETEST_DIR=\"${srcdir}/googletest-1.17.0\""
+ 	LLVM_INCLUDE_DIRS="${LLVM_BUILD_DIR}"/include \
+ 	LLVM_LIBRARY_DIR="${LLVM_BUILD_DIR}"/lib \
+ 	LLVM_SYSPATH="${LLVM_BUILD_DIR}" \
+@@ -71,3 +79,8 @@
+ 	python -m installer --destdir="$pkgdir" dist/*.whl
+ 	install -Dm644 LICENSE "${pkgdir}"/usr/share/licenses/"${pkgname}"/LICENSE
+ }
++
++source+=(llvm-gpu-targets.patch
++        'googletest-1.17.0.tar.gz::https://github.com/google/googletest/archive/refs/tags/v1.17.0.tar.gz')
++sha256sums+=('8f2126367bc5fc385029a96c8fe61dc583e49b277a4dd78ca828e4a05ab12cd4'
++             '65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c')
