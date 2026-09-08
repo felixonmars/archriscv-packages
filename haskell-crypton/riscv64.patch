@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,6 +14,12 @@
+ source=("https://hackage.haskell.org/packages/archive/$_hkgname/$pkgver/$_hkgname-$pkgver.tar.gz")
+ sha256sums=('b3f159564721f44b7f4b8ba0827f3204857583cb311e64a789db06dd9a823d84')
+ 
++prepare() {
++  cd $_hkgname-$pkgver
++  # Select the 64-bit C backend on riscv64 to fix Curve448 and Ed448.
++  patch -Np1 -i "$srcdir/fix-64-bit.patch"
++}
++
+ build() {
+   cd $_hkgname-$pkgver
+ 
+@@ -45,3 +51,6 @@
+   install -D -m644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+   rm -f "$pkgdir"/usr/share/doc/$pkgname/LICENSE
+ }
++
++source+=("fix-64-bit.patch::https://github.com/kazu-yamamoto/crypton/commit/2811ee8039f20211371e1f441281ec7f57134256.patch")
++sha256sums+=('0433c4f98705a512c88459aa987d431aaaa87750711afc56be0d2577cbc02dc5')
