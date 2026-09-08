@@ -1,0 +1,168 @@
+--- a/compiler/GHC/CmmToAsm/RV64/CodeGen.hs
++++ b/compiler/GHC/CmmToAsm/RV64/CodeGen.hs
+@@ -728,7 +728,7 @@
+               ( \dst ->
+                   code
+                     `appOL` code_x
+-                    `snocOL` annExpr expr (FCVT IntToFloat (OpReg to dst) (OpReg from reg_x)) -- (Signed ConVerT Float)
++                    `snocOL` annExpr expr (FCVT IntToFloat (OpReg to dst) (OpReg from reg_x) Rne) -- (Signed ConVerT Float)
+               )
+         MO_SF_Conv from to ->
+           pure $
+@@ -736,7 +736,7 @@
+               (floatFormat to)
+               ( \dst ->
+                   code
+-                    `snocOL` annExpr expr (FCVT IntToFloat (OpReg to dst) (OpReg from reg)) -- (Signed ConVerT Float)
++                    `snocOL` annExpr expr (FCVT IntToFloat (OpReg to dst) (OpReg from reg) Rne) -- (Signed ConVerT Float)
+               )
+         -- TODO: Can this case happen?
+         MO_FS_Conv from to
+@@ -748,7 +748,7 @@
+                       code
+                         `snocOL`
+                         -- W32 is the smallest width to convert to. Decrease width afterwards.
+-                        annExpr expr (FCVT FloatToInt (OpReg W32 dst) (OpReg from reg))
++                        annExpr expr (FCVT FloatToInt (OpReg W32 dst) (OpReg from reg) Rtz)
+                         `appOL` signExtendAdjustPrecission W32 to dst dst -- (float convert (-> zero) signed)
+                   )
+         MO_FS_Conv from to ->
+@@ -757,7 +757,7 @@
+               (intFormat to)
+               ( \dst ->
+                   code
+-                    `snocOL` annExpr expr (FCVT FloatToInt (OpReg to dst) (OpReg from reg))
++                    `snocOL` annExpr expr (FCVT FloatToInt (OpReg to dst) (OpReg from reg) Rtz)
+                     `appOL` truncateReg from to dst -- (float convert (-> zero) signed)
+               )
+         MO_UU_Conv from to
+@@ -779,7 +779,7 @@
+                     `appOL` truncateReg from to dst
+               )
+         MO_SS_Conv from to -> ss_conv from to reg code
+-        MO_FF_Conv from to -> return $ Any (floatFormat to) (\dst -> code `snocOL` annExpr e (FCVT FloatToFloat (OpReg to dst) (OpReg from reg)))
++        MO_FF_Conv from to -> return $ Any (floatFormat to) (\dst -> code `snocOL` annExpr e (FCVT FloatToFloat (OpReg to dst) (OpReg from reg) Rne))
+         -- Conversions
+         -- TODO: Duplication with MO_UU_Conv
+         MO_XX_Conv from to
+--- a/compiler/GHC/CmmToAsm/RV64/Instr.hs
++++ b/compiler/GHC/CmmToAsm/RV64/Instr.hs
+@@ -105,7 +105,7 @@
+   LDR _ dst src -> usage (regOp src, regOp dst)
+   LDRU _ dst src -> usage (regOp src, regOp dst)
+   FENCE _ _ -> usage ([], [])
+-  FCVT _variant dst src -> usage (regOp src, regOp dst)
++  FCVT _variant dst src _rm -> usage (regOp src, regOp dst)
+   FABS dst src -> usage (regOp src, regOp dst)
+   _ -> panic $ "regUsageOfInstr: " ++ instrCon instr
+   where
+@@ -187,7 +187,7 @@
+   LDR f o1 o2 -> LDR f (patchOp o1) (patchOp o2)
+   LDRU f o1 o2 -> LDRU f (patchOp o1) (patchOp o2)
+   FENCE o1 o2 -> FENCE o1 o2
+-  FCVT variant o1 o2 -> FCVT variant (patchOp o1) (patchOp o2)
++  FCVT variant o1 o2 rm -> FCVT variant (patchOp o1) (patchOp o2) rm
+   FABS o1 o2 -> FABS (patchOp o1) (patchOp o2)
+   _ -> panic $ "patchRegsOfInstr: " ++ instrCon instr
+   where
+@@ -592,7 +592,7 @@
+     -- Memory barrier.
+     FENCE FenceType FenceType
+   | -- | Floating point conversion
+-    FCVT FcvtVariant Operand Operand
++    FCVT FcvtVariant Operand Operand RoundingMode
+   | -- | Floating point ABSolute value
+     FABS Operand Operand
+ 
+@@ -602,6 +602,21 @@
+ -- | Variant of a floating point conversion instruction
+ data FcvtVariant = FloatToFloat | IntToFloat | FloatToInt
+ 
++-- | The rounding mode associated with an instruction
++data RoundingMode
++  = -- | Round to nearest, ties to even
++    Rne
++  | -- | Round toward zero
++    Rtz
++  | -- | Round downward (toward negative infinity)
++    Rdn
++  | -- | Round upward (toward positive infinity)
++    Rup
++  | -- | Round to nearest, ties to max magnitude
++    Rmm
++  | -- | Dynamic rounding mode
++    Dyn
++
+ instrCon :: Instr -> String
+ instrCon i =
+   case i of
+--- a/compiler/GHC/CmmToAsm/RV64/Ppr.hs
++++ b/compiler/GHC/CmmToAsm/RV64/Ppr.hs
+@@ -410,6 +410,17 @@
+       -- no support for widths > W64.
+       | otherwise = pprPanic "Unsupported width in register (max is 64)" (ppr w <+> int i)
+ 
++-- | Pretty print a rounding mode
++--
++-- If the rounding mode is omitted, 'dyn' will be used.
++pprRm :: IsLine doc => RoundingMode -> doc
++pprRm Rne = text "rne"
++pprRm Rtz = text "rtz"
++pprRm Rdn = text "rdn"
++pprRm Rup = text "rup"
++pprRm Rmm = text "rmm"
++pprRm Dyn = text "dyn"
++
+ -- | Single precission `Operand` (floating-point)
+ isSingleOp :: Operand -> Bool
+ isSingleOp (OpReg W32 _) = True
+@@ -647,30 +658,33 @@
+   LDRU FF64 o1 o2@(OpAddr (AddrRegImm _ _)) -> op2 (text "\tfld") o1 o2
+   LDRU f o1 o2 -> pprPanic "Unsupported unsigned load" ((text . show) f <+> pprOp platform o1 <+> pprOp platform o2)
+   FENCE r w -> line $ text "\tfence" <+> pprFenceType r <> char ',' <+> pprFenceType w
+-  FCVT FloatToFloat o1@(OpReg W32 _) o2@(OpReg W64 _) -> op2 (text "\tfcvt.s.d") o1 o2
+-  FCVT FloatToFloat o1@(OpReg W64 _) o2@(OpReg W32 _) -> op2 (text "\tfcvt.d.s") o1 o2
+-  FCVT FloatToFloat o1 o2 ->
++  FCVT FloatToFloat o1@(OpReg W32 _) o2@(OpReg W64 _) rm -> op2rm (text "\tfcvt.s.d") o1 o2 rm
++  -- The assembler seems to be unhappy with explicit rounding mode on fcvt.d.s
++  FCVT FloatToFloat o1@(OpReg W64 _) o2@(OpReg W32 _) _rm -> op2 (text "\tfcvt.d.s") o1 o2
++  FCVT FloatToFloat o1 o2 rm ->
+     pprPanic "RV64.pprInstr - impossible float to float conversion"
+-      $ line (pprOp platform o1 <> text "->" <> pprOp platform o2)
+-  FCVT IntToFloat o1@(OpReg W32 _) o2@(OpReg W32 _) -> op2 (text "\tfcvt.s.w") o1 o2
+-  FCVT IntToFloat o1@(OpReg W32 _) o2@(OpReg W64 _) -> op2 (text "\tfcvt.s.l") o1 o2
+-  FCVT IntToFloat o1@(OpReg W64 _) o2@(OpReg W32 _) -> op2 (text "\tfcvt.d.w") o1 o2
+-  FCVT IntToFloat o1@(OpReg W64 _) o2@(OpReg W64 _) -> op2 (text "\tfcvt.d.l") o1 o2
+-  FCVT IntToFloat o1 o2 ->
++      $ line (pprOp platform o1 <> text "->" <> pprOp platform o2 <> text "," <> pprRm rm)
++  FCVT IntToFloat o1@(OpReg W32 _) o2@(OpReg W32 _) rm -> op2rm (text "\tfcvt.s.w") o1 o2 rm
++  FCVT IntToFloat o1@(OpReg W32 _) o2@(OpReg W64 _) rm -> op2rm (text "\tfcvt.s.l") o1 o2 rm
++  FCVT IntToFloat o1@(OpReg W64 _) o2@(OpReg W32 _) rm -> op2rm (text "\tfcvt.d.w") o1 o2 rm
++  FCVT IntToFloat o1@(OpReg W64 _) o2@(OpReg W64 _) rm -> op2rm (text "\tfcvt.d.l") o1 o2 rm
++  FCVT IntToFloat o1 o2 rm ->
+     pprPanic "RV64.pprInstr - impossible integer to float conversion"
+-      $ line (pprOp platform o1 <> text "->" <> pprOp platform o2)
+-  FCVT FloatToInt o1@(OpReg W32 _) o2@(OpReg W32 _) -> op2 (text "\tfcvt.w.s") o1 o2
+-  FCVT FloatToInt o1@(OpReg W32 _) o2@(OpReg W64 _) -> op2 (text "\tfcvt.w.d") o1 o2
+-  FCVT FloatToInt o1@(OpReg W64 _) o2@(OpReg W32 _) -> op2 (text "\tfcvt.l.s") o1 o2
+-  FCVT FloatToInt o1@(OpReg W64 _) o2@(OpReg W64 _) -> op2 (text "\tfcvt.l.d") o1 o2
+-  FCVT FloatToInt o1 o2 ->
++      $ line (pprOp platform o1 <> text "->" <> pprOp platform o2 <> text "," <> pprRm rm)
++  FCVT FloatToInt o1@(OpReg W32 _) o2@(OpReg W32 _) rm -> op2rm (text "\tfcvt.w.s") o1 o2 rm
++  FCVT FloatToInt o1@(OpReg W32 _) o2@(OpReg W64 _) rm -> op2rm (text "\tfcvt.w.d") o1 o2 rm
++  FCVT FloatToInt o1@(OpReg W64 _) o2@(OpReg W32 _) rm -> op2rm (text "\tfcvt.l.s") o1 o2 rm
++  FCVT FloatToInt o1@(OpReg W64 _) o2@(OpReg W64 _) rm -> op2rm (text "\tfcvt.l.d") o1 o2 rm
++  FCVT FloatToInt o1 o2 rm ->
+     pprPanic "RV64.pprInstr - impossible float to integer conversion"
+-      $ line (pprOp platform o1 <> text "->" <> pprOp platform o2)
++      $ line (pprOp platform o1 <> text "->" <> pprOp platform o2 <> text "," <> pprRm rm)
+   FABS o1 o2 | isSingleOp o2 -> op2 (text "\tfabs.s") o1 o2
+   FABS o1 o2 | isDoubleOp o2 -> op2 (text "\tfabs.d") o1 o2
+   instr -> panic $ "RV64.pprInstr - Unknown instruction: " ++ instrCon instr
+   where
+     op2 op o1 o2 = line $ op <+> pprOp platform o1 <> comma <+> pprOp platform o2
++    op2rm op o1 o2 Dyn = line $ op <+> pprOp platform o1 <> comma <+> pprOp platform o2
++    op2rm op o1 o2 rm = line $ op <+> pprOp platform o1 <> comma <+> pprOp platform o2 <> comma <+> pprRm rm
+     op3 op o1 o2 o3 = line $ op <+> pprOp platform o1 <> comma <+> pprOp platform o2 <> comma <+> pprOp platform o3
+     pprFenceType FenceRead = text "r"
+     pprFenceType FenceWrite = text "w"
