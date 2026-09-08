@@ -1,23 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -28,8 +28,18 @@
- checkdepends=(
-     python-pytest
- )
--source=(git+https://github.com/numba/llvmlite.git#tag=v$pkgver)
--b2sums=('9a46ebc71dc74aa206f79b23dbacb3de3ba564776fc92e88b4cf43c4e18f9a29bcad80bd5bb4b024e5410da4596f3c44b069ba9a85be2ef9d8ab5028cf409db7')
-+source=(git+https://github.com/numba/llvmlite.git#tag=v$pkgver
-+        riscv-jit-symbols.patch
-+        fix-optsize-minsize-test.patch)
-+b2sums=('9a46ebc71dc74aa206f79b23dbacb3de3ba564776fc92e88b4cf43c4e18f9a29bcad80bd5bb4b024e5410da4596f3c44b069ba9a85be2ef9d8ab5028cf409db7'
-+        '0eeead26455607d7f0ecf0adb3019832796448e2f7b14862c0f8c92acc710a6b207c01a2f7eecbda2d114738deb4c3c0fd4548a9f9dbb84609f5f852deefc786'
-+        'd8afe9a8332329978eb30c3d589204ae860f36afc5d85876bc47b6cd99307d34a3d316fb2089cb3f01b89827e75a5b74dfabace501b96629a1cbe66b127f3821')
+@@ -49,3 +49,17 @@
+ 
+     install -vDm 644 LICENSE LICENSE.thirdparty -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
 +
 +prepare() {
 +    cd $_name
 +    patch -Np1 -i ../riscv-jit-symbols.patch
 +    patch -Np1 -i ../fix-optsize-minsize-test.patch
++    patch -Np1 -i ../riscv-jit-memory-manager.patch
 +}
- 
- build() {
-     cd $_name
++
++source+=(riscv-jit-symbols.patch
++         fix-optsize-minsize-test.patch
++         riscv-jit-memory-manager.patch)
++b2sums+=('0eeead26455607d7f0ecf0adb3019832796448e2f7b14862c0f8c92acc710a6b207c01a2f7eecbda2d114738deb4c3c0fd4548a9f9dbb84609f5f852deefc786'
++         'd8afe9a8332329978eb30c3d589204ae860f36afc5d85876bc47b6cd99307d34a3d316fb2089cb3f01b89827e75a5b74dfabace501b96629a1cbe66b127f3821'
++         '58b8b58f9eeb38a0856c5e6d6edb1209bfd971e338182ecdad1b68b0629f65348d509700f34336155213f1ccedddfdcc72578a3506bb53949b1a3e9898b7d99b')

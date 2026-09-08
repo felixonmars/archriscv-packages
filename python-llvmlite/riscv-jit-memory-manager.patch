@@ -1,0 +1,27 @@
+--- a/llvmlite/binding/executionengine.py
++++ b/llvmlite/binding/executionengine.py
+@@ -17,10 +17,11 @@
+ 
+     *lmm* controls whether the llvmlite memory manager is used. If not supplied,
+     the default choice for the platform will be used (``True`` on 64-bit ARM
+-    systems, ``False`` otherwise).
++    and RISC-V systems, ``False`` otherwise).
+     """
+     if use_lmm is None:
+-        use_lmm = platform.machine().lower() in ('arm64', 'aarch64')
++        # Keep code and data within reach of PC-relative relocations.
++        use_lmm = platform.machine().lower() in ('arm64', 'aarch64', 'riscv64')
+ 
+     with ffi.OutputString() as outerr:
+         engine = ffi.lib.LLVMPY_CreateMCJITCompiler(
+--- a/docs/source/user-guide/binding/execution-engine.rst
++++ b/docs/source/user-guide/binding/execution-engine.rst
+@@ -19,7 +19,7 @@
+ 
+      *lmm* controls whether the llvmlite memory manager is used. If not
+      supplied, the default choice for the platform will be used (``True`` on
+-     64-bit ARM systems, ``False`` otherwise).
++     64-bit ARM and RISC-V systems, ``False`` otherwise).
+ 
+      * *module* does not need to contain any code.
+      * Returns a :class:`ExecutionEngine` instance.
