@@ -1,0 +1,1535 @@
+--- a/meson.build
++++ b/meson.build
+@@ -37,14 +37,15 @@
+ glib_dep = dependency('glib-2.0')
+ gee_dep = dependency('gee-0.8')
+ gio_dep = dependency('gio-2.0')
+-gtk_dep = dependency('gtk+-3.0')
+-granite_dep = dependency('granite', version: '>=6.1.0')
++gtk_dep = dependency('gtk4')
++granite_dep = dependency('granite-7', version: '>=6.1.0')
+ gobject_dep = dependency('gobject-2.0')
+ gio_unix_dep = dependency('gio-unix-2.0')
+ json_glib_dep = dependency('json-glib-1.0')
+ switchboard_dep = dependency('switchboard-3')
+-libhandy_dep = dependency('libhandy-1', version: '>= 0.83.0')
+-wingpanel_dep = dependency('wingpanel', version: '>=2.1.0')
++adwaita_dep = dependency('libadwaita-1', version: '>= 0.83.0')
++math_dep = meson.get_compiler('c').find_library('m')
++wingpanel_dep = dependency('wingpanel-9', version: '>=2.1.0')
+ posix_dep = meson.get_compiler('vala').find_library('posix')
+ 
+ zeitgeist_dep = []
+--- a/src/Backend/App.vala
++++ b/src/Backend/App.vala
+@@ -28,7 +28,7 @@
+         SYNAPSE
+     }
+ 
+-    public const string ACTION_GROUP_PREFIX = "app-actions";
++    private const string ACTION_GROUP_PREFIX = "app-actions";
+     private const string ACTION_PREFIX = ACTION_GROUP_PREFIX + ".";
+     private const string APP_ACTION = "action.%s";
+     private const string PINNED_ACTION = "pinned";
+@@ -36,7 +36,6 @@
+     private const string UNINSTALL_ACTION = "uninstall";
+     private const string VIEW_ACTION = "view-in-appcenter";
+ 
+-    public SimpleActionGroup action_group { get; private set; }
+     public string name { get; construct set; }
+     public string description { get; private set; default = ""; }
+     public string desktop_id { get; construct set; }
+@@ -142,7 +141,7 @@
+                     launched (this); // Emit launched signal
+ 
+                     var context = Gdk.Display.get_default ().get_app_launch_context ();
+-                    context.set_timestamp (Gtk.get_current_event_time ());
++                    context.set_timestamp (Gdk.CURRENT_TIME);
+                     switcheroo_control.apply_gpu_environment (context, prefers_default_gpu);
+ 
+                     new DesktopAppInfo (desktop_id).launch (null, context);
+@@ -197,11 +196,11 @@
+         }
+     }
+ 
+-    public GLib.Menu get_menu_model () {
++    public Gtk.PopoverMenu get_context_menu (Gtk.Widget parent) {
+         var actions_section = new GLib.Menu ();
+         var shell_section = new GLib.Menu ();
+ 
+-        action_group = new SimpleActionGroup ();
++        var action_group = new SimpleActionGroup ();
+ 
+         var app_info = new DesktopAppInfo (desktop_id);
+         foreach (unowned var action in app_info.list_actions ()) {
+@@ -300,7 +299,13 @@
+         model.append_section (null, actions_section);
+         model.append_section (null, shell_section);
+ 
+-        return model;
++        var context_menu = new Gtk.PopoverMenu.from_model (model) {
++            has_arrow = false
++        };
++        context_menu.insert_action_group (ACTION_GROUP_PREFIX, action_group);
++        context_menu.set_parent (parent);
++
++        return context_menu;
+     }
+ 
+     private void action_uninstall () {
+--- a/src/Indicator.vala
++++ b/src/Indicator.vala
+@@ -45,14 +45,10 @@
+         Intl.bindtextdomain (GETTEXT_PACKAGE, LOCALEDIR);
+         Intl.bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+ 
+-        weak Gtk.IconTheme default_theme = Gtk.IconTheme.get_default ();
++        weak Gtk.IconTheme default_theme = Gtk.IconTheme.get_for_display (Gdk.Display.get_default ());
+         default_theme.add_resource_path ("/io/elementary/desktop/wingpanel/applications-menu/icons");
+     }
+ 
+-    private void on_close_indicator () {
+-        close ();
+-    }
+-
+     public override Gtk.Widget? get_widget () {
+         if (view == null) {
+             view = new SlingshotView ();
+@@ -60,8 +56,6 @@
+             unowned var unity_client = Unity.get_default ();
+             unity_client.add_client (view);
+ 
+-            view.close_indicator.connect (on_close_indicator);
+-
+             if (dbus_service == null) {
+                 dbus_service = new DBusService (view);
+             }
+@@ -75,7 +69,7 @@
+             var indicator_label = new Gtk.Label (_("Applications"));
+             indicator_label.vexpand = true;
+ 
+-            var indicator_icon = new Gtk.Image.from_icon_name ("system-search-symbolic", Gtk.IconSize.MENU);
++            var indicator_icon = new Gtk.Image.from_icon_name ("system-search-symbolic");
+ 
+             indicator_grid = new Gtk.Grid ();
+             indicator_grid.attach (indicator_icon, 0, 0, 1, 1);
+--- a/src/SlingshotView.vala
++++ b/src/SlingshotView.vala
+@@ -4,9 +4,7 @@
+  *                         2011-2012 Giulio Collura
+  */
+ 
+-public class Slingshot.SlingshotView : Gtk.Bin, UnityClient {
+-    public signal void close_indicator ();
+-
++public class Slingshot.SlingshotView : Granite.Bin, UnityClient {
+     public Backend.AppSystem app_system;
+     public Gtk.SearchEntry search_entry;
+     public Gtk.Stack stack;
+@@ -17,16 +15,12 @@
+         SEARCH_VIEW
+     }
+ 
+-    public const int DEFAULT_ROWS = 3;
+-
+     private Backend.SynapseSearch synapse;
+     private Gtk.Revealer view_selector_revealer;
+     private Modality modality;
+     private Widgets.Grid grid_view;
+     private Widgets.SearchView search_view;
+     private Widgets.CategoryView category_view;
+-    private Gtk.EventControllerKey key_controller;
+-    private Gtk.EventControllerKey search_key_controller;
+ 
+     private static GLib.Settings settings { get; private set; default = null; }
+ 
+@@ -41,27 +35,27 @@
+         var grid_view_btn = new Gtk.ToggleButton () {
+             action_name = "view.view-mode",
+             action_target = new Variant.string ("grid"),
+-            image = new Gtk.Image.from_icon_name ("view-grid-symbolic", BUTTON),
++            icon_name = "view-grid-symbolic",
+             tooltip_markup = Granite.markup_accel_tooltip ({"<Ctrl>1"}, _("View as Grid"))
+         };
+ 
+         var category_view_btn = new Gtk.ToggleButton () {
+             action_name = "view.view-mode",
+             action_target = new Variant.string ("category"),
+-            image = new Gtk.Image.from_icon_name ("view-filter-symbolic", BUTTON),
++            icon_name = "view-filter-symbolic",
+             tooltip_markup = Granite.markup_accel_tooltip ({"<Ctrl>2"}, _("View by Category"))
+         };
+ 
+-        var view_selector = new Gtk.Box (HORIZONTAL, 0) {
++        var view_selector = new Granite.Box (HORIZONTAL, LINKED) {
+             margin_end = 12
+         };
+-        view_selector.add (grid_view_btn);
+-        view_selector.add (category_view_btn);
+-        view_selector.get_style_context ().add_class (Gtk.STYLE_CLASS_LINKED);
++        view_selector.append (grid_view_btn);
++        view_selector.append (category_view_btn);
+ 
+         view_selector_revealer = new Gtk.Revealer () {
+             child = view_selector,
+-            transition_type = SLIDE_RIGHT
++            transition_type = SLIDE_RIGHT,
++            overflow = VISIBLE
+         };
+ 
+         search_entry = new Gtk.SearchEntry () {
+@@ -73,8 +67,8 @@
+             margin_start = 12,
+             margin_end = 12
+         };
+-        top_box.add (view_selector_revealer);
+-        top_box.add (search_entry);
++        top_box.append (view_selector_revealer);
++        top_box.append (search_entry);
+ 
+         grid_view = new Widgets.Grid ();
+ 
+@@ -93,8 +87,8 @@
+         var container = new Gtk.Box (VERTICAL, 12) {
+             margin_top = 12
+         };
+-        container.add (top_box);
+-        container.add (stack);
++        container.append (top_box);
++        container.append (stack);
+ 
+         // This function must be after creating the page switcher
+         grid_view.populate (app_system);
+@@ -116,22 +110,18 @@
+             search.begin (search_entry.text, match, target);
+         });
+ 
+-        key_press_event.connect ((event) => {
+-            var search_handles_event = search_entry.handle_event (event);
+-            if (search_handles_event && !search_entry.has_focus) {
+-                search_entry.grab_focus ();
+-                search_entry.move_cursor (BUFFER_ENDS, 0, false);
+-            }
+-
+-            return search_handles_event;
+-        });
++        search_entry.set_key_capture_widget (this);
+ 
+-        key_controller = new Gtk.EventControllerKey (this);
++        var key_controller = new Gtk.EventControllerKey ();
+         key_controller.key_pressed.connect (on_key_press);
+ 
+-        search_key_controller = new Gtk.EventControllerKey (search_entry);
++        add_controller (key_controller);
++
++        var search_key_controller = new Gtk.EventControllerKey ();
+         search_key_controller.key_pressed.connect (on_search_view_key_press);
+ 
++        search_entry.add_controller (search_key_controller);
++
+         // Showing a menu reverts the effect of the grab_device function.
+         search_entry.search_changed.connect (() => {
+             if (modality != Modality.SEARCH_VIEW) {
+@@ -142,14 +132,6 @@
+ 
+         search_entry.activate.connect (search_entry_activated);
+ 
+-        grid_view.app_launched.connect (() => {
+-            close_indicator ();
+-        });
+-
+-        search_view.app_launched.connect (() => {
+-            close_indicator ();
+-        });
+-
+         // Auto-update applications grid
+         app_system.changed.connect (() => {
+             grid_view.populate (app_system);
+@@ -223,7 +205,7 @@
+                 if (search_entry.text.length > 0) {
+                     search_entry.text = "";
+                 } else {
+-                    close_indicator ();
++                    ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ();
+                 }
+ 
+                 return Gdk.EVENT_STOP;
+@@ -243,41 +225,44 @@
+                     return Gdk.EVENT_STOP;
+             }
+         }
+-        // Alt accelerators
+-        if ((state & Gdk.ModifierType.MOD1_MASK) != 0) {
++
++        if ((state & Gdk.ModifierType.ALT_MASK) != 0) {
+             switch (keyval) {
+                 case Gdk.Key.F4:
+-                    close_indicator ();
++                    ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ();
+                     return Gdk.EVENT_STOP;
++            }
+ 
+-                case Gdk.Key.@0:
+-                case Gdk.Key.@1:
+-                case Gdk.Key.@2:
+-                case Gdk.Key.@3:
+-                case Gdk.Key.@4:
+-                case Gdk.Key.@5:
+-                case Gdk.Key.@6:
+-                case Gdk.Key.@7:
+-                case Gdk.Key.@8:
+-                case Gdk.Key.@9:
+-                    if (modality == Modality.NORMAL_VIEW) {
++            if (modality == NORMAL_VIEW) {
++                switch (keyval) {
++                    case Gdk.Key.@0:
++                        grid_view.set_page (0);
++                        return Gdk.EVENT_STOP;
++
++                    case Gdk.Key.@9:
++                        grid_view.last_page ();
++                        return Gdk.EVENT_STOP;
++
++                    case Gdk.Key.@1:
++                    case Gdk.Key.@2:
++                    case Gdk.Key.@3:
++                    case Gdk.Key.@4:
++                    case Gdk.Key.@5:
++                    case Gdk.Key.@6:
++                    case Gdk.Key.@7:
++                    case Gdk.Key.@8:
+                         var key = Gdk.keyval_name (keyval).replace ("KP_", "");
+-                        int page = int.parse (key);
+-                        if (page < 0 || page == 9) {
+-                            grid_view.go_to_last ();
+-                        } else {
+-                            grid_view.go_to_number (page);
+-                        }
+-                    }
++                        grid_view.set_page (int.parse (key) - 1);
+ 
+-                    return Gdk.EVENT_STOP;
++                        return Gdk.EVENT_STOP;
++                }
+             }
+         }
+ 
+         switch (keyval) {
+             case Gdk.Key.Page_Up:
+                 if (modality == Modality.NORMAL_VIEW) {
+-                    grid_view.go_to_previous ();
++                    grid_view.previous_page ();
+                 } else if (modality == Modality.CATEGORY_VIEW) {
+                     category_view.page_up ();
+                 }
+@@ -285,7 +270,7 @@
+ 
+             case Gdk.Key.Page_Down:
+                 if (modality == Modality.NORMAL_VIEW) {
+-                    grid_view.go_to_next ();
++                    grid_view.next_page ();
+                 } else if (modality == Modality.CATEGORY_VIEW) {
+                     category_view.page_down ();
+                 }
+@@ -293,7 +278,7 @@
+ 
+             case Gdk.Key.End:
+                 if (modality == Modality.NORMAL_VIEW) {
+-                    grid_view.go_to_last ();
++                    grid_view.last_page ();
+                 }
+ 
+                 break;
+--- /dev/null
++++ b/src/Utils.vala
+@@ -0,0 +1,19 @@
++namespace Slingshot.Utils {
++    public void menu_popup_on_keypress (Gtk.Popover popover) {
++        popover.halign = END;
++        popover.set_pointing_to (Gdk.Rectangle () {
++            x = (int) popover.parent.get_width (),
++            y = (int) popover.parent.get_height () / 2
++        });
++        popover.popup ();
++    }
++
++    public void menu_popup_at_pointer (Gtk.Popover popover, double x, double y) {
++        var rect = Gdk.Rectangle () {
++            x = (int) x,
++            y = (int) y
++        };
++        popover.pointing_to = rect;
++        popover.popup ();
++    }
++}
+--- a/src/Views/CategoryView.vala
++++ b/src/Views/CategoryView.vala
+@@ -4,24 +4,17 @@
+  *                         2011-2012 Giulio Collura
+  */
+ 
+-public class Slingshot.Widgets.CategoryView : Gtk.EventBox {
++public class Slingshot.Widgets.CategoryView : Granite.Bin {
+     public SlingshotView view { get; construct; }
+ 
+-    private string? drag_uri = null;
+     private Gtk.ListBox category_switcher;
+     private Gtk.ListBox listbox;
+ 
+-    private const Gtk.TargetEntry DND = { "text/uri-list", 0, 0 };
+-    private Gtk.GestureMultiPress click_controller;
+-    private Gtk.EventControllerKey listbox_key_controller;
+-    private Gtk.EventControllerKey category_switcher_key_controller;
+-
+     public CategoryView (SlingshotView view) {
+         Object (view: view);
+     }
+ 
+     construct {
+-        set_visible_window (false);
+         hexpand = true;
+ 
+         category_switcher = new Gtk.ListBox () {
+@@ -30,11 +23,11 @@
+         };
+         category_switcher.set_sort_func ((Gtk.ListBoxSortFunc) category_sort_func);
+ 
+-        var scrolled_category = new Gtk.ScrolledWindow (null, null) {
++        var scrolled_category = new Gtk.ScrolledWindow () {
+             child = category_switcher,
+             hscrollbar_policy = NEVER
+         };
+-        scrolled_category.get_style_context ().add_class (Gtk.STYLE_CLASS_SIDEBAR);
++        scrolled_category.add_css_class (Granite.STYLE_CLASS_SIDEBAR);
+ 
+         var separator = new Gtk.Separator (VERTICAL);
+ 
+@@ -45,7 +38,7 @@
+         };
+         listbox.set_filter_func ((Gtk.ListBoxFilterFunc) filter_function);
+ 
+-        var listbox_scrolled = new Gtk.ScrolledWindow (null, null) {
++        var listbox_scrolled = new Gtk.ScrolledWindow () {
+             child = listbox,
+             hscrollbar_policy = NEVER
+         };
+@@ -53,9 +46,8 @@
+         var container = new Gtk.Box (HORIZONTAL, 0) {
+             hexpand = true
+         };
+-        container.add (scrolled_category);
+-        container.add (separator);
+-        container.add (listbox_scrolled);
++        container.append (scrolled_category);
++        container.append (listbox_scrolled);
+ 
+         child = container;
+ 
+@@ -70,13 +62,13 @@
+         listbox.row_activated.connect ((row) => {
+             Idle.add (() => {
+                 ((AppListRow) row).launch ();
+-                view.close_indicator ();
++                ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ();
+ 
+                 return false;
+             });
+         });
+ 
+-        click_controller = new Gtk.GestureMultiPress (listbox) {
++        var click_controller = new Gtk.GestureClick () {
+             button = 0,
+             exclusive = true
+         };
+@@ -85,14 +77,17 @@
+             var event = click_controller.get_last_event (sequence);
+ 
+             if (event.triggers_context_menu ()) {
+-                create_context_menu ().popup_at_pointer ();
++                var context_menu = ((AppListRow) listbox.get_row_at_y ((int) y)).app.get_context_menu (this);
++                context_menu.halign = START;
++
++                Utils.menu_popup_at_pointer (context_menu, x, y);
+ 
+                 click_controller.set_state (CLAIMED);
+                 click_controller.reset ();
+             }
+         });
+ 
+-        listbox_key_controller = new Gtk.EventControllerKey (listbox);
++        var listbox_key_controller = new Gtk.EventControllerKey ();
+         listbox_key_controller.key_pressed.connect (on_key_press);
+         listbox_key_controller.key_released.connect ((keyval, keycode, state) => {
+             var mods = state & Gtk.accelerator_get_default_mod_mask ();
+@@ -100,50 +95,54 @@
+                 case Gdk.Key.F10:
+                     if (mods == Gdk.ModifierType.SHIFT_MASK) {
+                         var selected_row = (AppListRow) listbox.get_selected_row ();
+-                        create_context_menu ().popup_at_widget (selected_row , EAST, CENTER);
++                        Utils.menu_popup_on_keypress (selected_row.app.get_context_menu (selected_row));
+                     }
+                     break;
+                 case Gdk.Key.Menu:
+                 case Gdk.Key.MenuKB:
+                     var selected_row = (AppListRow) listbox.get_selected_row ();
+-                    create_context_menu ().popup_at_widget (selected_row, EAST, CENTER);
++                    Utils.menu_popup_on_keypress (selected_row.app.get_context_menu (selected_row));
+                     break;
+                 default:
+                     return;
+             }
+         });
+ 
+-        category_switcher_key_controller = new Gtk.EventControllerKey (category_switcher);
+-        category_switcher_key_controller.key_pressed.connect (on_key_press);
+-
+-        Gtk.drag_source_set (listbox, Gdk.ModifierType.BUTTON1_MASK, {DND}, Gdk.DragAction.COPY);
+-
+-        listbox.drag_begin.connect ((ctx) => {
+-            unowned Gtk.ListBoxRow? selected_row = listbox.get_selected_row ();
+-            if (selected_row != null) {
+-                var drag_item = (AppListRow) selected_row;
+-                drag_uri = "file://" + drag_item.desktop_path;
+-                if (drag_uri != null) {
+-                    Gtk.drag_set_icon_gicon (ctx, drag_item.app_info.get_icon (), 32, 32);
+-                }
++        var drag_source = new Gtk.DragSource () {
++            actions = COPY
++        };
++        drag_source.prepare.connect ((x, y) => {
++            var drag_item = (AppListRow) listbox.get_row_at_y ((int) y);
++            if (drag_item == null) {
++                return null;
++            }
++
++            drag_source.set_icon (
++                Gtk.IconTheme.get_for_display (Gdk.Display.get_default ()).lookup_by_gicon (
++                    drag_item.app_info.get_icon (),
++                    32,
++                    scale_factor,
++                    get_direction (),
++                    PRELOAD
++                ), 0, 0
++            );
+ 
+-                view.close_indicator ();
+-            }
++            return new Gdk.ContentProvider.union ({
++                new Gdk.ContentProvider.for_value ("file://" + drag_item.desktop_path)
++            });
++        });
++        drag_source.drag_begin.connect ((drag_source, drag) => {
++            ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ();
+         });
+ 
+-        listbox.drag_end.connect (() => {
+-            if (drag_uri != null) {
+-                view.close_indicator ();
+-            }
++        listbox.add_controller (click_controller);
++        listbox.add_controller (drag_source);
++        listbox.add_controller (listbox_key_controller);
+ 
+-            drag_uri = null;
+-        });
++        var category_switcher_key_controller = new Gtk.EventControllerKey ();
++        category_switcher_key_controller.key_pressed.connect (on_key_press);
+ 
+-        listbox.drag_data_get.connect ((ctx, sel, info, time) => {
+-            if (drag_uri != null) {
+-                sel.set_uris ({drag_uri});
+-            }
+-        });
++        category_switcher.add_controller (category_switcher_key_controller);
+ 
+         setup_sidebar ();
+     }
+@@ -152,22 +151,13 @@
+         return row1.cat_name.collate (row2.cat_name);
+     }
+ 
+-    private Gtk.Menu create_context_menu () {
+-        var selected_row = (AppListRow) listbox.get_selected_row ();
+-
+-        var context_menu = new Gtk.Menu.from_model (selected_row.app.get_menu_model ());
+-        context_menu.insert_action_group (Backend.App.ACTION_GROUP_PREFIX, selected_row.app.action_group);
+-
+-        return context_menu;
+-    }
+-
+     public void page_down () {
+-        category_switcher.move_cursor (Gtk.MovementStep.DISPLAY_LINES, 1);
++        category_switcher.move_cursor (DISPLAY_LINES, 1, false, true);
+         focus_select_first_row ();
+     }
+ 
+     public void page_up () {
+-        category_switcher.move_cursor (Gtk.MovementStep.DISPLAY_LINES, -1);
++        category_switcher.move_cursor (DISPLAY_LINES, -1, false, true);
+         focus_select_first_row ();
+     }
+ 
+@@ -181,16 +171,13 @@
+ 
+     public void setup_sidebar () {
+         CategoryRow? old_selected = (CategoryRow) category_switcher.get_selected_row ();
+-        foreach (unowned Gtk.Widget child in category_switcher.get_children ()) {
+-            child.destroy ();
+-        }
+ 
+-        listbox.foreach ((app_list_row) => listbox.remove (app_list_row));
++        category_switcher.remove_all ();
++        listbox.remove_all ();
+ 
+         foreach (unowned Backend.App app in view.app_system.get_apps_by_name ()) {
+-            listbox.add (new AppListRow (app));
++            listbox.append (new AppListRow (app));
+         }
+-        listbox.show_all ();
+ 
+         // Fill the sidebar
+         unowned Gtk.ListBoxRow? new_selected = null;
+@@ -200,13 +187,12 @@
+             }
+ 
+             var row = new CategoryRow (cat_name);
+-            category_switcher.add (row);
++            category_switcher.append (row);
+             if (old_selected != null && old_selected.cat_name == cat_name) {
+                 new_selected = row;
+             }
+         }
+ 
+-        category_switcher.show_all ();
+         category_switcher.select_row (new_selected ?? category_switcher.get_row_at_index (0));
+     }
+ 
+@@ -235,11 +221,11 @@
+                 page_down ();
+                 return Gdk.EVENT_STOP;
+             case Gdk.Key.Home:
+-                category_switcher.move_cursor (Gtk.MovementStep.PAGES, -1);
++                category_switcher.move_cursor (PAGES, -1, false, true);
+                 focus_select_first_row ();
+                 return Gdk.EVENT_STOP;
+             case Gdk.Key.End:
+-                category_switcher.move_cursor (Gtk.MovementStep.PAGES, 1);
++                category_switcher.move_cursor (PAGES, 1, false, true);
+                 focus_select_first_row ();
+                 return Gdk.EVENT_STOP;
+             case Gdk.Key.KP_Up:
+@@ -262,7 +248,7 @@
+         return Gdk.EVENT_PROPAGATE;
+     }
+ 
+-    private void move_cursor (Gtk.ListBox list_box, Gtk.MovementStep step, int count) {
++    private void move_cursor (Gtk.ListBox list_box, Gtk.MovementStep step, int count, bool extend, bool modify) {
+         unowned var selected = list_box.get_selected_row ();
+         if (step != DISPLAY_LINES || selected == null) {
+             return;
+--- a/src/Views/GridView.vala
++++ b/src/Views/GridView.vala
+@@ -1,40 +1,20 @@
+ /*
+- * Copyright 2019 elementary, Inc. (https://elementary.io)
+- *           2011-2012 Giulio Collura
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public
+- * License as published by the Free Software Foundation; either
+- * version 3 of the License, or (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program. If not, see <http://www.gnu.org/licenses/>.
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ * SPDX-FileCopyrightText: 2019-2025 elementary, Inc. (https://elementary.io)
++ *                         2011-2012 Giulio Collura
+  */
+ 
+-public class Slingshot.Widgets.Grid : Gtk.Grid {
+-    public signal void app_launched ();
++public class Slingshot.Widgets.Grid : Gtk.Box {
++    private const int PAGE_ROWS = 3;
++    private const int PAGE_COLUMNS = 5;
++    private const int MAX_APPS_IN_PAGE = (PAGE_ROWS * PAGE_COLUMNS);
+ 
+-    private struct Page {
+-        public uint rows;
+-        public uint columns;
+-    }
+-
+-    private Gtk.Grid current_grid;
+-    private Gee.HashMap<uint, Gtk.Grid> grids;
+-    private Hdy.Carousel paginator;
+-    private Page page;
+-
+-    private Gtk.EventControllerKey key_controller;
++    private Adw.Carousel paginator;
+ 
+     private uint _focused_column = 1;
+     public uint focused_column {
+         set {
+-            var target_column = value.clamp (1, page.columns);
++            var target_column = value.clamp (1, PAGE_COLUMNS);
+             var target = get_widget_at (target_column, _focused_row);
+             if (target != null && target is Widgets.AppButton) {
+                 _focused_column = target_column;
+@@ -50,7 +30,7 @@
+     private uint _focused_row = 1;
+     public uint focused_row {
+         set {
+-            var target_row = value.clamp (1, page.rows);
++            var target_row = value.clamp (1, PAGE_ROWS);
+             var target = get_widget_at (_focused_column, target_row);
+             if (target != null && target is Widgets.AppButton) {
+                 _focused_row = target_row;
+@@ -63,96 +43,91 @@
+         }
+     }
+ 
+-    private uint _current_grid_key = 0;
+-    public uint current_grid_key {
+-        get {
+-            return _current_grid_key;
+-        }
+-
+-        set {
+-            // Clamp to valid values for keyboard navigation
+-            _current_grid_key = value.clamp (1, paginator.n_pages);
+-            var grid = grids.@get (_current_grid_key);
+-            if (grid == null) {
+-                return;
+-            }
+-
+-            paginator.scroll_to (grid);
+-            current_grid = grid;
+-            refocus ();
+-        }
+-    }
+-
+     construct {
+-        page.rows = 3;
+-        page.columns = 5;
+-
+-        paginator = new Hdy.Carousel ();
+-        paginator.expand = true;
++        paginator = new Adw.Carousel () {
++            hexpand = true,
++            vexpand = true
++        };
+ 
+         var page_switcher = new Widgets.Switcher () {
+             carousel = paginator,
+             halign = CENTER
+         };
+ 
+-        orientation = Gtk.Orientation.VERTICAL;
+-        row_spacing = 24;
++        orientation = VERTICAL;
++        spacing = 24;
+         margin_bottom = 12;
+-        add (paginator);
+-        add (page_switcher);
+-
+-        grids = new Gee.HashMap<uint, Gtk.Grid> (null, null);
++        append (paginator);
++        append (page_switcher);
+ 
+         can_focus = true;
+-        focus_in_event.connect_after (() => {
+-            refocus ();
+-            return Gdk.EVENT_STOP;
+-        });
+ 
+-        key_controller = new Gtk.EventControllerKey (this);
++        var focus_controller = new Gtk.EventControllerFocus ();
++        focus_controller.enter.connect (refocus);
++
++        var key_controller = new Gtk.EventControllerKey ();
+         key_controller.key_pressed.connect (on_key_press);
++
++        add_controller (focus_controller);
++        add_controller (key_controller);
+     }
+ 
+     public void populate (Backend.AppSystem app_system) {
+-        foreach (Gtk.Grid grid in grids.values) {
+-            grid.destroy ();
++        while (paginator.n_pages > 0) {
++            paginator.remove (paginator.get_nth_page (0));
+         }
+ 
+-        grids.clear ();
+-        _current_grid_key = 0; // Avoids clamp
+-        add_new_grid (); // Increments current_grid_key to 1
++        var apps = app_system.get_apps_by_name ();
++        var num_apps = apps.length ();
+ 
+-        // Where to insert new app button
+-        var next_row_index = 0;
+-        var next_col_index = 0;
++        // e.g. Number of pages needed to show 33 apps is 3; 2 pages with fully apps and 1 additional page
++        var num_pages = (int) Math.ceil ((double) num_apps / MAX_APPS_IN_PAGE);
+ 
+-        foreach (Backend.App app in app_system.get_apps_by_name ()) {
+-            var app_button = new Widgets.AppButton (app);
+-            app_button.app_launched.connect (() => app_launched ());
++        for (uint page_idx = 0; page_idx < num_pages; page_idx++) {
++            // Number of total apps populated after dealing with this page
++            // clamp is used to handle last page correctly; has no effect for other pages
++            var num_apps_populated = ((page_idx + 1) * MAX_APPS_IN_PAGE).clamp (1, num_apps);
+ 
+-            if (next_col_index == page.columns) {
+-                next_col_index = 0;
+-                next_row_index++;
+-            }
+-
+-            if (next_row_index == page.rows) {
+-                add_new_grid ();
+-                next_row_index = 0;
+-                next_col_index = 0;
+-            }
++            // Number of apps in this page, in range of 1 to MAX_APPS_IN_PAGE
++            // Subtract 1 before calculating modulo and finally adds 1 to prevent the result becomes 0
++            var num_apps_in_page = ((num_apps_populated - 1) % MAX_APPS_IN_PAGE) + 1;
+ 
+-            current_grid.attach (app_button, (int)next_col_index, (int)next_row_index);
+-            next_col_index++;
++            populate_page (apps.nth (page_idx * MAX_APPS_IN_PAGE), num_apps_in_page);
+         }
+ 
+-        show_all ();
+         // Show first page after populating the carousel
+-        current_grid_key = 1;
++        set_page (0);
++    }
++
++    private void populate_page (SList<Backend.App> apps, uint num_apps) {
++        var grid = add_new_grid ();
++
++        for (var row = 0; row < PAGE_ROWS; row++) {
++            for (var column = 0; column < PAGE_COLUMNS; column++) {
++                Gtk.Widget widget_to_attach;
++
++                var app_idx = (row * PAGE_COLUMNS) + column;
++                if (app_idx < num_apps) {
++                    unowned var app = apps.nth_data (app_idx);
++
++                    var app_button = new Widgets.AppButton (app);
++                    app_button.app_launched.connect (() => ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ());
++
++                    widget_to_attach = app_button;
++                } else {
++                    // Fake grid in case there are not enough apps to fill the page
++                    widget_to_attach = new Gtk.Grid ();
++                }
++
++                grid.attach (widget_to_attach, column, row);
++            }
++        }
+     }
+ 
+-    private void add_new_grid () {
+-        current_grid = new Gtk.Grid () {
+-            expand = true,
++    private Gtk.Grid add_new_grid () {
++        var grid = new Gtk.Grid () {
++            hexpand = true,
++            vexpand = true,
+             row_homogeneous = true,
+             column_homogeneous = true,
+             margin_start = 12,
+@@ -161,24 +136,17 @@
+             column_spacing = 0
+         };
+ 
+-        // Fake grids in case there are not enough apps to fill the grid
+-        for (var row = 0; row < page.rows; row++) {
+-            for (var column = 0; column < page.columns; column++) {
+-                current_grid.attach (new Gtk.Grid (), column, row, 1, 1);
+-            }
+-        }
++        paginator.append (grid);
+ 
+-        paginator.add (current_grid);
+-        current_grid_key = current_grid_key + 1;
+-        grids.set (current_grid_key, current_grid);
++        return grid;
+     }
+ 
+-
+     private Gtk.Widget? get_widget_at (uint col, uint row) {
+-        if (col < 1 || col > page.columns || row < 1 || row > page.rows) {
++        if (col < 1 || col > PAGE_COLUMNS || row < 1 || row > PAGE_ROWS) {
+             return null;
+         } else {
+-            return current_grid.get_child_at ((int)col - 1, (int)row - 1);
++            var grid = (Gtk.Grid) paginator.get_nth_page ((int) paginator.get_position ());
++            return grid.get_child_at ((int) col - 1, (int) row - 1);
+         }
+     }
+ 
+@@ -188,27 +156,11 @@
+         focused_column = focused_column;
+     }
+ 
+-    public void go_to_next () {
+-        current_grid_key++;
+-    }
+-
+-    public void go_to_previous () {
+-        current_grid_key--;
+-    }
+-
+-    public void go_to_last () {
+-        current_grid_key = paginator.n_pages;
+-    }
+-
+-    public void go_to_number (int number) {
+-        current_grid_key = number;
+-    }
+-
+     private bool on_key_press (uint keyval, uint keycode, Gdk.ModifierType state) {
+         switch (keyval) {
+             case Gdk.Key.Home:
+             case Gdk.Key.KP_Home:
+-                current_grid_key = 1;
++                set_page (0);
+                 return Gdk.EVENT_STOP;
+ 
+             case Gdk.Key.Left:
+@@ -251,10 +203,10 @@
+ 
+     private void move_left (Gdk.ModifierType state) {
+         if ((state & Gdk.ModifierType.SHIFT_MASK) > 0) {
+-            current_grid_key--;
+-        } else if (focused_column == 1 && current_grid_key > 1) {
+-            current_grid_key--;
+-            focused_column = page.columns;
++            previous_page ();
++        } else if (focused_column == 1 && paginator.get_position () > 0) {
++            previous_page ();
++            focused_column = PAGE_COLUMNS;
+         } else {
+             focused_column--;
+         }
+@@ -262,12 +214,34 @@
+ 
+     private void move_right (Gdk.ModifierType state) {
+         if ((state & Gdk.ModifierType.SHIFT_MASK) > 0) {
+-            current_grid_key++;
+-        } else if (focused_column == page.columns && current_grid_key < paginator.n_pages) {
+-            current_grid_key++;
++            next_page ();
++        } else if (focused_column == PAGE_COLUMNS && paginator.get_position () < paginator.n_pages - 1) {
++            next_page ();
+             focused_column = 1;
+         } else {
+             focused_column++;
+         }
+     }
++
++    public void next_page () {
++        set_page ((int) paginator.get_position () + 1);
++    }
++
++    public void previous_page () {
++        set_page ((int) paginator.get_position () - 1);
++    }
++
++    public void last_page () {
++        set_page (paginator.n_pages);
++    }
++
++    public void set_page (uint pos) {
++        var grid = paginator.get_nth_page (pos);
++        if (grid == null) {
++            return;
++        }
++
++        paginator.scroll_to (grid, true);
++        refocus ();
++    }
+ }
+--- a/src/Views/SearchView.vala
++++ b/src/Views/SearchView.vala
+@@ -68,31 +68,25 @@
+     }
+ }
+ 
+-public class Slingshot.Widgets.SearchView : Gtk.Bin {
++public class Slingshot.Widgets.SearchView : Granite.Bin {
+ 
+     const int MAX_RESULTS = 10;
+ 
+     public signal void start_search (Synapse.SearchMatch search_match, Synapse.Match? target);
+-    public signal void app_launched ();
+ 
+-    private Granite.Widgets.AlertView alert_view;
++    private Granite.Placeholder alert_view;
+     private Gtk.ListBox list_box;
+     Gee.HashMap<ResultType, uint> limitator;
+-    private string? drag_uri = null;
+-
+-    private Gtk.GestureMultiPress click_controller;
+-    private Gtk.EventControllerKey menu_key_controller;
+ 
+     construct {
+-        alert_view = new Granite.Widgets.AlertView ("", _("Try changing search terms."), "edit-find-symbolic");
+-        alert_view.show_all ();
++        alert_view = new Granite.Placeholder ("") {
++            icon = new ThemedIcon ("edit-find-symbolic"),
++            description = _("Try changing search terms.")
++        };
+ 
+         // list box
+         limitator = new Gee.HashMap<ResultType, uint> ();
+ 
+-        const Gtk.TargetEntry DND = {"text/uri-list", 0, 0};
+-        Gtk.drag_source_set (this, Gdk.ModifierType.BUTTON1_MASK, {DND}, Gdk.DragAction.COPY);
+-
+         list_box = new Gtk.ListBox () {
+             activate_on_single_click = true,
+             selection_mode = BROWSE
+@@ -101,38 +95,39 @@
+         list_box.set_header_func ((Gtk.ListBoxUpdateHeaderFunc) update_header);
+         list_box.set_placeholder (alert_view);
+ 
+-        var scrolled_window = new Gtk.ScrolledWindow (null, null) {
++        var scrolled_window = new Gtk.ScrolledWindow () {
+             child = list_box,
+             hscrollbar_policy = NEVER
+         };
+ 
+         child = scrolled_window;
+ 
+-        list_box.drag_begin.connect ((ctx) => {
+-            var selected_row = list_box.get_selected_row ();
+-            if (selected_row != null) {
+-                var drag_item = (Slingshot.Widgets.SearchItem) selected_row;
+-                drag_uri = drag_item.app_uri;
+-                if (drag_uri != null) {
+-                    Gtk.drag_set_icon_gicon (ctx, drag_item.image.gicon, 32, 32);
+-                }
+-
+-                app_launched ();
+-            }
+-        });
+-
+-        list_box.drag_end.connect (() => {
+-            if (drag_uri != null) {
+-                app_launched ();
+-            }
++        var drag_source = new Gtk.DragSource () {
++            actions = COPY
++        };
++        drag_source.prepare.connect ((x, y) => {
++            var drag_item = (Slingshot.Widgets.SearchItem) list_box.get_row_at_y ((int) y);
++            if (drag_item == null) {
++                return null;
++            }
++
++            drag_source.set_icon (
++                Gtk.IconTheme.get_for_display (Gdk.Display.get_default ()).lookup_by_gicon (
++                    drag_item.image.gicon,
++                    32,
++                    scale_factor,
++                    get_direction (),
++                    PRELOAD
++                ), 0, 0
++            );
+ 
+-            drag_uri = null;
++            return new Gdk.ContentProvider.union ({
++                new Gdk.ContentProvider.for_value (drag_item.app_uri)
++            });
+         });
+ 
+-        list_box.drag_data_get.connect ((ctx, sel, info, time) => {
+-            if (drag_uri != null) {
+-                sel.set_uris ({drag_uri});
+-            }
++        drag_source.drag_begin.connect ((drag_source, drag) => {
++            ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ();
+         });
+ 
+         list_box.move_cursor.connect (move_cursor);
+@@ -154,13 +149,13 @@
+                         break;
+                 }
+ 
+-                app_launched ();
++                ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ();
+ 
+                 return false;
+             });
+         });
+ 
+-        click_controller = new Gtk.GestureMultiPress (list_box) {
++        var click_controller = new Gtk.GestureClick () {
+             button = 0,
+             exclusive = true
+         };
+@@ -171,14 +166,17 @@
+             var event = click_controller.get_last_event (sequence);
+ 
+             if (event.triggers_context_menu ()) {
+-                search_item.create_context_menu ()?.popup_at_pointer ();
++                var context_menu = search_item.create_context_menu ();
++                if (context_menu != null) {
++                    Utils.menu_popup_at_pointer (context_menu, x, y);
++                }
+ 
+                 click_controller.set_state (CLAIMED);
+                 click_controller.reset ();
+             }
+         });
+ 
+-        menu_key_controller = new Gtk.EventControllerKey (list_box);
++        var menu_key_controller = new Gtk.EventControllerKey ();
+         menu_key_controller.key_released.connect ((keyval, keycode, state) => {
+             var search_item = (SearchItem) list_box.get_selected_row ();
+ 
+@@ -186,17 +184,27 @@
+             switch (keyval) {
+                 case Gdk.Key.F10:
+                     if (mods == Gdk.ModifierType.SHIFT_MASK) {
+-                        search_item.create_context_menu ()?.popup_at_widget (this, EAST, CENTER);
++                        var context_menu = search_item.create_context_menu ();
++                        if (context_menu != null) {
++                            Utils.menu_popup_on_keypress (context_menu);
++                        }
+                     }
+                     break;
+                 case Gdk.Key.Menu:
+                 case Gdk.Key.MenuKB:
+-                    search_item.create_context_menu ()?.popup_at_widget (this, EAST, CENTER);
++                    var context_menu = search_item.create_context_menu ();
++                    if (context_menu != null) {
++                        Utils.menu_popup_on_keypress (context_menu);
++                    }
+                     break;
+                 default:
+                     return;
+             }
+         });
++
++        list_box.add_controller (click_controller);
++        list_box.add_controller (drag_source);
++        list_box.add_controller (menu_key_controller);
+     }
+ 
+     private void move_cursor (Gtk.MovementStep step, int count) {
+@@ -273,17 +281,14 @@
+         var search_item = new SearchItem (app, search_term, result_type);
+         app.start_search.connect ((search, target) => start_search (search, target));
+ 
+-        app.launched.connect (() => app_launched ());
++        app.launched.connect (() => ((Gtk.Popover) get_ancestor (typeof (Gtk.Popover))).popdown ());
+ 
+-        list_box.add (search_item);
+-        search_item.show_all ();
++        list_box.append (search_item);
+     }
+ 
+     public void clear () {
+         limitator.clear ();
+-        list_box.get_children ().foreach ((child) => {
+-            child.destroy ();
+-        });
++        list_box.remove_all ();
+     }
+ 
+     public void activate_selection () {
+--- a/src/Widgets/AppButton.vala
++++ b/src/Widgets/AppButton.vala
+@@ -10,26 +10,16 @@
+     public Backend.App app { get; construct; }
+ 
+     private const int ICON_SIZE = 64;
+-
+     private Gtk.Label badge;
+-    private bool dragging = false; //prevent launching
+-
+-    private Gtk.GestureMultiPress click_controller;
+-    private Gtk.EventControllerKey menu_key_controller;
+ 
+     public AppButton (Backend.App app) {
+         Object (app: app);
+     }
+ 
+     construct {
+-        Gtk.TargetEntry dnd = {"text/uri-list", 0, 0};
+-        Gtk.drag_source_set (this, Gdk.ModifierType.BUTTON1_MASK, {dnd},
+-                             Gdk.DragAction.COPY);
+-
++        has_frame = false;
+         tooltip_text = app.description;
+ 
+-        get_style_context ().add_class (Gtk.STYLE_CLASS_FLAT);
+-
+         var app_label = new Gtk.Label (app.name) {
+             halign = CENTER,
+             ellipsize = END,
+@@ -41,12 +31,12 @@
+         };
+ 
+         var icon = app.icon;
+-        unowned var theme = Gtk.IconTheme.get_default ();
+-        if (icon == null || theme.lookup_by_gicon (icon, ICON_SIZE, Gtk.IconLookupFlags.USE_BUILTIN) == null) {
++        unowned var theme = Gtk.IconTheme.get_for_display (Gdk.Display.get_default ());
++        if (icon == null || theme.lookup_by_gicon (icon, ICON_SIZE, ICON_SIZE, get_direction (), 0) == null) {
+             icon = new ThemedIcon ("application-default-icon");
+         }
+ 
+-        var image = new Gtk.Image.from_gicon (icon, ICON_SIZE) {
++        var image = new Gtk.Image.from_gicon (icon) {
+             margin_top = 9,
+             margin_end = 6,
+             margin_start = 6,
+@@ -58,7 +48,7 @@
+             valign = START,
+             visible = false
+         };
+-        badge.get_style_context ().add_class (Granite.STYLE_CLASS_BADGE);
++        badge.add_css_class (Granite.STYLE_CLASS_BADGE);
+ 
+         var overlay = new Gtk.Overlay () {
+             child = image,
+@@ -71,8 +61,8 @@
+             hexpand = true,
+             vexpand = true
+         };
+-        box.add (overlay);
+-        box.add (app_label);
++        box.append (overlay);
++        box.append (app_label);
+ 
+         child = box;
+ 
+@@ -80,7 +70,7 @@
+ 
+         this.clicked.connect (launch_app);
+ 
+-        click_controller = new Gtk.GestureMultiPress (this) {
++        var click_controller = new Gtk.GestureClick () {
+             button = 0,
+             exclusive = true
+         };
+@@ -89,50 +79,59 @@
+             var event = click_controller.get_last_event (sequence);
+ 
+             if (event.triggers_context_menu ()) {
+-                var context_menu = new Gtk.Menu.from_model (app.get_menu_model ());
+-                context_menu.insert_action_group (Backend.App.ACTION_GROUP_PREFIX, app.action_group);
+-                context_menu.popup_at_pointer ();
++                var context_menu = app.get_context_menu (this);
++                context_menu.halign = START;
++
++                Utils.menu_popup_at_pointer (context_menu, x, y);
+ 
+                 click_controller.set_state (CLAIMED);
+                 click_controller.reset ();
+             }
+         });
+ 
+-        menu_key_controller = new Gtk.EventControllerKey (this);
++        var menu_key_controller = new Gtk.EventControllerKey ();
+         menu_key_controller.key_released.connect ((keyval, keycode, state) => {
+             var mods = state & Gtk.accelerator_get_default_mod_mask ();
+             switch (keyval) {
+                 case Gdk.Key.F10:
+                     if (mods == Gdk.ModifierType.SHIFT_MASK) {
+-                        var context_menu = new Gtk.Menu.from_model (app.get_menu_model ());
+-                        context_menu.insert_action_group (Backend.App.ACTION_GROUP_PREFIX, app.action_group);
+-                        context_menu.popup_at_widget (this, EAST, CENTER);
++                        Utils.menu_popup_on_keypress (app.get_context_menu (this));
+                     }
+                     break;
+                 case Gdk.Key.Menu:
+                 case Gdk.Key.MenuKB:
+-                    var context_menu = new Gtk.Menu.from_model (app.get_menu_model ());
+-                    context_menu.insert_action_group (Backend.App.ACTION_GROUP_PREFIX, app.action_group);
+-                    context_menu.popup_at_widget (this, EAST, CENTER);
++                    Utils.menu_popup_on_keypress (app.get_context_menu (this));
+                     break;
+                 default:
+                     return;
+             }
+         });
+ 
+-        this.drag_begin.connect ((ctx) => {
+-            this.dragging = true;
+-            Gtk.drag_set_icon_gicon (ctx, app.icon, 16, 16);
+-            app_launched ();
+-        });
++        var drag_source = new Gtk.DragSource () {
++            actions = COPY,
++            content = new Gdk.ContentProvider.union ({
++                new Gdk.ContentProvider.for_value (
++                    File.new_for_path (app.desktop_path).get_uri ()
++                )
++            })
++        };
++        drag_source.drag_begin.connect ((drag_source, drag) => {
++            drag_source.set_icon (
++                Gtk.IconTheme.get_for_display (Gdk.Display.get_default ()).lookup_by_gicon (
++                    icon,
++                    32,
++                    scale_factor,
++                    get_direction (),
++                    PRELOAD
++                ), 0, 0
++            );
+ 
+-        this.drag_end.connect ( () => {
+-            this.dragging = false;
++            app_launched ();
+         });
+ 
+-        this.drag_data_get.connect ( (ctx, sel, info, time) => {
+-            sel.set_uris ({File.new_for_path (app.desktop_path).get_uri ()});
+-        });
++        add_controller (click_controller);
++        add_controller (menu_key_controller);
++        add_controller (drag_source);
+ 
+         app.notify["current-count"].connect (update_badge_count);
+         app.notify["count-visible"].connect (update_badge_visibility);
+@@ -158,11 +157,6 @@
+ 
+     private void update_badge_visibility () {
+         var count_visible = app.count_visible && app.current_count > 0;
+-        badge.no_show_all = !count_visible;
+-        if (count_visible) {
+-            badge.show_all ();
+-        } else {
+-            badge.hide ();
+-        }
++        badge.visible = count_visible;
+     }
+ }
+--- a/src/Widgets/AppListRow.vala
++++ b/src/Widgets/AppListRow.vala
+@@ -25,8 +25,8 @@
+         app_info = new GLib.DesktopAppInfo (app_id);
+ 
+         var icon = app_info.get_icon ();
+-        weak Gtk.IconTheme theme = Gtk.IconTheme.get_default ();
+-        if (icon == null || theme.lookup_by_gicon (icon, 32, Gtk.IconLookupFlags.USE_BUILTIN) == null) {
++        unowned var theme = Gtk.IconTheme.get_for_display (Gdk.Display.get_default ());
++        if (icon == null || theme.lookup_by_gicon (icon, 32, 32, get_direction (), 0) == null) {
+             icon = new ThemedIcon ("application-default-icon");
+         }
+ 
+@@ -43,8 +43,8 @@
+         tooltip_text = app_info.get_description ();
+ 
+         var box = new Gtk.Box (HORIZONTAL, 12);
+-        box.add (image);
+-        box.add (name_label);
++        box.append (image);
++        box.append (name_label);
+ 
+         child = box;
+     }
+--- a/src/Widgets/PageChecker.vala
++++ b/src/Widgets/PageChecker.vala
+@@ -8,10 +8,10 @@
+ public class Slingshot.Widgets.PageChecker : Gtk.Button {
+     public const double MIN_OPACITY = 0.4;
+ 
+-    public unowned Hdy.Carousel carousel { get; construct; }
++    public unowned Adw.Carousel carousel { get; construct; }
+     public int index { get; construct; }
+ 
+-    public PageChecker (Hdy.Carousel carousel, int index) {
++    public PageChecker (Adw.Carousel carousel, int index) {
+         Object (
+             carousel: carousel,
+             index: index
+@@ -22,23 +22,28 @@
+         var provider = new Gtk.CssProvider ();
+         provider.load_from_resource ("/io/elementary/desktop/wingpanel/applications-menu/PageChecker.css");
+ 
+-        Gtk.StyleContext.add_provider_for_screen (
+-            Gdk.Screen.get_default (),
++        Gtk.StyleContext.add_provider_for_display (
++            Gdk.Display.get_default (),
+             provider,
+             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+         );
+     }
+ 
+     construct {
+-        get_style_context ().add_class ("switcher");
++        add_css_class ("switcher");
+ 
+-        child = new Gtk.Image.from_icon_name ("pager-checked-symbolic", MENU);
++        icon_name = "pager-checked-symbolic";
+ 
+         update_opacity ();
+ 
+         carousel.notify["position"].connect (() => {
+             update_opacity ();
+         });
++
++        clicked.connect (() => {
++            unowned var page = carousel.get_nth_page (index);
++            carousel.scroll_to (page, true);
++        });
+     }
+ 
+     private void update_opacity () {
+--- a/src/Widgets/SearchItem.vala
++++ b/src/Widgets/SearchItem.vala
+@@ -47,8 +47,8 @@
+         };
+ 
+         var icon = app.icon;
+-        unowned var theme = Gtk.IconTheme.get_default ();
+-        if (icon == null || theme.lookup_by_gicon (icon, ICON_SIZE, Gtk.IconLookupFlags.USE_BUILTIN) == null) {
++        unowned var theme = Gtk.IconTheme.get_for_display (Gdk.Display.get_default ());
++        if (icon == null || theme.lookup_by_gicon (icon, ICON_SIZE, ICON_SIZE, get_direction (), 0) == null) {
+             icon = new ThemedIcon ("application-default-icon");
+         }
+ 
+@@ -69,8 +69,8 @@
+         var box = new Gtk.Box (HORIZONTAL, 12) {
+             margin_start = 6
+         };
+-        box.add (image);
+-        box.add (name_label);
++        box.append (image);
++        box.append (name_label);
+ 
+         child = box;
+ 
+@@ -134,14 +134,11 @@
+         }
+     }
+ 
+-    public Gtk.Menu? create_context_menu () {
++    public Gtk.Popover? create_context_menu () {
+         if (result_type != APPLICATION) {
+             return null;
+         }
+ 
+-        var context_menu = new Gtk.Menu.from_model (app.get_menu_model ());
+-        context_menu.insert_action_group (Backend.App.ACTION_GROUP_PREFIX, app.action_group);
+-
+-        return context_menu;
++        return app.get_context_menu (this);
+     }
+ }
+--- a/src/Widgets/Switcher.vala
++++ b/src/Widgets/Switcher.vala
+@@ -6,8 +6,8 @@
+  */
+ 
+ public class Slingshot.Widgets.Switcher : Gtk.Box {
+-    private Hdy.Carousel _carousel;
+-    public Hdy.Carousel carousel {
++    private Adw.Carousel _carousel;
++    public Adw.Carousel carousel {
+         set {
+             if (_carousel != null) {
+                 _carousel.notify["n-pages"].disconnect (update_pages);
+@@ -26,27 +26,20 @@
+     }
+ 
+     private void update_pages () {
+-        get_children ().foreach ((child) => {
+-            child.destroy ();
+-        });
++        while (get_first_child () != null) {
++            remove (get_first_child ());
++        }
+ 
+         if (_carousel.n_pages == 1) {
+             hide ();
+             return;
++        } else {
++            show ();
+         }
+ 
+         for (int i = 0; i < _carousel.get_n_pages (); i++) {
+-            // In Adwaita, Carousel has a get_nth_page function
+-            unowned var page = _carousel.get_children ().nth_data (i);
+-
+             var button = new PageChecker (_carousel, i);
+-            button.show ();
+-
+-            add (button);
+-
+-            button.clicked.connect (() => {
+-                _carousel.scroll_to (page);
+-            });
++            append (button);
+         }
+     }
+ }
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -8,6 +8,7 @@
+ sources = [
+     'Indicator.vala',
+     'SlingshotView.vala',
++    'Utils.vala',
+ 
+     'Backend/AppCenter.vala',
+     'Backend/AppSystem.vala',
+@@ -81,7 +82,8 @@
+     json_glib_dep,
+     zeitgeist_dep,
+     wingpanel_dep,
+-    libhandy_dep,
++    adwaita_dep,
++    math_dep,
+     posix_dep,
+ ]
+ 
+--- a/src/synapse-plugins/calculator-plugin/calculator-plugin.vala
++++ b/src/synapse-plugins/calculator-plugin/calculator-plugin.vala
+@@ -43,9 +43,8 @@
+             }
+ 
+             public override void execute (Match? match) {
+-                unowned var display = Gdk.Display.get_default ();
+-                unowned var clipboard = Gtk.Clipboard.get_default (display);
+-                clipboard.set_text (text, -1);
++                unowned var clipboard = Gdk.Display.get_default ().get_clipboard ();
++                clipboard.set_text (text);
+             }
+         }
+ 
+--- a/src/synapse-plugins/converter-plugin/converter-plugin.vala
++++ b/src/synapse-plugins/converter-plugin/converter-plugin.vala
+@@ -40,9 +40,8 @@
+             }
+ 
+             public override void execute (Match? match) {
+-                unowned var display = Gdk.Display.get_default ();
+-                unowned var clipboard = Gtk.Clipboard.get_default (display);
+-                clipboard.set_text (text, -1);
++                unowned var clipboard = Gdk.Display.get_default ().get_clipboard ();
++                clipboard.set_text (text);
+             }
+         }
+ 
+--- a/src/synapse-plugins/desktop-file-plugin.vala
++++ b/src/synapse-plugins/desktop-file-plugin.vala
+@@ -62,7 +62,7 @@
+ 
+             public override void execute (Match? match) {
+                 var context = Gdk.Display.get_default ().get_app_launch_context ();
+-                context.set_timestamp (Gtk.get_current_event_time ());
++                context.set_timestamp (Gdk.CURRENT_TIME);
+                 ((DesktopAppInfo) app_info).launch_action (action_name, context);
+             }
+         }
