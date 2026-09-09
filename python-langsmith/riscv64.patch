@@ -1,0 +1,17 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -65,6 +65,7 @@
+ 
+ prepare() {
+   cd langsmith-sdk/python
++  patch -Np1 -i "$srcdir/relax-async-evaluation-timing.patch"
+ 
+   # Python 3.14 deprecates asyncio.iscoroutinefunction; tests import with -W error.
+   sed -i 's/import asyncio/import inspect/' langsmith/_internal/_beta_decorator.py
+@@ -109,3 +110,6 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 ../LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=(relax-async-evaluation-timing.patch)
++sha512sums+=('d29afc54a0c84a6b93979a49cc2eb7a1e8a38728c8f233bdcc28d2bc1a829e2e338b4c5a4755214040219e3290296c9439e15f1a64a1403dc303d49d18c6ab33')
