@@ -1,0 +1,38 @@
+--- a/SPEC.md
++++ b/SPEC.md
+@@ -67,6 +67,7 @@
+   - `:HPPA64`
+   - `:ARM`
+   - `:ARM64`
++  - `:RISCV64`
+ 
+ [add more ...]
+ 
+--- a/src/tf-sbcl.lisp
++++ b/src/tf-sbcl.lisp
+@@ -49,4 +49,5 @@
+ ;;;; CPU
+ 
+ ;;; SBCL already pushes: :X86, :X86-64, :PPC, and :64-BIT
++#+(and riscv 64-bit) (pushnew :riscv64 *features*)
+ #-64-bit (pushnew :32-bit *features*)
+--- a/tests/tests.lisp
++++ b/tests/tests.lisp
+@@ -98,7 +98,7 @@
+   t)
+ 
+ (deftest cpu.1
+-    (mutually-exclusive-p '(:ppc :ppc64 :x86 :x86-64 :alpha :mips :arm :arm64))
++    (mutually-exclusive-p '(:ppc :ppc64 :x86 :x86-64 :alpha :mips :arm :arm64 :riscv64))
+   t)
+ 
+ #+windows
+@@ -117,6 +117,8 @@
+              (ecase (foreign-type-size :pointer)
+                (4 (featurep :x86))
+                (8 (featurep :x86-64))))
++            ((string= machine "riscv64")
++             (featurep :riscv64))
+             (t
+              (format *debug-io*
+                      "~&; NOTE: unhandled machine type, ~a, in CPU.2 test.~%"
