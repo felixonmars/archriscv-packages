@@ -1,0 +1,43 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -11,14 +11,15 @@
+ depends=('ghc-libs' 'nettle' 'haskell-byteable' 'haskell-crypto-cipher-types' 'haskell-tagged'
+          'haskell-securemem')
+ makedepends=('ghc')
+-source=(https://hackage.haskell.org/packages/archive/${_hkgname}/${pkgver}/${_hkgname}-${pkgver}.tar.gz
+-        nettle-4.patch)
+-sha512sums=('2b61b80125c86e4b36d6680eadd2208acd9790fbb659e5da99236eee8101efc0b666f909652f550d361a12eb9ae35a357aec0cf9eea80f8caad6b65c3f4bbcf5'
+-            '08b941d7da061112ca8af90cfcd5efc5e818018ee3d4593caba9b67819786f6dd3b80dc4662aeb6647161f998c042924cc0231220c11f3d057b231dc02b6ae1e')
++source=(https://hackage.haskell.org/packages/archive/${_hkgname}/${pkgver}/${_hkgname}-${pkgver}.tar.gz)
++sha512sums=('2b61b80125c86e4b36d6680eadd2208acd9790fbb659e5da99236eee8101efc0b666f909652f550d361a12eb9ae35a357aec0cf9eea80f8caad6b65c3f4bbcf5')
+ 
+ prepare() {
+     cd $_hkgname-$pkgver
+-    patch -p1 -i ../nettle-4.patch
++    # Nettle 4 replaces the SHA-3 init symbols and removes digest length arguments.
++    patch -p1 -i ../nettle-block-size.patch
++    patch -p1 -i ../nettle-digest.patch
++    patch -p1 -i ../nettle4.patch
+ }
+ 
+ build() {
+@@ -26,7 +27,7 @@
+     
+     runhaskell Setup configure -O --enable-shared --enable-debug-info --enable-executable-dynamic --disable-library-vanilla \
+         --prefix=/usr --docdir=/usr/share/doc/$pkgname --datasubdir=$pkgname \
+-        --dynlibdir=/usr/lib --libsubdir=\$compiler/site-local/\$pkgid
++        --dynlibdir=/usr/lib --libsubdir=\$compiler/site-local/\$pkgid --flags=Nettle4
+     runhaskell Setup build $MAKEFLAGS
+     runhaskell Setup register --gen-script
+     runhaskell Setup unregister --gen-script
+@@ -43,3 +44,10 @@
+     install -D -m644 "COPYING" "${pkgdir}/usr/share/licenses/${pkgname}/COPYING"
+     rm -f "${pkgdir}/usr/share/doc/${pkgname}/COPYING"
+ }
++
++source+=("nettle-block-size.patch::https://github.com/stbuehler/haskell-nettle/commit/1d60e1c6e26307eff929ff91f7f08e71562f2db5.patch"
++         "nettle-digest.patch::https://github.com/stbuehler/haskell-nettle/commit/e46ab818d729aef3f72db34fafa760f0a796e06e.patch"
++         "nettle4.patch::https://github.com/stbuehler/haskell-nettle/commit/535a9734ca8360b5d84eabca0dc2c773b8883336.patch")
++sha512sums+=('54175e25e2a0771bf272dbc6feedd5fd0ac7b7b76e9907cdc52cbb3267e5a26bbbb34cb95e7156dc50d4cc1151e403d94a6de98bfab3cb00d5a04cca5caf766c'
++             '4411fbe93cdf2acee65b9a86254266ec5dbe5851bbeed99c4198d2787ad7ac074fe48589c0828936ceee70ab7cca88ebc8d8dbd9aae74a5470186369a5e9781d'
++             '5b1d53f5cd5e808d60ec901fb430a2ae588748a480cab078d21b26332f72b6f0fb16e8f48ab343a8f18daa147e62e92a390f2016b83734df7b3826b9e8d4c642')
