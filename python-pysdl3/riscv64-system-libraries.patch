@@ -1,0 +1,20 @@
+--- a/sdl3/__init__.py
++++ b/sdl3/__init__.py
+@@ -12,6 +12,7 @@
+     """Format the architecture string."""
+     if arch.lower() in ["x64", "x86_64", "amd64"]: return "AMD64"
+     if arch.lower() in ["aarch64", "arm64"]: return "ARM64"
++    if arch.lower() == "riscv64": return "RISCV64"
+     assert False, "Unknown architecture."
+ 
+ SDL_SYSTEM, SDL_ARCH = os.uname().sysname if hasattr(os, "uname") else platform.system(), SDL_FORMAT_ARCH(platform.machine())
+@@ -173,7 +174,8 @@
+         except OSError as exc:
+             SDL_LOGGER.Log(SDL_LOGGER.Error, f"Failed to create binary path: {exc}.")
+ 
+-    if int(os.environ.get("SDL_DISABLE_METADATA", "0")) > 0:
++    # RISC-V uses system libraries; upstream provides no prebuilt binaries.
++    if int(os.environ.get("SDL_DISABLE_METADATA", "1" if SDL_ARCH == "RISCV64" else "0")) > 0:
+         if os.path.exists(binaryPath) and os.path.isdir(binaryPath):
+             for root, _, files in os.walk(binaryPath):
+                 binaryData["files"] += [os.path.join(root, file) for file in files if SDL_CHECK_BINARY_NAME(file)]
