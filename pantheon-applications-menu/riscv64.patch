@@ -1,0 +1,38 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,11 +13,11 @@
+   gdk-pixbuf2
+   glib2
+   glibc
+-  gtk3
++  gtk4
+   json-glib
+   libgee
+-  libgranite.so
+-  libhandy-1.so
++  granite7
++  libadwaita-1.so
+   libswitchboard-3.so
+   wingpanel
+   plank
+@@ -37,6 +37,13 @@
+   git describe --tags | sed 's/-/.r/; s/-g/./'
+ }
+ 
++prepare() {
++  cd pantheon-applications-menu
++  # Backport the GTK4/Wingpanel 9 port and its GridView prerequisites.
++  # https://github.com/elementary/applications-menu/pull/645
++  patch -Np1 -i "$srcdir/gtk4-port.patch"
++}
++
+ build() {
+   arch-meson pantheon-applications-menu build
+   ninja -C build
+@@ -47,3 +54,6 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=(gtk4-port.patch)
++b2sums+=('c235c8ccae7ab2572da9afff851f3c162ed2f65559198f34a945837603b43ad8409e2a98c7aee0767a2b0485c6bd480df84f0261e999d1f3b6b21e752c357e2e')
