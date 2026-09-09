@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,6 +28,11 @@
+ source=("git+$url.git#tag=$pkgver")
+ b2sums=('8bea4a3aa4ec79562d933f5065e1481fd74cdb0728aa068e2235030c30503ea6f1a94bf70f748d1d95f2fd7a7d723b6899b3857ac1c2c2d3aae08588d8b05c28')
+ 
++prepare() {
++  cd ${pkgname#python-}
++  patch -Np1 -i "$srcdir/stress-test-timeouts.patch"
++}
++
+ build() {
+   cd ${pkgname#python-}
+   python -m build --wheel --no-isolation
+@@ -45,3 +50,6 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++source+=(stress-test-timeouts.patch)
++b2sums+=('a14a3f07c6579609dfd65108b2eb265489feaa92adaad9efafc342c98d62e0b32e66214cfdd9080ccfed802faccabaf6734f00439940cd7217ba796e73f873ff')
