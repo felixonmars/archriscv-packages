@@ -1,0 +1,16 @@
+--- a/joblib/test/test_dask.py
++++ b/joblib/test/test_dask.py
+@@ -64,11 +64,8 @@
+ 
+ def count_events(event_name, client):
+     def work(dask_worker):
+-        count = 0
+-        for task_state in dask_worker.state.tasks.values():
+-            task_story = dask_worker.state.story(task_state)
+-            count += len([event for event in task_story if event[1] == event_name])
+-        return count
++        # Completed tasks may be forgotten while their events remain in the log.
++        return sum(event[1] == event_name for event in dask_worker.state.log)
+ 
+     return client.run(work)
+ 

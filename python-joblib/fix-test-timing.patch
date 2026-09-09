@@ -1,0 +1,43 @@
+--- a/joblib/test/test_dask.py
++++ b/joblib/test/test_dask.py
+@@ -86,7 +86,7 @@
+                 assert seq == [inc(i) for i in range(10)]
+ 
+ 
+-def test_dask_backend_uses_autobatching(loop):
++def test_dask_backend_uses_autobatching(loop, monkeypatch):
+     assert (
+         DaskDistributedBackend.compute_batch_size
+         is AutoBatchingMixin.compute_batch_size
+@@ -103,6 +103,15 @@
+                     assert backend.parallel is parallel
+                     assert backend._effective_batch_size == 1
+ 
++                    # Exercise batch growth independently of machine speed.
++                    monkeypatch.setattr(
++                        backend,
++                        "batch_completed",
++                        lambda batch_size, duration: AutoBatchingMixin.batch_completed(
++                            backend, batch_size, 0.01
++                        ),
++                    )
++
+                     # Launch many short tasks that should trigger
+                     # auto-batching:
+                     parallel(delayed(lambda: None)() for _ in range(int(1e4)))
+--- a/joblib/test/test_memmapping.py
++++ b/joblib/test/test_memmapping.py
+@@ -35,11 +35,11 @@
+ from joblib.testing import parametrize, raises, skipif
+ 
+ 
+-def setup_module():
++def setup_function():
+     faulthandler.dump_traceback_later(timeout=300, exit=True)
+ 
+ 
+-def teardown_module():
++def teardown_function():
+     faulthandler.cancel_dump_traceback_later()
+ 
+ 
