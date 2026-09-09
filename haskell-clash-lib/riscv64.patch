@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,6 +24,12 @@
+ source=("https://hackage.haskell.org/packages/archive/$_hkgname/$pkgver/$_hkgname-$pkgver.tar.gz")
+ sha512sums=('78af3f3058c2bb178dd9da2264aa37dbc59eb9c906823995a3fd5e33a6c4a475a3102c46c14b24088bb2deda16a8af2547c1cb06798aaa304498a14ae1335f0e')
+ 
++prepare() {
++  cd $_hkgname-$pkgver
++  # https://github.com/clash-lang/clash-compiler/commit/66e474300488ce53f7bbeeef78de10ed203f6643
++  patch -Np1 -i "$srcdir/ghc-9.6.7.patch"
++}
++
+ build() {
+   cd $_hkgname-$pkgver
+ 
+@@ -63,3 +69,6 @@
+   install -D -m644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+   rm -f "$pkgdir"/usr/share/doc/$pkgname/LICENSE
+ }
++
++source+=(ghc-9.6.7.patch)
++sha512sums+=('df4a7e080f91574b73067e0ef962ad9761ec8cffd5fd836552e32109b67b7424239213aebb11022ba5dc43ea05f62fcab2a05f8c525369b3be99c31a3e3549f8')

@@ -1,0 +1,158 @@
+--- a/src/Clash/Core/FreeVars.hs
++++ b/src/Clash/Core/FreeVars.hs
+@@ -29,11 +29,15 @@
+   )
+ where
+ 
++#if MIN_VERSION_ghc(9,8,4) || (MIN_VERSION_ghc(9,6,7) && !MIN_VERSION_ghc(9,8,0))
++#define UNIQUE_IS_WORD64
++#endif
++
+ import qualified Control.Lens           as Lens
+ import Control.Lens.Fold                (Fold)
+ import Control.Lens.Getter              (Contravariant)
+ import Data.Coerce
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ import qualified GHC.Data.Word64Set     as IntSet
+ #else
+ import qualified Data.IntSet            as IntSet
+@@ -86,7 +90,7 @@
+   :: (Contravariant f, Applicative f)
+   => (forall b . Var b -> Bool)
+   -- ^ Predicate telling whether a variable is interesting
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+   -> IntSet.Word64Set
+ #else
+   -> IntSet.IntSet
+--- a/src/Clash/Core/VarEnv.hs
++++ b/src/Clash/Core/VarEnv.hs
+@@ -97,13 +97,17 @@
+   )
+ where
+ 
++#if MIN_VERSION_ghc(9,8,4) || (MIN_VERSION_ghc(9,6,7) && !MIN_VERSION_ghc(9,8,0))
++#define UNIQUE_IS_WORD64
++#endif
++
+ import           Control.DeepSeq           (NFData)
+ import           Data.Binary               (Binary)
+ import           Data.Coerce               (coerce)
+ import qualified Data.List                 as List
+ import qualified Data.List.Extra           as List
+ import           Data.Maybe                (fromMaybe)
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ import           Data.Word                 (Word64)
+ #endif
+ 
+@@ -389,7 +393,7 @@
+ -- * InScopeSet
+ 
+ type Seed
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+   = Word64
+ #else
+   = Int
+--- a/src/Clash/Data/UniqMap.hs
++++ b/src/Clash/Data/UniqMap.hs
+@@ -39,13 +39,17 @@
+   , elems
+   ) where
+ 
++#if MIN_VERSION_ghc(9,8,4) || (MIN_VERSION_ghc(9,6,7) && !MIN_VERSION_ghc(9,8,0))
++#define UNIQUE_IS_WORD64
++#endif
++
+ import           Prelude hiding (elem, filter, lookup, notElem, null)
+ 
+ import           Control.DeepSeq (NFData)
+ import           Data.Binary (Binary (..))
+ import           Data.Bifunctor (first)
+ import           Data.Function (on)
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ import           GHC.Data.Word64Map.Strict (Word64Map)
+ import qualified GHC.Data.Word64Map.Strict as IntMap
+ #else
+@@ -71,7 +75,7 @@
+ -- uniqueable and provide their own key, however a unique can be associated
+ -- with any value.
+ newtype UniqMap a
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+   = UniqMap { uniqMapToIntMap :: Word64Map a }
+ #else
+   = UniqMap { uniqMapToIntMap :: IntMap a }
+@@ -85,7 +89,7 @@
+     , Semigroup
+     , Show
+     )
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ instance Binary a => Binary (UniqMap a) where
+   put (UniqMap m) = put (IntMap.size m) <> mapM_ put (IntMap.toAscList m)
+   get             = fmap (UniqMap . IntMap.fromDistinctAscList) get
+--- a/src/Clash/Unique.hs
++++ b/src/Clash/Unique.hs
+@@ -17,8 +17,13 @@
+   , fromGhcUnique
+   ) where
+ 
++#if MIN_VERSION_ghc(9,8,4) || (MIN_VERSION_ghc(9,6,7) && !MIN_VERSION_ghc(9,8,0))
++#define UNIQUE_IS_WORD64
++#endif
++
+ import Data.Word (Word64)
+-#if MIN_VERSION_ghc(9,8,4)
++
++#ifdef UNIQUE_IS_WORD64
+ import GHC.Word (Word64(W64#))
+ import GHC.Exts (Word64#)
+ #else
+@@ -31,7 +36,7 @@
+ import qualified Unique as GHC
+ #endif
+ 
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ type Unique = Word64
+ type Unique# = Word64#
+ 
+@@ -63,7 +68,7 @@
+   getUnique = id
+   setUnique = flip const
+ 
+-#if !MIN_VERSION_ghc(9,8,4)
++#ifndef UNIQUE_IS_WORD64
+ instance Uniquable Word64 where
+   getUnique = fromIntegral
+   setUnique _ = fromIntegral
+--- a/src/Clash/Util/Graph.hs
++++ b/src/Clash/Util/Graph.hs
+@@ -14,9 +14,13 @@
+   , callGraphBindings
+   ) where
+ 
++#if MIN_VERSION_ghc(9,8,4) || (MIN_VERSION_ghc(9,6,7) && !MIN_VERSION_ghc(9,8,0))
++#define UNIQUE_IS_WORD64
++#endif
++
+ import           Data.Tuple            (swap)
+ import           Data.Foldable         (foldlM)
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ import qualified GHC.Data.Word64Map.Strict as IntMap
+ import qualified GHC.Data.Word64Set        as IntSet
+ #else
+@@ -33,7 +37,7 @@
+ import           Clash.Normalize.Util (callGraph)
+ import           Clash.Unique (Unique)
+ 
+-#if MIN_VERSION_ghc(9,8,4)
++#ifdef UNIQUE_IS_WORD64
+ type IntMap = IntMap.Word64Map
+ type IntSet = IntSet.Word64Set
+ #endif
