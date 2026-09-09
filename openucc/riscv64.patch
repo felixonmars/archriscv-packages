@@ -1,0 +1,49 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,10 +14,8 @@
+   openucx
+ )
+ makedepends=(
+-  cuda
+   hip-runtime-amd
+   rocm-llvm
+-  nccl
+   rccl
+   rdma-core
+ )
+@@ -25,9 +23,7 @@
+   gtest
+ )
+ optdepends=(
+-  'cuda: for CUDA execution engine and transport layer'
+   'hip-runtime-amd: for HIP execution engine'
+-  'nccl: for NCCL transport layer'
+   'rccl: for RCCL transport layer'
+   'rdma-core: for InfiniBand transport layer'
+ )
+@@ -43,20 +39,23 @@
+   cd $_name-$pkgver
+   # fix building with gcc 15 (yes ucx bundles its old version of gtest...)
+   sed -i '1i\#include <cstdint>' test/gtest/common/gtest-all.cc
++
++  # Let amdclang use its native host target for ROCm kernels.
++  sed -i 's/ -target x86_64-unknown-linux-gnu//g' cuda_lt.sh
+ }
+ 
+ build() {
+   local configure_options=(
+     --prefix=/usr
+     --with-ucx=/usr
+-    --with-cuda=/opt/cuda
++    --without-cuda
++    --without-nccl
+     --with-rocm=/opt/rocm
+     --with-rocm-arch=all-arch-no-native
+     --enable-gtest
+     CFLAGS="$CFLAGS"
+     CXXFLAGS="$CXXFLAGS"
+     LDFLAGS="$LDFLAGS"
+-    NVCC_CFLAGS="--threads 0"
+     HIPCC="/opt/rocm/lib/llvm/bin/amdclang"
+   )
+ 
