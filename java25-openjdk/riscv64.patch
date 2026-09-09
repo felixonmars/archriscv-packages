@@ -1,0 +1,44 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -26,7 +26,7 @@
+ url='https://openjdk.java.net/'
+ license=('LicenseRef-Java')
+ makedepends=(
+-  "java-environment=25"
++  "java-environment=26"
+   alsa-lib
+   bash
+   cpio
+@@ -103,6 +103,17 @@
+   nss
+ )
+ 
++prepare() {
++  cd ${_jdkdir}
++  # Bootstrap the missing JDK 25 with the repository's JDK 26.
++  sed -i 's/DEFAULT_ACCEPTABLE_BOOT_VERSIONS="24 25"/DEFAULT_ACCEPTABLE_BOOT_VERSIONS="24 25 26"/' \
++    make/conf/version-numbers.conf
++  # Interim langtools reads JDK 26 annotations using this source enum.
++  sed -i '/^        STABLE_VALUES,$/a\        LAZY_CONSTANTS,' \
++    src/java.base/share/classes/jdk/internal/javac/PreviewFeature.java
++  patch -Np1 -i "${srcdir}/boot-jdk26-interim-langtools.patch"
++}
++
+ build() {
+   cd ${_jdkdir}
+ 
+@@ -142,6 +153,7 @@
+ 
+ 
+   bash configure \
++    --with-boot-jdk=/usr/lib/jvm/java-26-openjdk \
+     --with-version-string="${_majorver}.${_minorver}.${_securityver}" \
+     --with-stdc++lib=dynamic \
+     --with-extra-cflags="${_CFLAGS}" \
+@@ -457,3 +469,6 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=(boot-jdk26-interim-langtools.patch)
++sha256sums+=('e9ec0522da241ae9b9699b98fd412bdc4624e2b73f7d4db20e0622bdb7c4164a')
