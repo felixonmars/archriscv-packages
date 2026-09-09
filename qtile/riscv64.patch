@@ -1,16 +1,21 @@
-diff --git a/PKGBUILD b/PKGBUILD
-index 09d5686..3325383 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -90,6 +90,11 @@ pkgver() {
+@@ -95,6 +95,10 @@
  prepare() {
-   # adjust group used for udev rules from sudo to wheel
-   sed 's/sudo/wheel/g' -i $pkgname/resources/99-$pkgname.rules
+   # systemd user unit needs to be modified... https://github.com/qtile/qtile/issues/6016
+   patch -Np1 -d $pkgname -i ../qtile-0.37.0-user-unit-exec.patch
++  patch -Np1 -d $pkgname -i "$srcdir/repl-client-disconnect.patch"
 +
-+  # Backport https://github.com/qtile/qtile/pull/4991
-+  # See https://github.com/qtile/qtile/issues/4987
-+  cd $pkgname
-+  git cherry-pick -n -1 52d920ad24b53374a78b614856978312cefa1591
++  # Allow startup and hook checks more time on slower builders.
++  sed -i 's/^max_sleep = 5\.0$/max_sleep = 15.0/' $pkgname/test/helpers.py
  }
  
  build() {
+@@ -134,3 +138,7 @@
+   install -vDm 644 "resources/"*.{service,target} -t "$pkgdir/usr/lib/systemd/user/"
+   install -vDm 644 "resources/99-$pkgname.rules" -t "$pkgdir/usr/lib/udev/rules.d/"
+ }
++
++source+=("repl-client-disconnect.patch::https://github.com/qtile/qtile/commit/e3a78cbfa5fa3285f160afea8c83d59fe72f0443.patch")
++sha512sums+=('822fd22a1cc12eca08d773bb8c95d0107ce971daf20030bfe48aeec7c5be8e0d9f36352226f8c81380963a71db6c3ab9cda8f8d2f6a7d7c3b5f9d7f5c6b51a0e')
++b2sums+=('a514ee7713d328f976d69e8aca328b000806e919ea8317f7d45725eb5b488639b302ba2780fffa9e9a86441ffdffd08c66a6bc6d9c732cfdfecbf6d7903d6884')
