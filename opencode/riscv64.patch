@@ -1,0 +1,43 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,6 +21,7 @@
+ makedepends=(
+   'bun'
+   'git'
++  'nodejs'
+ )
+ optdepends=(
+   'wl-clipboard: clipboard support on Wayland'
+@@ -35,7 +36,14 @@
+ 
+ prepare() {
+   cd $pkgname
+-  bun install --frozen-lockfile --ignore-scripts
++  patch -Np1 -i ../wasm-css.patch
++  patch -Np1 -i ../riscv64-target.patch
++  cp ../fix-oxide-worker-exit.patch patches/
++  # The lockfile records RISC-V optional dependencies with an unsupported CPU.
++  sed -i '/linux-riscv64/s/"cpu": "none"/"cpu": "riscv64"/' bun.lock
++  # Install Oxide's threaded WASM fallback on the host architecture.
++  sed -i '/"@tailwindcss\/oxide-wasm32-wasi":/s/"cpu": "none"/"cpu": "riscv64"/' bun.lock
++  bun install --ignore-scripts
+ }
+ 
+ build() {
+@@ -60,6 +68,7 @@
+   cd $pkgname
+   case $CARCH in
+   aarch64) dir=opencode-linux-arm64 ;;
++  riscv64) dir=opencode-linux-riscv64 ;;
+   x86_64) dir=opencode-linux-x64-baseline ;;
+   esac
+   install -vDm755 -t "$pkgdir/usr/bin" "packages/opencode/dist/$dir/bin/opencode"
+@@ -71,3 +80,8 @@
+   SHELL=/bin/zsh "$pkgdir/usr/bin/opencode" completion \
+     | install -vDm644 /dev/stdin "$pkgdir/usr/share/zsh/site-functions/_opencode"
+ }
++
++source+=(wasm-css.patch fix-oxide-worker-exit.patch riscv64-target.patch)
++b2sums+=('b4fab5bac8f8f6c57c5ddbc404df67687abe8210773fac182cce0d5ee0b7e97a589701c32a150e61406f3c46a3690bbf133ac3fd5dbe645bbdc9b247f853b7a6'
++         '8ccefc948e86b53c43f77cc3f3ef3de557cd4c104a444fb0eb8b2626cfc607ae20825370ffa29eab66604514c5c76eeaa0c86d45a3b65776ac15edae374278b1'
++         '9f627012736692b0cebe7238e0abf1f43d41875de8e78b1b82f18873acae0645a608705dbaac5aecf65bd9a23334d3adb109a3ffb56824394c0a85cad8900c17')
