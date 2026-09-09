@@ -1,46 +1,96 @@
-diff --git PKGBUILD PKGBUILD
-index 10bc56b..c682e2e 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,6 +31,7 @@ source=(
+@@ -46,24 +46,57 @@
+ source=(
    https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
    $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
-   config  # the main kernel config file
-+  riscv64.config-patch
++  # sg2042 write_once
++  0000-sg2042-write_once.patch::https://github.com/revyos/linux/commit/8b001d81419df1c78c58411a51dfd0475233d319.patch?full_index=1
++  # drm/ttm: support device w/o coherency
++  0100-ttm-coherency.patch::https://github.com/revyos/linux/commit/bcfe733064fbe0cb6dab76a73eabf100e73801f9.patch?full_index=1
++  0101-ttm-coherency2.patch::https://github.com/revyos/linux/commit/d5dad38f150b1e153b16cc610e9104bd1ef634b4.patch?full_index=1
++  # rust + gcc
++  0400-rust.patch::https://github.com/revyos/linux/commit/a0c1f2370d02c471f93578a7ce61cae18896acac.patch?full_index=1
++  0401-rust1.patch::https://github.com/revyos/linux/commit/edc216123add9833e039b1c741f2c2b2bde4487d.patch?full_index=1
++  0402-rust2.patch::https://github.com/revyos/linux/commit/71c8e98962c82e04b2e70c50a894032366651b89.patch?full_index=1
++  0403-rust3.patch::https://github.com/revyos/linux/commit/b60775af94fda606995ef848678c5e812951fcf7.patch?full_index=1
  )
+ source_x86_64=(config.x86_64)
++source_riscv64=(
++  config.x86_64
++  riscv64.config-patch
++)
  validpgpkeys=(
    ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-@@ -42,12 +43,14 @@ sha256sums=('5036c434e11e4b36d8da3f489851f7f829cf785fa7f7887468537a9ea4572416'
-             'SKIP'
-             '754939cecb0938e147c7973ebce505b6aacd3e21572345f9aced312177df3ebf'
-             'SKIP'
--            '51a51ccec610ee033009c9fdeb9bd2795cf209605e7c67da2855abc0951ed90f')
-+            '51a51ccec610ee033009c9fdeb9bd2795cf209605e7c67da2855abc0951ed90f'
-+            '1f5d9db3af1128dd7b1246e11b0ff0a4b449eb6c2c7026e60df8f6a940342877')
- b2sums=('d6f58bfae29239f985c1aa329b19c2fdea1c08c79e819e60f85359e9ef00e97a7f72d74662df7d9def75ff85a3b4bdf36dc9ded578ee472e9b4efa7bf50fcd33'
+   647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
+   83BC8889351B5DEBBB68416EB8AC08600F108CDF  # Jan Alexander Steffens (heftig)
+ )
++sha256sums=('01710ee01737dac492f1bae52becd057e08d20d11589089aa06accff415c28dd'
++            'SKIP'
++            '744bc99ec3b87f0b973f7e8a055d1044a3541f72d9ac5f2bd4c376c8d42910ae'
++            'SKIP'
++            '5f1f62f1082a6299cf6456f12287613aa9ebfc5be8291181258e9690b94c0fb1'
++            'de1eaddab3130e9503c417489e793cd83a77f8a6453fb182667bdcfcd801b8ba'
++            'f062bd6a6bb7e987617a0e576a03420673b062293d948b91c94eb3b87b15276b'
++            '6fb42f5c26b5ef6e18c26720cb31c848de8efae4b4b236702685a2f02d53e793'
++            'b91d25d18796baa11544a61aced57d490b40e3808198595d9cf0c0062163d24a'
++            '35021cf475645d77515f1a09ae04bead566fcb8eb4d06d8f19a370b1ec1b4f07'
++            '37f05363fff17aa29edf7cb6bd026d25bb7a4c20a7f91aaec30aa09cf269fc8e')
++sha256sums_x86_64=('f1066b5eb1c7b42ad438fd1380ffc39b8e0ef35b88bc1e8f9beb8683b0c1d6c6')
++sha256sums_riscv64=('f1066b5eb1c7b42ad438fd1380ffc39b8e0ef35b88bc1e8f9beb8683b0c1d6c6'
++                    '21d600f7d375f42c2d6b1fceebf4ffaf864962ecd1376b98fc000c630c1e4400')
+ b2sums=('1dc0bee4d040846ac31672400339c179daf68919b2d923261205febbb4ff654d1ac21a4bc700f5bd46a7676335692565678b8142549d83c1d0a0da3b9db2e3d4'
          'SKIP'
-         'b43bea249615fd8ebce9303fa9c889d4e4fd3310b0949c66aaa4ba026bd4b3bed871ef452536aaf891e33a5cf0b427d96da04146e8aa8e2e61f36afc203efcab'
-         'SKIP'
--        'ca1c5495d27fee6b54f5165ff2e3e30ffdc2a388f9404894fed7b38a3643e84edd550d9fceb1bae91595c289070a9d6b4fd53a24796ce2820f6c842d40a1ce2d')
-+        'ca1c5495d27fee6b54f5165ff2e3e30ffdc2a388f9404894fed7b38a3643e84edd550d9fceb1bae91595c289070a9d6b4fd53a24796ce2820f6c842d40a1ce2d'
-+        'e6556ab89c6425c00be5f4fe811c5a8f574cb6ffd992b03fea60606e5a8dfc09628870d2a2b0851c21d75aec36edbd77b8381b4d7e9e42e2608863cf5cff2e01')
+         '510cfd3afc3cd9345ed13592c57e1b26a3752ecc20d5919828d072b7218e9fb50ee4dfc07e91fcfa88c787b5eb13493086872c8254ee278b429753167280f62e'
+-        'SKIP')
++        'SKIP'
++        '6748c004b274b187c3f3a8c0ab9548fd09dc4c962a7e59f74c4ce0181fe1dc1ff8bf0adb07688e4bb8776e21d63aa06b1494338ac6a9fcb2db5df881ef38135c'
++        '552afc1c296991adb14c46e56a96d40a01688aeb1e12f2e294bd18b9316ceebd527a16b4ab08a82c0aa0a4cd13517f6a2f4534c25627d375b96958dfac66f034'
++        '22cd5b8697894d8d4515f89e4053c05f99a6cb6de59b23aabc3f98fc4f80b4b1ad075399925ac67c81bbd5da5f18384d09171f778c8f4335357798965cafe6f1'
++        'a450e64f3ce9551e4c40fcce47d0054722511dbda2dd7132dcd1c8a7c5a21ebab46433ced3f030fb0ab84c58688208cc70a3b0c227cf2015d9a243abe47c61b4'
++        '36cdf842c02090ac7631d2fac6bc86960cdd51cb03d2b263e0f9a9aabbca118e4cff5ca12af20ea12460f413840b891e1d04119f63c3af59ad68a7b4e0ef4d83'
++        '75d3f910b61c852dcb4c3d4ade69dc0746e2e29c790fca31c38ba06afc5858f42ed6aed4f352a594892ff06555df598607f7a9693060dfa70947fe8ad4af8459'
++        '4027ad446a6da4b94f15a9928c8a7345022a647c240baefb61b523d90ba60a03e3ca7db9045aaa2b5a8fa91d37752852fd7f32c211d81ae1d1854159eb203fe6')
+ b2sums_x86_64=('55b1ba278de1d8ad076dfc8e56a083995ab22235feacb2e9e0a9312c6977187ebc96257a9b8dbd4345d1bd48b43002d34392b3697b943027f31edb4f7f3e8e6f')
++b2sums_riscv64=('55b1ba278de1d8ad076dfc8e56a083995ab22235feacb2e9e0a9312c6977187ebc96257a9b8dbd4345d1bd48b43002d34392b3697b943027f31edb4f7f3e8e6f'
++                'c103ec3e3bee3d8ba5e5d19107c428625ce8e3dfdf5428180ea12c7004e703d60177a6aa3dc21c1a3687f7b82599b1196a5502de2f50d1df3faebc0eb2bce5a9')
+ 
+ # https://www.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
+-sha256sums=('01710ee01737dac492f1bae52becd057e08d20d11589089aa06accff415c28dd'
+-            'SKIP'
+-            '744bc99ec3b87f0b973f7e8a055d1044a3541f72d9ac5f2bd4c376c8d42910ae'
+-            'SKIP')
  
  export KBUILD_BUILD_HOST=archlinux
  export KBUILD_BUILD_USER=$pkgbase
-@@ -75,6 +78,12 @@ prepare() {
-   make olddefconfig
-   diff -u ../config .config || :
+@@ -87,9 +120,14 @@
+   done
  
+   echo "Setting config..."
+-  cp ../config.$CARCH .config
++  cp ../config.x86_64 .config
++  make olddefconfig
++
 +  patch -Np0 < ../riscv64.config-patch
 +  mv .config .config.1
 +  make mrproper
 +  mv .config.1 .config
-+  make olddefconfig
-+
+   make olddefconfig
+-  diff -u ../config.$CARCH .config || :
+ 
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
+@@ -101,7 +139,8 @@
+   make htmldocs SPHINXOPTS=-QT &
+   local pid_docs=$!
+ 
+-  make all
++  # Generate symbols for dtbs to support overlays
++  make DTC_FLAGS="-@" all
+   make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
+   wait $pid_docs
  }
-@@ -121,6 +130,9 @@ _package() {
+@@ -144,6 +183,9 @@
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -50,35 +100,11 @@ index 10bc56b..c682e2e 100644
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -136,19 +148,16 @@ _package-headers() {
-   install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
-     localversion.* version vmlinux
-   install -Dt "$builddir/kernel" -m644 kernel/Makefile
--  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
-+  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
-   cp -t "$builddir" -a scripts
+@@ -169,6 +211,7 @@
+   local karch
+   case $CARCH in
+     x86_64) karch=x86 ;;
++    riscv64) karch=riscv ;;
+     *) echo "Unknown CARCH $CARCH"; exit 1 ;;
+   esac
  
--  # required when STACK_VALIDATION is enabled
--  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
--
-   # required when DEBUG_INFO_BTF_MODULES is enabled
-   install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
- 
-   echo "Installing headers..."
-   cp -t "$builddir" -a include
--  cp -t "$builddir/arch/x86" -a arch/x86/include
--  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
-+  cp -t "$builddir/arch/riscv" -a arch/riscv/include
-+  install -Dt "$builddir/arch/riscv/kernel" -m644 arch/riscv/kernel/asm-offsets.s
- 
-   install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
-   install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -170,7 +179,7 @@ _package-headers() {
-   echo "Removing unneeded architectures..."
-   local arch
-   for arch in "$builddir"/arch/*/; do
--    [[ $arch = */x86/ ]] && continue
-+    [[ $arch = */riscv/ ]] && continue
-     echo "Removing $(basename "$arch")"
-     rm -r "$arch"
-   done
