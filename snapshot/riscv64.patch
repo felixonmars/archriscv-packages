@@ -1,20 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -27,11 +27,15 @@ makedepends=(
-   rust
- )
- _commit=10bd7f8d86897656b89d63b3fdbda74d34052ff0 # tags/45.1^0
--source=("git+https://gitlab.gnome.org/GNOME/snapshot.git#commit=$_commit")
--sha256sums=('SKIP')
-+source=("git+https://gitlab.gnome.org/GNOME/snapshot.git#commit=$_commit"
-+        "fix-clippy-timeout.patch")
-+sha256sums=('SKIP'
-+            '9cab1c3527f6566a48d898051f519016cf3c6d5212116570a1aef8dc33da4899')
- 
+@@ -48,6 +48,8 @@
  prepare() {
-   cd ${pkgname}
-+
-+  patch -Np1 -i $srcdir/fix-clippy-timeout.patch
- }
+   cd snapshot
  
- pkgver() {
++  patch -Np1 -i "$srcdir/fix-clippy-timeout.patch"
++
+   # Match CARGO_HOME in src/meson.build
+   CARGO_HOME="$srcdir/build/cargo-home" \
+     cargo fetch --locked --target "$(rustc --print host-tuple)"
+@@ -65,3 +67,6 @@
+ package() {
+   meson install -C build --destdir "$pkgdir" --no-rebuild
+ }
++
++source+=(fix-clippy-timeout.patch)
++b2sums+=('e0b8007025f5a766e7a051fdb0a8d0cccb3e0690f340e5e7fa1061c655f1d475a8813694cccfabf7abdeebe7c080241115a2a1b22dc50b8caeb24289cc80e064')
