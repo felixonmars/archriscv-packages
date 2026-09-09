@@ -1,0 +1,41 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,6 +13,7 @@
+   glibc
+   libgcc
+   libstdc++
++  libunwind
+   zlib
+ )
+ makedepends=(
+@@ -48,6 +49,10 @@
+ 
+ prepare() {
+   cd $pkgname
++
++  # The native backend's minidump writer does not support RISC-V.
++  sed -i 's/^has_native = .*/has_native = False/' tests/conditions.py
++
+   git submodule init
+   git config submodule.external/libunwindstack-ndk.url "$srcdir/$pkgname-libunwindstack-ndk"
+   git config submodule.external/breakpad.url "$srcdir/$pkgname-breakpad"
+@@ -68,15 +73,17 @@
+   cmake -S . -B build \
+     -DCMAKE_BUILD_TYPE=None \
+     -DCMAKE_INSTALL_PREFIX=/usr \
++    -DSENTRY_LIBUNWIND_SYSTEM=ON \
+     -Wno-dev
+   cmake --build build
+ }
+ 
+ check() {
+   cd $pkgname
+-  # Ignore Windows tests & deselect test requiring .NET 8.0 or making network requests.
++  export CMAKE_DEFINES="-DSENTRY_LIBUNWIND_SYSTEM=ON"
++  # Ignore Windows tests & deselect tests requiring .NET 10.0 or making network requests.
+   pytest \
+-    --deselect tests/test_dotnet_signals.py::test_dotnet_signals_inproc \
++    --deselect tests/test_dotnet_signals.py::test_dotnet_signals \
+     --deselect tests/test_dotnet_signals.py::test_aot_signals_inproc \
+     --deselect tests/test_integration_crashpad.py::test_crashpad_crash_proxy_env \
+     --deselect tests/test_integration_crashpad.py::test_crashpad_proxy_set_empty \
