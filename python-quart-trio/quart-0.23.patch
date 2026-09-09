@@ -1,0 +1,492 @@
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -28,10 +28,10 @@
+ dependencies = [
+     "exceptiongroup >= 1.1.0; python_version < '3.11'",
+     "hypercorn[trio] >= 0.12.0",
+-    "quart >= 0.19",
++    "quart >= 0.23",
+     "trio >= 0.19.0",
+ ]
+-requires-python = ">=3.9"
++requires-python = ">=3.13"
+ 
+ [project.optional-dependencies]
+ docs = ["pydata_sphinx_theme"]
+--- a/src/quart_trio/app.py
++++ b/src/quart_trio/app.py
+@@ -6,7 +6,7 @@
+ from hypercorn.config import Config as HyperConfig
+ from hypercorn.trio import serve
+ from quart import Quart, request_started, websocket_started
+-from quart.ctx import RequestContext, WebsocketContext
++from quart.ctx import AppContext
+ from quart.signals import got_serving_exception
+ from quart.typing import FilePath, ResponseReturnValue
+ from quart.utils import file_path_to_path
+@@ -151,21 +151,20 @@
+                 if filtered_error is not None:
+                     raise filtered_error
+ 
+-                return await self.handle_exception(error)  # type: ignore
++                return await self.handle_exception(request_context, error)  # type: ignore
+             except Exception as error:
+-                return await self.handle_exception(error)
++                return await self.handle_exception(request_context, error)
+             finally:
+                 if request.scope.get("_quart._preserve_context", False):
+                     self._preserved_context = request_context.copy()
+ 
+     async def full_dispatch_request(
+-        self, request_context: Optional[RequestContext] = None
++        self, request_context: AppContext
+     ) -> Union[Response, WerkzeugResponse]:
+         """Adds pre and post processing to the request dispatching.
+ 
+         Arguments:
+-            request_context: The request context, optional as Flask
+-                omits this argument.
++            request_context: The context containing the request.
+         """
+         try:
+             await request_started.send_async(self, _sync_wrapper=self.ensure_async)  # type: ignore
+@@ -175,22 +174,22 @@
+             if result is None:
+                 result = await self.dispatch_request(request_context)
+         except (Exception, BaseExceptionGroup) as error:
+-            result = await self.handle_user_exception(error)
+-        return await self.finalize_request(result, request_context)
++            result = await self.handle_user_exception(request_context, error)
++        return await self.finalize_request(request_context, result)
+ 
+     async def handle_user_exception(
+-        self, error: Union[Exception, BaseExceptionGroup]
++        self, ctx: AppContext, error: Union[Exception, BaseExceptionGroup]
+     ) -> Union[HTTPException, ResponseReturnValue]:
+         if isinstance(error, BaseExceptionGroup):
+             for exception in error.exceptions:
+                 try:
+-                    return await self.handle_user_exception(exception)  # type: ignore
++                    return await self.handle_user_exception(ctx, exception)  # type: ignore
+                 except Exception:
+                     pass  # No handler for this error
+             # Not found a single handler, re-raise the error
+             raise error
+         else:
+-            return await super().handle_user_exception(error)
++            return await super().handle_user_exception(ctx, error)
+ 
+     async def handle_websocket(
+         self, websocket: Websocket
+@@ -205,21 +204,20 @@
+                 if filtered_error is not None:
+                     raise filtered_error
+ 
+-                return await self.handle_websocket_exception(error)  # type: ignore
++                return await self.handle_websocket_exception(websocket_context, error)  # type: ignore
+             except Exception as error:
+-                return await self.handle_websocket_exception(error)
++                return await self.handle_websocket_exception(websocket_context, error)
+             finally:
+                 if websocket.scope.get("_quart._preserve_context", False):
+                     self._preserved_context = websocket_context.copy()
+ 
+     async def full_dispatch_websocket(
+-        self, websocket_context: Optional[WebsocketContext] = None
++        self, websocket_context: AppContext
+     ) -> Optional[Union[Response, WerkzeugResponse]]:
+         """Adds pre and post processing to the websocket dispatching.
+ 
+         Arguments:
+-            websocket_context: The websocket context, optional to match
+-                the Flask convention.
++            websocket_context: The context containing the websocket.
+         """
+         try:
+             await websocket_started.send_async(
+@@ -231,8 +229,8 @@
+             if result is None:
+                 result = await self.dispatch_websocket(websocket_context)
+         except (Exception, BaseExceptionGroup) as error:
+-            result = await self.handle_user_exception(error)
+-        return await self.finalize_websocket(result, websocket_context)
++            result = await self.handle_user_exception(websocket_context, error)
++        return await self.finalize_websocket(websocket_context, result)
+ 
+     async def open_instance_resource(
+         self, path: FilePath, mode: str = "rb"
+@@ -265,11 +263,11 @@
+ 
+     def add_background_task(self, func: Callable, *args: Any, **kwargs: Any) -> None:
+         async def _wrapper() -> None:
+-            try:
+-                async with self.app_context():
++            async with self.app_context() as ctx:
++                try:
+                     await self.ensure_async(func)(*args, **kwargs)
+-            except (BaseExceptionGroup, Exception) as error:
+-                await self.handle_background_exception(error)  # type: ignore
++                except (BaseExceptionGroup, Exception) as error:
++                    await self.handle_background_exception(ctx, error)  # type: ignore
+ 
+         self.nursery.start_soon(_wrapper)
+ 
+@@ -281,8 +279,8 @@
+         else:
+             self.nursery.cancel_scope.cancel()
+ 
+-        try:
+-            async with self.app_context():
++        async with self.app_context() as ctx:
++            try:
+                 for func in self.after_serving_funcs:
+                     await self.ensure_async(func)()
+                 for gen in self.while_serving_gens:
+@@ -292,9 +290,9 @@
+                         pass
+                     else:
+                         raise RuntimeError("While serving generator didn't terminate")
+-        except Exception as error:
+-            await got_serving_exception.send_async(
+-                self, _sync_wrapper=self.ensure_async, exception=error  # type: ignore
+-            )
+-            self.log_exception(sys.exc_info())
+-            raise
++            except Exception as error:
++                await got_serving_exception.send_async(
++                    self, _sync_wrapper=self.ensure_async, exception=error  # type: ignore
++                )
++                self.log_exception(ctx, sys.exc_info())
++                raise
+--- a/src/quart_trio/asgi.py
++++ b/src/quart_trio/asgi.py
+@@ -1,7 +1,5 @@
+ import sys
+-from functools import partial
+-from typing import cast, Optional, TYPE_CHECKING, Union
+-from urllib.parse import urlparse
++from typing import cast, Optional, TYPE_CHECKING
+ 
+ import trio
+ from hypercorn.typing import (
+@@ -12,12 +10,10 @@
+     LifespanShutdownFailedEvent,
+     LifespanStartupCompleteEvent,
+     LifespanStartupFailedEvent,
+-    WebsocketScope,
+ )
+-from quart.asgi import ASGIHTTPConnection, ASGIWebsocketConnection
++from quart.asgi import _convert_os_error, ASGIHTTPConnection, ASGIWebsocketConnection
+ from quart.signals import websocket_received
+ from quart.wrappers import Request, Response, Websocket  # noqa: F401
+-from werkzeug.datastructures import Headers
+ 
+ if TYPE_CHECKING:
+     from quart_trio import QuartTrio  # noqa: F401
+@@ -28,6 +24,7 @@
+ 
+ class TrioASGIHTTPConnection(ASGIHTTPConnection):
+     async def __call__(self, receive: ASGIReceiveCallable, send: ASGISendCallable) -> None:
++        send = _convert_os_error(send)
+         request = self._create_request_from_scope(send)
+         async with trio.open_nursery() as nursery:
+             nursery.start_soon(self.handle_messages, nursery, request, receive)
+@@ -36,8 +33,17 @@
+     async def handle_messages(  # type: ignore
+         self, nursery: trio.Nursery, request: Request, receive: ASGIReceiveCallable
+     ) -> None:
+-        await super().handle_messages(request, receive)
+-        nursery.cancel_scope.cancel()
++        while True:
++            message = await receive()
++            if message["type"] == "http.request":
++                await request.body.put(message.get("body", b""))
++                if not message.get("more_body", False):
++                    request.body.set_complete()
++            elif message["type"] == "http.disconnect":
++                self._disconnected = True
++                request.body.disconnect()
++                nursery.cancel_scope.cancel()
++                return
+ 
+     async def handle_request(  # type: ignore
+         self, nursery: trio.Nursery, request: Request, send: ASGISendCallable
+@@ -57,21 +63,15 @@
+ 
+ 
+ class TrioASGIWebsocketConnection(ASGIWebsocketConnection):
+-    def __init__(self, app: "QuartTrio", scope: WebsocketScope) -> None:
+-        self.app = app
+-        self.scope = scope
+-        self._accepted = False
+-        self._closed = False
+-        self.send_channel, self.receive_channel = trio.open_memory_channel[Union[bytes, str]](10)
+-
+     async def __call__(self, receive: ASGIReceiveCallable, send: ASGISendCallable) -> None:
++        send = _convert_os_error(send)
+         websocket = self._create_websocket_from_scope(send)
+         async with trio.open_nursery() as nursery:
+-            nursery.start_soon(self.handle_messages, nursery, receive)
++            nursery.start_soon(self.handle_messages, nursery, websocket, receive)
+             nursery.start_soon(self.handle_websocket, nursery, websocket, send)
+ 
+     async def handle_messages(  # type: ignore
+-        self, nursery: trio.Nursery, receive: ASGIReceiveCallable
++        self, nursery: trio.Nursery, websocket: Websocket, receive: ASGIReceiveCallable
+     ) -> None:
+         while True:
+             event = await receive()
+@@ -80,42 +80,13 @@
+                 await websocket_received.send_async(
+                     message, _sync_wrapper=self.app.ensure_async  # type: ignore
+                 )
+-                await self.send_channel.send(message)
++                await websocket.buffer.put(message)
+             elif event["type"] == "websocket.disconnect":
++                self._disconnected = True
++                websocket.buffer.disconnect()
+                 break
+         nursery.cancel_scope.cancel()
+ 
+-    def _create_websocket_from_scope(self, send: ASGISendCallable) -> Websocket:
+-        headers = Headers()
+-        headers["Remote-Addr"] = (self.scope.get("client") or ["<local>"])[0]
+-        for name, value in self.scope["headers"]:
+-            headers.add(name.decode("latin1").title(), value.decode("latin1"))
+-
+-        path = self.scope["path"]
+-        path = path if path[0] == "/" else urlparse(path).path
+-        root_path = self.scope.get("root_path", "")
+-        if root_path != "":
+-            try:
+-                path = path.split(root_path, 1)[1]
+-                path = " " if path == "" else path
+-            except IndexError:
+-                path = " "  # Invalid in paths, hence will result in 404
+-
+-        return self.app.websocket_class(
+-            path,
+-            self.scope["query_string"],
+-            self.scope["scheme"],
+-            headers,
+-            self.scope.get("root_path", ""),
+-            self.scope.get("http_version", "1.1"),
+-            list(self.scope.get("subprotocols", [])),
+-            self.receive_channel.receive,
+-            partial(self.send_data, send),
+-            partial(self.accept_connection, send),
+-            partial(self.close_connection, send),
+-            scope=self.scope,
+-        )
+-
+     async def handle_websocket(  # type: ignore
+         self, nursery: trio.Nursery, websocket: Websocket, send: ASGISendCallable
+     ) -> None:
+--- a/src/quart_trio/datastructures.py
++++ b/src/quart_trio/datastructures.py
+@@ -1,10 +1,54 @@
+ from __future__ import annotations
+ 
++from asyncio import QueueEmpty, QueueShutDown
+ from os import PathLike
++from typing import Generic, TypeVar
+ 
++import trio
+ from quart.datastructures import FileStorage
+ from trio import open_file, Path, wrap_file
+ 
++T = TypeVar("T")
++
++
++class TrioQueue(Generic[T]):
++    """Queue operations used by Quart's body and websocket buffers."""
++
++    def __init__(self) -> None:
++        self._send, self._receive = trio.open_memory_channel[T](float("inf"))
++
++    async def put(self, value: T) -> None:
++        try:
++            await self._send.send(value)
++        except trio.ClosedResourceError:
++            raise QueueShutDown from None
++
++    def put_nowait(self, value: T) -> None:
++        try:
++            self._send.send_nowait(value)
++        except trio.ClosedResourceError:
++            raise QueueShutDown from None
++
++    async def get(self) -> T:
++        try:
++            return await self._receive.receive()
++        except trio.EndOfChannel:
++            raise QueueShutDown from None
++
++    def get_nowait(self) -> T:
++        try:
++            return self._receive.receive_nowait()
++        except trio.WouldBlock:
++            raise QueueEmpty from None
++        except trio.EndOfChannel:
++            raise QueueShutDown from None
++
++    def empty(self) -> bool:
++        return self._receive.statistics().current_buffer_used == 0
++
++    def shutdown(self) -> None:
++        self._send.close()
++
+ 
+ class TrioFileStorage(FileStorage):
+     async def save(self, destination: PathLike, buffer_size: int = 16384) -> None:  # type: ignore
+--- a/src/quart_trio/wrappers/request.py
++++ b/src/quart_trio/wrappers/request.py
+@@ -4,6 +4,7 @@
+ from quart.wrappers.request import Body, Request
+ from werkzeug.exceptions import RequestEntityTooLarge, RequestTimeout
+ 
++from ..datastructures import TrioQueue
+ from ..formparser import TrioFormDataParser
+ 
+ 
+@@ -28,9 +29,9 @@
+     def __init__(
+         self, expected_content_length: Optional[int], max_content_length: Optional[int]
+     ) -> None:
+-        self._data = bytearray()
++        self._data = None
+         self._complete = EventWrapper()  # type: ignore
+-        self._has_data = EventWrapper()  # type: ignore
++        self._queue = TrioQueue[bytes]()  # type: ignore
+         self._max_content_length = max_content_length
+         # Exceptions must be raised within application (not ASGI)
+         # calls, this is achieved by having the ASGI methods set this
+--- a/src/quart_trio/wrappers/websocket.py
++++ b/src/quart_trio/wrappers/websocket.py
+@@ -1,9 +1,18 @@
+ from typing import AnyStr
+ 
+-from quart.wrappers.websocket import Websocket
++from quart.wrappers.websocket import Buffer, Websocket
++
++from ..datastructures import TrioQueue
++
++
++class TrioBuffer(Buffer):
++    def __init__(self) -> None:
++        self._queue = TrioQueue[bytes | str]()  # type: ignore
+ 
+ 
+ class TrioWebsocket(Websocket):
++    buffer_class = TrioBuffer
++
+     async def send(self, data: AnyStr) -> None:
+         await self.accept()
+         await self._send(data)
+--- a/tests/test_asgi.py
++++ b/tests/test_asgi.py
+@@ -1,3 +1,5 @@
++from unittest.mock import AsyncMock
++
+ import pytest
+ import trio
+ from hypercorn.typing import WebsocketScope
+@@ -25,10 +27,11 @@
+         "state": {},  # type: ignore[typeddict-item]
+     }
+     connection = TrioASGIWebsocketConnection(QuartTrio(__name__), scope)
++    websocket = connection._create_websocket_from_scope(AsyncMock())
+     send_channel, receive_channel = trio.open_memory_channel[dict](0)
+     async with trio.open_nursery() as nursery:
+         nursery.start_soon(
+-            connection.handle_messages, nursery, receive_channel.receive  # type: ignore
++            connection.handle_messages, nursery, websocket, receive_channel.receive  # type: ignore
+         )
+         await send_channel.send({"type": "websocket.disconnect"})
+         await trio.sleep(1)  # Simulate doing something else
+--- a/tests/test_request.py
++++ b/tests/test_request.py
+@@ -1,4 +1,6 @@
+ import pytest
++import trio
++from quart.wrappers.base import ClientDisconnectedError
+ from werkzeug.exceptions import RequestEntityTooLarge
+ 
+ from quart_trio.wrappers.request import TrioBody
+@@ -8,6 +10,30 @@
+ async def test_body_exceeds_max_content_length() -> None:
+     max_content_length = 5
+     body = TrioBody(None, max_content_length)
+-    body.append(b" " * (max_content_length + 1))
++    await body.put(b" " * (max_content_length + 1))
++    body.set_complete()
+     with pytest.raises(RequestEntityTooLarge):
+         await body
++
++
++@pytest.mark.trio
++async def test_body_streaming() -> None:
++    body = TrioBody(None, None)
++
++    async def produce() -> None:
++        await body.put(b"first")
++        await body.put(b"second")
++        body.set_complete()
++
++    async with trio.open_nursery() as nursery:
++        nursery.start_soon(produce)
++        data = b"".join([chunk async for chunk in body])
++    assert data == b"firstsecond"
++
++
++@pytest.mark.trio
++async def test_body_disconnect() -> None:
++    body = TrioBody(None, None)
++    body.disconnect()
++    with pytest.raises(ClientDisconnectedError):
++        await body.get()
+--- a/src/quart_trio/testing/connections.py
++++ b/src/quart_trio/testing/connections.py
+@@ -7,14 +7,11 @@
+ from hypercorn.typing import HTTPScope, WebsocketScope
+ from quart.app import Quart
+ from quart.json import dumps, loads
+-from quart.testing.connections import (
+-    HTTPDisconnectError,
+-    WebsocketDisconnectError,
+-    WebsocketResponseError,
+-)
++from quart.testing.connections import WebsocketResponseError
+ from quart.typing import TestHTTPConnectionProtocol, TestWebsocketConnectionProtocol
+ from quart.utils import decode_headers
+ from quart.wrappers import Response
++from quart.wrappers.base import ClientDisconnectedError
+ from werkzeug.datastructures import Headers
+ 
+ 
+@@ -64,7 +61,7 @@
+                 async for data in self._client_receive:
+                     if isinstance(data, bytes):
+                         self.response_data.extend(data)
+-                    elif not isinstance(data, HTTPDisconnectError):
++                    else:
+                         raise data
+         except trio.ClosedResourceError:
+             pass
+@@ -92,9 +89,6 @@
+                 await self._client_send.aclose()
+         elif message["type"] == "http.response.push":
+             self.push_promises.append((message["path"], decode_headers(message["headers"])))
+-        elif message["type"] == "http.disconnect":
+-            await self._client_send.send(HTTPDisconnectError())
+-            await self._client_send.aclose()
+ 
+ 
+ class TestWebsocketConnection:
+@@ -172,5 +166,5 @@
+                     )
+                 )
+         elif message["type"] == "websocket.close":
+-            await self._client_send.send(WebsocketDisconnectError(message.get("code", 1000)))
++            await self._client_send.send(ClientDisconnectedError(message.get("code", 1000)))
+             await self._client_send.aclose()
