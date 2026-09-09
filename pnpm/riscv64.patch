@@ -1,16 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,7 +21,12 @@
+@@ -38,7 +38,14 @@
+   fi
  
- prepare() {
-   cd $pkgname/$pkgname
+   cd $pkgname/${pkgname}11/$pkgname
 -  pnpm install --frozen-lockfile
 +  rm -r artifacts
 +
-+  # Upstream Node.js and tsgo binaries are unavailable for riscv64.
-+  sed -i '/"runtime": {/,/^    }/s/"download"/"ignore"/' ../package.json
++  # Use installed pnpm and Node.js; upstream native binaries lack riscv64.
++  sed -i -e '/^  "packageManager":/d' \
++    -e '/^    "packageManager": {/,/^    },/d' \
++    -e '/"runtime": {/,/^    }/s/"download"/"ignore"/' ../../package.json
 +  sed -i 's/tsgo --build/tsc --build/; s/pnx node@runtime:24.6.0/node/' package.json
 +  pnpm install --no-frozen-lockfile
+ 
  }
  
- build() {
