@@ -1,0 +1,23 @@
+--- a/tests/unittests/config/test_schema.py
++++ b/tests/unittests/config/test_schema.py
+@@ -449,11 +449,9 @@
+     @skipUnlessJsonSchema()
+     def test_validateconfig_schema_non_strict_emits_warnings(self, caplog):
+         """When strict is False validate_cloudconfig_schema emits warnings."""
++        caplog.set_level(logging.WARNING)
+         schema = {"properties": {"p1": {"type": "string"}}}
+         validate_cloudconfig_schema({"p1": -1}, schema=schema, strict=False)
+-        assert caplog.record_tuples and (
+-            len(caplog.record_tuples) == 1 or len(caplog.record_tuples) == 2
+-        ), caplog.record_tuples
+         [(module, log_level, log_msg)] = caplog.record_tuples
+         assert "cloudinit.config.schema" == module
+         assert logging.WARNING == log_level
+@@ -465,6 +463,7 @@
+     @skipUnlessJsonSchema()
+     def test_validateconfig_schema_sensitive(self, caplog):
+         """When log_details=False, ensure details are omitted"""
++        caplog.set_level(logging.WARNING)
+         schema = {
+             "properties": {"hashed_password": {"type": "string"}},
+             "additionalProperties": False,

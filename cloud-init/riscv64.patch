@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -63,6 +63,12 @@
+ sha512sums=('8826c2fba9ef4125121792390314a1b151ea9e004ad2db11a030881b99754884eb14c158eb497cf4c311e3b8cb5161ea5d9906838719666216f4a6430c9e18f4')
+ b2sums=('4efb181700014b906b12e39b47a9d64efea7871ad5fc6176cb3709b6c6523c1175fdaea36f6e91fc03abe405dce6fb27e9151e6d5520da5cba7bcbb1914c2cc6')
+ 
++prepare() {
++  cd $pkgname-$pkgver
++  # Ignore performance debug logs in schema warning assertions.
++  patch -Np1 -i "$srcdir/schema-warning-logs.patch"
++}
++
+ build() {
+   arch-meson $pkgname-$pkgver build
+   meson compile -C build
+@@ -87,3 +93,7 @@
+ package() {
+   meson install -C build --destdir "$pkgdir"
+ }
++
++source+=(schema-warning-logs.patch)
++sha512sums+=('acfba41da69f107ed1874e4c6d054d2d577ea9957a105b734248a0490cf98d5e67f5dc36e7ebdcc521222a1beb765bc37db3cc3f0e112a5f3e0b364e019daea8')
++b2sums+=('e168301aa05e1c8b30e011a3a68f562ed84af4fd15cf551dbf687817d970551f8e208270fcacb47d3f8ac0a52fa0af48fdbe6fa51c8af953933fd331d996d020')
