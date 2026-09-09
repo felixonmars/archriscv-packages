@@ -1,128 +1,179 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,14 +12,14 @@ pkgrel=3
- arch=('x86_64')
- url='https://github.com/microsoft/onnxruntime'
- license=('MIT')
--depends=('abseil-cpp' 'boost' 'nsync' 'onednn' 'intel-oneapi-mkl')
-+depends=('abseil-cpp' 'boost' 'nsync' 'onednn')
- # https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/python/tools/transformers/requirements.txt
- _pydepends=('python-onnx' 'python-numpy' 'python-coloredlogs' 'python-psutil'
-             'python-py-cpuinfo' 'python-sympy' 'python-scipy' 'python-pillow'
-             'python-flatbuffers' 'python-protobuf' 'python-packaging')
- makedepends=('git' 'cmake' 'ninja' 'pybind11' 'nlohmann-json' 'chrono-date' 'cxxopts' 'openmpi'
-              'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'gcc13'
--             'cuda' 'cudnn' 'nccl' 'rocm-hip-sdk' 'hipify-clang' 'rocm-smi-lib' 'roctracer')
-+             'rocm-hip-sdk' 'hipify-clang' 'rocm-smi-lib' 'roctracer')
+@@ -5,13 +5,11 @@
+ pkgbase=onnxruntime
+ pkgname=(
+   "${pkgbase}-cpu"
+-  "${pkgbase}-cuda"
+-  "${pkgbase}-opt-cuda"
++  "${pkgbase}-opt"
+   "${pkgbase}-rocm"
+   "${pkgbase}-opt-rocm"
+   "python-${pkgbase}-cpu"
+-  "python-${pkgbase}-cuda"
+-  "python-${pkgbase}-opt-cuda"
++  "python-${pkgbase}-opt"
+   "python-${pkgbase}-rocm"
+   "python-${pkgbase}-opt-rocm"
+ )
+@@ -29,7 +27,6 @@
+ makedepends=('git' 'cmake' 'ninja' 'boost' 'pybind11' 'nlohmann-json' 'chrono-date' 'cxxopts'
+              'protobuf' 'microsoft-gsl' 'eigen' 'dlpack' 'safeint'
+              'python-setuptools' 'python-installer' 'python-wheel' 'python-build' 'onednn'
+-             'cuda' 'cudnn' 'cudnn-frontend' 'nccl'
+              'rocm-toolchain' 'rocm-hip-sdk' 'hipify-clang' 'rocm-smi-lib' 'roctracer' 'migraphx')
  makedepends+=("${_pydepends[@]}")
- #TODO: Add migraphx for ROCm and tensorrt for CUDA.
- optdepends=('openmpi: Distributed memory parallelization')
-@@ -106,7 +106,7 @@ build() {
-     -DBUILD_TESTING=OFF
-     -Donnxruntime_ENABLE_TRAINING=ON
-     -Donnxruntime_ENABLE_LAZY_TENSOR=OFF
--    -Donnxruntime_USE_MPI=ON
-+    -Donnxruntime_USE_MPI=OFF
-     -Donnxruntime_USE_DNNL=ON
-     # Stable release of eigen is too old for onnxruntime.
-     -Donnxruntime_USE_PREINSTALLED_EIGEN=OFF
-@@ -145,22 +145,22 @@ build() {
-   export CXX="$NVCC_CCBIN"
-   export CC="${NVCC_CCBIN/g++/gcc}"
+ # onnxruntime uses internal files of abseil and tensorboard,
+@@ -94,6 +91,9 @@
  
--  echo "Build onnxruntime with CUDA without optimization"
-+  echo "Build onnxruntime without optimization"
-   cd "${srcdir}/${pkgbase}-cuda"
--  cmake "${_cmake_cuda_args[@]}"
-+  cmake "${_cmake_args[@]}"
-   cmake --build build
-   cd build
-   install -Dm644 ../docs/python/README.rst docs/python/README.rst
-   ln -s ../setup.py .
+ prepare() {
+   cd "${pkgbase}"
++  # GSL's same-major version check rejects system GSL 5 when requesting 4.0.
++  sed -i 's/FIND_PACKAGE_ARGS 4.0 NAMES Microsoft.GSL/FIND_PACKAGE_ARGS NAMES Microsoft.GSL/' \
++    cmake/external/onnxruntime_external_deps.cmake
+   # Nuke -Werror flags
+   find cmake/ -type f -name "*.cmake" -exec sed -i 's/-Werror//g' {} +
+   find "$srcdir/abseil-cpp-${_abseil_ver}" -type f \( -name "*.cmake" -o -name "CMakeLists.txt" \) -exec sed -i 's/-Werror//g' {} +
+@@ -152,7 +152,6 @@
+ 
+   cd "${srcdir}"
+   cp -r "${pkgbase}" "${pkgbase}-cpu"
+-  cp -r "${pkgbase}" "${pkgbase}-cuda"
+   cp -r "${pkgbase}" "${pkgbase}-opt-cuda"
+   cp -r "${pkgbase}" "${pkgbase}-rocm"
+   cp -r "${pkgbase}" "${pkgbase}-opt-rocm"
+@@ -199,22 +198,6 @@
+   # Silence template parsing errors
+   CXXFLAGS+=" -Wno-template-body"
+ 
+-  CXXFLAGS+=" -I/opt/cuda/targets/x86_64-linux/include"
+-  # Fix gcc 16 with absl 20260526
+-  export CUDAFLAGS+=" -Xcompiler -Wno-error=template-body"
+-  local _cmake_cuda_args=("${_cmake_args[@]}"
+-    -DCMAKE_CUDA_ARCHITECTURES="$(_valid_sm)"
+-    -DCMAKE_CUDA_FLAGS="-Xcompiler -Wno-template-body"
+-    -DCMAKE_CUDA_STANDARD_REQUIRED=ON
+-    -DCMAKE_CXX_STANDARD_REQUIRED=ON
+-    # WARNING: too many threads will eat all your RAM
+-    -Donnxruntime_NVCC_THREADS=2
+-    -Donnxruntime_USE_DNNL=ON
+-    -Donnxruntime_USE_CUDA=ON
+-    -Donnxruntime_USE_NCCL=ON
+-    -Donnxruntime_CUDA_HOME=/opt/cuda
+-    -Donnxruntime_CUDNN_HOME=/usr)
+-
+   # Disable composable kernel support as onnxruntime doesn't work with tagged
+   # upstream release.
+   #
+@@ -230,11 +213,6 @@
+     -Donnxruntime_NCCL_HOME=/opt/rocm
+     -Donnxruntime_ROCM_HOME=/opt/rocm)
+ 
+-  # For LTO everything needs to be compiled with the gcc version of CUDA
+-  export CXX="$NVCC_CCBIN"
+-  export CC="${NVCC_CCBIN/g++/gcc}"
+-
+-
+   ##### onnxruntime-cpu
+   echo "Build onnxruntime without GPU support"
+   cd "${srcdir}/${pkgbase}-cpu"
+@@ -244,26 +222,14 @@
+   cp -r build/onnxruntime/* onnxruntime
    python -m build --wheel --no-isolation
  
+-  ##### onnxruntime-cuda
+-
+-  echo "Build onnxruntime with CUDA without optimization"
+-  cd "${srcdir}/${pkgbase}-cuda"
+-  cmake "${_cmake_cuda_args[@]}"
+-  cmake --build build
++  ##### onnxruntime-opt
+ 
+-  cp -r build/onnxruntime/* onnxruntime
+-  python -m build --wheel --no-isolation
+-
+-
+-  ##### onnxruntime-opt-cuda
+-
 -  echo "Build onnxruntime with CUDA with AVX optimizations"
 +  echo "Build onnxruntime with RVV optimizations"
    cd "${srcdir}/${pkgbase}-opt-cuda"
 -  echo 'string(APPEND CMAKE_C_FLAGS " -march=haswell")' \
-+  echo 'string(APPEND CMAKE_C_FLAGS " -march=rv64gcv")' \
-     >> cmake/adjust_global_compile_flags.cmake
+-    >> cmake/adjust_global_compile_flags.cmake
 -  echo 'string(APPEND CMAKE_CXX_FLAGS " -march=haswell")' \
-+  echo 'string(APPEND CMAKE_CXX_FLAGS " -march=rv64gcv")' \
-     >> cmake/adjust_global_compile_flags.cmake
+-    >> cmake/adjust_global_compile_flags.cmake
 -  cmake "${_cmake_cuda_args[@]}"
-+  cmake "${_cmake_args[@]}"
++  # Keep build-time code generators runnable on hosts without RVV.
++  echo 'target_compile_options(onnxruntime_mlas PRIVATE -march=rv64gcv)' \
++    >> cmake/onnxruntime_mlas.cmake
++  cmake "${_cmake_args[@]}" -Donnxruntime_USE_RVV=ON
    cmake --build build
-   cd build
-   install -Dm644 ../docs/python/README.rst docs/python/README.rst
-@@ -176,11 +176,11 @@ build() {
-   ln -s ../setup.py .
-   python -m build --wheel --no-isolation
+ 
+   cp -r build/onnxruntime/* onnxruntime
+@@ -284,13 +250,11 @@
+ 
+   ##### onnxruntime-opt-rocm
  
 -  echo "Build onnxruntime with ROCm with AVX optimizations"
 +  echo "Build onnxruntime with ROCm with RVV optimizations"
    cd "${srcdir}/${pkgbase}-opt-rocm"
 -  echo 'string(APPEND CMAKE_C_FLAGS " -march=haswell")' \
-+  echo 'string(APPEND CMAKE_C_FLAGS " -march=rv64gcv")' \
-     >> cmake/adjust_global_compile_flags.cmake
+-    >> cmake/adjust_global_compile_flags.cmake
 -  echo 'string(APPEND CMAKE_CXX_FLAGS " -march=haswell")' \
-+  echo 'string(APPEND CMAKE_CXX_FLAGS " -march=rv64gcv")' \
-     >> cmake/adjust_global_compile_flags.cmake
-   cmake "${_cmake_rocm_args[@]}"
+-    >> cmake/adjust_global_compile_flags.cmake
+-  cmake "${_cmake_rocm_args[@]}"
++  echo 'target_compile_options(onnxruntime_mlas PRIVATE -march=rv64gcv)' \
++    >> cmake/onnxruntime_mlas.cmake
++  cmake "${_cmake_rocm_args[@]}" -Donnxruntime_USE_RVV=ON
    cmake --build build
-@@ -192,9 +192,6 @@ build() {
  
- package_onnxruntime() {
-   pkgdesc="$_pkgdesc"
--  optdepends+=('cuda: nVidia GPU acceleration'
--               'cudnn: nVidia GPU acceleration'
--               'nccl: nVidia GPU acceleration')
- 
-   cd "${pkgbase}-cuda"
-   DESTDIR="${pkgdir}" cmake --install build
-@@ -203,10 +200,7 @@ package_onnxruntime() {
+   cp -r build/onnxruntime/* onnxruntime
+@@ -324,12 +288,10 @@
+   install -Dm644 ThirdPartyNotices.txt "${pkgdir}/usr/share/licenses/${pkgname}/ThirdPartyNotices.txt"
  }
  
- package_onnxruntime-opt() {
--  pkgdesc="$_pkgdesc (with AVX2 CPU optimizations)"
--  optdepends+=('cuda: nVidia GPU acceleration'
--               'cudnn: nVidia GPU acceleration'
--               'nccl: nVidia GPU acceleration')
+-package_onnxruntime-opt-cuda() {
+-  pkgdesc="$_pkgdesc (with CUDA and AVX2 CPU optimizations)"
+-  depends+=('cuda' 'cudnn' 'cudnn-frontend' 'nccl' 'onednn')
++package_onnxruntime-opt() {
 +  pkgdesc="$_pkgdesc (with RVV CPU optimizations)"
    provides=("${pkgbase}=${pkgver}")
    conflicts=("${pkgbase}")
+-  replaces=("${pkgbase}-opt")
  
-@@ -244,9 +238,6 @@ package_onnxruntime-opt-rocm() {
- package_python-onnxruntime() {
-   pkgdesc="$_pkgdesc"
-   depends+=("${pkgbase}" "${_pydepends[@]}")
--  optdepends+=('cuda: nVidia GPU acceleration'
--               'cudnn: nVidia GPU acceleration'
--               'nccl: nVidia GPU acceleration')
- 
-   cd "${pkgbase}-cuda/build"
-   python -m installer --destdir="${pkgdir}" dist/*.whl
-@@ -255,13 +246,10 @@ package_python-onnxruntime() {
+   cd "${pkgbase}-opt-cuda"
+   DESTDIR="${pkgdir}" cmake --install build
+@@ -351,7 +313,7 @@
  }
  
- package_python-onnxruntime-opt() {
--  pkgdesc="$_pkgdesc (with AVX2 CPU optimizations)"
+ package_onnxruntime-opt-rocm() {
+-  pkgdesc="$_pkgdesc (with ROCm and AVX2 CPU optimizations)"
++  pkgdesc="$_pkgdesc (with ROCm and RVV CPU optimizations)"
+   depends+=('rocm-hip-sdk' 'roctracer' 'rccl' 'migraphx')
+   provides=("${pkgbase}=${pkgver}")
+   conflicts=("${pkgbase}")
+@@ -388,13 +350,11 @@
+   install -Dm644 ThirdPartyNotices.txt "${pkgdir}/usr/share/licenses/${pkgname}/ThirdPartyNotices.txt"
+ }
+ 
+-package_python-onnxruntime-opt-cuda() {
+-  pkgdesc="$_pkgdesc (with CUDA and AVX2 CPU optimizations)"
+-  depends+=('cuda' 'cudnn' 'nccl' 'onednn')
++package_python-onnxruntime-opt() {
 +  pkgdesc="$_pkgdesc (with RVV CPU optimizations)"
-   depends+=("${pkgbase}-opt" "${_pydepends[@]}")
+   depends+=("${_pydepends[@]}")
    provides=("python-${pkgbase}=${pkgver}")
    conflicts=("python-${pkgbase}")
--  optdepends+=('cuda: nVidia GPU acceleration'
--               'cudnn: nVidia GPU acceleration'
--               'nccl: nVidia GPU acceleration')
+-  replaces=("python-${pkgbase}-opt")
  
-   cd "${pkgbase}-opt-cuda/build"
+   cd "${pkgbase}-opt-cuda"
    python -m installer --destdir="${pkgdir}" dist/*.whl
-@@ -282,7 +270,7 @@ package_python-onnxruntime-rocm() {
+@@ -416,7 +376,7 @@
  }
  
  package_python-onnxruntime-opt-rocm() {
 -  pkgdesc="$_pkgdesc (with ROCm and AVX2 CPU optimizations)"
 +  pkgdesc="$_pkgdesc (with ROCm and RVV CPU optimizations)"
-   depends+=("${pkgbase}-opt-rocm" "${_pydepends[@]}")
+   depends+=('rocm-hip-sdk' 'roctracer' 'rccl' 'migraphx')
+   depends+=("${_pydepends[@]}")
    provides=("python-${pkgbase}=${pkgver}")
-   conflicts=("python-${pkgbase}")
