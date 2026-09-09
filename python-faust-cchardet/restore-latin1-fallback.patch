@@ -1,0 +1,87 @@
+--- a/src/ext/uchardet/src/nsUniversalDetector.cpp
++++ b/src/ext/uchardet/src/nsUniversalDetector.cpp
+@@ -213,19 +213,12 @@
+           if (nsnull == mCharSetProbers[1])
+             return NS_ERROR_OUT_OF_MEMORY;
+         }
+-        /* Disabling the generic WINDOWS-1252 (Latin 1) prober for now.
+-         * We now have specific per-language models which are much more
+-         * efficients and useful. This is where we should direct our
+-         * efforts. Probably the whole nsLatin1Prober should disappear
+-         * at some point, but let's keep it for now, in case this was an
+-         * error.
+-         */
+-       /* if (nsnull == mCharSetProbers[2])
++        if (nsnull == mCharSetProbers[2])
+         {
+           mCharSetProbers[2] = new nsLatin1Prober;
+           if (nsnull == mCharSetProbers[2])
+             return NS_ERROR_OUT_OF_MEMORY;
+-        }*/
++        }
+       }
+     }
+     else
+@@ -338,9 +331,14 @@
+   case eHighbyte:
+     {
+       float proberConfidence;
++      bool hasCandidate = false;
+ 
+       for (PRInt32 i = 0; i < NUM_OF_CHARSET_PROBERS; i++)
+       {
++        // Use generic Latin-1 only when the other probers have no candidate.
++        if (i == 2 && hasCandidate)
++          break;
++
+         if (mCharSetProbers[i])
+         {
+           int n_candidates = mCharSetProbers[i]->GetCandidates();
+@@ -355,6 +353,7 @@
+                 Report(mCharSetProbers[i]->GetCharSetName(c),
+                        mCharSetProbers[i]->GetLanguage(c),
+                        proberConfidence);
++                hasCandidate = true;
+             }
+           }
+         }
+--- a/src/cchardet/uchardet-overlay/nsMBCSGroupProber.cpp
++++ b/src/cchardet/uchardet-overlay/nsMBCSGroupProber.cpp
+@@ -134,17 +134,6 @@
+  */
+ #define MBCS_CANDIDATE_THRESHOLD 0.5f
+ 
+-/*
+- * When the stream is not valid UTF-8 the UTF-8 prober is kept only as a
+- * last-resort candidate with this fixed confidence. The value sits above
+- * nsUniversalDetector's MINIMUM_THRESHOLD (0.20), so the guess survives for
+- * near-ASCII data no other prober claims (mirroring upstream, whose
+- * language pass also leaves a weak UTF-8 guess there), and below
+- * CANDIDATE_THRESHOLD (0.30), so it can never outrank any other reported
+- * candidate.
+- */
+-#define UTF8_INVALID_CONFIDENCE 0.25f
+-
+ static nsProbingState
+ HandleCharsetData(nsCharSetProber* prober,
+                   const char* data,
+@@ -360,8 +349,8 @@
+       continue;
+ 
+     if (i == 0)
+-      /* Invalid UTF-8 stays listed as a penalized last-resort fallback. */
+-      candidates[0][0] = Utf8IsInvalid(langDetectors[0][0]) ||
++      /* UTF-8 must be valid and end at a complete code point. */
++      candidates[0][0] = langDetectors[0][0] == nsnull &&
+         (mProbers[0]->GetConfidence(0) > CANDIDATE_THRESHOLD);
+     else
+       candidates[i][0] =
+@@ -428,8 +417,6 @@
+       continue;
+     if (candidate == candidateIt)
+     {
+-      if (i == 0 && Utf8IsInvalid(langDetectors[0][0]))
+-        return UTF8_INVALID_CONFIDENCE;
+       return mProbers[i]->GetConfidence(0);
+     }
+     candidateIt++;
