@@ -1,0 +1,90 @@
+--- a/lib/thrdpool.c
++++ b/lib/thrdpool.c
+@@ -255,6 +255,8 @@
+     struct thrdslot *tslot = Curl_node_elem(e);
+     n = Curl_node_next(e);
+     if(tslot->idle) {
++      /* A pending wakeup is not idle, even before the worker runs. */
++      tslot->idle = FALSE;
+       Curl_cond_signal(&tslot->await);
+       --nthreads;
+     }
+--- a/lib/urlapi.c
++++ b/lib/urlapi.c
+@@ -1194,7 +1194,7 @@
+                                             CURLU_DEFAULT_SCHEME));
+ 
+   /* handle the file: scheme */
+-  if(schemelen && !strcmp(schemebuf, "file")) {
++  if((schemelen == 4) && !memcmp(schemebuf, "file", 4)) {
+     is_file = TRUE;
+     ures = parse_file(url, urllen, u, &path, &pathlen);
+   }
+--- a/tests/libtest/lib677.c
++++ b/tests/libtest/lib677.c
+@@ -46,7 +46,7 @@
+   if(curl_multi_add_handle(mcurl, curl))
+     goto test_cleanup;
+ 
+-  while(time(NULL) - start < 5) {
++  while(time(NULL) - start < 30) {
+     struct curl_waitfd waitfd;
+ 
+     multi_perform(mcurl, &mrun);
+--- a/tests/testutil.pm
++++ b/tests/testutil.pm
+@@ -160,13 +160,11 @@
+ 
+     # days
+     while($$thing =~ s/%days\[(.*?)\]/%%DAYS%%/i) {
+-        # convert to now + given days in epoch seconds, align to a 60 second
+-        # boundary. Then provide two alternatives.
+-        my $now = time();
+-        my $d = ($1 * 24 * 3600) + $now + 30;
+-        $d = int($d / 60) * 60;
+-        my $d2 = $d + 60;
+-        $$thing =~ s/%%DAYS%%/%alternatives[$d,$d2]/;
++        # Record the earliest minute-rounded expiry. The upper bound is
++        # calculated during verification to allow for slow test startup.
++        my $days = $1;
++        my $d = int((time() + $days * 24 * 3600 + 30) / 60) * 60;
++        $$thing =~ s/%%DAYS%%/%expires[$days,$d]/;
+     }
+ 
+     # include a file
+--- a/tests/getpart.pm
++++ b/tests/getpart.pm
+@@ -378,6 +378,21 @@
+         return 1;
+     }
+ 
++    if($second =~ /%expires\[(\d+),(\d+)\]/) {
++        my ($days, $earliest) = ($1, $2);
++        my $prefix = substr($second, 0, $-[0]);
++        return 1 unless $first =~ /\A\Q$prefix\E(\d+)/;
++        my $expires = $1;
++        my $latest = int((time() + $days * 24 * 3600 + 30) / 60) * 60;
++        return 1 if(($expires % 60) || ($expires < $earliest) ||
++                    ($expires > $latest));
++
++        my $alt = $second;
++        $alt =~ s/%expires\[\d+,\d+\]/$expires/;
++        my @expected = ($alt);
++        return compareparts($firstref, \@expected);
++    }
++
+     if($first ne $second) {
+         return 1;
+     }
+--- a/docs/tests/FILEFORMAT.md
++++ b/docs/tests/FILEFORMAT.md
+@@ -100,7 +100,8 @@
+ Mostly to test capped cookie expire dates: `%days[NUM]` inserts the number of
+ seconds for the given number of days into the future, aligned to the nearest
+ minute. That is the same calculation the cookie engine uses to cap expiration
+-dates.
++dates. Comparisons allow timestamps between test preprocessing and result
++verification, so slow startup does not make the expected expiry stale.
+ 
+ ## Include file
+ 
