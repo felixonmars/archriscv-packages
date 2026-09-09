@@ -1,19 +1,61 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -80,6 +80,12 @@ prepare() {
-   make olddefconfig
-   diff -u ../config .config || :
+@@ -49,6 +49,10 @@
+   0003-drm-amdgpu-use-GFP_ATOMIC-instead-of-NOWAIT-in-the-c.patch
+ )
+ source_x86_64=(config.x86_64)
++source_riscv64=(
++  config.x86_64
++  riscv64.config-patch
++)
+ validpgpkeys=(
+   ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
+   647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
+@@ -59,12 +63,16 @@
+             '70d54dfde13e52ea1109c4222a987a29ada68feec35dca9ce4afd6f7977e8740'
+             '44caa7c6a79055539f16ab118bece58934cdf93557643a50017634366c864b91')
+ sha256sums_x86_64=('49972ff4e0688ad8023cb514e08cffe422b9f31eb9e258ca1eefffb0bd3eec55')
++sha256sums_riscv64=('49972ff4e0688ad8023cb514e08cffe422b9f31eb9e258ca1eefffb0bd3eec55'
++                    'fe977444bb4f4431ca45ad9743eafae398a543af45a0ebb983b49f00fd91fe58')
+ b2sums=('f2bafe037541a25fae70910534ef9a5d7d41bee0db85a56caa5be9992d23acf336bf5adb016182c37e4d5720b932b5e284df91d8ee4e148893f5448f15455691'
+         'SKIP'
+         'f98f4a2e714f7c9e05740caaad2bf014065ec950c096df74a3dee8b2ce6549f034adf6f87a76168f513aa68eb738edbdb6fe1a3f1b3a5104201c65199b5b931e'
+         '6ca246df80fa85f9c21d090f87ee31e33acb02f3c1147944750e0896ebf199bc0cf427a164dacbdd9baa26dbdbce2fabd89ebdb6a8ce5dae83fc455b27a56cc8'
+         'a612d5ea58485eeaa5cce0b30074ab3188f4321c4759448780de2f3f656821356d640df433e31bd4e8f2c9719c8e275374ddea29b9504335ed0981be5ac7bf7b')
+ b2sums_x86_64=('83a91701c3e661497b63b190948fa140d113dc3b24e16a790e2e1971c5502ec60511271c19002e23197ee732ba212c474b708abe7ba5507e73fd4a1d4822afc5')
++b2sums_riscv64=('83a91701c3e661497b63b190948fa140d113dc3b24e16a790e2e1971c5502ec60511271c19002e23197ee732ba212c474b708abe7ba5507e73fd4a1d4822afc5'
++                'd7ba235fcfbb123daa0a585869888b98648dfcce02772cff79ab8c79661f93cf447f8b62a50b9c12f290ef9125907a1ea89136810c4f00b734bf330251d66a13')
  
+ # https://www.kernel.org/pub/linux/kernel/v6.x/sha256sums.asc
+ 
+@@ -90,9 +98,14 @@
+   done
+ 
+   echo "Setting config..."
+-  cp ../config.$CARCH .config
++  cp ../config.x86_64 .config
++  make olddefconfig
++
 +  patch -Np0 < ../riscv64.config-patch
 +  mv .config .config.1
 +  make mrproper
 +  mv .config.1 .config
-+  make olddefconfig
-+
+   make olddefconfig
+-  diff -u ../config.$CARCH .config || :
+   
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
+@@ -104,7 +117,8 @@
+   make htmldocs SPHINXOPTS=-QT &
+   local pid_docs=$!
+ 
+-  make all
++  # Generate symbols for dtbs to support overlays
++  make DTC_FLAGS="-@" all
+   make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
+   wait $pid_docs
  }
-@@ -174,6 +180,9 @@ _package() {
+@@ -191,6 +205,9 @@
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -23,45 +65,11 @@
    # remove build link
    rm "$modulesdir"/build
  
-@@ -246,20 +255,17 @@ _package-headers() {
-   install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
-     localversion.* version vmlinux tools/bpf/bpftool/vmlinux.h
-   install -Dt "$builddir/kernel" -m644 kernel/Makefile
--  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
-+  install -Dt "$builddir/arch/riscv" -m644 arch/riscv/Makefile
-   cp -t "$builddir" -a scripts
-   ln -srt "$builddir" "$builddir/scripts/gdb/vmlinux-gdb.py"
+@@ -273,6 +290,7 @@
+   local karch
+   case $CARCH in
+     x86_64) karch=x86 ;;
++    riscv64) karch=riscv ;;
+     *) echo "Unknown CARCH $CARCH"; exit 1 ;;
+   esac
  
--  # required when STACK_VALIDATION is enabled
--  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
--
-   # required when DEBUG_INFO_BTF_MODULES is enabled
-   install -Dt "$builddir/tools/bpf/resolve_btfids" tools/bpf/resolve_btfids/resolve_btfids
- 
-   echo "Installing headers..."
-   cp -t "$builddir" -a include
--  cp -t "$builddir/arch/x86" -a arch/x86/include
--  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
-+  cp -t "$builddir/arch/riscv" -a arch/riscv/include
-+  install -Dt "$builddir/arch/riscv/kernel" -m644 arch/riscv/kernel/asm-offsets.s
- 
-   install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
-   install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
-@@ -281,7 +287,7 @@ _package-headers() {
-   echo "Removing unneeded architectures..."
-   local arch
-   for arch in "$builddir"/arch/*/; do
--    [[ $arch = */x86/ ]] && continue
-+    [[ $arch = */riscv/ ]] && continue
-     echo "Removing $(basename "$arch")"
-     rm -r "$arch"
-   done
-@@ -380,4 +386,8 @@ for _p in "${pkgname[@]}"; do
-   }"
- done
- 
-+source+=(riscv64.config-patch)
-+sha256sums+=('d2b9ca46f0fbb009d5bf3f6831b091f6822427c48be140be6ddda5c94d55a460')
-+b2sums+=('b797eacafe6ec1f3704282b1af0a1e9371319825178c4a43d1f7c985fc610a96ae5a19538e3dc5615b2bfab713bb52aa213ec35d825096f25d31ff7fbb16a0a0')
-+
- # vim:set ts=8 sts=2 sw=2 et:
