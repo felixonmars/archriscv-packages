@@ -1,0 +1,87 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -151,11 +151,11 @@
+       "Linux,Darwin,Windows:openssl"
+       "Linux,Darwin,Windows:boost"
+       "Linux,Darwin,Windows:glog"
++      "Linux:util-linux"
+     )
+   endif()
+   list(APPEND library_descriptor_list
+     "Linux,Darwin,Windows:linenoise-ng"
+-    "Linux:util-linux"
+   )
+ 
+   if(OSQUERY_BUILD_BPF)
+@@ -188,6 +188,7 @@
+   add_custom_target(thirdparty_libraries)
+ 
+   if(OSQUERY_USE_SYSTEM_LIBRARIES)
++    add_system_pkgconfig_dependency(util-linux "blkid;uuid")
+     add_system_cmake_dependency(
+       NAME OpenSSL
+       LINK_LIBRARIES OpenSSL::SSL OpenSSL::Crypto
+--- a/cmake/globals.cmake
++++ b/cmake/globals.cmake
+@@ -39,6 +39,8 @@
+ elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+   # Windows on Arm
+   set(TARGET_PROCESSOR "aarch64")
++elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++  set(TARGET_PROCESSOR "riscv64")
+ else()
+   message(FATAL_ERROR "Unsupported architecture ${CMAKE_SYSTEM_PROCESSOR}")
+ endif()
+--- a/osquery/events/linux/process_file_events.h
++++ b/osquery/events/linux/process_file_events.h
+@@ -17,7 +17,9 @@
+     __NR_linkat,
+     __NR_symlinkat,
+     __NR_unlinkat,
++#ifdef __NR_renameat
+     __NR_renameat,
++#endif
+     __NR_renameat2,
+     __NR_mknodat,
+     __NR_openat,
+--- a/osquery/tables/events/linux/process_file_events.cpp
++++ b/osquery/tables/events/linux/process_file_events.cpp
+@@ -1097,7 +1097,9 @@
+ #ifdef __x86_64__
+   case __NR_rename:
+ #endif /* __x86_64__ */
++#ifdef __NR_renameat
+   case __NR_renameat:
++#endif
+   case __NR_renameat2: {
+     return HandleRenameSyscallRecord(fim_context, syscall_context, record);
+   }
+--- a/osquery/tables/events/tests/linux/process_events_tests.cpp
++++ b/osquery/tables/events/tests/linux/process_events_tests.cpp
+@@ -120,6 +120,8 @@
+   const std::string kExecSyscall{"59"};
+ #elif defined(__aarch64__)
+   const std::string kExecSyscall{"221"};
++#elif defined(__riscv) && __riscv_xlen == 64
++  const std::string kExecSyscall{"221"};
+ #else
+   #error Unsupported architecture
+ #endif
+@@ -192,6 +194,8 @@
+     { 1300, "audit(1588703361.452:26860): arch=c000003e syscall=62 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+ #elif defined(__aarch64__)
+     { 1300, "audit(1588703361.452:26860): arch=c00000b7 syscall=129 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
++#elif defined(__riscv) && __riscv_xlen == 64
++    { 1300, "audit(1588703361.452:26860): arch=c00000f3 syscall=129 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+ #else
+     #error Unsupported architecture
+ #endif
+@@ -251,6 +255,8 @@
+     { 1300, "audit(1588703361.452:26860): arch=c000003e syscall=62 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+ #elif defined(__aarch64__)
+     { 1300, "audit(1588703361.452:26860): arch=c00000b7 syscall=129 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
++#elif defined(__riscv) && __riscv_xlen == 64
++    { 1300, "audit(1588703361.452:26860): arch=c00000f3 syscall=129 success=yes exit=0 a0=6334 a1=f a2=0 a3=7f8b95cbbcc0 items=0 ppid=6198 pid=6199 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts3 ses=5 comm=\"bash\" exe=\"/bin/bash\" key=226B696C6C73686F7422" },
+ #else
+     #error Unsupported architecture
+ #endif
