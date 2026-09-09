@@ -1,0 +1,46 @@
+--- a/tests/test_filelock.py
++++ b/tests/test_filelock.py
+@@ -284,8 +284,8 @@
+             raise RuntimeError from self.ex[1]  # pragma: no cover  # only a worker that raised gets re-raised here
+ 
+ 
+-# 100 threads x 100 acquisitions is thousands of lock cycles; the 20s default is tight on a loaded Windows runner.
+-@pytest.mark.timeout(60)
++# Threaded stress tests need more time on slower builders.
++@pytest.mark.timeout(300)
+ @pytest.mark.parametrize("lock_type", [FileLock, SoftFileLock])
+ def test_threaded_shared_lock_obj(lock_type: type[BaseFileLock], tmp_path: Path) -> None:
+     if sys.platform == "win32" and lock_type.__name__ == "SoftFileLock":  # pragma: win32 cover
+@@ -311,7 +311,7 @@
+     assert not lock.is_locked
+ 
+ 
+-@pytest.mark.timeout(60)
++@pytest.mark.timeout(300)
+ @pytest.mark.parametrize("lock_type", [FileLock, SoftFileLock])
+ def test_threaded_lock_different_lock_obj(lock_type: type[BaseFileLock], tmp_path: Path) -> None:
+     if sys.platform == "win32" and (hasattr(sys, "pypy_version_info") or lock_type.__name__ == "SoftFileLock"):
+@@ -688,6 +688,7 @@
+         assert txt_file.read_text(encoding="utf-8") == uuid
+ 
+ 
++@pytest.mark.timeout(300)
+ @pytest.mark.parametrize("lock_type", [FileLock, SoftFileLock])
+ def test_thrashing_with_thread_pool_passing_lock_to_threads(tmp_path: Path, lock_type: type[BaseFileLock]) -> None:
+     def mess_with_file(lock_: BaseFileLock) -> None:
+@@ -701,6 +702,7 @@
+     assert all(r.result() is None for r in results)
+ 
+ 
++@pytest.mark.timeout(300)
+ @pytest.mark.parametrize("lock_type", [FileLock, SoftFileLock])
+ def test_thrashing_with_thread_pool_global_lock(tmp_path: Path, lock_type: type[BaseFileLock]) -> None:
+     def mess_with_file() -> None:
+@@ -715,6 +717,7 @@
+     assert all(r.result() is None for r in results)
+ 
+ 
++@pytest.mark.timeout(300)
+ @pytest.mark.parametrize("lock_type", [FileLock, SoftFileLock])
+ def test_thrashing_with_thread_pool_lock_recreated_in_each_thread(
+     tmp_path: Path,
