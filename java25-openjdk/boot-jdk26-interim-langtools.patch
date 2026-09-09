@@ -1,0 +1,33 @@
+--- a/make/CompileInterimLangtools.gmk
++++ b/make/CompileInterimLangtools.gmk
+@@ -68,6 +68,22 @@
+ TARGETS += $(BUILDTOOLS_OUTPUTDIR)/gensrc/java.compiler.interim/javax/tools/ToolProvider.java
+ 
+ ################################################################################
++# Accept non-preview JDK 26 boot classes only in the interim compiler. Keep the
++# shipped compiler's class-file version checks and all other warnings unchanged.
++
++$(BUILDTOOLS_OUTPUTDIR)/gensrc/jdk.compiler.interim/com/sun/tools/javac/jvm/ClassReader.java: \
++    $(TOPDIR)/src/jdk.compiler/share/classes/com/sun/tools/javac/jvm/ClassReader.java
++	$(call LogInfo, Generating ClassReader.java for jdk.compiler.interim)
++	$(call MakeDir, $(@D))
++	$(SED) 's/int maxMajor = Version.MAX().major;/int maxMajor = Version.MAX().major + (minorVersion == ClassFile.PREVIEW_MINOR_VERSION ? 0 : 1);/' \
++	    $< > $@
++
++jdk.compiler.interim_EXTRA_FILES := \
++    $(BUILDTOOLS_OUTPUTDIR)/gensrc/jdk.compiler.interim/com/sun/tools/javac/jvm/ClassReader.java
++
++TARGETS += $(jdk.compiler.interim_EXTRA_FILES)
++
++################################################################################
+ # Use the up-to-date PreviewFeature.java and NoPreview.java from the current
+ # sources, instead of the versions from the boot JDK, as javac may be referring
+ # to constants from the up-to-date versions.
+@@ -98,6 +114,7 @@
+       EXCLUDES := sun, \
+       EXCLUDE_FILES := $(TOPDIR)/src/$1/share/classes/module-info.java \
+           $(TOPDIR)/src/$1/share/classes/javax/tools/ToolProvider.java \
++          $(TOPDIR)/src/$1/share/classes/com/sun/tools/javac/jvm/ClassReader.java \
+           $(TOPDIR)/src/$1/share/classes/com/sun/tools/javac/launcher/Main.java \
+           $(TOPDIR)/src/$1/share/classes/com/sun/tools/javac/launcher/MemoryClassLoader.java \
+           $(TOPDIR)/src/$1/share/classes/com/sun/tools/javac/launcher/MemoryContext.java \
