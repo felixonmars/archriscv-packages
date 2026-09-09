@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,6 +35,12 @@
+ source=("https://github.com/joblib/joblib/archive/${pkgver}/${pkgname}-${pkgver}.tar.gz")
+ b2sums=('38ad1d8b871a8cb3ebc834c48f563a1eb872cf0bc7390c0822c7f865abba480d2f66e5ae4e769f35a4d6b005efb90afa8532ebf067a64641e4536926cfdbd978')
+ 
++prepare() {
++  cd ${pkgname#python-}-${pkgver}
++  patch -Np1 -i "$srcdir/fix-dask-event-counting.patch"
++  patch -Np1 -i "$srcdir/fix-test-timing.patch"
++}
++
+ build() {
+   cd ${pkgname#python-}-${pkgver}
+   python -m build --wheel --no-isolation
+@@ -53,3 +59,8 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE.txt
+ }
++
++source+=(fix-dask-event-counting.patch
++         fix-test-timing.patch)
++b2sums+=('99ecce0ef206c370019a525c21c73dd86436ec60019c539ec81077a30c3beadda6e3bad4b100252939d40b41c69cb0af6b15a5639ea422604c0f61dd2cb65316'
++         '386389ad4c158bb10906b6db26d53d9cbb0ab95e4b6d7a235b09a3d9f19696a4a72253d81af070bc49676c4b221291e41962c168282f88383e41904e2f4269d4')
