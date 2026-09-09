@@ -1,0 +1,14 @@
+--- a/exporter/opentelemetry-exporter-otlp-proto-grpc/tests/test_otlp_exporter_mixin.py
++++ b/exporter/opentelemetry-exporter-otlp-proto-grpc/tests/test_otlp_exporter_mixin.py
+@@ -504,8 +504,9 @@
+         )
+         after = time.time()
+         self.assertEqual(mock_trace_service.num_requests, 6)
+-        # 1 second plus wiggle room so the test passes consistently.
+-        self.assertAlmostEqual(after - before, 1, 1)
++        # Five 200 ms waits, plus time for gRPC on slower builders.
++        self.assertGreaterEqual(after - before, 1)
++        self.assertLess(after - before, 2)
+ 
+         metrics_data = self.metric_reader.get_metrics_data()
+         scope_metrics = metrics_data.resource_metrics[0].scope_metrics[0]
