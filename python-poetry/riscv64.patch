@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -54,8 +54,21 @@
+ optdepends=('python-pip: to use pip with virtual environments')
+ provides=(poetry)
+ _archive="$_pkgname-$pkgver"
+-source=("https://github.com/$pkgname/$_pkgname/archive/$pkgver/$_archive.tar.gz")
+-sha256sums=('93a189a01f6cb812d12b9bc9b64733b05c89deb915aff67c35bf07894967c1af')
++source=("https://github.com/$pkgname/$_pkgname/archive/$pkgver/$_archive.tar.gz"
++        'mock-env-python39.patch'
++        'compatible-wheel-tags.patch::https://github.com/python-poetry/poetry/commit/4aada01a8e6217495413bc31ea870db15ab15884.patch')
++sha256sums=('93a189a01f6cb812d12b9bc9b64733b05c89deb915aff67c35bf07894967c1af'
++            '7495d183c1e616a1ead8a288a01acf1d72bba19a00c141ee59b1608e5cdc63cf'
++            'b7927004491b4d1c19bfa0bcdbc6ec2a4a9814b44db6d2a52ae4afef368a9c54')
++
++prepare() {
++	cd "$_archive"
++	# virtualenv no longer bundles pip for the mock environment's Python 3.7.
++	# https://github.com/python-poetry/poetry/commit/b4c400f6a6d7faa201be28cee514a8db9a39e91e
++	patch -Np1 -i "$srcdir/mock-env-python39.patch"
++	# packaging 26.3 changes the preferred tag, but manylinux wheels remain valid.
++	patch -Np1 -i "$srcdir/compatible-wheel-tags.patch"
++}
+ 
+ build() {
+ 	local site_packages=$(python -c "import site; print(site.getsitepackages()[0])")
