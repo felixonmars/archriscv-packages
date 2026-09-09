@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -30,6 +30,11 @@
+ source=("git+https://github.com/open-telemetry/opentelemetry-python.git#tag=v${pkgver}")
+ sha256sums=('de185f6c14474a3bee91ea09e14bbc41efef7fb9724c0bf98b7600cfdaee7529')
+ 
++prepare() {
++  cd opentelemetry-python
++  patch -Np1 -i "$srcdir/retry-info-timing.patch"
++}
++
+ build() {
+   cd opentelemetry-python/exporter/opentelemetry-exporter-otlp-proto-grpc
+   python -m build --wheel --no-isolation
+@@ -46,3 +51,6 @@
+   cd opentelemetry-python/exporter/opentelemetry-exporter-otlp-proto-grpc
+   python -m installer --destdir="$pkgdir" dist/*.whl
+ }
++
++source+=(retry-info-timing.patch)
++sha256sums+=('166326c6e24de3c71e1a8d47cd94886a56c146ed027c8735429398d5e6952205')
