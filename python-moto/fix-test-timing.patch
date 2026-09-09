@@ -1,0 +1,59 @@
+--- a/tests/test_scheduler/__init__.py
++++ b/tests/test_scheduler/__init__.py
+@@ -1,8 +1,12 @@
+ from datetime import datetime, timedelta
+ 
++from freezegun import freeze_time
++
+ from moto.core.utils import utcnow
+ 
+ 
++# Match the test clock so parameters cannot expire between collection and execution.
++@freeze_time("2024-01-01 00:00:00.123456")
+ def pytest_parametrize_test_create_get_schedule__with_start_date() -> list[
+     tuple[datetime, datetime]
+ ]:
+--- a/tests/test_scheduler/test_scheduler.py
++++ b/tests/test_scheduler/test_scheduler.py
+@@ -3,6 +3,7 @@
+ import boto3
+ import pytest
+ from botocore.client import ClientError
++from freezegun import freeze_time
+ 
+ from moto import mock_aws
+ from moto.core import DEFAULT_ACCOUNT_ID
+@@ -241,6 +242,7 @@
+     "start_date,expected_start_date",
+     pytest_parametrize_test_create_get_schedule__with_start_date(),
+ )
++@freeze_time("2024-01-01 00:00:00.123456")
+ def test_create_get_schedule__with_start_date(start_date, expected_start_date):
+     # Act
+     client = boto3.client("scheduler", region_name="eu-west-1")
+--- a/tests/test_stepfunctions/parser/test_stepfunctions_idempotency.py
++++ b/tests/test_stepfunctions/parser/test_stepfunctions_idempotency.py
+@@ -46,12 +46,18 @@
+ 
+         if execution["status"] == "RUNNING":
+             # We can start the execution just fine
+-            idempotent = client.start_execution(name=name, stateMachineArn=arn)
+-            assert idempotent["executionArn"] == execution_arn
++            try:
++                idempotent = client.start_execution(name=name, stateMachineArn=arn)
++            except client.exceptions.ExecutionAlreadyExists:
++                # The execution may finish after describe_execution returns RUNNING.
++                execution = client.describe_execution(executionArn=execution_arn)
++                assert execution["status"] == "SUCCEEDED"
++            else:
++                assert idempotent["executionArn"] == execution_arn
+ 
+-            # We're not done yet - we should check in on the progress later
+-            return False
+-        elif execution["status"] == "SUCCEEDED":
++                # We're not done yet - we should check in on the progress later
++                return False
++        if execution["status"] == "SUCCEEDED":
+             # Execution fails if we re-start it after it finishes
+             with pytest.raises(ClientError) as exc:
+                 client.start_execution(name=name, stateMachineArn=arn)
