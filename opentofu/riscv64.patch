@@ -1,33 +1,11 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,6 +18,11 @@
- prepare() {
-   cd $pkgname-$pkgver
-   GOFLAGS="-mod=readonly" go mod vendor -v
-+  # Restore HTTP/2 symbols needed by gRPC with Go 1.27.
-+  patch -Np1 -d vendor/golang.org/x/net -i "$srcdir/x-net-go1.27.patch"
-+  # Update compression expectations for Go 1.27.
-+  # https://github.com/opentofu/opentofu/commit/69a5d5b8d2e96336c868f169d9cde9b90e009465
-+  patch -Np1 -i "$srcdir/go1.27-tests.patch"
- }
- 
- build() {
-@@ -40,7 +45,7 @@
+@@ -47,7 +47,7 @@
  check() {
-   cd $pkgname-$pkgver
+   cd $pkgname
    # Skipped test asserts a hard-coded terraform_version that lags the release
 -  go test ./... -skip '^TestStateViews$'
 +  go test -timeout 20m ./... -skip '^TestStateViews$'
  }
  
  package() {
-@@ -58,3 +63,9 @@
-   install -vDm644 -t "$pkgdir/usr/share/doc/$pkgname" ./*.md
-   cp -a -t "$pkgdir/usr/share/doc/$pkgname" docs
- }
-+
-+source+=("x-net-go1.27.patch::https://github.com/golang/net/commit/23ee2efe81a3ff183b4eca46c42f749af7efca45.patch")
-+b2sums+=('b2715449ffe87f5a653e2b9d69f7355329f82f19413b0b16ec98a3101c6f01c2a53cace11052300e374b3f755cff33223398322e3793816a6fa0d4d29a7b251b')
-+
-+source+=(go1.27-tests.patch)
-+b2sums+=('f750be83e651322b1de06d6c9f261156ac65f1c17311e2e305844061ca5dcc9b48a2d7db205dc3c1bef8818b064e4d1c5a0d8ae944acf4b8e2c152e855a7fd2f')
