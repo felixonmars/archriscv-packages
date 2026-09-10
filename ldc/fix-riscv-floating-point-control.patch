@@ -1,0 +1,70 @@
+--- a/std/math/hardware.d
++++ b/std/math/hardware.d
+@@ -716,6 +716,18 @@
+             }
+         }
+     }
++    else version (RISCV_Any)
++    {
++        // Rounding occupies FCSR bits 7:5; libc FE_* values are unshifted.
++        enum : RoundingMode
++        {
++            roundToNearest = 0x00,
++            roundDown      = 0x40,
++            roundUp        = 0x60,
++            roundToZero    = 0x20,
++            roundingMask   = 0xE0,
++        }
++    }
+     else
+     {
+         enum : RoundingMode
+@@ -946,6 +958,8 @@
+             return true;
+         else version (SPARC_Any)
+             return true;
++        else version (RISCV_Any)
++            return false; // RISC-V records exception flags without trapping.
+         else version (ARM_Any)
+         {
+             // The hasExceptionTraps_impl function is basically pure,
+@@ -1087,6 +1101,10 @@
+             {
+                 resetIeeeFlags();
+             }
++            else version (RISCV_Any)
++            {
++                resetIeeeFlags();
++            }
+             else
+                 static assert(false, "Not implemented for this architecture");
+         }
+@@ -1332,6 +1350,28 @@
+     assert(lrint(1.5) == 2.0);
+ }
+ 
++version (RISCV_Any)
++@optStrategy("none") // Observe each hardware register update.
++@system unittest
++{
++    import core.stdc.fenv : fegetround, FE_DOWNWARD;
++
++    alias FPC = FloatingPointControl;
++    const saved = FPC.getControlState();
++    scope(exit) FPC.setControlState(saved);
++    assert(!FPC.hasExceptionTraps);
++
++    // Start in round-to-nearest, ties-to-max-magnitude, with all flags set.
++    FPC.setControlState((saved & ~0xFFu) | 0x80u | FPC.allExceptions);
++    {
++        FPC ctrl;
++        ctrl.rounding = FPC.roundDown;
++        assert(fegetround() == FE_DOWNWARD);
++        assert((FPC.getControlState() & FPC.allExceptions) == 0);
++    }
++    assert((FPC.getControlState() & 0xE0u) == 0x80u);
++}
++
+ @safe unittest
+ {
+     void ensureDefaults()
