@@ -1,0 +1,47 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,9 +19,7 @@
+   ninja
+   python
+   swig
+-  # fftw is needed only for detection by cmake, ITK links to static libs from MKL
+   fftw
+-  intel-oneapi-mkl
+   # depends
+   dcmtk
+   double-conversion
+@@ -48,6 +46,14 @@
+   done
+ }
+ 
++prepare() {
++  cd ${pkgbase^^}-$pkgver
++  # SWIG 4.5 removed the Python 2 integer API compatibility macros.
++  sed -i 's/\bPyInt_/PyLong_/g' \
++    Wrapping/Generators/Python/PyBase/pyBase.i \
++    Modules/Bridge/NumPy/include/itkPy{Buffer,VectorContainer,Vnl}.hxx
++}
++
+ build() {
+   local cmake_options=(
+     -B build
+@@ -64,8 +70,10 @@
+     -DCMAKE_SKIP_INSTALL_RPATH=ON
+     -DCMAKE_SKIP_RPATH=ON
+     -DITK_BUILD_DEFAULT_MODULES=ON
++    -DITK_USE_FFTWD=ON
++    -DITK_USE_FFTWF=ON
+     -DITK_USE_GPU=OFF
+-    -DITK_USE_MKL=ON
++    -DITK_USE_MKL=OFF
+     -DITK_USE_SYSTEM_CASTXML=ON
+     -DITK_USE_SYSTEM_DCMTK=ON
+     -DITK_USE_SYSTEM_DOUBLECONVERSION=ON
+@@ -120,6 +128,7 @@
+     dcmtk
+     double-conversion
+     expat libexpat.so
++    fftw
+     gdcm libgdcmCommon.so libgdcmDICT.so libgdcmDSED.so libgdcmMSFF.so
+     glibc
+     hdf5
