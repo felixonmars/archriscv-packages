@@ -1,0 +1,37 @@
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -196,6 +196,8 @@
+ 
+ http_archive(
+     name = "build_bazel_rules_nodejs",
++    patch_args = ["-p1"],
++    patches = ["//patches:esbuild-riscv64.patch"],
+     sha256 = "f02557f31d4110595ca6e93660018bcd7fdfdbe7d0086089308f1b3af3a7a7ee",
+     urls = [
+         "https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.1/rules_nodejs-5.8.1.tar.gz",
+@@ -204,6 +206,14 @@
+ 
+ load("@build_bazel_rules_nodejs//:repositories.bzl", "build_bazel_rules_nodejs_dependencies")
+ 
++http_archive(
++    name = "rules_nodejs",
++    patch_args = ["-p1"],
++    patches = ["//patches:rules_nodejs-riscv64.patch"],
++    sha256 = "de1ede962d5e517fd866942cd9de6aac36e59b39d09d1aeb882a795dde7a03e9",
++    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.1/rules_nodejs-core-5.8.1.tar.gz"],
++)
++
+ build_bazel_rules_nodejs_dependencies()
+ 
+ load("@build_bazel_rules_nodejs//:index.bzl", "node_repositories", "yarn_install")
+--- a/tensorboard/defs/defs.bzl
++++ b/tensorboard/defs/defs.bzl
+@@ -66,6 +66,8 @@
+     esbuild(
+         name = name,
+         visibility = visibility,
++        # Avoid cross-core LR/SC failures in esbuild's old Go runtime on P550.
++        max_threads = 1,
+         # Use "iife" format instead of "esm" because "esm" writes symbols at
+         # the global level and tends to overwrite `window` functions. "iife" is
+         # just a thin wrapper around "esm" (it adds 11 bytes) and doesn't
