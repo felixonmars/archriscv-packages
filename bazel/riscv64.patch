@@ -1,21 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,11 +15,17 @@
- options=('!debug' '!strip')
- source=(
-   "https://github.com/bazelbuild/bazel/releases/download/${pkgver}/bazel-${pkgver}-dist.zip"{,.sig}
-+  bazel-riscv64.diff
- )
- b2sums=('65c5004fb80e9f0c34f0d46c390ee89a34c6e7ba81fa6530565c8adfe01020950563c84af5e85004c63952cd04b108ff9946decc8d8517b57b663b6d31d6cc56'
--        'SKIP')
-+        'SKIP'
-+        'e41f4670dafeeda7b25a0396a560488a9ad0f6248e859422629803ce02db14d9df0b33a949c465ea245ea94e40253acc359df941dc7c4e7d969ee59faed18434')
- validpgpkeys=('71A1D0EFCFEB6281FD0437C93D5919B448457EE0')
+@@ -22,9 +22,7 @@
  
-+prepare() {
-+  patch -Np1 -i "bazel-riscv64.diff"
-+}
-+
  build() {
    EMBED_LABEL=$pkgver EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk" ./compile.sh
-   ./output/bazel build scripts:bazel-complete.bash
+-  ./output/bazel build scripts:bazel-complete.bash
+-  cd output
+-  ./bazel shutdown
++  ./output/bazel --batch help completion bash > output/bazel-complete.bash
+ }
+ 
+ package() {
+@@ -32,7 +30,7 @@
+   install -Dm755 "${srcdir}/output/bazel" "${pkgdir}/usr/bin/bazel-real"
+   local _bazel_major=${pkgver%%.*}
+   ln -s bazel-real "${pkgdir}/usr/bin/bazel-$_bazel_major.x-linux-$CARCH"
+-  install -Dm644 "${srcdir}/bazel-bin/scripts/bazel-complete.bash" "${pkgdir}/usr/share/bash-completion/completions/bazel"
++  install -Dm644 "${srcdir}/output/bazel-complete.bash" "${pkgdir}/usr/share/bash-completion/completions/bazel"
+   install -Dm644 "${srcdir}/scripts/zsh_completion/_bazel" "${pkgdir}/usr/share/zsh/site-functions/_bazel"
+   mkdir -p "${pkgdir}/usr/share/bazel"
+   for d in third_party tools; do
