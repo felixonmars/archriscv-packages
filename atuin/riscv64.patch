@@ -1,6 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -50,6 +50,8 @@
+@@ -33,6 +33,11 @@
+ prepare() {
+ 	_srcenv
+ 
++	# Honor the test timeout override in metadata-store tests too.
++	patch -Np1 -i "$srcdir/meta-test-timeout.patch"
++	# Secret-redaction timing tests exceed 10s on slower RISC-V builders.
++	patch -Np1 -i "$srcdir/secrets-test-timeout.patch"
++
+ 	# Fully lock down user
+ 	sed -i 's/^u /u! /' systemd/atuin-server.sysusers
+ 
+@@ -50,6 +55,8 @@
  
  check() {
  	_srcenv
@@ -9,3 +21,11 @@
  	cargo test --frozen --all-features --workspace --lib
  }
  
+@@ -77,3 +84,7 @@
+ 	install -Dm0644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md "crates/$pkgname/server.toml"
+ 	install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE
+ }
++
++source+=(meta-test-timeout.patch secrets-test-timeout.patch)
++sha256sums+=('ae69cd0acc5a16ea3d7d0fd4735336a033c808993d84ee8849699df98cbc87fe'
++            '0999060694b3ad96b08d256102a0378e7fa4641789b3b8aca0fc01664fc71e9f')
