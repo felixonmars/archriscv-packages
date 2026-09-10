@@ -1,0 +1,50 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+
+pkgname=opensbi-spacemit-k3
+pkgver=1.0.0
+_tag=k3-br-v${pkgver}
+pkgrel=1
+pkgdesc='OpenSBI firmware for SpacemiT K3 platforms'
+arch=('riscv64')
+url='https://github.com/spacemit-com/opensbi'
+license=('BSD-2-Clause')
+install=opensbi-spacemit.install
+depends=(
+  'bash'
+)
+makedepends=(
+  'dtc'
+  'git'
+  'python'
+  'uboot-tools'
+)
+options=('!strip' '!debug')
+source=(
+  "git+https://github.com/spacemit-com/opensbi.git#tag=${_tag}"
+  'opensbi-spacemit-flash'
+)
+sha512sums=('SKIP'
+            '4a61f0976e7e2771cb9ee2b6da2c49ae9047b019c33526f225dd548579d803b5bc839cd28a374015a8a2ed78c136c54fab927265a5c1e4498381c64aabee691a')
+
+build() {
+  cd opensbi
+
+  make \
+    PLATFORM=generic \
+    PLATFORM_DEFCONFIG=k3_defconfig
+}
+
+package() {
+  cd opensbi
+
+  local _dest="$pkgdir"/usr/share/opensbi/lp64/spacemit-k3/firmware
+  install -d "$_dest"
+
+  install -Dm644 build/platform/generic/firmware/fw_dynamic.bin \
+    "$_dest"/fw_dynamic.bin
+  install -Dm644 build/platform/generic/firmware/fw_dynamic.itb \
+    "$_dest"/fw_dynamic.itb
+
+  install -Dm755 "$srcdir"/opensbi-spacemit-flash "$pkgdir"/usr/bin/opensbi-spacemit-flash
+  install -Dm644 COPYING.BSD "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}
