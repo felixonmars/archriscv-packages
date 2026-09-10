@@ -1,0 +1,24 @@
+--- a/crates/atuin-client/src/meta.rs
++++ b/crates/atuin-client/src/meta.rs
+@@ -273,10 +273,11 @@
+     use rstest::*;
+ 
+     use super::*;
++    use crate::settings::test_local_timeout;
+ 
+     #[fixture]
+     async fn store() -> MetaStore {
+-        MetaStore::in_memory(Duration::from_secs(2)).await.unwrap()
++        MetaStore::in_memory(test_local_timeout()).await.unwrap()
+     }
+ 
+     #[rstest]
+@@ -350,7 +351,7 @@
+ 
+     #[tokio::test]
+     async fn memory_store_skips_file_migration() {
+-        let store = MetaStore::new(":memory:", Duration::from_secs(2)).await.unwrap();
++        let store = MetaStore::new(":memory:", test_local_timeout()).await.unwrap();
+ 
+         assert_eq!(store.get(KEY_FILES_MIGRATED).await.unwrap(), None);
+     }
