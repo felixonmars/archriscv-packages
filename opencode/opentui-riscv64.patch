@@ -1,0 +1,122 @@
+--- a/chunk-bun-t2myhmwd.js
++++ b/chunk-bun-t2myhmwd.js
+@@ -1,4 +1,5 @@
+ // @bun
++import koffi from "./koffi.node";
+ var __defProp = Object.defineProperty;
+ var __returnValue = (v) => v;
+ function __exportSetter(name, newValue) {
+@@ -198,7 +199,7 @@
+ var backend = loadBackend();
+ function loadBackend() {
+   if (isBun) {
+-    return createBunBackend(requireModule("bun:ffi"));
++    return createKoffiBackend(requireModule("bun:ffi"));
+   }
+   try {
+     const nodeFfi = requireModule("node:ffi");
+@@ -207,6 +208,75 @@
+     return createUnsupportedBackend(error);
+   }
+ }
++function createKoffiBackend(bun) {
++  // Bun's engine FFI requires JIT; Koffi uses static RISC-V call trampolines.
++  const types = {
++    i8: "int8_t", u8: "uint8_t", i16: "int16_t", u16: "uint16_t",
++    i32: "int32_t", u32: "uint32_t", i64: "int64_t", u64: "uint64_t",
++    f32: "float", f64: "double", usize: "size_t", cstring: "str",
++    ptr: "void *", pointer: "void *", buffer: "void *",
++    function: "void *", callback: "void *"
++  };
++  const ffiType = (type = "void") => types[type] ?? type;
++  const isPointer = (type) => types[type] === "void *";
++  // Preserve non-null empty buffers, which Koffi otherwise passes as NULL.
++  const emptyBuffer = new Uint8Array(1);
++  function toNative(type, value) {
++    if (type === "bool") return Boolean(value);
++    if (!isPointer(type)) return value;
++    if (typeof value === "number") return toSafeBigIntPointer(value);
++    if (value != null && value.byteLength === 0) return emptyBuffer;
++    return value;
++  }
++  function toJS(type, value) {
++    if (isPointer(type)) return value == null ? null : toSafeNumberPointer(value);
++    if (["i64", "u64", "int64_t", "uint64_t"].includes(type)) return BigInt(value);
++    return value;
++  }
++  return createBunBackend({
++    // Raw memory access does not use Bun's JIT-dependent call trampolines.
++    ptr: bun.ptr,
++    toArrayBuffer: bun.toArrayBuffer,
++    suffix: bun.suffix,
++    dlopen(path, definitions) {
++      const lib = koffi.load(path instanceof URL ? fileURLToPath(path) : path);
++      const symbols = {};
++      try {
++        for (const [name, definition] of Object.entries(definitions)) {
++          if (definition.ptr != null) {
++            throw new Error("Koffi backend does not support FFIFunction.ptr overrides");
++          }
++          const args = definition.args ?? [];
++          const fn = lib.func(name, ffiType(definition.returns), args.map(ffiType));
++          symbols[name] = (...values) => toJS(definition.returns,
++            fn(...values.map((value, index) => toNative(args[index], value))));
++        }
++      } catch (error) {
++        lib.unload();
++        throw error;
++      }
++      return { symbols, close: () => lib.unload() };
++    },
++    JSCallback: class {
++      constructor(callback, definition) {
++        if (definition.threadsafe) {
++          throw new Error("OpenTUI Koffi callbacks must be same-thread");
++        }
++        const args = definition.args ?? [];
++        const proto = koffi.proto(ffiType(definition.returns), args.map(ffiType));
++        this.callback = koffi.register((...values) => toNative(definition.returns,
++          callback(...values.map((value, index) => toJS(args[index], value)))), koffi.pointer(proto));
++        this.ptr = toSafeNumberPointer(this.callback);
++        this.threadsafe = false;
++      }
++      close() {
++        if (this.ptr === null) return;
++        koffi.unregister(this.callback);
++        this.ptr = null;
++      }
++    }
++  });
++}
+ function toPointer(value) {
+   if (isBun && typeof value === "bigint") {
+     return toSafeNumberPointer(value);
+@@ -7902,7 +7972,7 @@
+   win32: "opentui.dll"
+ };
+ function getNativeAssetDescriptor(target) {
+-  if (!Object.hasOwn(NATIVE_FILE_NAMES, target.platform) || target.arch !== "arm64" && target.arch !== "x64") {
++  if (!Object.hasOwn(NATIVE_FILE_NAMES, target.platform) || target.arch !== "arm64" && target.arch !== "x64" && !(target.platform === "linux" && target.arch === "riscv64")) {
+     throw new Error(`Unsupported OpenTUI Node asset target: ${String(target.platform)}-${String(target.arch)}`);
+   }
+   if (target.libc !== undefined && target.libc !== "glibc" && target.libc !== "musl") {
+@@ -7961,6 +8031,10 @@
+     }
+   }
+   if (process.platform === "linux") {
++    if (process.arch === "riscv64") {
++      // Koffi's dlopen cannot resolve Bun's embedded virtual filesystem.
++      return "/usr/lib/opencode/libopentui.so";
++    }
+     if (process.arch === "x64") {
+       if (process.env.OPENTUI_LIBC === "musl") {
+         return (await import("@opentui/core-linux-x64-musl")).default;
+@@ -11044,7 +11118,7 @@
+   console.error("FATAL ERROR:", message);
+   throw new Error(message);
+ }
+-var pointerSize = process.arch === "x64" || process.arch === "arm64" ? 8 : 4;
++var pointerSize = process.arch === "x64" || process.arch === "arm64" || process.arch === "riscv64" ? 8 : 4;
+ var isBun2 = typeof process !== "undefined" && "bun" in process.versions;
+ var typeSizes = {
+   u8: 1,
