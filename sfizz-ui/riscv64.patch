@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -66,6 +66,7 @@
+ }
+ 
+ prepare() {
++  patch --directory="$_name-$pkgver" --forward --strip=1 --input="${srcdir}/riscv64-vst3.patch"
+   # symlink tests data to top-level location so that tests can get to them (we build out of tree)
+   ln -sv $_name-$pkgver/tests .
+   patch --directory="$_name-$pkgver/library" --forward --strip=1 --input="${srcdir}/sfizz-1_2_3-absl_20240116_1-fix-build.patch"
+@@ -73,7 +74,7 @@
+   # https://github.com/steinbergmedia/vstgui/issues/324
+   patch --forward --strip=1 --dir=sfizz-1.2.3/plugins/editor/external/vstgui4/ --input="${srcdir}/sfizz-1_2_3-fix-vendored-sdk.patch"
+ 
+-  cp atomic_queue-1.6.5/include/atomic_queue/atomic_queue.h $_name-$pkgver/library/external/atomic_queue/include/atomic_queue/
++  cp atomic_queue-1.6.5/include/atomic_queue/{atomic_queue,defs}.h $_name-$pkgver/library/external/atomic_queue/include/atomic_queue/
+ 
+   # fix build
+   sed -i '0,/^#include/s/^#include/#include <algorithm>\n#include/' \
+@@ -222,3 +223,7 @@
+   install -vDm 644 $_name-$pkgver/LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+   install -vDm 644 $_name-$pkgver/{AUTHORS,CONTRIBUTING,GOVERNANCE,README}.md -t "$pkgdir/usr/share/doc/$pkgname/"
+ }
++
++source+=(riscv64-vst3.patch::https://github.com/sfztools/sfizz-ui/commit/3588c3f5bc2ab6a564d3c4bf8a5f6b6ef7f81d62.patch)
++sha512sums+=('5489540e0d573e3a71d35d7a1122a1eb13f6b750c734747e59484bbd2f4c348cfdd656086fe8bb8987fb524c21804d30ba857e78a28a2a92d4aa122c4945e6c5')
++b2sums+=('1175acd81bdb99756b37f69d4b40e1bb607cf006fbfab853b5031e80f5296466bd704b3bed5c6a02445444e5966214aec675b5c6aae308594ca104996dde7d4f')
