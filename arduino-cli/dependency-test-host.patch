@@ -1,0 +1,15 @@
+--- a/internal/arduino/cores/packagemanager/package_manager_test.go
++++ b/internal/arduino/cores/packagemanager/package_manager_test.go
+@@ -795,6 +795,12 @@
+ func TestFindPlatformReleaseDependencies(t *testing.T) {
+ 	pmb := NewBuilder(nil, nil, nil, nil, nil, "test", downloader.GetDefaultConfig())
+ 	pmb.LoadPackageIndexFromFile(paths.New("testdata", "package_tooltest_index.json"))
++	// These fixture tools are only used to resolve dependencies, never executed.
++	for _, tool := range pmb.packages["test"].Tools {
++		for _, release := range tool.Releases {
++			release.Flavors[0].OS = "all"
++		}
++	}
+ 	pmb.calculateCompatibleReleases()
+ 	pm := pmb.Build()
+ 	pme, release := pm.NewExplorer()
