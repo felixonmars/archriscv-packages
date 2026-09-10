@@ -1,0 +1,58 @@
+--- a/tests/environment_test.go
++++ b/tests/environment_test.go
+@@ -62,7 +62,7 @@
+ }
+ 
+ func (s *scenario) internetIsTurnedOff() error {
+-	s.t.netCtl.SetCanDial(false)
++	s.t.netCtl.Disable()
+ 	t, ok := (*s.t.rt).(*http.Transport)
+ 	if ok {
+ 		t.CloseIdleConnections()
+@@ -71,7 +71,7 @@
+ }
+ 
+ func (s *scenario) internetIsTurnedOn() error {
+-	s.t.netCtl.SetCanDial(true)
++	s.t.netCtl.Enable()
+ 	t, ok := (*s.t.rt).(*http.Transport)
+ 	if ok {
+ 		t.CloseIdleConnections()
+--- a/tests/imap_test.go
++++ b/tests/imap_test.go
+@@ -740,6 +740,23 @@
+ 		return err
+ 	}
+ 
++	// Synchronize the Trash deletion with Gluon before APPEND checks its cached ID.
++	waitForDeletion := sourceClient.Mailbox().Name == "Trash" && op2 == "EXPUNGE" && op3 == "APPEND"
++	var allMailCount uint32
++	if waitForDeletion {
++		// First observe the import event so a missing message cannot look deleted.
++		if err := eventually(func() error {
++			_, err := clientGetUIDBySubject(targetClient, "All Mail", messageSubject)
++			return err
++		}); err != nil {
++			return err
++		}
++		allMailCount = targetClient.Mailbox().Messages
++		if _, err := targetClient.Select(targetMailboxName, false); err != nil {
++			return err
++		}
++	}
++
+ 	var targetErr error
+ 	var storeErr error
+ 	var expungeErr error
+@@ -760,6 +777,11 @@
+ 			}
+ 		case "EXPUNGE":
+ 			expungeErr = sourceClient.Expunge(nil)
++			if expungeErr == nil && waitForDeletion {
++				if err := s.imapClientEventuallySeesMessagesInMailbox(sourceIMAPClient, int(allMailCount)-1, "All Mail"); err != nil {
++					return err
++				}
++			}
+ 		default:
+ 			return errors.New("unknown IMAP operation " + op)
+ 		}
