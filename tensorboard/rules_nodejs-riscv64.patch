@@ -1,0 +1,68 @@
+--- a/nodejs/private/os_name.bzl
++++ b/nodejs/private/os_name.bzl
+@@ -26,6 +26,7 @@
+     ("linux", "s390x"),
+     ("linux", "ppc64le"),
+     ("freebsd", "amd64"),
++    ("linux", "riscv64"),
+ ]
+ 
+ OS_NAMES = ["_".join(os_arch_name) for os_arch_name in OS_ARCH_NAMES]
+@@ -59,6 +60,8 @@
+             return OS_NAMES[5]
+         elif arch == "ppc64le":
+             return OS_NAMES[6]
++        elif arch == "riscv64":
++            return OS_NAMES[8]
+     elif os_name.startswith("freebsd"):
+         if arch == "amd64":
+             return OS_NAMES[7]
+@@ -74,7 +77,7 @@
+ 
+ def is_linux_os(rctx):
+     name = os_name(rctx)
+-    return name == OS_NAMES[3] or name == OS_NAMES[4] or name == OS_NAMES[5] or name == OS_NAMES[6]
++    return name == OS_NAMES[3] or name == OS_NAMES[4] or name == OS_NAMES[5] or name == OS_NAMES[6] or name == OS_NAMES[8]
+ 
+ def node_exists_for_os(node_version, os_name, node_repositories):
+     if not node_repositories:
+
+--- a/nodejs/private/toolchains_repo.bzl
++++ b/nodejs/private/toolchains_repo.bzl
+@@ -30,6 +30,12 @@
+             "@platforms//cpu:arm64",
+         ],
+     ),
++    "linux_riscv64": struct(
++        compatible_with = [
++            "@platforms//os:linux",
++            "@platforms//cpu:riscv64",
++        ],
++    ),
+     "linux_s390x": struct(
+         compatible_with = [
+             "@platforms//os:linux",
+
+--- a/nodejs/repositories.bzl
++++ b/nodejs/repositories.bzl
+@@ -363,8 +363,18 @@
+         fail("Invalid node version: %s" % version)
+ 
+ def _nodejs_repo_impl(repository_ctx):
+-    assert_node_exists_for_host(repository_ctx)
+-    _download_node(repository_ctx)
++    if repository_ctx.attr.platform == "linux_riscv64":
++        # Use packaged Node.js and the npm version bundled with Node.js 18.20.8.
++        repository_ctx.symlink("/usr/bin/node", NODE_EXTRACT_DIR + "/bin/node")
++        repository_ctx.download_and_extract(
++            url = "https://registry.npmjs.org/npm/-/npm-10.8.2.tgz",
++            sha256 = "c8c61ba0fa0ab3b5120efd5ba97fdaf0e0b495eef647a97c4413919eda0a878b",
++            stripPrefix = "package",
++            output = NODE_EXTRACT_DIR + "/lib/node_modules/npm",
++        )
++    else:
++        assert_node_exists_for_host(repository_ctx)
++        _download_node(repository_ctx)
+     _prepare_node(repository_ctx)
+ 
+ node_repositories = repository_rule(

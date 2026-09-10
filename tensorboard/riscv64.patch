@@ -1,0 +1,85 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,35 +9,71 @@
+ arch=('x86_64')
+ license=('Apache-2.0')
+ depends=('python' 'python-werkzeug' 'python-numpy' 'python-bleach' 'python-markdown'
+-         'python-protobuf' 'python-grpcio' 'python-packaging' 'python-setuptools' 'absl-py')
+-makedepends=('bazel' 'tree' 'rust' 'python-build' 'python-installer' 'python-wheel' 'git')
++         'python-protobuf' 'python-grpcio' 'python-packaging' 'python-setuptools' 'absl-py'
++         'python-pillow')
++makedepends=('bazel' 'tree' 'rust' 'python-build' 'python-installer' 'python-wheel' 'git'
++             'nodejs-lts-iron')
+ optdepends=('python-tensorflow: advanced features for TensorBoard')
+ source=(
+   "${pkgname}-${pkgver}.tar.gz::https://github.com/tensorflow/tensorboard/archive/${pkgver}.tar.gz"
+-  https://github.com/bazelbuild/bazel/releases/download/7.7.0/bazel_nojdk-7.7.0-linux-x86_64
++  https://github.com/bazelbuild/bazel/releases/download/7.7.0/bazel-7.7.0-dist.zip
++  tensorboard-riscv64.patch
++  rules_nodejs-riscv64.patch
++  esbuild-riscv64.patch
+ )
++noextract=('bazel-7.7.0-dist.zip')
+ options=('!lto')
+ sha512sums=('259692247aefa305c49d5062cf25d329cacc9b452261a2b3cf936732415022b88368eba6f0efe95a612313f0f08314c2c2a3d18f31219bef0082396476aa34d2'
+-            '206d9a1c98deba75435fe69597ce47dedfe3bb73b0af145245870516d9b2a534e49a8ece765cea5fe80cec57e254bc6655cdab0b194717a89976ed67d9330cf6')
++            '67d47b2066c54d10f3a1c0a13ab5e577087b40fa54a806802d67fd2391d11709374e2884cfb5910c253dbdc554e3ded65f609adf3a684e5cb1bfd62d244a6439'
++            '61525ef4624088f1c8466365af1be600e2b9b675fa2b7949dd70872a68a45d9ade520ed0da10e54c5f839e611d9131e875dfb0850d39a6e447d5b9e63151f81b'
++            '0f753fd2f1d71c15b3bab27e0480823147cabb443285f6e94ba3bf7dd70a7ea10e6472d234b96d371a8b139481462820b8da821cb463781f7a91fb077fe25e84'
++            'ca14cbff2af3a938ee3f27ef83332fc763ce9e34dfba9af16c193b9c6238b264e2e44f504697280ec6f91794898a2bbcd3df2a1cd298b78305aba51405cf8d2e')
+ 
+ prepare() {
+-  # Since tensorboard is often incompatible with Arch's version of bazel, we have to use a separate one.
+-  install -Dm755 "${srcdir}"/bazel_nojdk-7.7.0-linux-x86_64 bazel/bazel
+-  export PATH="${srcdir}/bazel:$PATH"
+-  bazel --version
++  mkdir -p bazel
++  bsdtar -xf bazel-7.7.0-dist.zip -C bazel
++
++  # Avoid Abseil's privileged rdcycle instruction on RISC-V; update its GoogleTest dependency too.
++  # https://github.com/bazelbuild/bazel/pull/25699
++  sed -i -e '/name = "abseil-cpp"/s/20230125.1/20240722.1/' \
++         -e '/name = "googletest"/s/1.14.0/1.15.2/' bazel/MODULE.bazel
++
++  # Fix the RISC-V JNI include path, which prevents Bazel from finding jni_md.h.
++  # https://github.com/bazelbuild/bazel/pull/25699
++  sed -i '/name = "rules_java"/s/7.6.5/7.12.5/' bazel/{MODULE.bazel,src/MODULE.tools}
++
++  # Match rules_java's rules_proto dependency to satisfy the bootstrap's direct dependency check.
++  sed -i '/name = "rules_proto"/s/6.0.0/6.0.2/' bazel/MODULE.bazel
+ 
+   cd "$pkgname-$pkgver"
+ 
++  # Add RISC-V Node.js and esbuild toolchains to rules_nodejs 5.8.1.
++  patch -Np1 -i "$srcdir/tensorboard-riscv64.patch"
++  cp "$srcdir/"{rules_nodejs,esbuild}-riscv64.patch patches/
++
+   # Remove fixed version requirements as we usually ship more up-to-date
+   # versions than are specified and it tends to work fine anyhow.
+   sed -i "s/[<>=].*//" tensorboard/pip_package/requirements.txt
++
++  # Keep the locked TLS stack, using the overlay's RISC-V backport of ring 0.16.20.
++  printf '\n[patch.crates-io]\nring = { git = "https://github.com/felixonmars/ring", rev = "80697f42ff68b7e2aacfd2179be29fd2f2d251d5" }\n' >> tensorboard/data/server/Cargo.toml
++  cargo update --manifest-path tensorboard/data/server/Cargo.toml -p ring
+ }
+ 
+ build() {
+-  cd "$pkgname-$pkgver"
++  # TensorBoard requires Bazel 7, whose releases lack a riscv64 binary.
++  cd "$srcdir/bazel"
++  # The first bootstrap stage lacks a version, so bazel_features assumes newer APIs.
++  # https://github.com/bazelbuild/bazel/issues/27401
++  EMBED_LABEL=7.7.0 BAZEL_DEV_VERSION_OVERRIDE=7.7.0 \
++    EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk" ./compile.sh
++  export PATH="$srcdir/bazel/output:$PATH"
++  bazel --version
++
++  cd "$srcdir/$pkgname-$pkgver"
+ 
+-  PYTHONWARNINGS=ignore bazel build //tensorboard
+-  bazel build //tensorboard/pip_package:build_pip_package
++  PYTHONWARNINGS=ignore bazel build --tool_java_runtime_version=local_jdk --extra_toolchains=@local_jdk//:all //tensorboard
++  bazel build --tool_java_runtime_version=local_jdk --extra_toolchains=@local_jdk//:all //tensorboard/pip_package:build_pip_package
+ 
+   cd tensorboard/data/server
+   cargo build --release
