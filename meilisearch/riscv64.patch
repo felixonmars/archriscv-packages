@@ -1,11 +1,28 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,6 +21,8 @@ validpgpkeys=()
+@@ -23,6 +23,7 @@
  
- build() {
+ prepare() {
    cd "$pkgname-$pkgver"
-+  echo -e "\n[patch.crates-io]\nring = { git = 'https://github.com/felixonmars/ring', branch = '0.16.20' }" >> Cargo.toml
-+  cargo update -p ring
-   cargo build --release --locked
++  patch -Np1 -i "$srcdir/round-tokenized-ranking-score.patch"
+   cargo fetch --locked --target host-tuple
  }
  
+@@ -37,7 +38,8 @@
+   cd "$pkgname-$pkgver"
+   ulimit -n 8192
+   export ZSTD_SYS_USE_PKG_CONFIG=1
+-  cargo test --release --locked --package meilisearch
++  cargo nextest run --release --locked --package meilisearch --test-threads=2
++  cargo test --release --locked --package meilisearch --doc -- --test-threads=2
+ }
+ 
+ package() {
+@@ -50,3 +52,7 @@
+   install -D -m644 "${srcdir}/meilisearch.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/meilisearch.conf"
+   install -D -m644 "${srcdir}/meilisearch.conf" "${pkgdir}/etc/meilisearch.conf"
+ }
++
++checkdepends+=(cargo-nextest)
++source+=(round-tokenized-ranking-score.patch)
++sha512sums+=('54cae1e7443c6bc3b6b6dbc6d49617aaebbc11b61aba44d3ae8fa2010fb491a6f38303c8827250b718e1d73591e8060131690cad158750b2d6fe68e74d499bbb')
