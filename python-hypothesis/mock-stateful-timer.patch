@@ -1,0 +1,20 @@
+--- a/hypothesis/tests/conftest.py
++++ b/hypothesis/tests/conftest.py
+@@ -23,7 +23,7 @@
+ from _pytest._code.code import Traceback
+ from _pytest.monkeypatch import MonkeyPatch
+ 
+-from hypothesis import is_hypothesis_test, settings
++from hypothesis import is_hypothesis_test, settings, stateful
+ from hypothesis._settings import is_in_ci
+ from hypothesis.errors import NonInteractiveExampleWarning
+ from hypothesis.internal import lambda_sources
+@@ -173,6 +173,8 @@
+         _patch("time", time)
+         _patch("monotonic", time)
+         _patch("perf_counter", time)
++        # Stateful rule timing imports perf_counter directly, so patch its alias too.
++        monkeypatch.setattr(stateful, "perf_counter", time)
+         _patch("sleep", sleep)
+         monkeypatch.setattr(time_module, "freeze", freeze, raising=False)
+ 
