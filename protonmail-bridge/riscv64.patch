@@ -1,0 +1,39 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -42,11 +42,13 @@
+   "protonmail-bridge.service"
+   "remove-vcpkg-dependency.patch"
+   "fix-wayland-icon.patch"
++  "fix-bdd-races.patch"
+ )
+ sha256sums=('47c97e35478e6233d1c24d0095a8b1506eece1e1077e6feb9ed8414b3ea7175b'
+             '5d273f1245fec8549a3daa3fe76e22bb6c23957cf5bcb51c24f878e19c7a5692'
+             '2efdc9476f9f187a9c2d296cd3dce6717d5200eac672c5481a0039315cb333e7'
+-            '869bcdb550e2899de1fffec8288fffea8c5ce1949322982d6c22f744814aed9c')
++            '869bcdb550e2899de1fffec8288fffea8c5ce1949322982d6c22f744814aed9c'
++            'b737fdf3796e9abe3bb0ebaecd64c235d2f1583a38694ba8e55177b37cefcd0c')
+ 
+ _archive="$_pkgbase"
+ 
+@@ -63,6 +65,9 @@
+   # and https://github.com/ProtonMail/proton-bridge/pull/497
+   patch --forward --strip 1 --input "$srcdir/fix-wayland-icon.patch"
+ 
++  # Synchronize the offline and Trash EXPUNGE/APPEND feature tests.
++  patch --forward --strip 1 --input "$srcdir/fix-bdd-races.patch"
++
+   # Use system Qt rather than bundling it.
+   cat /dev/null > internal/frontend/bridge-gui/bridge-gui/DeployLinux.cmake
+ 
+@@ -141,8 +146,10 @@
+       | grep -v github.com/ProtonMail/proton-bridge/v3/internal/dialer \
+       | grep -v github.com/ProtonMail/proton-bridge/v3/tests/utils/gmail
+   )
++  # Run packages serially, as upstream does, to avoid races on the default mail ports.
++  # The BDD feature suite exceeds Go's default ten-minute timeout on riscv64.
+   # shellcheck disable=SC2086
+-  go test $unit_tests -tags libsqlite3
++  go test -p=1 -timeout=90m $unit_tests -tags libsqlite3
+ 
+   cmake --build build --target bridgepp-test
+   ./build/bridgepp/bridgepp-test
