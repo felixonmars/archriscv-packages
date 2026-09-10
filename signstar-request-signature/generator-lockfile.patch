@@ -1,0 +1,12 @@
+--- a/justfile
++++ b/justfile
+@@ -548,6 +548,9 @@
+ 
+     script="$(mktemp --suffix=.rs)"
+     sed "s/PKG/{{ pkg }}/;s#PATH#$PWD/{{ pkg }}#g;s/KIND/{{ kind }}/g" > "$script" <<< '{{ render-script }}'
++    # Reuse the workspace dependency versions when compiling the generator.
++    script_package="$(rust-script --package "$script")"
++    cp Cargo.lock "$script_package/Cargo.lock"
+     rust-script "$script" "$output_dir/{{ kind }}"
+     rm --force "$script"
+ 
