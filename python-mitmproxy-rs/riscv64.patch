@@ -1,13 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -51,4 +51,10 @@ package() {
-   install -Dm0644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
- }
+@@ -16,7 +16,7 @@
+ makedepends=(
+   git
+   bpf-linker
+-  rustup
++  rust
+   maturin
+   python-installer
+   rust-src
+@@ -29,14 +29,12 @@
+ build() {
+   cd "$pkgname"
  
-+prepare() {
-+  cd ${_pyname}-${pkgver}
-+  sed -i '/\[patch\.crates-io\]/a aya-ebpf-bindings = { git = "https://github.com/hack3ric/aya", branch = "riscv64" }' Cargo.toml
-+  sed -i '/\[patch\.crates-io\]/a aya-ebpf = { git = "https://github.com/hack3ric/aya", branch = "riscv64" }' Cargo.toml
-+}
-+
- # vim: ts=2 sw=2 et:
+-  export RUSTUP_TOOLCHAIN=nightly
+-  rustup component add rust-src --toolchain "nightly-${CARCH}-unknown-linux-gnu"
+-
+   pushd mitmproxy-rs
+   maturin build --release --strip
+   popd
+   
+   pushd mitmproxy-linux
++  # Build eBPF's core library with stable Rust and the system LLVM.
+   RUSTC_BOOTSTRAP=1 maturin build --release --strip
+   popd
+ }
