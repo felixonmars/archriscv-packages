@@ -1,21 +1,32 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,6 +21,7 @@
+@@ -12,6 +12,8 @@
+   'curl'
+   'glibc'
+   'icu'
++  'libgcc'
++  'libstdc++'
+   'ripgrep'
+   'tar'
+ )
+@@ -20,7 +22,9 @@
+ #)
  makedepends=(
    'bun'
++  'cmake'
    'git'
 +  'nodejs'
  )
  optdepends=(
    'wl-clipboard: clipboard support on Wayland'
-@@ -35,7 +36,14 @@
+@@ -35,11 +39,30 @@
  
  prepare() {
    cd $pkgname
 -  bun install --frozen-lockfile --ignore-scripts
 +  patch -Np1 -i ../wasm-css.patch
 +  patch -Np1 -i ../riscv64-target.patch
-+  cp ../fix-oxide-worker-exit.patch patches/
++  cp ../fix-oxide-worker-exit.patch ../opentui-riscv64.patch patches/
 +  # The lockfile records RISC-V optional dependencies with an unsupported CPU.
 +  sed -i '/linux-riscv64/s/"cpu": "none"/"cpu": "riscv64"/' bun.lock
 +  # Install Oxide's threaded WASM fallback on the host architecture.
@@ -24,7 +35,24 @@
  }
  
  build() {
-@@ -60,6 +68,7 @@
+-  cd $pkgname/packages/opencode
++  # Koffi's prebuilt RISC-V addon requires RVV and crashes on baseline CPUs.
++  cd "$srcdir/package"
++  node ./cnoke.cjs -P . -D src/koffi --release \
++    -d "CMAKE_C_FLAGS=$CFLAGS -march=rv64gc -mabi=lp64d" \
++    -d "CMAKE_CXX_FLAGS=$CXXFLAGS -march=rv64gc -mabi=lp64d" \
++    -d 'CMAKE_ASM_FLAGS=-march=rv64gc -mabi=lp64d'
++  cp build/koffi/linux_riscv64d/koffi.node "$srcdir/$pkgname/packages/opencode/node_modules/@opentui/core/"
++
++  # OpenTUI 0.4.5 needs Zig 0.15.2 and does not publish a RISC-V renderer.
++  cd "$srcdir/opentui-0.4.5/packages/core/src/zig"
++  "$srcdir/zig-riscv64-linux-0.15.2/zig" build -Doptimize=ReleaseFast -Dtarget=riscv64-linux-gnu.2.27
++
++  cd "$srcdir/$pkgname/packages/opencode"
+   OPENCODE_VERSION=$pkgver bun run ./script/build.ts --single --baseline --skip-install
+ }
+ 
+@@ -60,9 +83,12 @@
    cd $pkgname
    case $CARCH in
    aarch64) dir=opencode-linux-arm64 ;;
@@ -32,12 +60,25 @@
    x86_64) dir=opencode-linux-x64-baseline ;;
    esac
    install -vDm755 -t "$pkgdir/usr/bin" "packages/opencode/dist/$dir/bin/opencode"
-@@ -71,3 +80,8 @@
++  install -vDm755 -t "$pkgdir/usr/lib/opencode" \
++    "$srcdir/opentui-0.4.5/packages/core/src/zig/lib/riscv64-linux-gnu.2.27/libopentui.so"
+ 
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ 
+@@ -71,3 +97,16 @@
    SHELL=/bin/zsh "$pkgdir/usr/bin/opencode" completion \
      | install -vDm644 /dev/stdin "$pkgdir/usr/share/zsh/site-functions/_opencode"
  }
 +
-+source+=(wasm-css.patch fix-oxide-worker-exit.patch riscv64-target.patch)
++source+=(wasm-css.patch fix-oxide-worker-exit.patch riscv64-target.patch
++         opentui-riscv64.patch
++         'opentui-0.4.5.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.4.5.tar.gz'
++         'https://ziglang.org/download/0.15.2/zig-riscv64-linux-0.15.2.tar.xz'
++         'https://registry.npmjs.org/koffi/-/koffi-3.2.1.tgz')
 +b2sums+=('b4fab5bac8f8f6c57c5ddbc404df67687abe8210773fac182cce0d5ee0b7e97a589701c32a150e61406f3c46a3690bbf133ac3fd5dbe645bbdc9b247f853b7a6'
 +         '8ccefc948e86b53c43f77cc3f3ef3de557cd4c104a444fb0eb8b2626cfc607ae20825370ffa29eab66604514c5c76eeaa0c86d45a3b65776ac15edae374278b1'
-+         '9f627012736692b0cebe7238e0abf1f43d41875de8e78b1b82f18873acae0645a608705dbaac5aecf65bd9a23334d3adb109a3ffb56824394c0a85cad8900c17')
++         'f997385f7b1f6c68b2f6e958b68f9a8f76aa8cfcddd17d34a81e50243ef65b4b0d18a5928afed71ecee787b8e9f1526276f9203f760a081366ec670a8497964c'
++         'f8cf829d4278196af59c3529945cf54ecaf2585e7d9afb69f9897a7bbda31e5485488d5fff6134fafe920d4676d6560cefa06f6ccaa971b326cc3c1aad8d527a'
++         '98dfcd07b756eb9f25e3b9066f32d2fce20ed668e9fa9989ee229d1b16dcf5e0635cbae28f9c803d731c45b3b18b5a14e2d3cfd80f5c766891f8771118dac4be'
++         'e5f6ef23373ed163d5064f78e0973dda93b5848b98ecda41bb4bc706804ab18fab9938192d7299bb0449bf9c44e8902270a4efbe3577f23e54f00b718d195b50'
++         'c521ab108a3d52606ab8514cd532fe7d989d50f2d6f60bca40d20858a64403e5588b0cbdf9f3727dcd298c6fcd6413b19a054d4d836c3494b6a6485929c3148b')
