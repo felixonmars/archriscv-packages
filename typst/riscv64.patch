@@ -1,13 +1,11 @@
-diff --git PKGBUILD PKGBUILD
-index 8a99939..4f08c36 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,7 +24,12 @@
+@@ -36,7 +36,12 @@
  
  prepare() {
- 	cd "$_archive"
+ 	_srcenv
 +	patch -Np1 -i "$srcdir/$pkgname-module-file-id-eq.patch"
- 	cargo fetch --locked --target "$(rustc --print host-tuple)"
+ 	cargo fetch --locked --target host-tuple
 +	local _moxcms
 +	_moxcms=$(find "${CARGO_HOME:-$HOME/.cargo}"/registry/src -path '*/moxcms-0.8.1/src/conversions/transform_lut4_to_3.rs' -print -quit)
 +	[[ -n $_moxcms ]]
@@ -15,7 +13,7 @@ index 8a99939..4f08c36 100644
  }
  
  build() {
-@@ -52,3 +57,8 @@
+@@ -62,3 +67,8 @@
  	install -Dm0644 -t "$pkgdir/usr/share/fish/vendor_completions.d/" "$_artifacts/$pkgname.fish"
  	install -Dm0644 "$_artifacts/$pkgname.bash" "$pkgdir/usr/share/bash-completion/completions/$pkgname"
  }
