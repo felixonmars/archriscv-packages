@@ -1,0 +1,3178 @@
+Backport the RISC-V compiler and RTL at 90afbc81146d59c0cd85d73f7cb8e8091fdc4c8c
+onto FPC 3.2.2, after importing its RISC-V directories.
+
+Based on the upstream port merged in a34d4e715ce6bfda8a0c07be4fbfb53f1690808a.
+Also includes startup fixes cb2704dfb22c30aca8cd64b171d47e3a740f12bc and
+b1a47a5d7d2b7ebad337cc6d9b4fd099e4a7dcb9, and explicit Zicsr/Zifencei
+as in 0bbd64b9de.
+
+Adapt the character declarations for the 3.3.1 bootstrap using upstream
+d2d3fe6bc3f7499ef111e689fb848dab2a18fdae and
+bcaf82f5e7b4ba858f0987055de374ffc550b009; adjust the UCS4Char subrange
+as in bccc0b195e3727c26db7b18e340896cea6ba82d9.
+
+Keep PComp in the common type declarations, as in
+042bbdf6131f0fe764223cbf409089e13c5f86ad, and guard Chr for older
+compilers as in c496b609d18b20208fb0ca54f0b9137fe413f5db.
+The newer bootstrap rejects string aliases in the system unit; use explicit
+ShortString types in its declarations and implementations, preserving the
+3.2.2 H- semantics. Follow the string changes in d2d3fe6bc3 and bcaf82f5e7
+without importing the newer RTL's AnsiString interfaces.
+
+Use the enum discriminator fix from 4426d0da7abffba27f125112a1484e3c9449761a.
+Adapt the RTL portion of 8e4e229a5fe9e8086d39bf36d23496794e29fe6f for the
+3.3.1 bootstrap's unsigned Val helpers, keeping the VER3_2 guards so the
+rebuilt 3.2.2 compiler retains its original helper signatures.
+
+Backport the compiler source fixes from 89f9ebc7b7fed1af0347c9290bc8d657fab8ccb3
+for the bootstrap's rejection of raise in noreturn routines: remove the list
+error annotations and use upstream's nested raise helper in internalerror.
+
+Complete the side-effect checks from 4e5fb2c6a8345eaf9bcd42ce25788caa8365fec1
+with the nutils flag definitions and exception handling used by nadd.
+Include class-field dereferences from f828d8700c479113179e4651e32974cad5af2612
+and 424c8a0ac0edc9a8cdffdb62687fd1a750727172, so short-circuit nil guards
+are not replaced with unconditional field accesses.
+
+Add the array copy helper from d3e18ccb5eef80f35ccaab8f8551cdbc7acd9f7d
+required by the 3.3.1 bootstrap, retaining the original 3.2.2 helper for
+the rebuilt compiler.
+
+Adapt create_varargs_paraloc_info to the caller-only 3.2.2 interface,
+before 8b9e90dc7a9c45eb6d0458daec566d8064e1ef52 added its side argument.
+
+Use max_operands in the optimizer as in 9b0ff05ee812e389651a5f0be280ca7837af3dc7;
+the imported RISC-V backend no longer defines MaxOps.
+
+Use the 3.2.2 optimizer's local CopyUsedRegs/ReleaseUsedRegs pattern, before
+94d7a02fae1d06a40fc9313f7e42323f97d577c7 introduced pooled TmpUsedRegs and
+TransferUsedRegs. Inline the instruction removal wrapped by
+2c54477807cf33e8ac18cecb469969a65bdf6797's RemoveInstruction helper.
+
+Backport 4427392d56d0cc33d961a9af0df1454d9d95e6be to preserve register
+lifetimes when combining addi instructions. Without it, StrDispose loses
+its pointer adjustment and fpmake crashes while freeing process arguments.
+
+Use the local wrapper symbols from before 3fee990218b4648ab020d85f783959b1d8fb0dd4
+introduced Createname_hidden and cross-unit inlining of implementation symbols.
+Backport the saved-register array declarations from
+77658b925bef93b5ae127e686acf63cae731b234 for the 3.3.1 bootstrap.
+Include the .option directive tables from
+2b78a8fd3dec629d91b9fb74a01d06d904384117 required by the RISC-V assembler reader.
+
+Backport .dc.a and combined section flags from
+4be5f07f276e2f8c9080a05f7c297fc9d578b5d5, including the section flag sets
+from 245b58c249b4b29ffc54e6c1e50a1474cc84f7b1 needed by the startup units.
+
+Use handle_locjump as before 28f25b2df0b1422fbcd6ac195a83cfbda40e4d9e:
+the 3.2.2 helper evaluates jump operands itself, so a second evaluation
+triggers internal error 200108222 while compiling boolean negations.
+
+Select the Pascal startup units as in 53542b7c5ec57aac80fa55eb4efc9c85fdf33129,
+so the linker does not look for the replaced prt0.o startup object.
+
+Complete ppudump's CPU controller table as in
+40f0372d8ccf96c2d823fa731febafa894b4d84d.
+
+Use the shared Comp definition already present in 3.2.2, as in
+ad0d8858809d0240e0463384ce71df6ca39f05b7 and
+abe6e740f5651b0c53fbf4feb800272f2a10a3c0. The old RISC-V aliases otherwise
+make the Comp and Int64 TValue operators duplicate declarations.
+
+--- a/fpcsrc/Makefile.fpc
++++ b/fpcsrc/Makefile.fpc
+@@ -85,6 +85,12 @@
+ ifeq ($(CPU_TARGET),aarch64)
+ PPSUF=a64
+ endif
++ifeq ($(CPU_TARGET),riscv32)
++PPSUF=rv32
++endif
++ifeq ($(CPU_TARGET),riscv64)
++PPSUF=rv64
++endif
+ 
+ # cross compilers uses full cpu_target, not just ppc-suffix
+ # (except if the target cannot run a native compiler)
+--- a/fpcsrc/compiler/Makefile.fpc
++++ b/fpcsrc/compiler/Makefile.fpc
+@@ -32,7 +32,7 @@
+ unexport FPC_VERSION FPC_COMPILERINFO
+ 
+ # Which platforms are ready for inclusion in the cycle
+-CYCLETARGETS=i386 powerpc sparc arm x86_64 powerpc64 m68k armeb mipsel mips avr jvm i8086 aarch64 sparc64
++CYCLETARGETS=i386 powerpc sparc arm x86_64 powerpc64 m68k armeb mipsel mips avr jvm i8086 aarch64 sparc64 riscv32 riscv64
+ 
+ # All supported targets used for clean
+ ALLTARGETS=$(CYCLETARGETS)
+@@ -83,6 +83,12 @@
+ ifdef AARCH64
+ PPC_TARGET=aarch64
+ endif
++ifdef RISCV32
++PPC_TARGET=riscv32
++endif
++ifdef RISCV64
++PPC_TARGET=riscv64
++endif
+ 
+ # Default is to generate a compiler for the same
+ # platform as CPU_TARGET (a native compiler)
+@@ -213,6 +219,12 @@
+ ifeq ($(CPC_TARGET),aarch64)
+ CPUSUF=a64
+ endif
++ifeq ($(CPC_TARGET),riscv32)
++CPUSUF=rv32
++endif
++ifeq ($(CPC_TARGET),riscv64)
++CPUSUF=rv64
++endif
+ 
+ # Do not define the default -d$(CPU_TARGET) because that
+ # will conflict with our -d$(CPC_TARGET)
+@@ -315,6 +327,16 @@
+ override LOCALOPT+=-Fux86
+ endif
+ 
++# RiscV32 specific
++ifeq ($(PPC_TARGET),riscv32)
++override LOCALOPT+=-Furiscv
++endif
++
++# RiscV64 specific
++ifeq ($(PPC_TARGET),riscv64)
++override LOCALOPT+=-Furiscv
++endif
++
+ OPTWPOCOLLECT=-OWdevirtcalls,optvmts -FW$(BASEDIR)/pp1.wpo
+ OPTWPOPERFORM=-Owdevirtcalls,optvmts -Fw$(BASEDIR)/pp1.wpo
+ # symbol liveness WPO requires nm, smart linking and no stripping (the latter
+@@ -436,8 +458,8 @@
+ # CPU targets
+ #####################################################################
+ 
+-PPC_TARGETS=i386 m68k powerpc sparc arm armeb x86_64 powerpc64 mips mipsel avr jvm i8086 aarch64 sparc64
+-PPC_SUFFIXES=386 68k ppc sparc arm armeb x64 ppc64 mips mipsel avr jvm 8086 a64 sparc64
++PPC_TARGETS=i386 m68k powerpc sparc arm armeb x86_64 powerpc64 mips mipsel avr jvm i8086 aarch64 sparc64 riscv64
++PPC_SUFFIXES=386 68k ppc sparc arm armeb x64 ppc64 mips mipsel avr jvm 8086 a64 sparc64 rv64
+ INSTALL_TARGETS=$(addsuffix _exe_install,$(sort $(CYCLETARGETS) $(PPC_TARGETS)))
+ SYMLINKINSTALL_TARGETS=$(addsuffix _symlink_install,$(sort $(CYCLETARGETS) $(PPC_TARGETS)))
+ 
+@@ -823,7 +845,7 @@
+   EXCLUDE_80BIT_TARGETS=1
+ endif
+ 
+-ifneq ($(findstring $(CPU_SOURCE),aarch64 arm avr jvm m68k mips mipsel powerpc powerpc64 sparc sparc64),)
++ifneq ($(findstring $(CPU_SOURCE),aarch64 arm avr jvm m68k mips mipsel powerpc powerpc64 sparc sparc64 riscv32 riscv64),)
+   EXCLUDE_80BIT_TARGETS=1
+ endif
+ 
+--- a/fpcsrc/compiler/aasmtai.pas
++++ b/fpcsrc/compiler/aasmtai.pas
+@@ -265,6 +265,10 @@
+        ,top_para
+        ,top_asmlist
+ {$endif llvm}
++{$if defined(riscv32) or defined(riscv64)}
++       ,top_fenceflags
++       ,top_roundingmode
++{$endif defined(riscv32) or defined(riscv64)}
+        );
+ 
+       { kinds of operations that an instruction can perform on an operand }
+@@ -364,7 +368,9 @@
+           all assemblers. }
+         asd_cpu,
+         { for the OMF object format }
+-        asd_omf_linnum_line
++        asd_omf_linnum_line,
++        { RISC-V }
++        asd_option
+       );
+ 
+       TAsmSehDirective=(
+@@ -404,7 +410,9 @@
+         'code',
+         'cpu',
+         { for the OMF object format }
+-        'omf_line'
++        'omf_line',
++        { RISC-V }
++        'option'
+       );
+       sehdirectivestr : array[TAsmSehDirective] of string[16]=(
+         '.seh_proc','.seh_endproc',
+@@ -467,6 +475,10 @@
+             top_para   : (paras: tfplist);
+             top_asmlist : (asmlist: tasmlist);
+         {$endif llvm}
++        {$if defined(riscv32) or defined(riscv64)}
++            top_fenceflags : (fenceflags : TFenceFlags);
++            top_roundingmode : (roundingmode : TRoundingMode);
++        {$endif defined(riscv32) or defined(riscv64)}
+         end;
+         poper=^toper;
+ 
+@@ -575,7 +587,8 @@
+        end;
+ 
+        type
+-         TSectionFlags = (SF_None,SF_A,SF_W,SF_X);
++         TSectionFlag = (SF_A,SF_W,SF_X);
++         TSectionFlags = set of TSectionFlag;
+          TSectionProgbits = (SPB_None,SPB_PROGBITS,SPB_NOBITS);
+ 
+        { Generates a section / segment directive }
+@@ -1214,7 +1227,7 @@
+         sectype:=TAsmSectiontype(ppufile.getbyte);
+         secalign:=ppufile.getlongint;
+         name:=ppufile.getpshortstring;
+-        secflags:=TSectionFlags(ppufile.getbyte);
++        secflags:=TSectionFlags(ppufile.getdword);
+         secprogbits:=TSectionProgbits(ppufile.getbyte);
+         sec:=nil;
+       end;
+@@ -1232,7 +1245,7 @@
+         ppufile.putbyte(byte(sectype));
+         ppufile.putlongint(secalign);
+         ppufile.putstring(name^);
+-        ppufile.putbyte(byte(secflags));
++        ppufile.putdword(dword(secflags));
+         ppufile.putbyte(byte(secprogbits));
+       end;
+ 
+--- a/fpcsrc/compiler/aggas.pas
++++ b/fpcsrc/compiler/aggas.pas
+@@ -50,7 +50,7 @@
+         function sectionattrs_coff(atype:TAsmSectiontype):string;virtual;
+         function sectionalignment_aix(atype:TAsmSectiontype;secalign: longint):string;
+         procedure WriteSection(atype:TAsmSectiontype;const aname:string;aorder:TAsmSectionOrder;secalign:longint;
+-          secflags:TSectionFlags=SF_None;secprogbits:TSectionProgbits=SPB_None);virtual;
++          secflags:TSectionFlags=[];secprogbits:TSectionProgbits=SPB_None);virtual;
+         procedure WriteExtraHeader;virtual;
+         procedure WriteExtraFooter;virtual;
+         procedure WriteInstruction(hp: tai);
+@@ -213,7 +213,7 @@
+ { vtable for a class called Window:                                       }
+ { .section .data.rel.ro._ZTV6Window,"awG",@progbits,_ZTV6Window,comdat    }
+ { TODO: .data.ro not yet working}
+-{$if defined(arm) or defined(powerpc)}
++{$if defined(arm) or defined(riscv64) or defined(powerpc)}
+           '.rodata',
+ {$else arm}
+           '.data',
+@@ -459,9 +459,10 @@
+       end;
+ 
+ 
+-    procedure TGNUAssembler.WriteSection(atype:TAsmSectiontype;const aname:string;aorder:TAsmSectionOrder;secalign:longint;secflags:TSectionFlags=SF_None;secprogbits:TSectionProgbits=SPB_None);
++    procedure TGNUAssembler.WriteSection(atype:TAsmSectiontype;const aname:string;aorder:TAsmSectionOrder;secalign:longint;secflags:TSectionFlags=[];secprogbits:TSectionProgbits=SPB_None);
+       var
+         s : string;
++        secflag: TSectionFlag;
+       begin
+         writer.AsmLn;
+         case target_info.system of
+@@ -495,20 +496,19 @@
+         s:=sectionname(atype,aname,aorder);
+         writer.AsmWrite(s);
+         { flags explicitly defined? }
+-        if (secflags<>SF_None) or (secprogbits<>SPB_None) then
++        if (secflags<>[]) or (secprogbits<>SPB_None) then
+           begin
+-            case secflags of
+-              SF_A:
+-                writer.AsmWrite(',"a"');
+-              SF_W:
+-                writer.AsmWrite(',"w"');
+-              SF_X:
+-                writer.AsmWrite(',"x"');
+-              SF_None:
+-                writer.AsmWrite(',""');
+-              else
+-                Internalerror(2018101502);
+-            end;
++            s:=',"';
++            for secflag in secflags do
++              case secflag of
++                SF_A:
++                  s:=s+'a';
++                SF_W:
++                  s:=s+'w';
++                SF_X:
++                  s:=s+'x';
++              end;
++            writer.AsmWrite(s+'"');
+             case secprogbits of
+               SPB_PROGBITS:
+                 writer.AsmWrite(',%progbits');
+--- a/fpcsrc/compiler/aoptobj.pas
++++ b/fpcsrc/compiler/aoptobj.pas
+@@ -384,8 +384,8 @@
+ 
+     function JumpTargetOp(ai: taicpu): poper; inline;
+       begin
+-{$if defined(MIPS)}
+-        { MIPS branches can have 1,2 or 3 operands, target label is the last one. }
++{$if defined(MIPS) or defined(riscv64) or defined(riscv32)}
++        { MIPS or RiscV branches can have 1,2 or 3 operands, target label is the last one. }
+         result:=ai.oper[ai.ops-1];
+ {$elseif defined(SPARC64)}
+         if ai.ops=2 then
+@@ -829,7 +829,7 @@
+               If (TInstr(p).oper[Count]^.typ = Top_Ref) Then
+                 TmpResult := RefsEq(Ref, PInstr(p)^.oper[Count]^.ref^);
+               Inc(Count);
+-            Until (Count = MaxOps) or TmpResult;
++            Until (Count = max_operands) or TmpResult;
+           End;
+         RefInInstruction := TmpResult;
+       End;
+@@ -1343,7 +1343,12 @@
+ {$if defined(arm) or defined(aarch64)}
+           (hp.condition=c_None) and
+ {$endif arm or aarch64}
++{$if defined(riscv32) or defined(riscv64)}          
+           (hp.ops>0) and
++          (hp.oper[0]^.reg=NR_X0) and
++{$else riscv}
++          (hp.ops>0) and
++{$endif riscv}
+           (JumpTargetOp(hp)^.typ = top_ref) and
+           (JumpTargetOp(hp)^.ref^.symbol is TAsmLabel);
+       end;
+@@ -1391,7 +1396,7 @@
+        to avoid endless loops with constructs such as "l5: ; jmp l5"           }
+ 
+       var p1: tai;
+-          {$if not defined(MIPS) and not defined(JVM)}
++          {$if not defined(MIPS) and not defined(riscv64) and not defined(riscv32) and not defined(JVM)}
+           p2: tai;
+           l: tasmlabel;
+           {$endif}
+@@ -1409,7 +1414,7 @@
+               if { the next instruction after the label where the jump hp arrives}
+                  { is unconditional or of the same type as hp, so continue       }
+                  IsJumpToLabelUncond(taicpu(p1))
+-{$if not defined(MIPS) and not defined(JVM)}
++{$if not defined(MIPS) and not defined(riscv64) and not defined(riscv32) and not defined(JVM)}
+ { for MIPS, it isn't enough to check the condition; first operands must be same, too. }
+                  or
+                  conditions_equal(taicpu(p1).condition,hp.condition) or
+@@ -1426,7 +1431,7 @@
+                    (IsJumpToLabelUncond(taicpu(p2)) or
+                    (conditions_equal(taicpu(p2).condition,hp.condition))) and
+                   SkipLabels(p1,p1))
+-{$endif not MIPS and not JVM}
++{$endif not MIPS and not RV64 and not RV32 and not JVM}
+                  then
+                 begin
+                   { quick check for loops of the form "l5: ; jmp l5 }
+@@ -1447,7 +1452,7 @@
+                   JumpTargetOp(hp)^.ref^.symbol:=JumpTargetOp(taicpu(p1))^.ref^.symbol;
+                   tasmlabel(JumpTargetOp(hp)^.ref^.symbol).increfs;
+                 end
+-{$if not defined(MIPS) and not defined(JVM)}
++{$if not defined(MIPS) and not defined(riscv64) and not defined(riscv32) and not defined(JVM)}
+               else
+                 if conditions_equal(taicpu(p1).condition,inverse_cond(hp.condition)) then
+                   if not FindAnyLabel(p1,l) then
+@@ -1478,7 +1483,7 @@
+                       if not GetFinalDestination(hp,succ(level)) then
+                         exit;
+                     end;
+-{$endif not MIPS and not JVM}
++{$endif not MIPS and not RV64 and not RV32 and not JVM}
+           end;
+         GetFinalDestination := true;
+       end;
+--- a/fpcsrc/compiler/cclasses.pas
++++ b/fpcsrc/compiler/cclasses.pas
+@@ -87,13 +87,13 @@
+     procedure Put(Index: Integer; Item: Pointer);
+     procedure SetCapacity(NewCapacity: Integer);
+     procedure SetCount(NewCount: Integer);
+-    Procedure RaiseIndexError(Index : Integer);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++    Procedure RaiseIndexError(Index : Integer);
+   public
+     destructor Destroy; override;
+     function Add(Item: Pointer): Integer;
+     procedure Clear;
+     procedure Delete(Index: Integer);
+-    class procedure Error(const Msg: string; Data: PtrInt);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++    class procedure Error(const Msg: string; Data: PtrInt);
+     procedure Exchange(Index1, Index2: Integer);
+     function Expand: TFPList;
+     function Extract(item: Pointer): Pointer;
+@@ -224,7 +224,7 @@
+     function HashOfIndex(Index: Integer): LongWord;
+     function GetNextCollision(Index: Integer): Integer;
+     procedure Delete(Index: Integer);
+-    class procedure Error(const Msg: string; Data: PtrInt);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++    class procedure Error(const Msg: string; Data: PtrInt);
+     function Expand: TFPHashList;
+     function Extract(item: Pointer): Pointer;
+     function IndexOf(Item: Pointer): Integer;
+@@ -715,7 +715,7 @@
+                TFPObjectList (Copied from rtl/objpas/classes/lists.inc)
+ *****************************************************************************}
+ 
+-procedure TFPList.RaiseIndexError(Index : Integer);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++procedure TFPList.RaiseIndexError(Index : Integer);
+ begin
+   Error(SListIndexError, Index);
+ end;
+@@ -811,7 +811,7 @@
+   end;
+ end;
+ 
+-class procedure TFPList.Error(const Msg: string; Data: PtrInt);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++class procedure TFPList.Error(const Msg: string; Data: PtrInt);
+ begin
+   Raise EListError.CreateFmt(Msg,[Data]) at get_caller_addr(get_frame), get_caller_frame(get_frame);
+ end;
+@@ -1510,7 +1510,7 @@
+     Self.Delete(Result);
+ end;
+ 
+-class procedure TFPHashList.Error(const Msg: string; Data: PtrInt);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++class procedure TFPHashList.Error(const Msg: string; Data: PtrInt);
+ begin
+   Raise EListError.CreateFmt(Msg,[Data])  at get_caller_addr(get_frame), get_caller_frame(get_frame);
+ end;
+--- a/fpcsrc/compiler/cgbase.pas
++++ b/fpcsrc/compiler/cgbase.pas
+@@ -93,6 +93,16 @@
+          addr_low_call,    // counterpart of two above, generate call_hi16 and call_lo16 relocs
+          addr_high_call
+          {$ENDIF}
++         {$if defined(RISCV32) or defined(RISCV64)}
++         ,
++         addr_hi20,
++         addr_lo12,
++         addr_pcrel_hi20,
++         addr_pcrel_lo12,
++         addr_got_pcrel_hi,
++         addr_plt,
++         addr_pcrel
++         {$endif RISCV}
+          {$IFDEF AVR}
+          ,addr_lo8
+          ,addr_lo8_gs
+--- a/fpcsrc/compiler/cgutils.pas
++++ b/fpcsrc/compiler/cgutils.pas
+@@ -74,7 +74,10 @@
+          base,
+          index       : tregister;
+          refaddr     : trefaddr;
+-         scalefactor : byte;
++         scalefactor : byte;     
++{$if defined(riscv32) or defined(riscv64)}
++         symboldata  : tlinkedlistitem;
++{$endif riscv32/64}
+ {$ifdef arm}
+          symboldata  : tlinkedlistitem;
+          signindex   : shortint;
+--- a/fpcsrc/compiler/dbgdwarf.pas
++++ b/fpcsrc/compiler/dbgdwarf.pas
+@@ -3800,10 +3800,12 @@
+                     asmline.concat(tai_comment.Create(strpnew('['+tostr(currfileinfo.line)+':'+tostr(currfileinfo.column)+']')));
+ 
+                     if (prevlabel = nil) or
+-                       { darwin's assembler cannot create an uleb128 of the difference }
+-                       { between to symbols                                            }
+-                       { same goes for Solaris native assembler                        }
+-                       (target_info.system in systems_darwin) or
++                       { darwin's assembler cannot create an uleb128 of the difference
++                         between to symbols
++                         same goes for Solaris native assembler
++                         ... and riscv }
++
++                       (target_info.system in systems_darwin+[system_riscv32_linux,system_riscv64_linux]) or
+                        (target_asm.id=as_solaris_as) then
+                       begin
+                         asmline.concat(tai_const.create_8bit(DW_LNS_extended_op));
+--- a/fpcsrc/compiler/entfile.pas
++++ b/fpcsrc/compiler/entfile.pas
+@@ -154,7 +154,9 @@
+     { 15 } 16 {'i8086'},
+     { 16 } 64 {'aarch64'},
+     { 17 } 32 {'wasm'},
+-    { 18 } 64 {'sparc64'}
++    { 18 } 64 {'sparc64'},
++    { 19 } 32 {'riscv32'},
++    { 20 } 64 {'riscv64'}
+     );
+   CpuAluBitSize : array[tsystemcpu] of longint =
+     (
+@@ -176,7 +178,9 @@
+     { 15 } 16 {'i8086'},
+     { 16 } 64 {'aarch64'},
+     { 17 } 64 {'wasm'},
+-    { 18 } 64 {'sparc64'}
++    { 18 } 64 {'sparc64'},
++    { 19 } 32 {'riscv32'},
++    { 20 } 64 {'riscv64'}
+     );
+ {$endif generic_cpu}
+ 
+--- a/fpcsrc/compiler/fpcdefs.inc
++++ b/fpcsrc/compiler/fpcdefs.inc
+@@ -274,6 +274,33 @@
+   {$define SUPPORT_SAFECALL}
+ {$endif aarch64}
+ 
++{$ifdef riscv32}
++  {$define riscv}
++  {$define cpu32bit}
++  {$define cpu32bitaddr}
++  {$define cpu32bitalu}
++  {$define cpufpemu}
++  {$define cputargethasfixedstack}
++  {$define cpuneedsmulhelper}
++  {$define cpuneedsdivhelper}
++  {$define cpucapabilities}
++  {$define cpurequiresproperalignment}
++{$endif riscv32}
++
++{$ifdef riscv64}
++  {$define riscv}
++  {$define cpu64bit}
++  {$define cpu64bitaddr}
++  {$define cpu64bitalu}
++  {$define cpufpemu}
++  {$define cputargethasfixedstack}
++  {$define cpuneedsmulhelper}
++  {$define cpuneedsdivhelper}
++  {$define cpucapabilities}
++  {$define cpurequiresproperalignment}
++{$endif riscv64}
++
++
+ { Stabs is not officially supported on 64 bit targets by gdb, except on Mac OS X
+   (but there we don't support it)
+ }
+--- a/fpcsrc/compiler/globals.pas
++++ b/fpcsrc/compiler/globals.pas
+@@ -529,6 +529,18 @@
+         asmcputype : cpu_none;
+         fputype : fpu_x87;
+   {$endif i8086}
++  {$ifdef riscv32}
++        cputype : cpu_rv32imafd;
++        optimizecputype : cpu_rv32imafd;
++        asmcputype : cpu_none;
++        fputype : fpu_fd;
++  {$endif riscv32}
++  {$ifdef riscv64}
++        cputype : cpu_rv64imac;
++        optimizecputype : cpu_rv64imac;
++        asmcputype : cpu_none;
++        fputype : fpu_fd;
++  {$endif riscv64}
+ {$endif not GENERIC_CPU}
+         asmmode : asmmode_standard;
+ {$ifndef jvm}
+--- a/fpcsrc/compiler/msg/errore.msg
++++ b/fpcsrc/compiler/msg/errore.msg
+@@ -3833,6 +3833,7 @@
+ **2Cc<x>_Set default calling convention to <x>
+ **2CD_Create also dynamic library (not supported)
+ **2Ce_Compilation with emulated floating point opcodes
++**2CE_Generate FPU code which can raise exceptions
+ **2Cf<x>_Select fpu instruction set to use; see fpc -i or fpc -if for possible values
+ **2CF<x>_Minimal floating point constant precision (default, 32, 64)
+ **2Cg_Generate PIC code
+--- a/fpcsrc/compiler/nadd.pas
++++ b/fpcsrc/compiler/nadd.pas
+@@ -1011,7 +1011,7 @@
+                     end;
+                   end
+                 { short to full boolean evalution possible and useful? }
+-                else if not(might_have_sideeffects(right)) and not(cs_full_boolean_eval in localswitches) then
++                else if not(might_have_sideeffects(right,[mhs_exceptions])) and not(cs_full_boolean_eval in localswitches) then
+                   begin
+                     case nodetype of
+                       andn,orn:
+--- a/fpcsrc/compiler/nutils.pas
++++ b/fpcsrc/compiler/nutils.pas
+@@ -54,6 +54,13 @@
+                             then the parent node is processed again }
+                           pm_postandagain);
+ 
++    tmhs_flag = (
++      { exceptions (overflow, sigfault etc.) are considered as side effect }
++      mhs_exceptions
++    );
++    tmhs_flags = set of tmhs_flag;
++    pmhs_flags = ^tmhs_flags;
++
+     foreachnodefunction = function(var n: tnode; arg: pointer): foreachnoderesult of object;
+     staticforeachnodefunction = function(var n: tnode; arg: pointer): foreachnoderesult;
+ 
+@@ -117,7 +124,7 @@
+     function genloadfield(n: tnode; const fieldname: string): tnode;
+ 
+     { returns true, if the tree given might have side effects }
+-    function might_have_sideeffects(n : tnode) : boolean;
++    function might_have_sideeffects(n : tnode;const flags : tmhs_flags = []) : boolean;
+ 
+     { count the number of nodes in the node tree,
+       rough estimation how large the tree "node" is }
+@@ -1368,13 +1375,19 @@
+              in_finalize_x,in_new_x,in_dispose_x,in_exit,in_copy_x,in_initialize_x,in_leave,in_cycle,
+              in_and_assign_x_y,in_or_assign_x_y,in_xor_assign_x_y,in_sar_assign_x_y,in_shl_assign_x_y,
+              in_shr_assign_x_y,in_rol_assign_x_y,in_ror_assign_x_y,in_neg_assign_x,in_not_assign_x])
++          ) or
++          ((mhs_exceptions in pmhs_flags(arg)^) and
++           ((n.nodetype in [derefn,vecn]) or
++            ((n.nodetype=subscriptn) and is_implicit_pointer_object_type(tsubscriptnode(n).left.resultdef)) or
++            ((n.nodetype in [addn,subn,muln,divn,slashn,unaryminusn]) and (n.localswitches*[cs_check_overflow,cs_check_range]<>[]))
++           )
+           ) then
+           result:=fen_norecurse_true;
+       end;
+ 
+-    function might_have_sideeffects(n : tnode) : boolean;
++    function might_have_sideeffects(n : tnode; const flags : tmhs_flags) : boolean;
+       begin
+-        result:=foreachnodestatic(n,@check_for_sideeffect,nil);
++        result:=foreachnodestatic(n,@check_for_sideeffect,@flags);
+       end;
+ 
+     var
+--- a/fpcsrc/compiler/options.pas
++++ b/fpcsrc/compiler/options.pas
+@@ -134,7 +134,8 @@
+                         + [system_i386_GO32V2]
+                         + [system_i386_freebsd]
+                         + [system_i386_netbsd]
+-                        + [system_i386_wdosx];
++                        + [system_i386_wdosx]
++                        + [system_riscv32_linux,system_riscv64_linux];
+ 
+   suppported_targets_x_smallr = systems_linux + systems_solaris + systems_android
+                              + [system_i386_haiku,system_x86_64_haiku]
+@@ -694,6 +695,12 @@
+ {$ifdef sparc64}
+       's',
+ {$endif}
++{$ifdef riscv32}
++      'R',
++{$endif}
++{$ifdef riscv64}
++      'r',
++{$endif}
+ {$ifdef avr}
+       'V',
+ {$endif}
+@@ -3594,6 +3601,23 @@
+         def_system_macro('FPC_COMP_IS_INT64');
+       {$endif aarch64}
+ 
++      {$ifdef riscv32}
++        def_system_macro('CPURISCV');
++        def_system_macro('CPURISCV32');
++        def_system_macro('CPU32');
++        def_system_macro('FPC_CURRENCY_IS_INT64');
++        def_system_macro('FPC_COMP_IS_INT64');
++        def_system_macro('FPC_REQUIRES_PROPER_ALIGNMENT');
++      {$endif riscv32}
++      {$ifdef riscv64}
++        def_system_macro('CPURISCV');
++        def_system_macro('CPURISCV64');
++        def_system_macro('CPU64');
++        def_system_macro('FPC_CURRENCY_IS_INT64');
++        def_system_macro('FPC_COMP_IS_INT64');
++        def_system_macro('FPC_REQUIRES_PROPER_ALIGNMENT');
++      {$endif riscv64}
++
+       {$if defined(cpu8bitalu)}
+         def_system_macro('CPUINT8');
+       {$elseif defined(cpu16bitalu)}
+@@ -4034,12 +4058,13 @@
+   if not(option.FPUSetExplicitly) and
+      ((target_info.system in [system_arm_wince,system_arm_gba,
+          system_m68k_amiga,system_m68k_atari,
+-         system_arm_nds,system_arm_embedded])
++         system_arm_nds,system_arm_embedded,
++         system_riscv32_embedded,system_riscv64_embedded])
+ {$ifdef arm}
+       or (target_info.abi=abi_eabi)
+ {$endif arm}
+      )
+-{$if defined(arm) or defined (m68k)}
++{$if defined(arm) or defined(riscv32) or defined(riscv64) or defined (m68k)}
+      or (init_settings.fputype=fpu_soft)
+ {$endif arm or m68k}
+   then
+@@ -4147,6 +4172,36 @@
+     def_system_macro('CPUTHUMB2');
+ {$endif arm}
+ 
++{$if defined(riscv32) or defined(riscv64)}
++  { RISC-V defaults }
++  if (target_info.abi = abi_riscv_hf) then
++    begin
++      {$ifdef riscv32}
++      if not option.CPUSetExplicitly then
++        init_settings.cputype:=cpu_rv32ima;
++      if not option.OptCPUSetExplicitly then
++        init_settings.optimizecputype:=cpu_rv32ima;
++      {$else}
++      if not option.CPUSetExplicitly then
++        init_settings.cputype:=cpu_rv64imac;
++      if not option.OptCPUSetExplicitly then
++        init_settings.optimizecputype:=cpu_rv64imac;
++      {$endif}
++
++      { Set FPU type }
++      if not(option.FPUSetExplicitly) then
++        init_settings.fputype:=fpu_fd
++      else
++        begin
++          if not (init_settings.fputype in [fpu_fd]) then
++            begin
++              Message(option_illegal_fpu_eabihf);
++              StopOptions(1);
++            end;
++        end;
++    end;
++{$endif defined(riscv32) or defined(riscv64)}
++
+ {$ifdef jvm}
+   { set default CPU type to Dalvik when targeting Android }
+   if target_info.system=system_jvm_android32 then
+--- a/fpcsrc/compiler/paramgr.pas
++++ b/fpcsrc/compiler/paramgr.pas
+@@ -313,7 +313,7 @@
+ 
+     function tparamanager.get_saved_registers_int(calloption : tproccalloption):tcpuregisterarray;
+       const
+-        inv: array [0..0] of tsuperregister = (RS_INVALID);
++        inv: {$ifndef VER3_0}tcpuregisterarray{$else}array [0..0] of tsuperregister{$endif} = (RS_INVALID);
+       begin
+         result:=inv;
+       end;
+@@ -321,7 +321,7 @@
+ 
+     function tparamanager.get_saved_registers_address(calloption : tproccalloption):tcpuregisterarray;
+       const
+-        inv: array [0..0] of tsuperregister = (RS_INVALID);
++        inv: {$ifndef VER3_0}tcpuregisterarray{$else}array [0..0] of tsuperregister{$endif} = (RS_INVALID);
+       begin
+         result:=inv;
+       end;
+@@ -329,7 +329,7 @@
+ 
+     function tparamanager.get_saved_registers_fpu(calloption : tproccalloption):tcpuregisterarray;
+       const
+-        inv: array [0..0] of tsuperregister = (RS_INVALID);
++        inv: {$ifndef VER3_0}tcpuregisterarray{$else}array [0..0] of tsuperregister{$endif} = (RS_INVALID);
+       begin
+         result:=inv;
+       end;
+@@ -337,7 +337,7 @@
+ 
+     function tparamanager.get_saved_registers_mm(calloption : tproccalloption):tcpuregisterarray;
+       const
+-        inv: array [0..0] of tsuperregister = (RS_INVALID);
++        inv: {$ifndef VER3_0}tcpuregisterarray{$else}array [0..0] of tsuperregister{$endif} = (RS_INVALID);
+       begin
+         result:=inv;
+       end;
+--- a/fpcsrc/compiler/pp.pas
++++ b/fpcsrc/compiler/pp.pas
+@@ -37,6 +37,7 @@
+   MIPSEL              generate a compiler for the MIPSEL (Littel Endian)
+   POWERPC             generate a compiler for the PowerPC
+   POWERPC64           generate a compiler for the PowerPC64 architecture
++  RISCV64             generate a compiler for the RiscV64 architecture
+   SPARC               generate a compiler for SPARC
+   SPARC64             generate a compiler for SPARC64
+   X86_64              generate a compiler for the AMD x86-64 architecture
+@@ -165,6 +166,18 @@
+   {$endif CPUDEFINED}
+   {$define CPUDEFINED}
+ {$endif AARCH64}
++{$ifdef RISCV32}
++  {$ifdef CPUDEFINED}
++    {$fatal ONLY one of the switches for the CPU type must be defined}
++  {$endif CPUDEFINED}
++  {$define CPUDEFINED}
++{$endif RISCV32}
++{$ifdef RISCV64}
++  {$ifdef CPUDEFINED}
++    {$fatal ONLY one of the switches for the CPU type must be defined}
++  {$endif CPUDEFINED}
++  {$define CPUDEFINED}
++{$endif RISCV64}
+ 
+ {$ifndef CPUDEFINED}
+   {$fatal A CPU type switch must be defined}
+--- a/fpcsrc/compiler/psub.pas
++++ b/fpcsrc/compiler/psub.pas
+@@ -1004,7 +1004,7 @@
+       end;
+ 
+ 
+-{$if defined(i386) or defined(x86_64) or defined(arm)}
++{$if defined(i386) or defined(x86_64) or defined(arm) or defined(riscv32) or defined(riscv64)}
+     const
+       exception_flags: array[boolean] of tprocinfoflags = (
+         [],
+--- a/fpcsrc/compiler/psystem.pas
++++ b/fpcsrc/compiler/psystem.pas
+@@ -348,6 +348,14 @@
+         create_fpu_types;
+         s64currencytype:=corddef.create(scurrency,low(int64),high(int64),true);
+ {$endif mips}
++{$ifdef riscv32}
++        create_fpu_types;
++        s64currencytype:=corddef.create(scurrency,low(int64),high(int64),true);
++{$endif riscv32}
++{$ifdef riscv64}
++        create_fpu_types;
++        s64currencytype:=corddef.create(scurrency,low(int64),high(int64),true);
++{$endif riscv64}
+ {$ifdef jvm}
+         create_fpu_types;
+         s64currencytype:=corddef.create(scurrency,low(int64),high(int64),true);
+--- a/fpcsrc/compiler/raatt.pas
++++ b/fpcsrc/compiler/raatt.pas
+@@ -53,7 +53,7 @@
+         AS_DB,AS_DW,AS_DD,AS_DQ,AS_GLOBAL,
+         AS_ALIGN,AS_BALIGN,AS_P2ALIGN,AS_ASCII,
+         AS_ASCIIZ,AS_LCOMM,AS_COMM,AS_SINGLE,AS_DOUBLE,AS_EXTENDED,AS_CEXTENDED,
+-        AS_DATA,AS_TEXT,AS_INIT,AS_FINI,AS_RVA,
++        AS_DATA,AS_TEXT,AS_INIT,AS_FINI,AS_RVA,AS_DC_A,
+         AS_SET,AS_WEAK,AS_SECTION,AS_END,
+         {------------------ Assembler Operators  --------------------}
+         AS_TYPE,AS_SIZEOF,AS_VMTOFFSET,AS_MOD,AS_SHL,AS_SHR,AS_NOT,AS_AND,AS_OR,AS_XOR,AS_NOR,AS_AT,
+@@ -80,7 +80,7 @@
+         '.byte','.word','.long','.quad','.globl',
+         '.align','.balign','.p2align','.ascii',
+         '.asciz','.lcomm','.comm','.single','.double','.tfloat','.tcfloat',
+-        '.data','.text','.init','.fini','.rva',
++        '.data','.text','.init','.fini','.rva','.dc.a',
+         '.set','.weak','.section','END',
+         'TYPE','SIZEOF','VMTOFFSET','%','<<','>>','!','&','|','^','~','@','reltype',
+         'directive');
+@@ -227,7 +227,7 @@
+               actasmpattern[len]:=c;
+               { Let us point to the next character }
+               c:=current_scanner.asmgetchar;
+-              while c in ['A'..'Z','a'..'z','0'..'9','_','$'] do
++              while c in ['A'..'Z','a'..'z','0'..'9','_','$','.'] do
+                begin
+                  inc(len);
+                  actasmpattern[len]:=c;
+@@ -330,6 +330,22 @@
+                end;
+            end;
+ {$endif aarch64}
++{$if defined(riscv32) or defined(riscv64)}
++           {
++             amo* instructions contain a postfix with size, and optionally memory ordering
++             fence* can contain memory type identifier
++             floating point instructions contain size, and optionally rounding mode
++           }
++           case c of
++             '.':
++               begin
++                 repeat
++                   actasmpattern:=actasmpattern+c;
++                   c:=current_scanner.asmgetchar;
++                 until not(c in ['a'..'z','A'..'Z','.']);
++               end;
++           end;
++{$endif riscv}
+            { Opcode ? }
+            If is_asmopcode(upper(actasmpattern)) then
+             Begin
+@@ -1042,6 +1058,7 @@
+        section    : tai_section;
+        secflags   : TSectionFlags;
+        secprogbits : TSectionProgbits;
++       i: Integer;
+      Begin
+        Message1(asmr_d_start_reading,'GNU AS');
+        firsttoken:=TRUE;
+@@ -1129,6 +1146,12 @@
+                BuildConstant(4);
+              end;
+ 
++           AS_DC_A:
++             Begin
++               Consume(AS_DC_A);
++               BuildConstant(sizeof(aint));
++             end;
++
+            AS_DQ:
+              Begin
+                Consume(AS_DQ);
+@@ -1300,7 +1323,7 @@
+              begin
+                Consume(AS_SECTION);
+                sectionname:=actasmpattern;
+-               secflags:=SF_None;
++               secflags:=[];
+                secprogbits:=SPB_None;
+                Consume(AS_STRING);
+                if actasmtoken=AS_COMMA then
+@@ -1308,18 +1331,17 @@
+                    Consume(AS_COMMA);
+                    if actasmtoken=AS_STRING then
+                      begin
+-                       case actasmpattern of
+-                         'a':
+-                           secflags:=SF_A;
+-                         'w':
+-                           secflags:=SF_W;
+-                         'x':
+-                           secflags:=SF_X;
+-                         '':
+-                           secflags:=SF_None;
+-                         else
+-                           Message(asmr_e_syntax_error);
+-                       end;
++                       for i:=1 to length(actasmpattern) do
++                         case actasmpattern[i] of
++                           'a':
++                             Include(secflags,SF_A);
++                           'w':
++                             Include(secflags,SF_W);
++                           'x':
++                             Include(secflags,SF_X);
++                           else
++                             Message(asmr_e_syntax_error);
++                         end;
+                        Consume(AS_STRING);
+                        if actasmtoken=AS_COMMA then
+                          begin
+--- a/fpcsrc/compiler/rautils.pas
++++ b/fpcsrc/compiler/rautils.pas
+@@ -45,7 +45,7 @@
+   TOprType=(OPR_NONE,OPR_CONSTANT,OPR_SYMBOL,OPR_LOCAL,
+             OPR_REFERENCE,OPR_REGISTER,OPR_COND,OPR_REGSET,
+             OPR_SHIFTEROP,OPR_MODEFLAGS,OPR_SPECIALREG,
+-            OPR_REGPAIR);
++            OPR_REGPAIR,OPR_FENCEFLAGS);
+ 
+   TOprRec = record
+     case typ:TOprType of
+@@ -82,6 +82,9 @@
+       OPR_SHIFTEROP : (shifterop : tshifterop);
+       OPR_COND      : (cc : tasmcond);
+ {$endif aarch64}
++{$if defined(riscv32) or defined(riscv64)}
++      OPR_FENCEFLAGS: (fenceflags : TFenceFlags);
++{$endif aarch64}
+   end;
+ 
+   TOperand = class
+@@ -1295,6 +1298,10 @@
+              OPR_COND:
+                ai.loadconditioncode(i-1,cc);
+ {$endif arm or aarch64}
++{$if defined(riscv32) or defined(riscv64)}
++             OPR_FENCEFLAGS:
++               ai.loadfenceflags(i-1,fenceflags);
++{$endif riscv32 or riscv64}
+               { ignore wrong operand }
+               OPR_NONE:
+                 ;
+--- a/fpcsrc/compiler/riscv/agrvgas.pas
++++ b/fpcsrc/compiler/riscv/agrvgas.pas
+@@ -80,9 +80,9 @@
+                   begin
+                     if asminfo^.dollarsign<>'$' then
+                       begin
+-                        s:=s+ApplyAsmSymbolRestrictions(symbol.name);
++                        s:=s+ReplaceForbiddenAsmSymbolChars(symbol.name);
+                         if assigned(relsymbol) then
+-                          s:=s+'-'+ApplyAsmSymbolRestrictions(relsymbol.name)
++                          s:=s+'-'+ReplaceForbiddenAsmSymbolChars(relsymbol.name)
+                       end
+                     else
+                       begin
+@@ -160,7 +160,7 @@
+             begin
+               hs:=o.ref^.symbol.name;
+               if asminfo^.dollarsign<>'$' then
+-                hs:=ApplyAsmSymbolRestrictions(hs);
++                hs:=ReplaceForbiddenAsmSymbolChars(hs);
+               if o.ref^.offset>0 then
+                hs:=hs+'+'+tostr(o.ref^.offset)
+               else
+@@ -263,11 +263,10 @@
+ 
+          idtxt  : 'AS';
+          asmbin : 'as';
+-         asmcmd : '-o $OBJ $EXTRAOPT -march=$ARCH -mabi=$ABI $ASM';
++         asmcmd : '-o $OBJ $EXTRAOPT -march=$ARCH_zicsr_zifencei -mabi=$ABI $ASM';
+          supported_targets : [system_riscv32_linux,system_riscv64_linux];
+          flags : [af_needar,af_smartlink_sections];
+          labelprefix : '.L';
+-         labelmaxlen : -1;
+          comment : '# ';
+          dollarsign: '$';
+        );
+--- a/fpcsrc/compiler/riscv/aoptcpurv.pas
++++ b/fpcsrc/compiler/riscv/aoptcpurv.pas
+@@ -179,6 +179,7 @@
+   function TRVCpuAsmOptimizer.OptPass1OP(var p : tai) : boolean;
+     var
+       hp1 : tai;
++      TmpUsedRegs: TAllUsedRegs;
+     begin
+       result:=false;
+       { replace
+@@ -197,15 +198,17 @@
+         (taicpu(hp1).oper[2]^.val=0) and
+         MatchOperand(taicpu(p).oper[0]^,taicpu(hp1).oper[1]^) then
+         begin
+-          TransferUsedRegs(TmpUsedRegs);
++          CopyUsedRegs(TmpUsedRegs);
+           UpdateUsedRegs(TmpUsedRegs, tai(p.next));
+           if not(RegUsedAfterInstruction(taicpu(hp1).oper[1]^.reg,hp1,TmpUsedRegs)) then
+             begin
+               taicpu(p).loadoper(0,taicpu(hp1).oper[0]^);
+               DebugMsg('Peephole OpAddi02Op done',p);
+-              RemoveInstruction(hp1);
++              AsmL.Remove(hp1);
++              hp1.Free;
+               result:=true;
+             end;
++          ReleaseUsedRegs(TmpUsedRegs);
+         end;
+     end;
+ 
+@@ -242,6 +245,7 @@
+                       dealloc x
+                     To
+                       addi z, y, #+#
++                      dealloc x
+                   }
+                   if (taicpu(p).ops=3) and
+                      (taicpu(p).oper[2]^.typ=top_const) and
+@@ -254,6 +258,7 @@
+                      (not RegModifiedBetween(taicpu(p).oper[1]^.reg, p,hp1)) and
+                      RegEndOfLife(taicpu(p).oper[0]^.reg, taicpu(hp1)) then
+                     begin
++                      AllocRegBetween(taicpu(p).oper[1]^.reg,p,hp1,UsedRegs);
+                       taicpu(hp1).loadreg(1,taicpu(p).oper[1]^.reg);
+                       taicpu(hp1).loadconst(2, taicpu(p).oper[2]^.val+taicpu(hp1).oper[2]^.val);
+ 
+--- a/fpcsrc/compiler/riscv/cgrv.pas
++++ b/fpcsrc/compiler/riscv/cgrv.pas
+@@ -332,8 +332,8 @@
+                 pd:=search_system_proc(name);
+                 paraloc1.init;
+                 paraloc2.init;
+-                paramanager.getcgtempparaloc(list,pd,1,paraloc1);
+-                paramanager.getcgtempparaloc(list,pd,2,paraloc2);
++                paramanager.getintparaloc(list,pd,1,paraloc1);
++                paramanager.getintparaloc(list,pd,2,paraloc2);
+                 a_load_reg_cgpara(list,OS_8,src1,paraloc2);
+                 a_load_reg_cgpara(list,OS_8,src2,paraloc1);
+                 paramanager.freecgpara(list,paraloc2);
+--- a/fpcsrc/compiler/riscv/hlcgrv.pas
++++ b/fpcsrc/compiler/riscv/hlcgrv.pas
+@@ -152,7 +152,7 @@
+       if make_global then
+         list.concat(Tai_symbol.Createname_global(labelname,AT_FUNCTION,0,voidcodepointertype))
+       else
+-        list.concat(Tai_symbol.Createname_hidden(labelname,AT_FUNCTION,0,voidcodepointertype));
++        list.concat(Tai_symbol.Createname(labelname,AT_FUNCTION,0,voidcodepointertype));
+ 
+       { the wrapper might need aktlocaldata for the additional data to
+         load the constant }
+@@ -257,15 +257,6 @@
+     end;
+ 
+ 
+-  procedure create_hlcodegen_cpu;
+-    begin
+-      hlcg:=thlcgriscv.create;
+-//      create_codegen;
+-    end;
+-
+-
+ begin
+   chlcgobj:=thlcgriscv;
+-  create_hlcodegen:=@create_hlcodegen_cpu;
+ end.
+-
+--- a/fpcsrc/compiler/riscv64/cgcpu.pas
++++ b/fpcsrc/compiler/riscv64/cgcpu.pas
+@@ -526,9 +526,9 @@
+         paraloc1.init;
+         paraloc2.init;
+         paraloc3.init;
+-        paramanager.getcgtempparaloc(list, pd, 1, paraloc1);
+-        paramanager.getcgtempparaloc(list, pd, 2, paraloc2);
+-        paramanager.getcgtempparaloc(list, pd, 3, paraloc3);
++        paramanager.getintparaloc(list, pd, 1, paraloc1);
++        paramanager.getintparaloc(list, pd, 2, paraloc2);
++        paramanager.getintparaloc(list, pd, 3, paraloc3);
+         a_load_const_cgpara(list, OS_SINT, len, paraloc3);
+         a_loadaddr_ref_cgpara(list, dest, paraloc2);
+         a_loadaddr_ref_cgpara(list, Source, paraloc1);
+--- a/fpcsrc/compiler/riscv64/cpupara.pas
++++ b/fpcsrc/compiler/riscv64/cpupara.pas
+@@ -38,9 +38,9 @@
+         function push_addr_param(varspez: tvarspez; def: tdef; calloption: tproccalloption): boolean; override;
+         function ret_in_param(def: tdef; pd: tabstractprocdef): boolean; override;
+ 
+-        procedure getcgtempparaloc(list: TAsmList; pd : tabstractprocdef; nr: longint; var cgpara: tcgpara); override;
++        procedure getintparaloc(list: TAsmList; pd : tabstractprocdef; nr: longint; var cgpara: tcgpara); override;
+         function create_paraloc_info(p: tabstractprocdef; side: tcallercallee): longint; override;
+-        function create_varargs_paraloc_info(p: tabstractprocdef; side: tcallercallee; varargspara: tvarargsparalist): longint; override;
++        function create_varargs_paraloc_info(p: tabstractprocdef; varargspara: tvarargsparalist): longint; override;
+         function get_funcretloc(p : tabstractprocdef; side: tcallercallee; forcetempdef: tdef): tcgpara;override;
+ 
+       private
+@@ -68,7 +68,7 @@
+         result:=[RS_F0..RS_F31]-[RS_F8..RS_F9,RS_F18..RS_F27];
+       end;
+ 
+-    procedure tcpuparamanager.getcgtempparaloc(list: TAsmList; pd : tabstractprocdef; nr: longint; var cgpara: tcgpara);
++    procedure tcpuparamanager.getintparaloc(list: TAsmList; pd : tabstractprocdef; nr: longint; var cgpara: tcgpara);
+       var
+         paraloc: pcgparalocation;
+         psym: tparavarsym;
+@@ -492,7 +492,7 @@
+         end;
+       end;
+ 
+-function tcpuparamanager.create_varargs_paraloc_info(p: tabstractprocdef; side: tcallercallee;
++function tcpuparamanager.create_varargs_paraloc_info(p: tabstractprocdef;
+   varargspara: tvarargsparalist): longint;
+ var
+   cur_stack_offset: aword;
+@@ -505,18 +505,15 @@
+   init_values(curintreg, curfloatreg, curmmreg, cur_stack_offset);
+   firstfloatreg := curfloatreg;
+ 
+-  result := create_paraloc_info_intern(p, side, p.paras, curintreg,
++  result := create_paraloc_info_intern(p, callerside, p.paras, curintreg,
+     curfloatreg, curmmreg, cur_stack_offset, false);
+   if (p.proccalloption in [pocall_cdecl, pocall_cppdecl, pocall_mwpascal]) then
+     begin
+       { just continue loading the parameters in the registers }
+       if assigned(varargspara) then
+         begin
+-          if side=callerside then
+-            result := create_paraloc_info_intern(p, side, varargspara, curintreg,
+-              curfloatreg, curmmreg, cur_stack_offset, true)
+-          else
+-            internalerror(2019021918);
++          result := create_paraloc_info_intern(p, callerside, varargspara, curintreg,
++            curfloatreg, curmmreg, cur_stack_offset, true);
+           if curfloatreg <> firstfloatreg then
+             include(varargspara.varargsinfo, va_uses_float_reg);
+         end;
+@@ -527,7 +524,7 @@
+   else
+     internalerror(2019021913);
+ 
+-  create_funcretloc_info(p, side);
++  create_funcretloc_info(p, callerside);
+ end;
+ 
+ function tcpuparamanager.parseparaloc(p: tparavarsym; const s: string): boolean;
+--- a/fpcsrc/compiler/riscv64/nrv64mat.pas
++++ b/fpcsrc/compiler/riscv64/nrv64mat.pas
+@@ -67,9 +67,9 @@
+       var
+         tlabel, flabel: tasmlabel;
+       begin
+-        secondpass(left);
+         if not handle_locjump then
+           begin
++            secondpass(left);
+             case left.location.loc of
+               LOC_FLAGS :
+                 begin
+--- a/fpcsrc/compiler/systems.inc
++++ b/fpcsrc/compiler/systems.inc
+@@ -52,7 +52,9 @@
+              cpu_i8086,                    { 15 }
+              cpu_aarch64,                  { 16 }
+              cpu_wasm,                     { 17 }
+-             cpu_sparc64                   { 18 }
++             cpu_sparc64,                  { 18 }
++             cpu_riscv32,                  { 19 }
++             cpu_riscv64                   { 20 }
+        );
+ 
+        tasmmode= (asmmode_none
+@@ -324,6 +326,7 @@
+               may still be removed by the callee (and then the stack needs to
+               be restored by the caller) }
+             ,abi_i386_dynalignedstack
++            ,abi_riscv_hf
+        );
+ 
+      const
+--- a/fpcsrc/compiler/systems.pas
++++ b/fpcsrc/compiler/systems.pas
+@@ -238,7 +238,8 @@
+        systems_android = [system_arm_android, system_aarch64_android, system_i386_android, system_x86_64_android, system_mipsel_android];
+        systems_linux = [system_i386_linux,system_x86_64_linux,system_powerpc_linux,system_powerpc64_linux,
+                        system_arm_linux,system_sparc_linux,system_sparc64_linux,system_m68k_linux,
+-                       system_x86_6432_linux,system_mipseb_linux,system_mipsel_linux,system_aarch64_linux];
++                       system_x86_6432_linux,system_mipseb_linux,system_mipsel_linux,system_aarch64_linux,
++                       system_riscv32_linux,system_riscv64_linux];
+        systems_dragonfly = [system_x86_64_dragonfly];
+        systems_freebsd = [system_i386_freebsd,
+                           system_x86_64_freebsd];
+@@ -282,7 +283,7 @@
+                            obsolete_system_mips_embedded,system_arm_embedded,
+                            system_powerpc64_embedded,system_avr_embedded,
+                            system_jvm_java32,system_mipseb_embedded,system_mipsel_embedded,
+-                           system_i8086_embedded];
++                           system_i8086_embedded,system_riscv32_embedded,system_riscv64_embedded];
+ 
+        { all systems that allow section directive }
+        systems_allow_section = systems_embedded;
+@@ -348,7 +349,8 @@
+                                    system_i386_linux,system_powerpc64_linux,system_sparc64_linux,system_x86_64_linux,
+                                    system_m68k_atari,system_m68k_palmos,
+                                    system_i386_openbsd,system_x86_64_openbsd,
+-                                   system_i386_haiku,system_x86_64_haiku
++                                   system_i386_haiku,system_x86_64_haiku,
++                                   system_riscv32_linux,system_riscv64_linux
+                                   ]+systems_darwin+systems_amigalike;
+ 
+        { all systems that use garbage collection for reference-counted types }
+@@ -407,7 +409,7 @@
+        cpu2str : array[TSystemCpu] of string[10] =
+             ('','i386','m68k','alpha','powerpc','sparc','vm','ia64','x86_64',
+              'mips','arm', 'powerpc64', 'avr', 'mipsel','jvm', 'i8086',
+-             'aarch64', 'wasm', 'sparc64');
++             'aarch64', 'wasm', 'sparc64','riscv32','riscv64');
+ 
+        abiinfo : array[tabi] of tabiinfo = (
+          (name: 'DEFAULT'; supported: true),
+@@ -420,7 +422,8 @@
+          (name: 'EABIHF' ; supported:{$ifdef FPC_ARMHF}true{$else}false{$endif}),
+          (name: 'OLDWIN32GNU'; supported:{$ifdef I386}true{$else}false{$endif}),
+          (name: 'AARCH64IOS'; supported:{$ifdef aarch64}true{$else}false{$endif}),
+-         (name: 'LINUX386_SYSV'; supported:{$if defined(i386)}true{$else}false{$endif})
++         (name: 'LINUX386_SYSV'; supported:{$if defined(i386)}true{$else}false{$endif}),
++         (name: 'RISCVHF'; supported:{$if defined(riscv32) or defined(riscv64)}true{$else}false{$endif})
+        );
+ 
+     var
+@@ -1058,6 +1061,14 @@
+ {$ifdef wasm}
+   default_target(system_wasm_wasm32);
+ {$endif}
++
++{$ifdef riscv32}
++  default_target(system_riscv32_linux);
++{$endif riscv32}
++
++{$ifdef riscv64}
++  default_target(system_riscv64_linux);
++{$endif riscv64}
+ end;
+ 
+ 
+--- a/fpcsrc/compiler/systems/i_linux.pas
++++ b/fpcsrc/compiler/systems/i_linux.pas
+@@ -1029,6 +1029,139 @@
+             llvmdatalayout : 'e-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32-S64';
+           );
+ 
++       system_riscv32_linux_info : tsysteminfo =
++          (
++            system       : system_riscv32_linux;
++            name         : 'Linux for RISC-V 32';
++            shortname    : 'Linux';
++            flags        : [tf_needs_symbol_size,tf_smartlink_sections,
++                            tf_needs_symbol_type,tf_files_case_sensitive,
++                            tf_requires_proper_alignment,tf_has_winlike_resources];
++            cpu          : cpu_riscv32;
++            unit_env     : 'LINUXUNITS';
++            extradefines : 'UNIX;HASUNIX';
++            exeext       : '';
++            defext       : '.def';
++            scriptext    : '.sh';
++            smartext     : '.sl';
++            unitext      : '.ppu';
++            unitlibext   : '.ppl';
++            asmext       : '.s';
++            objext       : '.o';
++            resext       : '.res';
++            resobjext    : '.or';
++            sharedlibext : '.so';
++            staticlibext : '.a';
++            staticlibprefix : 'libp';
++            sharedlibprefix : 'lib';
++            sharedClibext : '.so';
++            staticClibext : '.a';
++            staticClibprefix : 'lib';
++            sharedClibprefix : 'lib';
++            importlibprefix : 'libimp';
++            importlibext : '.a';
++//            p_ext_support : false;
++            Cprefix      : '';
++            newline      : #10;
++            dirsep       : '/';
++            assem        : as_gas;
++            assemextern  : as_gas;
++            link         : ld_none;
++            linkextern   : ld_linux;
++            ar           : ar_gnu_ar;
++            res          : res_elf;
++            dbg          : dbg_stabs;
++            script       : script_unix;
++            endian       : endian_little;
++            alignment    :
++              (
++                procalign       : 4;
++                loopalign       : 4;
++                jumpalign       : 0;
++                constalignmin   : 0;
++                constalignmax   : 8;
++                varalignmin     : 0;
++                varalignmax     : 8;
++                localalignmin   : 4;
++                localalignmax   : 8;
++                recordalignmin  : 0;
++                recordalignmax  : 8;
++                maxCrecordalign : 8
++              );
++            first_parm_offset : 0;
++            stacksize    : 32*1024*1024;
++            stackalign   : 8;
++            abi : abi_riscv_hf;
++            llvmdatalayout : 'e-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32-S64';
++          );
++
++       system_riscv64_linux_info : tsysteminfo =
++          (
++            system       : system_riscv64_linux;
++            name         : 'Linux for RISC-V 64';
++            shortname    : 'Linux';
++            flags        : [tf_needs_symbol_size,tf_library_needs_pic,tf_smartlink_sections,tf_needs_dwarf_cfi,
++                            tf_needs_symbol_type,tf_files_case_sensitive,
++                            tf_requires_proper_alignment,tf_has_winlike_resources
++                            ];
++            cpu          : cpu_riscv64;
++            unit_env     : 'LINUXUNITS';
++            extradefines : 'UNIX;HASUNIX';
++            exeext       : '';
++            defext       : '.def';
++            scriptext    : '.sh';
++            smartext     : '.sl';
++            unitext      : '.ppu';
++            unitlibext   : '.ppl';
++            asmext       : '.s';
++            objext       : '.o';
++            resext       : '.res';
++            resobjext    : '.or';
++            sharedlibext : '.so';
++            staticlibext : '.a';
++            staticlibprefix : 'libp';
++            sharedlibprefix : 'lib';
++            sharedClibext : '.so';
++            staticClibext : '.a';
++            staticClibprefix : 'lib';
++            sharedClibprefix : 'lib';
++            importlibprefix : 'libimp';
++            importlibext : '.a';
++//            p_ext_support : false;
++            Cprefix      : '';
++            newline      : #10;
++            dirsep       : '/';
++            assem        : as_gas;
++            assemextern  : as_gas;
++            link         : ld_none;
++            linkextern   : ld_linux;
++            ar           : ar_gnu_ar;
++            res          : res_elf;
++            dbg          : dbg_dwarf3;
++            script       : script_unix;
++            endian       : endian_little;
++            alignment    :
++              (
++                procalign       : 8;
++                loopalign       : 4;
++                jumpalign       : 0;
++                constalignmin   : 4;
++                constalignmax   : 16;
++                varalignmin     : 4;
++                varalignmax     : 16;
++                localalignmin   : 8;
++                localalignmax   : 16;
++                recordalignmin  : 0;
++                recordalignmax  : 16;
++                maxCrecordalign : 16
++              );
++            first_parm_offset : 16;
++            stacksize    : 10*1024*1024;
++            stackalign   : 16;
++            abi : abi_riscv_hf;
++            llvmdatalayout : 'E-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-f128:64:64-v128:128:128-n32:64';
++          );
++
+   implementation
+ 
+ initialization
+@@ -1095,4 +1228,14 @@
+     set_source_info(system_mipsel_linux_info);
+   {$endif linux}
+ {$endif CPUMIPSEL}
++{$ifdef CPURISCV32}
++  {$ifdef linux}
++    set_source_info(system_riscv32_linux_info);
++  {$endif linux}
++{$endif CPURISCV32}
++{$ifdef CPURISCV64}
++  {$ifdef linux}
++    set_source_info(system_riscv64_linux_info);
++  {$endif linux}
++{$endif CPURISCV64}
+ end.
+--- a/fpcsrc/compiler/systems/t_linux.pas
++++ b/fpcsrc/compiler/systems/t_linux.pas
+@@ -182,6 +182,12 @@
+ {$ifdef sparc64}
+       LibrarySearchPath.AddLibraryPath(sysrootpath,'=/usr/lib/sparc64-linux-gnu',true);
+ {$endif sparc64}
++{$ifdef riscv32}
++      LibrarySearchPath.AddLibraryPath(sysrootpath,'=/usr/lib/riscv32-linux-gnu',true);
++{$endif riscv32}
++{$ifdef riscv64}
++      LibrarySearchPath.AddLibraryPath(sysrootpath,'=/usr/lib/riscv64-linux-gnu',true);
++{$endif riscv64}
+     end;
+ end;
+ 
+@@ -235,6 +241,13 @@
+   const defdynlinker='/lib64/ld-linux.so.2';
+ {$endif sparc64}
+ 
++{$ifdef riscv32}
++  const defdynlinker='/lib32/ld.so.1';
++{$endif riscv32}
++{$ifdef riscv64}
++  const defdynlinker='/lib/ld-linux-riscv64-lp64d.so.1';
++{$endif riscv64}
++
+ 
+ procedure SetupDynlinker(out DynamicLinker:string;out libctype:TLibcType);
+ begin
+@@ -339,6 +352,8 @@
+                    platform_select='-EB';
+   {$endif}
+ {$endif}
++{$ifdef riscv32}   platform_select='';{$endif} {unknown :( }
++{$ifdef riscv64}   platform_select='-m elf64lriscv';{$endif}
+ 
+ var
+   platformopt: string;
+@@ -500,7 +515,11 @@
+            Message1(exec_w_init_file_not_found,'crti.o');
+ 
+          { then the crtbegin* }
+-         if cs_create_pic in current_settings.moduleswitches then
++         if (cs_create_pic in current_settings.moduleswitches)
++{$ifdef riscv64}
++         or (not SharedLibFiles.Empty)
++{$endif riscv64}
++         then
+            begin
+              if librarysearchpath.FindFile('crtbeginS.o',false,s) then
+                AddFileName(s)
+@@ -604,7 +623,11 @@
+       { objects which must be at the end }
+       if linklibc and (libctype<>uclibc) then
+        begin
+-         if cs_create_pic in current_settings.moduleswitches then
++         if (cs_create_pic in current_settings.moduleswitches)
++{$ifdef riscv64}
++         or linksToSharedLibFiles
++{$endif riscv64}
++         then
+            begin
+              found1:=librarysearchpath.FindFile('crtendS.o',false,s1);
+              if not(found1) then
+@@ -1893,5 +1916,15 @@
+   RegisterTarget(system_mipseb_linux_info);
+ {$endif MIPSEL}
+ {$endif MIPS}
++{$ifdef riscv32}
++  RegisterImport(system_riscv32_linux,timportliblinux);
++  RegisterExport(system_riscv32_linux,texportliblinux);
++  RegisterTarget(system_riscv32_linux_info);
++{$endif riscv32}
++{$ifdef riscv64}
++  RegisterImport(system_riscv64_linux,timportliblinux);
++  RegisterExport(system_riscv64_linux,texportliblinux);
++  RegisterTarget(system_riscv64_linux_info);
++{$endif riscv64}
+   RegisterRes(res_elf_info,TWinLikeResourceFile);
+ end.
+--- a/fpcsrc/compiler/utils/fpc.pp
++++ b/fpcsrc/compiler/utils/fpc.pp
+@@ -168,6 +168,14 @@
+      processorname:='mips';
+   {$endif mips}
+ {$endif not mipsel}
++{$ifdef riscv32}
++     ppcbin:='ppcrv32';
++     processorname:='riscv32';
++{$endif riscv32}
++{$ifdef riscv64}
++     ppcbin:='ppcrv64';
++     processorname:='riscv64';
++{$endif riscv64}
+      versionstr:='';                      { Default is just the name }
+      if ParamCount = 0 then
+        begin
+--- a/fpcsrc/compiler/utils/ppuutils/ppudump.pp
++++ b/fpcsrc/compiler/utils/ppuutils/ppudump.pp
+@@ -83,7 +83,9 @@
+     { 15 } 'i8086',
+     { 16 } 'aarch64',
+     { 17 } 'wasm',
+-    { 18 } 'sparc64'
++    { 18 } 'sparc64',
++    { 19 } 'riscv32',
++    { 20 } 'riscv64'
+     );
+ 
+   CpuHasController : array[tsystemcpu] of boolean =
+@@ -106,7 +108,9 @@
+     { 15 } false {'i8086'},
+     { 16 } false {'aarch64'},
+     { 17 } false {'wasm'},
+-    { 18 } false {'sparc64'}
++    { 18 } false {'sparc64'},
++    { 19 } false {'riscv32'},
++    { 20 } false {'riscv64'}
+     );
+ 
+ { List of all supported system-cpu couples }
+--- a/fpcsrc/compiler/verbose.pas
++++ b/fpcsrc/compiler/verbose.pas
+@@ -568,11 +568,15 @@
+ 
+ 
+     procedure internalerror(i : longint);{$ifndef VER2_6}noreturn;{$endif VER2_6}
++      procedure doraise;
++        begin
++          raise ECompilerAbort.Create;
++        end;
+       begin
+         UpdateStatus;
+         do_internalerror(i);
+         GenerateError;
+-        raise ECompilerAbort.Create;
++        doraise;
+       end;
+ 
+ 
+--- a/fpcsrc/compiler/version.pas
++++ b/fpcsrc/compiler/version.pas
+@@ -74,6 +74,12 @@
+ {$ifdef cpuaarch64}
+         source_cpu_string = 'aarch64';
+ {$endif cpuaarch64}
++{$ifdef cpuriscv64}
++        source_cpu_string = 'riscv64';
++{$endif cpuriscv64}
++{$ifdef cpuriscv32}
++        source_cpu_string = 'riscv32';
++{$endif cpuriscv32}
+ 
+ function version_string:string;
+ function full_version_string:string;
+--- a/fpcsrc/packages/fcl-res/src/elfconsts.pp
++++ b/fpcsrc/packages/fcl-res/src/elfconsts.pp
+@@ -22,7 +22,8 @@
+ type
+   TElfMachineType = (emtnone, emtsparc, emti386, emtm68k, emtppc, emtppc64,
+                      emtarm, emtarmeb, emtia64, emtx86_64, emtalpha,
+-                     emtmips, emtmipsel, emtppc64le, emtaarch64);
++                     emtmips, emtmipsel, emtppc64le, emtaarch64,
++                     emtriscv32, emtriscv64);
+ const
+   ELFMAGIC     = chr($7f)+'ELF';
+ 
+@@ -73,10 +74,18 @@
+   EM_X86_64      = 62;
+   EM_AARCH64     = 183;
+   EM_ALPHA       = $9026; //unofficial, but used by gnu toolchain
++  EM_RISCV       = 243;
+   
+   //machine-specific flags
+   EF_IA_64_ABI64 = $10;  //wow, this is really a 64-bit object file!
+ 
++  // riscv flags
++  EF_RISCV_RVC = 1;
++
++  //  bitfield of 2 indicating the largest float abi supported
++  EF_RISCV_FLOAT_ABI_SINGLE = 2;
++  EF_RISCV_FLOAT_ABI_DOUBLE = 4;
++
+   //section type
+   SHT_NULL     =  0;
+   SHT_PROGBITS =  1;
+@@ -137,6 +146,8 @@
+   R_ALPHA_REFQUAD =   2;
+   R_IA64_DIR64LSB = $27;
+   R_MIPS_32       =   2;
++  R_RISCV_32      =   1;
++  R_RISCV_64      =   2;
+ 
+ 
+   //fpc resource constants
+--- a/fpcsrc/packages/fcl-res/src/elfreader.pp
++++ b/fpcsrc/packages/fcl-res/src/elfreader.pp
+@@ -290,6 +290,10 @@
+                     fMachineType:=emtmipsel
+                   else
+                     fMachineType:=emtmips;
++      EM_RISCV  : if fBits=ELFCLASS32 then
++                    fMachineType:=emtriscv32
++                  else
++                    fMachineType:=emtriscv64;
+     end;
+   finally
+     subreader.Free;
+--- a/fpcsrc/packages/fcl-res/src/elfsubwriter.inc
++++ b/fpcsrc/packages/fcl-res/src/elfsubwriter.inc
+@@ -425,7 +425,12 @@
+       EM_PPC64  : begin RelocType:=R_PPC64_ADDR64;  SectionType:=SHT_RELA; end;
+       EM_ALPHA  : begin RelocType:=R_ALPHA_REFQUAD; SectionType:=SHT_RELA; end;
+       EM_IA_64  : begin RelocType:=R_IA64_DIR64LSB; SectionType:=SHT_RELA; end;
+-      EM_MIPS   : begin RelocType:=R_MIPS_32;      SectionType:=SHT_RELA; end;
++      EM_MIPS   : begin RelocType:=R_MIPS_32;       SectionType:=SHT_RELA; end;
++      {$IF _TElfSubWriter_=TElf64SubWriter}
++      EM_RISCV  : begin RelocType:=R_RISCV_64;      SectionType:=SHT_RELA; end;
++      {$ELSE}
++      EM_RISCV  : begin RelocType:=R_RISCV_32;      SectionType:=SHT_RELA; end;
++      {$ENDIF}
+       else
+         raise EElfResourceWriterUnknownMachineException.Create('');
+     end;
+@@ -437,6 +442,7 @@
+   fDataAlignment:=4;
+   {$ENDIF}
+   if aMachineType=EM_IA_64 then fMachineFlags:=EF_IA_64_ABI64
++  else if aMachineType=EM_RISCV then fMachineFlags:=EF_RISCV_FLOAT_ABI_DOUBLE or EF_RISCV_RVC // This is the default class for now
+   else fMachineFlags:=0;
+ end;
+ 
+--- a/fpcsrc/packages/fcl-res/src/elfwriter.pp
++++ b/fpcsrc/packages/fcl-res/src/elfwriter.pp
+@@ -557,7 +557,9 @@
+     emtia64   : begin fMachineTypeInt:=EM_IA_64; fBits:=ELFCLASS64; fOrder:=ELFDATA2LSB; end;
+     emtx86_64 : begin fMachineTypeInt:=EM_X86_64; fBits:=ELFCLASS64; fOrder:=ELFDATA2LSB; end;
+     emtmips   : begin fMachineTypeInt:=EM_MIPS; fBits:=ELFCLASS32; fOrder:=ELFDATA2MSB; end;
+-    emtmipsel : begin fMachineTypeInt:=EM_MIPS; fBits:=ELFCLASS32; fOrder:=ELFDATA2LSB; end
++    emtmipsel : begin fMachineTypeInt:=EM_MIPS; fBits:=ELFCLASS32; fOrder:=ELFDATA2LSB; end;
++    emtriscv32: begin fMachineTypeInt:=EM_RISCV; fBits:=ELFCLASS32; fOrder:=ELFDATA2LSB; end;
++    emtriscv64: begin fMachineTypeInt:=EM_RISCV; fBits:=ELFCLASS64; fOrder:=ELFDATA2LSB; end
+     else
+       raise EElfResourceWriterUnknownMachineException.Create('');
+   end;
+--- a/fpcsrc/packages/fpmkunit/src/fpmkunit.pp
++++ b/fpcsrc/packages/fpmkunit/src/fpmkunit.pp
+@@ -111,7 +111,7 @@
+   // Please keep this order, see OSCPUSupported below
+   TCpu=(cpuNone,
+     i386,m68k,powerpc,sparc,x86_64,arm,powerpc64,avr,armeb,
+-    mips,mipsel,jvm,i8086,aarch64,sparc64
++    mips,mipsel,jvm,i8086,aarch64,sparc64,riscv32,riscv64
+   );
+   TCPUS = Set of TCPU;
+ 
+@@ -186,47 +186,47 @@
+ 
+   { This table is kept OS,Cpu because it is easier to maintain (PFV) }
+   OSCPUSupported : array[TOS,TCpu] of boolean = (
+-    { os          none   i386    m68k  ppc    sparc  x86_64 arm    ppc64  avr    armeb  mips   mipsel jvm    i8086 aarch64 sparc64}
+-    { none }    ( false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { linux }   ( false, true,  true,  true,  true,  true,  true,  true,  false, true , true , true , false, false, true , true ),
+-    { go32v2 }  ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { win32 }   ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { os2 }     ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { freebsd } ( false, true,  true,  false, false, true,  false, false, false, false, false, false, false, false, false, false),
+-    { beos }    ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { netbsd }  ( false, true,  true,  true,  true,  true,  true,  false, false, false, false, false, false, false, false, false),
+-    { amiga }   ( false, false, true,  true,  false, false, false, false, false, false, false, false, false, false, false, false),
+-    { atari }   ( false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { solaris } ( false, true,  false, false, true,  true,  false, false, false, false, false, false, false, false, false, false),
+-    { qnx }     ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { netware } ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { openbsd } ( false, true,  true,  false, false, true,  false, false, false, false, false, false, false, false, false, false),
+-    { wdosx }   ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { palmos }  ( false, false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false),
+-{ macosclassic }( false, false, true,  true,  false, false, false, false, false, false, false, false, false, false, false, false),
+-    { darwin }  ( false, true,  false, true,  false, true,  false, true,  false, false, false, false, false, false, true , false),
+-    { emx }     ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { watcom }  ( false, true,  false, false, false ,false, false, false, false, false, false, false, false, false, false, false),
+-    { morphos } ( false, false, false, true,  false ,false, false, false, false, false, false, false, false, false, false, false),
+-    { netwlibc }( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { win64   } ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false),
+-    { wince    }( false, true,  false, false, false, false, true,  false, false, false, false, false, false, false, false, false),
+-    { gba    }  ( false, false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false),
+-    { nds    }  ( false, false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false),
+-    { embedded }( false, true,  true,  true,  true,  true,  true,  true,  true,  true , false, true , false, true , false, false),
+-    { symbian } ( false, true,  false, false, false, false, true,  false, false, false, false, false, false, false, false, false),
+-    { haiku }   ( false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false, false),
+-    { iphonesim}( false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false, false),
+-    { aix    }  ( false, false, false, true,  false, false, false, true,  false, false, false, false, false, false, false, false),
+-    { java }    ( false, false, false, false, false, false, false, false, false, false, false, false, true , false, false, false),
+-    { android } ( false, true,  false, false, false, true,  true,  false, false, false, false, true,  true , false, true,  false),
+-    { nativent }( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
+-    { msdos }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, true , false, false),
+-    { wii }     ( false, false, false, true , false, false, false, false, false, false, false, false, false, false, false, false),
+-    { aros }    ( false, true,  false, false, false, true,  true,  false, false, false, false, false, false, false, false, false),
+-    { dragonfly}( false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false),
+-    { win16 }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, true , false, false),
+-    { ios }     ( false, false, false, false, false, false,  true, false, false, false, false, false, false, false, true , false)
++    { os          none   i386    m68k  ppc    sparc  x86_64 arm    ppc64  avr    armeb  mips   mipsel jvm    i8086 aarch64 sparc64 riscv32 riscv64}
++    { none }    ( false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { linux }   ( false, true,  true,  true,  true,  true,  true,  true,  false, true , true , true , false, false, true , true , true , true ),
++    { go32v2 }  ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { win32 }   ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { os2 }     ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { freebsd } ( false, true,  true,  false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { beos }    ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { netbsd }  ( false, true,  true,  true,  true,  true,  true,  false, false, false, false, false, false, false, false, false, false, false),
++    { amiga }   ( false, false, true,  true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { atari }   ( false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { solaris } ( false, true,  false, false, true,  true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { qnx }     ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { netware } ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { openbsd } ( false, true,  true,  false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { wdosx }   ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { palmos }  ( false, false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false),
++{ macosclassic }( false, false, true,  true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { darwin }  ( false, true,  false, true,  false, true,  false, true,  false, false, false, false, false, false, true , false, false, false),
++    { emx }     ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { watcom }  ( false, true,  false, false, false ,false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { morphos } ( false, false, false, true,  false ,false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { netwlibc }( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { win64   } ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { wince    }( false, true,  false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false),
++    { gba    }  ( false, false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false),
++    { nds    }  ( false, false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false),
++    { embedded }( false, true,  true,  true,  true,  true,  true,  true,  true,  true , false, true , false, true , false, false, false, false),
++    { symbian } ( false, true,  false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false),
++    { haiku }   ( false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { iphonesim}( false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { aix    }  ( false, false, false, true,  false, false, false, true,  false, false, false, false, false, false, false, false, false, false),
++    { java }    ( false, false, false, false, false, false, false, false, false, false, false, false, true , false, false, false, false, false),
++    { android } ( false, true,  false, false, false, true,  true,  false, false, false, false, true,  true , false, true,  false, false, false),
++    { nativent }( false, true,  false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { msdos }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, true , false, false, false, false),
++    { wii }     ( false, false, false, true , false, false, false, false, false, false, false, false, false, false, false, false, false, false),
++    { aros }    ( false, true,  false, false, false, true,  true,  false, false, false, false, false, false, false, false, false, false, false),
++    { dragonfly}( false, false, false, false, false, true,  false, false, false, false, false, false, false, false, false, false, false, false),
++    { win16 }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, true , false, false, false, false),
++    { ios }     ( false, false, false, false, false, false,  true, false, false, false, false, false, false, false, true , false, false, false)
+   );
+ 
+   // Useful
+@@ -2813,6 +2813,8 @@
+       powerpc:  result := GetGccDirArch('cpupowerpc','-m32');
+       powerpc64:result := GetGccDirArch('cpupowerpc64','-m64');
+       aarch64:  result := GetGccDirArch('cpuaarch64','');
++      riscv32:  result := GetGccDirArch('cpuriscv32','-march=rv32imafdc');
++      riscv64:  result := GetGccDirArch('cpuriscv64','-march=rv64imafdc');
+     end {case}
+   else if OS = darwin then
+     case CPU of
+--- a/fpcsrc/packages/ide/fpmake.pp
++++ b/fpcsrc/packages/ide/fpmake.pp
+@@ -249,6 +249,10 @@
+               P.Options.Add('-Fu'+CompilerDir+'/sparcgen');
+               P.Options.add('-Fi'+CompilerDir+'/sparcgen');
+           end;
++        if CompilerTarget in [riscv32, riscv64] then
++          begin
++              P.Options.Add('-Fu'+CompilerDir+'/riscv');
++          end;
+         
+         if CompilerTarget = mipsel then
+           P.Options.Add('-Fu'+CompilerDir+'/mips');
+--- a/fpcsrc/packages/rtl-extra/src/linux/unixsock.inc
++++ b/fpcsrc/packages/rtl-extra/src/linux/unixsock.inc
+@@ -13,7 +13,7 @@
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ }
+ 
+-{$if not defined(cpux86_64) and not defined(cpuaarch64) and not defined(NO_SYSCALL_SOCKETCALL)}
++{$if not defined(cpux86_64) and not defined(cpuaarch64) and not defined(cpuriscv32) and not defined(cpuriscv64) and not defined(NO_SYSCALL_SOCKETCALL)}
+   {$define NEED_SOCKETCALL}
+ {$endif}
+ 
+--- a/fpcsrc/packages/rtl-extra/src/unix/ipc.pp
++++ b/fpcsrc/packages/rtl-extra/src/unix/ipc.pp
+@@ -888,7 +888,7 @@
+ 
+ {$ifndef FPC_USE_LIBC}
+  {$if defined(Linux)}
+-  {$if defined(cpux86_64) or defined(cpuaarch64) or defined(NO_SYSCALL_IPC)}
++  {$if defined(cpux86_64) or defined(cpuaarch64) or defined(cpuriscv32) or defined(cpuriscv64) or defined(NO_SYSCALL_IPC)}
+     {$i ipcsys.inc}
+   {$else}
+     {$i ipccall.inc}
+--- a/fpcsrc/rtl/inc/astrings.inc
++++ b/fpcsrc/rtl/inc/astrings.inc
+@@ -1009,7 +1009,7 @@
+ {$ifndef FPUNONE}
+ Function fpc_Val_Real_AnsiStr(Const S : RawByteString; out Code : ValSInt): ValReal; [public, alias:'FPC_VAL_REAL_ANSISTR']; compilerproc;
+ Var
+-  SS : String;
++  SS : ShortString;
+ begin
+   fpc_Val_Real_AnsiStr := 0;
+   if length(S) > 255 then
+@@ -1025,7 +1025,7 @@
+ 
+ Function fpc_Val_Currency_AnsiStr(Const S : RawByteString; out Code : ValSInt): Currency; [public, alias:'FPC_VAL_CURRENCY_ANSISTR']; compilerproc;
+ Var
+-  SS : String;
++  SS : ShortString;
+ begin
+   if length(S) > 255 then
+     begin
+@@ -1040,7 +1040,7 @@
+ end;
+ 
+ 
+-Function fpc_Val_UInt_AnsiStr (Const S : RawByteString; out Code : ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_ANSISTR']; compilerproc;
++Function fpc_Val_UInt_AnsiStr ({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S : RawByteString; out Code : ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_ANSISTR']; compilerproc;
+ Var
+   SS : ShortString;
+ begin
+--- a/fpcsrc/rtl/inc/compproc.inc
++++ b/fpcsrc/rtl/inc/compproc.inc
+@@ -69,6 +69,11 @@
+ {$ifdef FPC_HAS_FEATURE_DYNARRAYS}
+ function fpc_dynarray_copy(psrc : pointer;ti : pointer;
+     lowidx,count:tdynarrayindex) : fpc_stub_dynarray;compilerproc;
++function fpc_array_to_dynarray_copy(psrc : pointer;ti : pointer;
++    lowidx,count,maxcount:tdynarrayindex;
++    elesize : sizeint;
++    eletype : pointer
++    ) : fpc_stub_dynarray;compilerproc;
+ function  fpc_dynarray_length(p : pointer) : tdynarrayindex; compilerproc;
+ function  fpc_dynarray_high(p : pointer) : tdynarrayindex; compilerproc;
+ procedure fpc_dynarray_clear(var p : pointer;ti : pointer); compilerproc;
+@@ -209,14 +214,14 @@
+ Function fpc_Val_Real_ShortStr(const s : shortstring; out code : ValSInt): ValReal; compilerproc;
+ {$endif}
+ Function fpc_Val_SInt_ShortStr(DestSize: SizeInt; Const S: ShortString; out Code: ValSInt): ValSInt; compilerproc;
+-Function fpc_Val_UInt_Shortstr(Const S: ShortString; out Code: ValSInt): ValUInt; compilerproc;
++Function fpc_Val_UInt_Shortstr({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S: ShortString; out Code: ValSInt): ValUInt; compilerproc;
+ function fpc_val_enum_shortstr(str2ordindex:pointer;const s:shortstring;out code:valsint):longint; compilerproc;
+ Function fpc_Val_Currency_ShortStr(const s : shortstring; out Code : ValSInt): currency; compilerproc;
+ {$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
+ {$ifndef FPUNONE}
+ Function fpc_Val_Real_AnsiStr(Const S : RawByteString; out Code : ValSInt): ValReal; compilerproc;
+ {$endif}
+-Function fpc_Val_UInt_AnsiStr (Const S : RawByteString; out Code : ValSInt): ValUInt; compilerproc;
++Function fpc_Val_UInt_AnsiStr ({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S : RawByteString; out Code : ValSInt): ValUInt; compilerproc;
+ Function fpc_Val_SInt_AnsiStr (DestSize: SizeInt; Const S : RawByteString; out Code : ValSInt): ValSInt; compilerproc;
+ Function fpc_Val_Currency_AnsiStr(Const S : RawByteString; out Code : ValSInt): Currency; compilerproc;
+ function fpc_Val_enum_ansistr(str2ordindex:pointer;const s:RawByteString;out code:valsint):longint; compilerproc;
+@@ -228,7 +233,7 @@
+   Function fpc_Val_Real_WideStr(Const S : WideString; out Code : ValSInt): ValReal; compilerproc;
+   {$endif}
+   Function fpc_Val_SInt_WideStr (DestSize: SizeInt; Const S : WideString; out Code : ValSInt): ValSInt; compilerproc;
+-  Function fpc_Val_UInt_WideStr (Const S : WideString; out Code : ValSInt): ValUInt; compilerproc;
++  Function fpc_Val_UInt_WideStr ({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S : WideString; out Code : ValSInt): ValUInt; compilerproc;
+   function fpc_val_Enum_WideStr (str2ordindex:pointer;const s:WideString;out code:valsint):longint;compilerproc;
+   Function fpc_Val_Currency_WideStr(Const S : WideString; out Code : ValSInt): Currency; compilerproc;
+   {$endif ndef FPC_WIDESTRING_EQUAL_UNICODESTRING}
+@@ -236,7 +241,7 @@
+   Function fpc_Val_Real_UnicodeStr(Const S : UnicodeString; out Code : ValSInt): ValReal; compilerproc;
+   {$endif}
+   Function fpc_Val_SInt_UnicodeStr (DestSize: SizeInt; Const S : UnicodeString; out Code : ValSInt): ValSInt; compilerproc;
+-  Function fpc_Val_UInt_UnicodeStr (Const S : UnicodeString; out Code : ValSInt): ValUInt; compilerproc;
++  Function fpc_Val_UInt_UnicodeStr ({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S : UnicodeString; out Code : ValSInt): ValUInt; compilerproc;
+   function fpc_val_Enum_UnicodeStr(str2ordindex:pointer;const s:UnicodeString;out code:valsint):longint;compilerproc;
+   Function fpc_Val_Currency_UnicodeStr(Const S : UnicodeString; out Code : ValSInt): Currency; compilerproc;
+ {$endif FPC_HAS_FEATURE_WIDESTRINGS}
+@@ -434,12 +439,12 @@
+ Function fpc_get_input:PText;compilerproc;
+ Function fpc_get_output:PText;compilerproc;
+ Procedure fpc_textinit_iso(var t : Text;nr : DWord);compilerproc;
+-Procedure fpc_textinit_filename_iso(var t : Text;nr : DWord;const filename : string);compilerproc;
++Procedure fpc_textinit_filename_iso(var t : Text;nr : DWord;const filename : ShortString);compilerproc;
+ Procedure fpc_textclose_iso(var t : Text);compilerproc;
+ Procedure fpc_Write_End(var f:Text); compilerproc;
+ Procedure fpc_Writeln_End(var f:Text); compilerproc;
+-Procedure fpc_Write_Text_ShortStr(Len : Longint;var f : Text;const s : String); compilerproc;
+-Procedure fpc_Write_Text_ShortStr_Iso(Len : Longint;var f : Text;const s : String); compilerproc;
++Procedure fpc_Write_Text_ShortStr(Len : Longint;var f : Text;const s : ShortString); compilerproc;
++Procedure fpc_Write_Text_ShortStr_Iso(Len : Longint;var f : Text;const s : ShortString); compilerproc;
+ Procedure fpc_Write_Text_Pchar_as_Array(Len : Longint;var f : Text;const s : array of char; zerobased: boolean = true); compilerproc;
+ Procedure fpc_Write_Text_Pchar_as_Array_Iso(Len : Longint;var f : Text;const s : array of char; zerobased: boolean = true); compilerproc;
+ Procedure fpc_Write_Text_PChar_As_Pointer(Len : Longint;var f : Text;p : PChar); compilerproc;
+@@ -536,7 +541,7 @@
+ Procedure fpc_Read_End(var f:Text); compilerproc;
+ Procedure fpc_ReadLn_End(var f : Text); compilerproc;
+ Procedure fpc_ReadLn_End_Iso(var f : Text); compilerproc;
+-Procedure fpc_Read_Text_ShortStr(var f : Text;out s : String); compilerproc;
++Procedure fpc_Read_Text_ShortStr(var f : Text;out s : ShortString); compilerproc;
+ Procedure fpc_Read_Text_PChar_As_Pointer(var f : Text; const s : PChar); compilerproc;
+ Procedure fpc_Read_Text_PChar_As_Array(var f : Text;out s : array of char; zerobased: boolean = false); compilerproc;
+ {$ifdef FPC_HAS_FEATURE_ANSISTRINGS}
+@@ -804,15 +809,15 @@
+ Procedure fpc_rewrite_typed(var f : TypedFile;Size : Longint); compilerproc;
+ Procedure fpc_reset_typed_iso(var f : TypedFile;Size : Longint); compilerproc;
+ Procedure fpc_rewrite_typed_iso(var f : TypedFile;Size : Longint); compilerproc;
+-Procedure fpc_reset_typed_name_iso(var f : TypedFile;const FileName : String;Size : Longint); compilerproc;
+-Procedure fpc_rewrite_typed_name_iso(var f : TypedFile;const FileName : String;Size : Longint); compilerproc;
++Procedure fpc_reset_typed_name_iso(var f : TypedFile;const FileName : ShortString;Size : Longint); compilerproc;
++Procedure fpc_rewrite_typed_name_iso(var f : TypedFile;const FileName : ShortString;Size : Longint); compilerproc;
+ 
+ Procedure fpc_typed_write(TypeSize : Longint;var f : TypedFile;const Buf); compilerproc;
+ Procedure fpc_typed_read(TypeSize : Longint;var f : TypedFile;out Buf); compilerproc;
+ Procedure fpc_typed_read_iso(TypeSize : Longint;var f : TypedFile;out Buf); compilerproc;
+ 
+ Procedure fpc_typedfile_init_iso(var t : TypedFile;nr : DWord);compilerproc;
+-Procedure fpc_typedfile_init_filename_iso(var t : TypedFile;nr : DWord;const filename : string); compilerproc;
++Procedure fpc_typedfile_init_filename_iso(var t : TypedFile;nr : DWord;const filename : ShortString); compilerproc;
+ Procedure fpc_typedfile_close_iso(var t : TypedFile); compilerproc;
+ 
+ {$endif FPC_HAS_FEATURE_FILEIO}
+--- a/fpcsrc/rtl/inc/dynarr.inc
++++ b/fpcsrc/rtl/inc/dynarr.inc
+@@ -369,6 +369,56 @@
+   end;
+ 
+ 
++{ copy a custom array (open/dynamic/static) to dynamic array }
++function fpc_array_to_dynarray_copy(psrc : pointer;ti : pointer;
++    lowidx,count,maxcount:tdynarrayindex;
++    elesize : sizeint;
++    eletype : pointer
++    ) : fpc_stub_dynarray;[Public,Alias:'FPC_ARR_TO_DYNARR_COPY'];compilerproc;
++  var
++    i,size : sizeint;
++  begin
++     fpc_dynarray_clear(pointer(result),ti);
++     if psrc=nil then
++       exit;
++
++{$ifndef FPC_DYNARRAYCOPY_FIXED}
++     if (lowidx=-1) and (count=-1) then
++       begin
++         lowidx:=0;
++         count:=high(tdynarrayindex);
++       end;
++{$endif FPC_DYNARRAYCOPY_FIXED}
++     if (lowidx<0) then
++       begin
++       { Decrease count if index is negative, this is different from how copy()
++         works on strings. Checked against D7. }
++         if count<=0 then
++           exit;              { may overflow when adding lowidx }
++         count:=count+lowidx;
++         lowidx:=0;
++       end;
++     if (count>maxcount-lowidx) then
++       count:=maxcount-lowidx;
++     if count<=0 then
++       exit;
++
++     { create new array }
++     size:=elesize*count;
++     getmem(pointer(result),size+sizeof(tdynarray));
++     pdynarray(result)^.refcount:=1;
++     pdynarray(result)^.high:=count-1;
++     inc(pointer(result),sizeof(tdynarray));
++     { copy data }
++     move(pointer(psrc+elesize*lowidx)^,pointer(result)^,size);
++
++     { increment ref. count of members? }
++     if assigned(eletype) then
++       for i:=0 to count-1 do
++         int_addref(pointer(pointer(result)+elesize*i),eletype);
++  end;
++
++
+ {$ifndef VER3_0}
+ procedure fpc_dynarray_delete(var p : pointer;source,count : SizeInt;pti : pointer);
+    var
+--- a/fpcsrc/rtl/inc/dynlib.inc
++++ b/fpcsrc/rtl/inc/dynlib.inc
+@@ -110,7 +110,7 @@
+ end;
+ 
+ 
+-function GetLoadErrorStr: String;
++function GetLoadErrorStr: ShortString;
+ begin
+   Result:=CurrentDLM.GetLoadErrorStr();
+ end;
+@@ -190,7 +190,7 @@
+   NoDynLibsError;
+ end;
+ 
+-function NoGetLoadErrorStr: String; {$ifndef ver2_6}noreturn;{$endif}
++function NoGetLoadErrorStr: ShortString; {$ifndef ver2_6}noreturn;{$endif}
+ begin
+   NoDynLibsError;
+ end;
+--- a/fpcsrc/rtl/inc/dynlibh.inc
++++ b/fpcsrc/rtl/inc/dynlibh.inc
+@@ -35,7 +35,7 @@
+   TGetProcAddressHandler = function(Lib: TLibHandle; const ProcName: AnsiString): {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+   TGetProcAddressOrdinalHandler = function(Lib: TLibHandle; Ordinal: TOrdinalEntry): {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+   TUnloadLibraryHandler = function(Lib: TLibHandle): Boolean;
+-  TGetLoadErrorStrHandler = function: String;
++  TGetLoadErrorStrHandler = function: ShortString;
+ 
+   TDynLibsManager = record
+     LoadLibraryU: TLoadLibraryUHandler;
+@@ -54,7 +54,7 @@
+ Function GetProcedureAddress(Lib : TlibHandle; const ProcName : AnsiString) : {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+ Function GetProcedureAddress(Lib : TLibHandle; Ordinal: TOrdinalEntry) : {$ifdef cpui8086}FarPointer{$else}Pointer{$endif};
+ Function UnloadLibrary(Lib : TLibHandle) : Boolean;
+-Function GetLoadErrorStr: string;
++Function GetLoadErrorStr: ShortString;
+ 
+ // Kylix/Delphi compability
+ 
+--- a/fpcsrc/rtl/inc/flt_core.inc
++++ b/fpcsrc/rtl/inc/flt_core.inc
+@@ -1904,7 +1904,7 @@
+ (****************************************************************************)
+ 
+ {$ifndef fpc_softfpu_implementation}
+-procedure str_real_iso( len, f: longint; d: ValReal; real_type: treal_type; out s: string );
++procedure str_real_iso( len, f: longint; d: ValReal; real_type: treal_type; out s: ShortString );
+ var
+     i: integer;
+ begin
+--- a/fpcsrc/rtl/inc/isotmp.inc
++++ b/fpcsrc/rtl/inc/isotmp.inc
+@@ -74,7 +74,7 @@
+       FreeEnvironmentStringsW(p);
+     end;
+ 
+-    function getTempDir: String;
++    function getTempDir: ShortString;
+     var
+       astringLength : Integer;
+     begin
+@@ -90,10 +90,10 @@
+ 
+ {$ELSEIF defined(UNIX) and not defined(android)}
+ 
+-  function getTempDir: string;
++  function getTempDir: ShortString;
+     var
+-      key: string;
+-      value: string;
++      key: ShortString;
++      value: ShortString;
+       i_env, i_key, i_value: integer;
+     begin
+       value := '/tmp/';  (** default for UNIX **)
+@@ -130,7 +130,7 @@
+ 
+ {$ELSE}  // neither unix nor windows
+ 
+-  function getTempDir: string;
++  function getTempDir: ShortString;
+   begin
+     getTempDir:='';
+   end;
+--- a/fpcsrc/rtl/inc/objpas.inc
++++ b/fpcsrc/rtl/inc/objpas.inc
+@@ -601,7 +601,7 @@
+           ClassName := PVmt(Self)^.vClassName^;
+         end;
+ 
+-      class function TObject.ClassNameIs(const name : string) : boolean;
++      class function TObject.ClassNameIs(const name : ShortString) : boolean;
+ 
+         begin
+         // call to ClassName inlined here, this eliminates stack and string copying.
+--- a/fpcsrc/rtl/inc/objpash.inc
++++ b/fpcsrc/rtl/inc/objpash.inc
+@@ -218,7 +218,7 @@
+           class function ClassType : tclass;{$ifdef SYSTEMINLINE}inline;{$endif}
+           class function ClassInfo : pointer;
+           class function ClassName : shortstring;
+-          class function ClassNameIs(const name : string) : boolean;
++          class function ClassNameIs(const name : ShortString) : boolean;
+           class function ClassParent : tclass;{$ifdef SYSTEMINLINE}inline;{$endif}
+           class function InstanceSize : SizeInt;{$ifdef SYSTEMINLINE}inline;{$endif}
+           class function InheritsFrom(aclass : tclass) : boolean;
+--- a/fpcsrc/rtl/inc/real2str.inc
++++ b/fpcsrc/rtl/inc/real2str.inc
+@@ -24,7 +24,7 @@
+   function mul_by_power10 (x : ValReal; power : integer) : ValReal; forward;
+ {$endif}
+ 
+-Procedure str_real (len,f : longint; d : ValReal; real_type :treal_type; out s : string);
++Procedure str_real (len,f : longint; d : ValReal; real_type :treal_type; out s : ShortString);
+ {$ifdef SUPPORT_EXTENDED}
+ type
+   TSplitExtended = packed record
+@@ -75,7 +75,7 @@
+   high_exp10_reduced,
+   spos, endpos, fracCount: longint;
+   correct, currprec: longint;
+-  temp : string;
++  temp : ShortString;
+   power : string[10];
+   sign : boolean;
+   dot : byte;
+@@ -91,7 +91,7 @@
+   minexp = 1e-35;   { Minimum value for decimal expressions }
+   zero   = '0000000000000000000000000000000000000000';
+ 
+-  procedure RoundStr(var s: string; lastPos: byte);
++  procedure RoundStr(var s: ShortString; lastPos: byte);
+   var carry: longint;
+   begin
+     carry := 1;
+@@ -530,7 +530,7 @@
+ end;
+ 
+ 
+-Procedure str_real_iso (len,f : longint; d : ValReal; real_type :treal_type; out s : string);
++Procedure str_real_iso (len,f : longint; d : ValReal; real_type :treal_type; out s : ShortString);
+   var
+    i : Integer;
+   begin
+--- a/fpcsrc/rtl/inc/sstrings.inc
++++ b/fpcsrc/rtl/inc/sstrings.inc
+@@ -527,7 +527,7 @@
+     case TTypeKind of
+       tkInteger,tkChar,tkEnumeration,tkBool,tkWChar,tkSet: (
+         MinValue,MaxValue : Longint;
+-        case byte of
++        case TTypeKind of
+           tkEnumeration: (
+             BaseTypeRef : pointer
+             );
+@@ -1208,7 +1208,7 @@
+ {$endif FPC_HAS_INT_VAL_SINT_SHORTSTR}
+ 
+ 
+-Function fpc_Val_UInt_Shortstr(Const S: ShortString; out Code: ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_SHORTSTR']; compilerproc;
++Function fpc_Val_UInt_Shortstr({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S: ShortString; out Code: ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_SHORTSTR']; compilerproc;
+ var
+   base,u : byte;
+   negative : boolean;
+--- a/fpcsrc/rtl/inc/system.inc
++++ b/fpcsrc/rtl/inc/system.inc
+@@ -277,6 +277,22 @@
+   {$define SYSPROCDEFINED}
+ {$endif cpuaarch64}
+ 
++{$ifdef cpuriscv32}
++  {$ifdef SYSPROCDEFINED}
++    {$Error Can't determine processor type !}
++  {$endif}
++  {$i riscv32.inc}  { Case dependent, don't change }
++  {$define SYSPROCDEFINED}
++{$endif cpuriscv32}
++
++{$ifdef cpuriscv64}
++  {$ifdef SYSPROCDEFINED}
++    {$Error Can't determine processor type !}
++  {$endif}
++  {$i riscv64.inc}  { Case dependent, don't change }
++  {$define SYSPROCDEFINED}
++{$endif cpuriscv64}
++
+ {$ifndef SYSPROCDEFINED}
+   {$Error Can't determine processor type !}
+ {$endif}
+--- a/fpcsrc/rtl/inc/systemh.inc
++++ b/fpcsrc/rtl/inc/systemh.inc
+@@ -320,6 +320,43 @@
+ 
+ {$endif CPUAARCH64}
+ 
++{$ifdef CPURISCV32}
++  {$define DEFAULT_DOUBLE}
++
++  {$define SUPPORT_SINGLE}
++  {$define SUPPORT_DOUBLE}
++
++  {$define FPC_INCLUDE_SOFTWARE_MOD_DIV}
++  {$define FPC_INCLUDE_SOFTWARE_MUL}
++  {$define FPC_INCLUDE_SOFTWARE_SHIFT_INT64}
++  {$define FPC_INCLUDE_SOFTWARE_INT64_TO_DOUBLE}
++
++  {$ifndef FPUNONE}
++    {$define FPC_INCLUDE_SOFTWARE_INT64_TO_DOUBLE}
++    ValReal = Double;
++  {$endif}
++
++  FarPointer = Pointer;
++{$endif CPURISCV32}
++
++{$ifdef CPURISCV64}
++  {$define DEFAULT_DOUBLE}
++
++  {$define SUPPORT_SINGLE}
++  {$define SUPPORT_DOUBLE}
++
++  {$define FPC_INCLUDE_SOFTWARE_MOD_DIV}
++  {$define FPC_INCLUDE_SOFTWARE_MUL}
++  {$define FPC_INCLUDE_SOFTWARE_INT64_TO_DOUBLE}
++
++  {$ifndef FPUNONE}
++    {$define FPC_INCLUDE_SOFTWARE_INT64_TO_DOUBLE}
++    ValReal = Double;
++  {$endif}
++
++  FarPointer = Pointer;
++{$endif CPURISCV64}
++
+ {$if not declared(FarPointer)}
+    FarPointer = Pointer;
+ {$endif}
+@@ -429,6 +466,13 @@
+ {$endif}
+ 
+ { Zero - terminated strings }
++{$if declared(AnsiChar)}
++  { Newer bootstrap compilers define AnsiChar instead of Char. }
++  Char                = AnsiChar;
++{$else}
++  AnsiChar            = Char;
++{$endif}
++
+   PChar               = ^Char;
+   PPChar              = ^PChar;
+   PPPChar             = ^PPChar;
+@@ -436,7 +480,6 @@
+   { AnsiChar is equivalent of Char, so we need
+     to use type renamings }
+   TAnsiChar           = Char;
+-  AnsiChar            = Char;
+   PAnsiChar           = PChar;
+   PPAnsiChar          = PPChar;
+   PPPAnsiChar         = PPPChar;
+@@ -444,7 +487,7 @@
+   UTF8Char = AnsiChar;
+   PUTF8Char = PAnsiChar;
+ 
+-  UCS4Char            = type 0..$10ffff;
++  UCS4Char            = 0..$10ffff;
+   PUCS4Char           = ^UCS4Char;
+ {$ifdef CPU16}
+   TUCS4CharArray      = array[0..32767 div sizeof(UCS4Char)-1] of UCS4Char;
+@@ -1020,10 +1063,10 @@
+ {$define FPC_HAS_INTERNAL_SAR_DWORD}
+ { $endif defined(cpux86_64) or defined(cpui386) or defined(cpuarm) or defined(cpupowerpc) or defined(cpupowerpc64) or defined(cpumips) or defined(cpumipsel)}
+ 
+-{$if defined(cpux86_64) or defined(cpupowerpc64) or defined(cpuaarch64)}
++{$if defined(cpux86_64) or defined(cpupowerpc64) or defined(cpuaarch64) or defined(cpuriscv64)}
+ {$define FPC_HAS_INTERNAL_SAR_QWORD}
+ {$define FPC_HAS_INTERNAL_SAR_ASSIGN_QWORD}
+-{$endif defined(cpux86_64) or defined(cpupowerpc64) or defined(cpuaarch64)}
++{$endif defined(cpux86_64) or defined(cpupowerpc64) or defined(cpuaarch64) or defined(cpuriscv64)}
+ 
+ {$endif FPC_HAS_INTERNAL_SAR}
+ 
+@@ -1205,7 +1248,9 @@
+ {$endif CPUI8086}
+ 
+ { Char functions }
++{$if defined(VER3_2) or defined(VER3_0)}
+ Function Chr(b : byte) : Char;      [INTERNPROC: fpc_in_chr_byte];
++{$endif defined(VER3_2) or defined(VER3_0)}
+ Function  UpCase(c:Char):Char;
+ Function  LowerCase(c:Char):Char; overload;
+ function  Pos(const substr : shortstring;c:char; Offset: Sizeint = 1): SizeInt;
+@@ -1347,7 +1392,7 @@
+ Function  SeekEOF:Boolean;
+ Procedure SetTextBuf(var f:Text; var Buf);[INTERNPROC:fpc_in_settextbuf_file_x];
+ Procedure SetTextBuf(var f:Text; var Buf; Size:SizeInt);
+-Procedure SetTextLineEnding(var f:Text; Ending:string);
++Procedure SetTextLineEnding(var f:Text; Ending:ShortString);
+ function GetTextCodePage(var T: Text): TSystemCodePage;
+ procedure SetTextCodePage(var T: Text; CodePage: TSystemCodePage);
+ {$endif FPC_HAS_FEATURE_TEXTIO}
+@@ -1516,7 +1561,7 @@
+ Procedure Error(RunTimeError : TRunTimeError);
+ {$ifdef FPC_HAS_FEATURE_COMMANDARGS}
+ Function  ParamCount:Longint;
+-Function  ParamStr(l:Longint):string;
++Function  ParamStr(l:Longint):ShortString;
+ {$endif FPC_HAS_FEATURE_COMMANDARGS}
+ 
+ Procedure Dump_Stack(var f : text;fp:pointer;addr : codepointer = nil);
+--- a/fpcsrc/rtl/inc/text.inc
++++ b/fpcsrc/rtl/inc/text.inc
+@@ -563,7 +563,7 @@
+   TextRec(f).BufEnd:=0;
+ End;
+ 
+-Procedure SetTextLineEnding(Var f:Text; Ending:string);
++Procedure SetTextLineEnding(Var f:Text; Ending:ShortString);
+ Begin
+   TextRec(F).LineEnd:=Ending;
+ End;
+@@ -611,7 +611,7 @@
+ end;
+ 
+ 
+-Procedure fpc_textinit_filename_iso(var t : Text;nr : DWord;const filename : string);compilerproc;
++Procedure fpc_textinit_filename_iso(var t : Text;nr : DWord;const filename : ShortString);compilerproc;
+ begin
+ {$ifdef FPC_HAS_FEATURE_COMMANDARGS}
+   if paramstr(nr)='' then
+@@ -708,7 +708,7 @@
+ end;
+ 
+ 
+-Procedure fpc_Write_Text_ShortStr(Len : Longint;var f : Text;const s : String); iocheck; [Public,Alias:'FPC_WRITE_TEXT_SHORTSTR']; compilerproc;
++Procedure fpc_Write_Text_ShortStr(Len : Longint;var f : Text;const s : ShortString); iocheck; [Public,Alias:'FPC_WRITE_TEXT_SHORTSTR']; compilerproc;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -725,7 +725,7 @@
+ End;
+ 
+ 
+-Procedure fpc_Write_Text_ShortStr_Iso(Len : Longint;var f : Text;const s : String); iocheck; [Public,Alias:'FPC_WRITE_TEXT_SHORTSTR_ISO']; compilerproc;
++Procedure fpc_Write_Text_ShortStr_Iso(Len : Longint;var f : Text;const s : ShortString); iocheck; [Public,Alias:'FPC_WRITE_TEXT_SHORTSTR_ISO']; compilerproc;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -751,10 +751,10 @@
+ 
+ 
+ { provide local access to write_str }
+-procedure Write_Str(Len : Longint;var f : Text;const s : String); iocheck; [external name 'FPC_WRITE_TEXT_SHORTSTR'];
++procedure Write_Str(Len : Longint;var f : Text;const s : ShortString); iocheck; [external name 'FPC_WRITE_TEXT_SHORTSTR'];
+ 
+ { provide local access to write_str_iso }
+-procedure Write_Str_Iso(Len : Longint;var f : Text;const s : String); iocheck; [external name 'FPC_WRITE_TEXT_SHORTSTR_ISO'];
++procedure Write_Str_Iso(Len : Longint;var f : Text;const s : ShortString); iocheck; [external name 'FPC_WRITE_TEXT_SHORTSTR_ISO'];
+ 
+ Procedure fpc_Write_Text_Pchar_as_Array(Len : Longint;var f : Text;const s : array of char; zerobased: boolean = true); iocheck; compilerproc;
+ var
+@@ -949,7 +949,7 @@
+ 
+ Procedure fpc_Write_Text_SInt(Len : Longint;var t : Text;l : ValSInt); iocheck; compilerproc;
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -960,7 +960,7 @@
+ 
+ Procedure fpc_Write_Text_UInt(Len : Longint;var t : Text;l : ValUInt); iocheck; compilerproc;
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -971,7 +971,7 @@
+ 
+ Procedure fpc_Write_Text_SInt_Iso(Len : Longint;var t : Text;l : ValSInt); iocheck; compilerproc;
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -987,7 +987,7 @@
+ 
+ Procedure fpc_Write_Text_UInt_Iso(Len : Longint;var t : Text;l : ValUInt); iocheck; compilerproc;
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -1003,7 +1003,7 @@
+ {$ifndef CPU64}
+ procedure fpc_write_text_qword(len : longint;var t : text;q : qword); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1014,7 +1014,7 @@
+ 
+ procedure fpc_write_text_int64(len : longint;var t : text;i : int64); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1025,7 +1025,7 @@
+ 
+ procedure fpc_write_text_qword_iso(len : longint;var t : text;q : qword); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+     exit;
+@@ -1041,7 +1041,7 @@
+ 
+ procedure fpc_write_text_int64_iso(len : longint;var t : text;i : int64); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1059,7 +1059,7 @@
+ {$if defined(CPU16) or defined(CPU8)}
+ procedure fpc_write_text_longword(len : longint;var t : text;q : longword); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1070,7 +1070,7 @@
+ 
+ procedure fpc_write_text_longint(len : longint;var t : text;i : longint); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1081,7 +1081,7 @@
+ 
+ procedure fpc_write_text_longword_iso(len : longint;var t : text;q : longword); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+     exit;
+@@ -1097,7 +1097,7 @@
+ 
+ procedure fpc_write_text_longint_iso(len : longint;var t : text;i : longint); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1113,7 +1113,7 @@
+ 
+ procedure fpc_write_text_word(len : longint;var t : text;q : word); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1124,7 +1124,7 @@
+ 
+ procedure fpc_write_text_smallint(len : longint;var t : text;i : smallint); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1135,7 +1135,7 @@
+ 
+ procedure fpc_write_text_word_iso(len : longint;var t : text;q : word); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+     exit;
+@@ -1151,7 +1151,7 @@
+ 
+ procedure fpc_write_text_smallint_iso(len : longint;var t : text;i : smallint); iocheck; compilerproc;
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   if (InOutRes<>0) then
+    exit;
+@@ -1168,7 +1168,7 @@
+ {$ifndef FPUNONE}
+ Procedure fpc_Write_Text_Float(rt,fixkomma,Len : Longint;var t : Text;r : ValReal); iocheck; compilerproc;
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -1179,7 +1179,7 @@
+ 
+ Procedure fpc_Write_Text_Float_iso(rt,fixkomma,Len : Longint;var t : Text;r : ValReal); iocheck; compilerproc;
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -1191,7 +1191,7 @@
+ procedure fpc_write_text_enum(typinfo,ord2strindex:pointer;len:sizeint;var t:text;ordinal:longint); iocheck; compilerproc;
+ 
+ var
+-    s:string;
++    s:ShortString;
+ 
+ begin
+ {$ifdef EXCLUDE_COMPLEX_PROCS}
+@@ -1219,7 +1219,7 @@
+       end;
+ {$else EXCLUDE_COMPLEX_PROCS}
+ var
+-  s : String;
++  s : ShortString;
+ Begin
+   If (InOutRes<>0) then
+    exit;
+@@ -1336,7 +1336,7 @@
+                                 Read(Ln)
+ *****************************************************************************}
+ 
+-Function NextChar(var f:Text;var s:string):Boolean;
++Function NextChar(var f:Text;var s:ShortString):Boolean;
+ begin
+   NextChar:=false;
+   if (TextRec(f).BufPos<TextRec(f).BufEnd) then
+@@ -1361,7 +1361,7 @@
+   the buffer is empty
+ }
+ var
+-  s : string;
++  s : ShortString;
+ begin
+   s:='';
+   IgnoreSpaces:=false;
+@@ -1385,7 +1385,7 @@
+ end;
+ 
+ 
+-procedure ReadNumeric(var f:Text;var s:string);
++procedure ReadNumeric(var f:Text;var s:ShortString);
+ {
+   Read numeric input, if buffer is empty then return True
+ }
+@@ -1419,7 +1419,7 @@
+ end;
+ 
+ 
+-procedure ReadInteger(var f:Text;var s:string);
++procedure ReadInteger(var f:Text;var s:ShortString);
+ {
+  Ignore leading blanks (incl. EOF) and return the first characters matching
+  an integer in the format recognized by the Val procedure:
+@@ -1477,7 +1477,7 @@
+ end;
+ 
+ 
+-procedure ReadReal(var f:Text;var s:string);
++procedure ReadReal(var f:Text;var s:ShortString);
+ {
+  Ignore leading blanks (incl. EOF) and return the first characters matching
+  a float number in the format recognized by the Val procedure:
+@@ -1714,7 +1714,7 @@
+ End;
+ 
+ 
+-Procedure fpc_Read_Text_ShortStr(var f : Text;out s : String); iocheck; compilerproc;
++Procedure fpc_Read_Text_ShortStr(var f : Text;out s : ShortString); iocheck; compilerproc;
+ Begin
+   s[0]:=chr(ReadPCharLen(f,pchar(@s[1]),high(s)));
+ End;
+@@ -1916,7 +1916,7 @@
+ 
+ Procedure fpc_Read_Text_SInt(var f : Text; out l : ValSInt); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : ValSInt;
+ Begin
+   l:=0;
+@@ -1946,7 +1946,7 @@
+ 
+ Procedure fpc_Read_Text_SInt_Iso(var f : Text; out l : ValSInt); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : ValSInt;
+ Begin
+   l:=0;
+@@ -1963,7 +1963,7 @@
+ 
+ Procedure fpc_Read_Text_UInt(var f : Text; out u : ValUInt);  iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : ValSInt;
+ Begin
+   u:=0;
+@@ -1990,7 +1990,7 @@
+ 
+ Procedure fpc_Read_Text_UInt_Iso(var f : Text; out u : ValUInt);  iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : ValSInt;
+ Begin
+   u:=0;
+@@ -2007,7 +2007,7 @@
+ {$ifndef FPUNONE}
+ procedure fpc_Read_Text_Float(var f : Text; out v : ValReal); iocheck; compilerproc;
+ var
+-  hs : string;
++  hs : ShortString;
+   code : Word;
+ begin
+   v:=0.0;
+@@ -2030,7 +2030,7 @@
+ 
+ procedure fpc_Read_Text_Float_Iso(var f : Text; out v : ValReal); iocheck; compilerproc;
+ var
+-  hs : string;
++  hs : ShortString;
+   code : Word;
+ begin
+   v:=0.0;
+@@ -2046,7 +2046,7 @@
+ 
+ procedure fpc_read_text_enum(str2ordindex:pointer;var t:text;out ordinal:longint); iocheck;compilerproc;
+ 
+-var s:string;
++var s:ShortString;
+     code:valsint;
+ 
+ begin
+@@ -2067,7 +2067,7 @@
+ 
+ procedure fpc_Read_Text_Currency(var f : Text; out v : Currency); iocheck; compilerproc;
+ var
+-  hs : string;
++  hs : ShortString;
+   code : ValSInt;
+ begin
+ {$ifdef FPUNONE}
+@@ -2094,7 +2094,7 @@
+ 
+ procedure fpc_Read_Text_Currency_Iso(var f : Text; out v : Currency); iocheck; compilerproc;
+ var
+-  hs : string;
++  hs : ShortString;
+   code : ValSInt;
+ begin
+   v:=0;
+@@ -2112,7 +2112,7 @@
+ 
+ procedure fpc_Read_Text_QWord(var f : text; out q : qword); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : longint;
+ Begin
+   q:=0;
+@@ -2134,7 +2134,7 @@
+ 
+ procedure fpc_Read_Text_QWord_Iso(var f : text; out q : qword); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : longint;
+ Begin
+   q:=0;
+@@ -2149,7 +2149,7 @@
+ 
+ procedure fpc_Read_Text_Int64(var f : text; out i : int64); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : Longint;
+ Begin
+   i:=0;
+@@ -2171,7 +2171,7 @@
+ 
+ procedure fpc_Read_Text_Int64_Iso(var f : text; out i : int64); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : Longint;
+ Begin
+   i:=0;
+@@ -2190,7 +2190,7 @@
+ {$if defined(CPU16) or defined(CPU8)}
+ procedure fpc_Read_Text_LongWord(var f : text; out q : longword); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : longint;
+ Begin
+   q:=0;
+@@ -2212,7 +2212,7 @@
+ 
+ procedure fpc_Read_Text_LongInt(var f : text; out i : longint); iocheck; compilerproc;
+ var
+-  hs   : String;
++  hs   : ShortString;
+   code : Longint;
+ Begin
+   i:=0;
+--- a/fpcsrc/rtl/inc/typefile.inc
++++ b/fpcsrc/rtl/inc/typefile.inc
+@@ -123,7 +123,7 @@
+ End;
+ 
+ 
+-Procedure fpc_reset_typed_name_iso(var f : TypedFile;const FileName : String;Size : Longint);[Public,IOCheck, Alias:'FPC_RESET_TYPED_NAME_ISO']; compilerproc;
++Procedure fpc_reset_typed_name_iso(var f : TypedFile;const FileName : ShortString;Size : Longint);[Public,IOCheck, Alias:'FPC_RESET_TYPED_NAME_ISO']; compilerproc;
+ Begin
+   If InOutRes <> 0 then
+    exit;
+@@ -140,7 +140,7 @@
+ End;
+ 
+ 
+-Procedure fpc_rewrite_typed_name_iso(var f : TypedFile;const FileName : String;Size : Longint);[Public,IOCheck, Alias:'FPC_REWRITE_TYPED_NAME_ISO']; compilerproc;
++Procedure fpc_rewrite_typed_name_iso(var f : TypedFile;const FileName : ShortString;Size : Longint);[Public,IOCheck, Alias:'FPC_REWRITE_TYPED_NAME_ISO']; compilerproc;
+ Begin
+   If InOutRes <> 0 then
+    exit;
+@@ -213,7 +213,7 @@
+ end;
+ 
+ 
+-Procedure fpc_typedfile_init_filename_iso(var t : TypedFile;nr : DWord;const filename : string);compilerproc;
++Procedure fpc_typedfile_init_filename_iso(var t : TypedFile;nr : DWord;const filename : ShortString);compilerproc;
+ begin
+ {$ifdef FPC_HAS_FEATURE_COMMANDARGS}
+   if paramstr(nr)='' then
+--- a/fpcsrc/rtl/inc/ustrings.inc
++++ b/fpcsrc/rtl/inc/ustrings.inc
+@@ -1436,7 +1436,7 @@
+ end;
+ 
+ 
+-Function fpc_Val_UInt_UnicodeStr (Const S : UnicodeString; out Code : ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_UNICODESTR']; compilerproc;
++Function fpc_Val_UInt_UnicodeStr ({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S : UnicodeString; out Code : ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_UNICODESTR']; compilerproc;
+ Var
+   SS: ShortString;
+ begin
+--- a/fpcsrc/rtl/inc/variant.inc
++++ b/fpcsrc/rtl/inc/variant.inc
+@@ -420,7 +420,7 @@
+ 
+ operator :=(const source : variant) dest : char;{$ifdef SYSTEMINLINE}inline;{$endif}
+ Var
+-  S : String;
++  S : ShortString;
+ begin
+   VariantManager.VarToPStr(S,Source);
+   If Length(S)>0 then
+@@ -772,7 +772,7 @@
+ { Chars }
+ operator :=(const source : olevariant) dest : char;{$ifdef SYSTEMINLINE}inline;{$endif}
+   var
+-    S : String;
++    S : ShortString;
+   begin
+     VariantManager.VarToPStr(S,Source);
+     If Length(S)>0 then
+--- a/fpcsrc/rtl/inc/wstrings.inc
++++ b/fpcsrc/rtl/inc/wstrings.inc
+@@ -791,7 +791,7 @@
+ end;
+ 
+ 
+-Function fpc_Val_UInt_WideStr (Const S : WideString; out Code : ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_WIDESTR']; compilerproc;
++Function fpc_Val_UInt_WideStr ({$ifndef VER3_2}DestSize: SizeInt;{$endif VER3_2} Const S : WideString; out Code : ValSInt): ValUInt; [public, alias:'FPC_VAL_UINT_WIDESTR']; compilerproc;
+ Var
+   SS: ShortString;
+ begin
+--- a/fpcsrc/rtl/linux/Makefile.fpc
++++ b/fpcsrc/rtl/linux/Makefile.fpc
+@@ -90,6 +90,11 @@
+ SYSINIT_UNITS=si_prc si_c si_g si_dll
+ endif
+ 
++ifeq ($(ARCH),riscv64)
++override LOADERS=
++SYSINIT_UNITS=si_prc si_dll si_c si_g
++endif
++
+ # mipsel reuses mips files by including so some file names exist
+ # twice, this causes the compiler to find sometimes wrong files and it tries
+ # to recompile rtl units. To prevent this, compile always as release PPUs, this
+@@ -196,6 +201,13 @@
+   ASSHAREDOPT=-KPIC
+ endif
+ 
++ifeq ($(ARCH),riscv32)
++  ASTARGET=-march=rv32imafdc
++endif
++ifeq ($(ARCH),riscv64)
++  ASTARGET=-march=rv64imafdc
++endif
++
+ ifeq ($(ARCH),arm)
+   ifeq ($(SUBARCH),armv6m)
+     ASTARGET+=-mthumb --def __thumb__=1
+@@ -486,4 +498,3 @@
+ 
+ ufloat128$(PPUEXT) : $(INC)/ufloat128.pp sfpu128$(PPUEXT) $(SYSTEMUNIT)$(PPUEXT)
+ 	$(COMPILER) $(INC)/ufloat128.pp
+-
+--- a/fpcsrc/rtl/linux/osdefs.inc
++++ b/fpcsrc/rtl/linux/osdefs.inc
+@@ -82,12 +82,23 @@
+ {$ifdef cpuaarch64}
+   {$define generic_linux_syscalls}
+   {$undef usestime}
++  {$define userenameat}
+ {$endif cpuaarch64}
+ 
+ {$ifdef cpusparc64}
+   {$define FPC_USEGETTIMEOFDAY}
+ {$endif cpusparc64}
+ 
++{$ifdef cpuriscv32}
++  {$define generic_linux_syscalls}
++  {$undef usestime}
++{$endif cpuriscv32}
++
++{$ifdef cpuriscv64}
++  {$define generic_linux_syscalls}
++  {$undef usestime}
++{$endif cpuriscv64}
++
+ {$ifdef android}
+   {$define generic_linux_syscalls}
+   {$ifdef cpuarm}
+--- a/fpcsrc/rtl/linux/ossysc.inc
++++ b/fpcsrc/rtl/linux/ossysc.inc
+@@ -100,7 +100,11 @@
+ 
+ begin
+ {$if defined(generic_linux_syscalls)}
+-  Fprename:=do_syscall(syscall_nr_renameat,AT_FDCWD,TSysParam(old),AT_FDCWD,TSysParam(newpath));
++  {$if defined(userenameat)}
++    Fprename:=do_syscall(syscall_nr_renameat,AT_FDCWD,TSysParam(old),AT_FDCWD,TSysParam(newpath));
++  {$else}
++    Fprename:=do_syscall(syscall_nr_renameat2,AT_FDCWD,TSysParam(old),AT_FDCWD,TSysParam(newpath),0);
++  {$endif}
+ {$else}
+   Fprename:=do_syscall(syscall_nr_rename,TSysParam(old),TSysParam(newpath));
+ {$endif}
+--- a/fpcsrc/rtl/linux/ostypes.inc
++++ b/fpcsrc/rtl/linux/ostypes.inc
+@@ -306,7 +306,7 @@
+     { SIGCHLD or CLONE_CHILD_CLEARTID or CLONE_CHILD_SETTID }
+     clone_flags_fork = $01200011;
+ 
+-{$if defined(cpuarm) or defined(cpualpha) or defined(cpublackfin) or defined(cpum68k) or defined(aarch64)}
++{$if defined(cpuarm) or defined(cpualpha) or defined(cpublackfin) or defined(cpum68k) or defined(aarch64) or defined(riscv32) or defined(riscv64)}
+     O_LARGEFILE =   $20000;
+ {$endif}
+ {$if defined(cpusparc) or defined(cpusparc64)}
+--- a/fpcsrc/rtl/linux/riscv64/si_c.inc
++++ b/fpcsrc/rtl/linux/riscv64/si_c.inc
+@@ -16,12 +16,11 @@
+  ******************************************************************************}
+ 
+ var
+-  BSS_START: record end; external name '__bss_start';
++  global_pointer: record end; external name '__global_pointer$';
+ 
+-  { as we do not call these procedures directly, calling conventions do not matter and
+-    even if we did, we use c calling conventions anyways }
+-  procedure __libc_csu_init; external name '__libc_csu_init';
+-  procedure __libc_csu_fini; external name '__libc_csu_fini';
++procedure ini_dummy;
++  begin
++  end;
+ 
+ procedure libc_start_main(main: TProcedure; argc: ptruint; argv: ppchar; init, fini, rtld_fini: TProcedure; stack_end: pointer); cdecl; external name '__libc_start_main';
+ procedure libc_exit(code: ptruint); cdecl; external name 'exit';
+@@ -39,7 +38,7 @@
+     operatingsystem_parameter_argv:=argv;
+     operatingsystem_parameter_envp:=@sp[argc+2];
+ 
+-    libc_start_main(@PascalMain, argc, argv, @__libc_csu_init, @__libc_csu_fini, at_exit, sp);
++    libc_start_main(@PascalMain, argc, argv, @ini_dummy, @ini_dummy, at_exit, sp);
+   end;
+ 
+ 
+@@ -49,7 +48,7 @@
+     .option push
+     .option norelax
+ .L1:
+-    auipc gp, %pcrel_hi(BSS_START+0x800)
++    auipc gp, %pcrel_hi(global_pointer)
+     addi  gp, gp, %pcrel_lo(.L1)
+     .option pop
+ 
+@@ -85,7 +84,7 @@
+      .option push
+      .option norelax
+    .L1:
+-     auipc gp, %pcrel_hi(BSS_START+0x800)
++     auipc gp, %pcrel_hi(global_pointer)
+      addi  gp, gp, %pcrel_lo(.L1)
+      .option pop
+      jalr x0, x1
+--- a/fpcsrc/rtl/linux/system.pp
++++ b/fpcsrc/rtl/linux/system.pp
+@@ -45,7 +45,7 @@
+ function get_cmdline:Pchar; deprecated 'use paramstr' ;
+ property cmdline:Pchar read get_cmdline;
+ 
+-{$if defined(CPUARM) or defined(CPUM68K) or (defined(CPUSPARC) and defined(VER2_6))}
++{$if defined(CPURISCV32) or defined(CPURISCV64) or defined(CPUARM) or defined(CPUM68K) or (defined(CPUSPARC) and defined(VER2_6))}
+ {$define FPC_LOAD_SOFTFPU}
+ {$endif}
+ 
+@@ -214,7 +214,7 @@
+ var
+  execpathstr : shortstring;
+ 
+-function paramstr(l: longint) : string;
++function paramstr(l: longint) : ShortString;
+  begin
+    { stricly conforming POSIX applications  }
+    { have the executing filename as argv[0] }
+--- a/fpcsrc/rtl/linux/termios.inc
++++ b/fpcsrc/rtl/linux/termios.inc
+@@ -22,7 +22,7 @@
+   NCCS = 32;
+   NCC = 8;
+ 
+-{$ifdef cpuaarch64}
++{$if defined(cpuaarch64) or defined(cpuriscv64)}
+ 
+ { from Linux 4.0, include/uapi/asm-generic/ioctls.h }
+ 
+@@ -285,7 +285,7 @@
+   TIOCM_OUT2 = $4000;
+   TIOCM_LOOP = $8000;
+ 
+-{$endif cpuaarch64}
++{$endif cpuaarch64 or cpuriscv64}
+ 
+ {$ifdef cpupowerpc}
+   TCGETS            = $402c7413;
+--- a/fpcsrc/rtl/unix/sysunixh.inc
++++ b/fpcsrc/rtl/unix/sysunixh.inc
+@@ -73,5 +73,5 @@
+   { hook for lineinfo, to get the module name from an address,
+     unit dl sets it if it is used
+   }
+-  UnixGetModuleByAddrHook : procedure (addr: pointer; var baseaddr: pointer; var filename: string) = nil;
++  UnixGetModuleByAddrHook : procedure (addr: pointer; var baseaddr: pointer; var filename: ShortString) = nil;
+ {$endif unix}
+--- a/fpcsrc/utils/fpcm/fpcmmain.pp
++++ b/fpcsrc/utils/fpcm/fpcmmain.pp
+@@ -69,7 +69,7 @@
+ 
+     type
+       TCpu=(
+-        c_i386,c_m68k,c_powerpc,c_sparc,c_x86_64,c_arm,c_powerpc64,c_avr,c_armeb,c_armel,c_mips,c_mipsel,c_mips64,c_mips64el,c_jvm,c_i8086,c_aarch64,c_wasm,c_sparc64
++        c_i386,c_m68k,c_powerpc,c_sparc,c_x86_64,c_arm,c_powerpc64,c_avr,c_armeb,c_armel,c_mips,c_mipsel,c_mips64,c_mips64el,c_jvm,c_i8086,c_aarch64,c_wasm,c_sparc64,c_riscv32,c_riscv64
+       );
+ 
+       TOS=(
+@@ -85,15 +85,15 @@
+ 
+     const
+       CpuStr : array[TCpu] of string=(
+-        'i386','m68k','powerpc','sparc','x86_64','arm','powerpc64','avr','armeb', 'armel', 'mips', 'mipsel', 'mips64', 'mips64el', 'jvm','i8086','aarch64','wasm','sparc64'
++        'i386','m68k','powerpc','sparc','x86_64','arm','powerpc64','avr','armeb', 'armel', 'mips', 'mipsel', 'mips64', 'mips64el', 'jvm','i8086','aarch64','wasm','sparc64','riscv32','riscv64'
+       );
+ 
+       CpuSuffix : array[TCpu] of string=(
+-        '_i386','_m68k','_powerpc','_sparc','_x86_64','_arm','_powerpc64','_avr','_armeb', '_armel', '_mips', '_mipsel', '_mips64', '_mips64el', '_jvm','_i8086','_aarch64','_wasm','_sparc64'
++        '_i386','_m68k','_powerpc','_sparc','_x86_64','_arm','_powerpc64','_avr','_armeb', '_armel', '_mips', '_mipsel', '_mips64', '_mips64el', '_jvm','_i8086','_aarch64','_wasm','_sparc64','_riscv32','_riscv64'
+       );
+ 
+       ppcSuffix : array[TCpu] of string=(
+-        '386','68k','ppc','sparc','x64','arm','ppc64','avr','armeb', 'armel', 'mips', 'mipsel', 'mips64', 'mips64el', 'jvm','8086','a64','wasm','sparc64'
++        '386','68k','ppc','sparc','x64','arm','ppc64','avr','armeb', 'armel', 'mips', 'mipsel', 'mips64', 'mips64el', 'jvm','8086','a64','wasm','sparc64','rv32','rv64'
+       );
+ 
+       OSStr : array[TOS] of string=(
+@@ -116,47 +116,47 @@
+ 
+       { This table is kept OS,Cpu because it is easier to maintain (PFV) }
+       OSCpuPossible : array[TOS,TCpu] of boolean = (
+-        { os          i386    m68k  ppc    sparc  x86_64 arm    ppc64  avr    armeb  armel  mips   mipsel mips64 misp64el jvm    i8086  aarch64 wasm sparc64}
+-        { linux }   ( true,  true,  true,  true,  true,  true,  true,  false, true,  false, true,  true,  false, false,   false, false, true,  false, true),
+-        { go32v2 }  ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { win32 }   ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { os2 }     ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { freebsd } ( true,  false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { beos }    ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { haiku }   ( true,  false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { netbsd }  ( true,  true,  true,  true,  true,  true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { amiga }   ( false, true,  true,  false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { atari }   ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { solaris } ( true,  false, false, true,  true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { qnx }     ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { netware } ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { openbsd } ( true,  false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { wdosx }   ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { palmos }  ( false, true,  false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-   { macosclassic } ( false, true,  true,  false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { darwin }  ( true,  false, true,  false, true,  false, true,  false, false, false, false, false, false, false,   false, false, true,  false, false),
+-        { emx }     ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { watcom }  ( true,  false, false, false ,false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { morphos } ( false, false, true,  false ,false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { netwlibc }( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { win64   } ( false, false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { wince    }( true,  false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { gba    }  ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { nds    }  ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { embedded }( true,  true,  true,  true,  true,  true,  true,  true,  true , false, false, true , false, false,   false, true , false, false, false),
+-        { symbian } ( true,  false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { nativent }( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { iphonesim }( true, false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { wii }     ( false, false, true,  false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { aix }     ( false, false, true,  false, false, false, true,  false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { java }    ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   true,  false, false, false, false),
+-        { android } ( true,  false, false, false, true,  true,  false, false, false, false, false, true,  false, false,   true,  false, true,  false, false),
+-        { msdos }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, true , false, false, false),
+-        { aros }    ( true,  false, false, false, true,  true,  false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        {dragonfly} ( false, false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false),
+-        { win16 }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, true , false, false, false),
+-        { wasm }    ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, true,  false),
+-        { ios }     ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, true , false, false)
++        { os          i386    m68k  ppc    sparc  x86_64 arm    ppc64  avr    armeb  armel  mips   mipsel mips64 misp64el jvm    i8086  aarch64 wasm sparc64 riscv32 riscv64}
++        { linux }   ( true,  true,  true,  true,  true,  true,  true,  false, true,  false, true,  true,  false, false,   false, false, true,  false, true, true , true ),
++        { go32v2 }  ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { win32 }   ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { os2 }     ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { freebsd } ( true,  false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { beos }    ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { haiku }   ( true,  false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { netbsd }  ( true,  true,  true,  true,  true,  true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { amiga }   ( false, true,  true,  false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { atari }   ( false, true,  false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { solaris } ( true,  false, false, true,  true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { qnx }     ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { netware } ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { openbsd } ( true,  false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { wdosx }   ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { palmos }  ( false, true,  false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++   { macosclassic } ( false, true,  true,  false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { darwin }  ( true,  false, true,  false, true,  false, true,  false, false, false, false, false, false, false,   false, false, true,  false, false, false, false),
++        { emx }     ( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { watcom }  ( true,  false, false, false ,false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { morphos } ( false, false, true,  false ,false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { netwlibc }( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { win64   } ( false, false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { wince    }( true,  false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { gba    }  ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { nds    }  ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { embedded }( true,  true,  true,  true,  true,  true,  true,  true,  true , false, false, true , false, false,   false, true , false, false, false, false, false),
++        { symbian } ( true,  false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { nativent }( true,  false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { iphonesim }( true, false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { wii }     ( false, false, true,  false, false, false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { aix }     ( false, false, true,  false, false, false, true,  false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { java }    ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   true,  false, false, false, false, false, false),
++        { android } ( true,  false, false, false, true,  true,  false, false, false, false, false, true,  false, false,   true,  false, true,  false, false, false, false),
++        { msdos }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, true , false, false, false, false, false),
++        { aros }    ( true,  false, false, false, true,  true,  false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        {dragonfly} ( false, false, false, false, true,  false, false, false, false, false, false, false, false, false,   false, false, false, false, false, false, false),
++        { win16 }   ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, true , false, false, false, false, false),
++        { wasm }    ( false, false, false, false, false, false, false, false, false, false, false, false, false, false,   false, false, false, true,  false, false, false),
++        { ios }     ( false, false, false, false, false, true,  false, false, false, false, false, false, false, false,   false, false, true , false, false, false, false)
+       );
+ 
+     type
+--- a/fpcsrc/utils/fpcres/fpcres.pas
++++ b/fpcsrc/utils/fpcres/fpcres.pas
+@@ -75,6 +75,7 @@
+   writeln('  --arch, -a <name>    Set object file architecture. Supported architectures:');
+   writeln('                         i386, x86_64, arm (coff)');
+   writeln('                         i386, x86_64, powerpc, powerpc64, arm, armeb, m68k,');
++  writeln('                         riscv32, riscv64,');
+   writeln('                         sparc, alpha, ia64, mips, mipsel (elf)');
+   writeln('                         i386, x86_64, powerpc, powerpc64, arm, aarch64 (mach-o)');
+   writeln('                         bigendian, littleendian (external)');
+@@ -260,6 +261,8 @@
+     mtmipsel : Result.MachineType:=emtmipsel;
+     mtppc64le : Result.MachineType:=emtppc64le;
+     mtaarch64 : Result.MachineType:=emtaarch64;
++    mtriscv32 : Result.MachineType:=emtriscv32;
++    mtriscv64 : Result.MachineType:=emtriscv64;
+   end;
+ end;
+ 
+--- a/fpcsrc/utils/fpcres/target.pas
++++ b/fpcsrc/utils/fpcres/target.pas
+@@ -23,6 +23,7 @@
+ type
+   TMachineType = (mtnone, mti386,mtx86_64,mtppc,mtppc64,mtarm,mtarmeb,mtm68k,
+                   mtsparc,mtalpha,mtia64,mtmips,mtmipsel,mtaarch64,mtppc64le,
++                  mtriscv32,mtriscv64,
+                   mtBigEndian,mtLittleEndian);
+   TMachineTypes = set of TMachineType;
+ 
+@@ -35,6 +36,7 @@
+         (subarm: TSubMachineTypeArm);
+       mtnone, mti386,mtx86_64,mtppc,mtppc64,mtm68k,
+       mtsparc,mtalpha,mtia64,mtmips,mtmipsel,mtaarch64,mtppc64le,
++      mtriscv32,mtriscv64,
+       mtBigEndian,mtLittleEndian:
+         (subgen: TSubMachineTypeGeneric);
+   end;
+@@ -85,6 +87,8 @@
+     (name : 'mipsel';       formats : [ofElf]),                   //mtmipsel
+     (name : 'aarch64';      formats : [ofElf, ofCoff, ofMachO]),  //mtaarch64
+     (name : 'powerpc64le';  formats : [ofElf]),                   //mtppc64le
++    (name : 'riscv32';      formats : [ofElf]),                   //mtriscv32
++    (name : 'riscv64';      formats : [ofElf]),                   //mtriscv64
+     (name : 'bigendian';    formats : [ofExt]),                   //mtBigEndian
+     (name : 'littleendian'; formats : [ofExt])                    //mtLittleEndian
+   );
+@@ -102,7 +106,8 @@
+                                                      mtppc64,mtarm,mtarmeb,
+                                                      mtm68k,mtsparc,mtalpha,
+                                                      mtia64,mtmips,mtmipsel,
+-                                                     mtppc64le,mtaarch64]),
++                                                     mtppc64le,mtaarch64,
++                                                     mtriscv32,mtriscv64]),
+     (name : 'coff';     ext : '.o';      machines : [mti386,mtx86_64,mtarm,
+                                                      mtaarch64,mtppc,mtppc64]),
+     (name : 'xcoff';    ext : '.o';      machines : [mtppc{,mtppc64}]),
+@@ -159,6 +164,12 @@
+   {$elseif defined(CPUAARCH64)}
+     machine : mtaarch64;
+     submachine : (subgen: smtgen_all);
++  {$elseif defined(CPURISCV32)}
++    machine : mtriscv32;
++    submachine : (subgen: smtgen_all);
++  {$elseif defined(CPURISCV64)}
++    machine : mtriscv64;
++    submachine : (subgen: smtgen_all);
+   {$else}
+     machine : mti386;  //default i386
+     submachine : (subgen: smtgen_all);
