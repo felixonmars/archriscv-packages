@@ -61,6 +61,25 @@
  namespace JSC {
 --- a/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
 +++ b/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
+@@ -151 +151,6 @@
+-const IPIntCalleeSaveSpaceAsVirtualRegisters = constexpr Wasm::numberOfIPIntCalleeSaveRegisters + constexpr Wasm::numberOfIPIntInternalRegisters
++if RISCV64
++    # sc2/sc3 overlap LLInt callee-save registers and must survive JS-to-Wasm calls.
++    const IPIntCalleeSaveSpaceAsVirtualRegisters = constexpr Wasm::numberOfIPIntCalleeSaveRegisters + constexpr Wasm::numberOfIPIntInternalRegisters + 2
++else
++    const IPIntCalleeSaveSpaceAsVirtualRegisters = constexpr Wasm::numberOfIPIntCalleeSaveRegisters + constexpr Wasm::numberOfIPIntInternalRegisters
++end
+@@ -336,8 +336,8 @@
+ .checkStack:
+     operationCallMayThrowPreservingVolatileRegisters(macro()
+         move scratch, a1
+-if X86_64
+-        # On x86_64, callee parameter (ws0) gets clobbered by saveCallSiteIndex(). Reload from stack.
++if X86_64 or RISCV64
++        # saveCallSiteIndex() reloads the volatile callee register from the frame.
+         loadp UnboxedWasmCalleeStackSlot[cfr], a2
+ else
+         move callee, a2
 @@ -383,14 +383,19 @@
  macro ipintAtomicOp(name, impl)
      atomicInstructionLabel(name)
@@ -88,7 +107,71 @@
  end
 
  macro reservedAtomicOpcode(opcode)
-@@ -1225,7 +1230,7 @@
+@@ -407,7 +412,7 @@
+ macro ipintReloadMemory(scratch)
+     if ARM64 or ARM64E
+         loadpairq constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase, boundsCheckingSize
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase
+         loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0) + 8)[wasmInstance], boundsCheckingSize
+     end
+@@ -417,7 +422,8 @@
+ # Call site tracking
+
+ macro saveCallSiteIndex()
+-if X86_64
++if X86_64 or RISCV64
++    # RISC-V label jumps also clobber ws0 (x6) through the tail pseudo-op.
+     loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+ end
+     loadp Wasm::IPIntCallee::m_bytecode[ws0], t0
+@@ -465,7 +471,7 @@
+         move sp, a2
+         operationCall(macro() cCall3(_ipint_extern_handle_debugger_trap_if_needed) end)
+         addp sizeOfExtraRegistersPreserved + (4 * MachineRegisterSize), sp
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         addp sizeOfExtraRegistersPreserved + (2 * MachineRegisterSize), sp
+     end
+     jmp _wasm_throw_from_slow_path_trampoline
+@@ -788,7 +794,7 @@
+         if ARM64 or ARM64E
+             storepairq memoryBase, boundsCheckingSize, -2 * SlotSize[cfr]
+             storep wasmInstance, -3 * SlotSize[cfr]
+-        elsif X86_64
++        elsif X86_64 or RISCV64
+             # These must match the wasmToJS thunk, since the unwinder won't be able to tell who made this frame.
+             storep boundsCheckingSize, -1 * SlotSize[cfr]
+             storep memoryBase, -2 * SlotSize[cfr]
+@@ -802,7 +808,7 @@
+         if ARM64 or ARM64E
+             loadpairq -2 * SlotSize[cfr], memoryBase, boundsCheckingSize
+             loadp -3 * SlotSize[cfr], wasmInstance
+-        elsif X86_64
++        elsif X86_64 or RISCV64
+             loadp -1 * SlotSize[cfr], boundsCheckingSize
+             loadp -2 * SlotSize[cfr], memoryBase
+             loadp -3 * SlotSize[cfr], wasmInstance
+@@ -877,7 +883,7 @@
+     # Memory
+     if ARM64 or ARM64E
+         loadpairq constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase, boundsCheckingSize
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase
+         loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0) + 8)[wasmInstance], boundsCheckingSize
+     end
+@@ -1012,7 +1018,7 @@
+     # Memory
+     if ARM64 or ARM64E
+         loadpairq constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase, boundsCheckingSize
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase
+         loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0) + 8)[wasmInstance], boundsCheckingSize
+     end
+@@ -1225,7 +1231,7 @@
  end)
 
  op(ipint_entry, macro()
@@ -97,7 +180,7 @@
      preserveCallerPCAndCFR()
      saveIPIntRegisters()
      storep wasmInstance, CodeBlock[cfr]
-@@ -1239,7 +1244,7 @@
+@@ -1239,13 +1245,20 @@
  end
  end)
 
@@ -106,7 +189,27 @@
  .ipint_entry_end_local:
      loadp UnboxedWasmCalleeStackSlot[cfr], MC
      loadp Wasm::IPIntCallee::m_localInitBytecode + VectorBufferOffset[MC], MC
-@@ -1319,7 +1324,7 @@
+ .ipint_entry_end_local_loop:
+     argumINTInitializeDefaultLocals()
++if RISCV64
++    # A label jump uses tail, which clobbers x6 (argumINTDst).
++    # argumINTDsp (csr4) is not in scope before InPlaceInterpreter64.
++    pcrtoaddr .ipint_entry_end_local_loop, csr4
++    jmp csr4
++else
+     jmp .ipint_entry_end_local_loop
++end
+
+ .ipint_entry_finish_zero:
+     argumINTFinish()
+@@ -1313,13 +1326,13 @@
+     move t0, sp
+ end
+
+-if X86_64
++if X86_64 or RISCV64
+     loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+ end
  end
 
  op(ipint_catch_entry, macro()
@@ -115,7 +218,7 @@
      ipintCatchCommon()
 
      move cfr, a1
-@@ -1335,7 +1340,7 @@
+@@ -1335,7 +1348,7 @@
  end)
 
  op(ipint_catch_all_entry, macro()
@@ -124,7 +227,7 @@
      ipintCatchCommon()
 
      move cfr, a1
-@@ -1351,7 +1356,7 @@
+@@ -1351,7 +1364,7 @@
  end)
 
  op(ipint_table_catch_entry, macro()
@@ -133,7 +236,7 @@
      ipintCatchCommon()
 
      # push arguments but no ref: sp in a2, call normal operation
-@@ -1369,7 +1374,7 @@
+@@ -1369,7 +1382,7 @@
  end)
 
  op(ipint_table_catch_ref_entry, macro()
@@ -142,7 +245,7 @@
      ipintCatchCommon()
 
      # push both arguments and ref
-@@ -1387,7 +1392,7 @@
+@@ -1387,7 +1400,7 @@
  end)
 
  op(ipint_table_catch_all_entry, macro()
@@ -151,7 +254,7 @@
      ipintCatchCommon()
 
      # do nothing: 0 in sp for no arguments, call normal operation
-@@ -1405,7 +1410,7 @@
+@@ -1405,7 +1418,7 @@
  end)
 
  op(ipint_table_catch_allref_entry, macro()
@@ -160,7 +263,7 @@
      ipintCatchCommon()
 
      # push only the ref
-@@ -1954,7 +1959,7 @@
+@@ -1954,7 +1967,7 @@
  # 5. Instruction implementation #
  #################################
 
@@ -209,6 +312,24 @@
  FOR_EACH_IPINT_CONVERSION_OPCODE(IPINT_VALIDATE_DEFINE_FUNCTION);
 --- a/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
 +++ b/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
+@@ -33 +33 @@
+-    elsif X86_64 or RISCV64
++    elsif X86_64
+@@ -35,0 +36,5 @@
++    elsif RISCV64
++        storep PC, -1 * SlotSize[cfr]
++        storep MC, -2 * SlotSize[cfr]
++        storep sc2, -4 * SlotSize[cfr]
++        storep sc3, -5 * SlotSize[cfr]
+@@ -45 +50,4 @@
+-    elsif X86_64 or RISCV64
++    elsif X86_64
++        loadp -1 * SlotSize[cfr], PC
++        loadp -2 * SlotSize[cfr], MC
++    elsif RISCV64
+@@ -47,0 +56,2 @@
++        loadp -4 * SlotSize[cfr], sc2
++        loadp -5 * SlotSize[cfr], sc3
 @@ -51,7 +51,7 @@
 
  # Dispatch target bases
@@ -263,6 +384,33 @@
      storep argumINTTmp, [argumINTDst]
      storep 0, 8[argumINTDst]
  end
+@@ -396,7 +396,7 @@
+
+ ipintOp(_end, macro()
+     validateOpcodeConfig(t1)
+-if X86_64
++if X86_64 or RISCV64
+     loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+ end
+     loadp Wasm::IPIntCallee::m_bytecodeEnd[ws0], t1
+@@ -408,7 +408,7 @@
+ # This implementation is specially defined out of ipintOp scope to make end implementation tight.
+ .ipint_end_ret:
+     ipintEpilogueOSR(10)
+-if X86_64
++if X86_64 or RISCV64
+     loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+ end
+     # uINT buffer lives on the signature RTT. The stack-return FP offset is
+@@ -499,7 +499,7 @@
+     validateOpcodeConfig(MC)
+     # ret
+
+-if X86_64
++if X86_64 or RISCV64
+     loadp UnboxedWasmCalleeStackSlot[cfr], ws0
+ end
+
 @@ -511,7 +511,7 @@
  if ARM64 or ARM64E
      const IPIntCallCallee = sc1
@@ -272,6 +420,24 @@
      const IPIntCallCallee = t7
      const IPIntCallFunctionSlot = t6
  end
+@@ -3083,7 +3083,7 @@
+     if ARM64 or ARM64E
+         addlshiftp t1, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
+         jmp t0
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
+         addq t1, t0
+         jmp t0
+@@ -3103,7 +3103,7 @@
+     if ARM64 or ARM64E
+         addlshiftp t1, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
+         jmp t0
+-    elsif X86_64
++    elsif X86_64 or RISCV64
+         lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
+         addq t1, t0
+         jmp t0
 @@ -3143,7 +3143,7 @@
      if ARM64 or ARM64E
          addlshiftp t1, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignAtomicIPInt))), t0
@@ -316,6 +482,15 @@
      pcrtoaddr _mint_begin_return, csr4
      addq sc0, csr4
      jmp csr4
+@@ -11976,7 +11979,7 @@
+     # t2 is safe here because r1==t1 on ARM64 (t2 is x2, a distinct register).
+     loadpairq [t4], t2, t5
+     storepairq t2, t5, -RestoreFrameSize[t4]
+-elsif X86_64
++elsif X86_64 or RISCV64
+     loadp [t4], t5
+     storep t5, -RestoreFrameSize[t4]
+     loadp 8[t4], t5
 @@ -12132,7 +12135,7 @@
      mintArgDispatch()
 
@@ -370,6 +545,15 @@
      mintPop(a7)
      mintArgDispatch()
  else
+@@ -12343,7 +12346,7 @@
+     leap [sp, mintRetSrc], mintRetSrc
+
+     # load (first_non_arg_addr - cfr) from the stack and make it absolute
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     loadp (2 * SlotSize)[sc3], mintRetDst
+ elsif X86_64
+     loadp (3 * SlotSize)[sc3], mintRetDst
 @@ -12366,7 +12369,7 @@
      mintRetDispatch()
 
@@ -424,7 +608,36 @@
      subp StackValueSize, mintRetDst
      storeq wa7, [mintRetDst]
      mintRetDispatch()
-@@ -12799,7 +12802,7 @@
+@@ -12495,6 +12498,10 @@
+
+ if ARM64 or ARM64E
+     loadpairq [sc3], MC, wasmInstance
++elsif RISCV64
++    # RISC-V push stores MC before wasmInstance; PC is restored by the callee.
++    loadq [sc3], MC
++    loadq 8[sc3], wasmInstance
+ elsif X86_64
+     loadq [sc3], wasmInstance
+     loadq 8[sc3], MC
+@@ -12710,7 +12717,7 @@
+     uintDispatch()
+
+ uintAlign(_r6)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     popQuad(wa6)
+     uintDispatch()
+ else
+@@ -12718,7 +12725,7 @@
+ end
+
+ uintAlign(_r7)
+-if ARM64 or ARM64E
++if ARM64 or ARM64E or RISCV64
+     popQuad(wa7)
+     uintDispatch()
+ else
+@@ -12799,7 +12806,7 @@
      argumINTDispatch()
 
  argumINTAlign(_a2)
@@ -433,7 +646,7 @@
      storeq wa2, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12809,7 +12812,7 @@
+@@ -12809,7 +12816,7 @@
 
 
  argumINTAlign(_a3)
@@ -442,7 +655,7 @@
      storeq wa3, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12818,7 +12821,7 @@
+@@ -12818,7 +12825,7 @@
  end
 
  argumINTAlign(_a4)
@@ -451,7 +664,7 @@
      storeq wa4, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12827,7 +12830,7 @@
+@@ -12827,7 +12834,7 @@
  end
 
  argumINTAlign(_a5)
@@ -460,7 +673,7 @@
      storeq wa5, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12836,7 +12839,7 @@
+@@ -12836,7 +12843,7 @@
  end
 
  argumINTAlign(_a6)
@@ -469,7 +682,7 @@
      storeq wa6, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12845,7 +12848,7 @@
+@@ -12845,7 +12852,7 @@
  end
 
  argumINTAlign(_a7)
@@ -478,7 +691,7 @@
      storeq wa7, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12910,7 +12913,12 @@
+@@ -12910,7 +12917,12 @@
      argumINTDispatch()
 
  argumINTAlign(_end)
@@ -555,7 +768,75 @@
  end)
 --- a/Source/JavaScriptCore/offlineasm/riscv64.rb
 +++ b/Source/JavaScriptCore/offlineasm/riscv64.rb
-@@ -460,7 +460,7 @@
+@@ -67,14 +67,14 @@
+ #
+ # FPR conventions, to match the baseline JIT:
+ #
+-# f0  => not used
+-# f1  => not used
+-# f2  => not used
+-# f3  => not used
+-# f4  => not used
+-# f5  => not used
+-# f6  => not used
+-# f7  => not used
++# f0  => v0 (scalar IPInt value)
++# f1  => v1 (scalar IPInt value)
++# f2  => v2 (scalar IPInt value)
++# f3  => v3 (scalar IPInt value)
++# f4  => v4 (scalar IPInt value)
++# f5  => v5 (scalar IPInt value)
++# f6  => v6 (scalar IPInt value)
++# f7  => v7 (scalar IPInt value)
+ # f8  => csfr0
+ # f9  => csfr1
+ # f10 => ft0
+@@ -125,6 +125,9 @@
+             else
+                 raise "Invalid Tmp operand #{op.kind}"
+             end
++        elsif op.is_a? VecRegisterID
++            # IPInt uses vector copies even for scalar globals, locals and select.
++            FPRegisterID
+         else
+             op.class
+         end
+@@ -262,6 +265,34 @@
+     end
+ end
+
++class VecRegisterID
++    # With Wasm SIMD disabled, the upper half of each 16-byte slot is padding.
++    # Use otherwise unused FPRs, separate from ft0..ft7 and the scratch pool.
++    # Adapted from https://github.com/WebKit/WebKit/pull/65621.
++    def riscv64Operand
++        case @name
++        when 'v0', 'v0_b', 'v0_h', 'v0_i', 'v0_q'
++            'f0'
++        when 'v1', 'v1_b', 'v1_h', 'v1_i', 'v1_q'
++            'f1'
++        when 'v2', 'v2_b', 'v2_h', 'v2_i', 'v2_q'
++            'f2'
++        when 'v3', 'v3_b', 'v3_h', 'v3_i', 'v3_q'
++            'f3'
++        when 'v4', 'v4_b', 'v4_h', 'v4_i', 'v4_q'
++            'f4'
++        when 'v5', 'v5_b', 'v5_h', 'v5_i', 'v5_q'
++            'f5'
++        when 'v6', 'v6_b', 'v6_h', 'v6_i', 'v6_q'
++            'f6'
++        when 'v7', 'v7_b', 'v7_h', 'v7_i', 'v7_q'
++            'f7'
++        else
++            raise "Bad vector register name #{@name} at #{codeOriginString}"
++        end
++    end
++end
++
+ class SpecialRegister
+     def riscv64Operand
+         @name
+@@ -460,7 +491,7 @@
                  riscv64ValidateOperands(node.operands, [LabelReference, RegisterID])
                  newList << Instruction.new(node.codeOrigin, "rv_la", node.operands)
              when "pcrtoaddr"
@@ -564,7 +845,7 @@
                  newList << Instruction.new(node.codeOrigin, "rv_lla", node.operands)
              else
                  newList << node
-@@ -796,13 +796,24 @@
+@@ -796,13 +827,24 @@
              return
          end
 
@@ -590,7 +871,7 @@
              newList << Instruction.new(node.codeOrigin, "rv_slli", [source, Immediate.new(node.codeOrigin, 56), dest])
              newList << Instruction.new(node.codeOrigin, "rv_srai", [dest, Immediate.new(node.codeOrigin, 56), dest])
          when [:h, :i]
-@@ -1211,6 +1222,60 @@
+@@ -1211,6 +1253,52 @@
          newList << Instruction.new(node.codeOrigin, "rv_fs#{suffix}", node.operands)
      end
 
@@ -598,8 +879,6 @@
 +        case riscv64OperandTypes(node.operands)
 +        when [Address, FPRegisterID]
 +            newList << Instruction.new(node.codeOrigin, "rv_fld", node.operands)
-+        when [Address, VecRegisterID]
-+            newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode loadv")
 +        else
 +            riscv64RaiseMismatchedOperands(node.operands)
 +        end
@@ -609,8 +888,6 @@
 +        case riscv64OperandTypes(node.operands)
 +        when [FPRegisterID, Address]
 +            newList << Instruction.new(node.codeOrigin, "rv_fsd", node.operands)
-+        when [VecRegisterID, Address]
-+            newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode storev")
 +        else
 +            riscv64RaiseMismatchedOperands(node.operands)
 +        end
@@ -624,8 +901,6 @@
 +            when [FPRegisterID]
 +                newList << Instruction.new(node.codeOrigin, "rv_addi", [sp, Immediate.new(node.codeOrigin, -16), sp])
 +                newList << Instruction.new(node.codeOrigin, "rv_fsd", [op, Address.new(node.codeOrigin, sp, Immediate.new(node.codeOrigin, 0))])
-+            when [VecRegisterID]
-+                newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode pushv")
 +            else
 +                riscv64RaiseMismatchedOperands([op])
 +            end
@@ -640,8 +915,6 @@
 +            when [FPRegisterID]
 +                newList << Instruction.new(node.codeOrigin, "rv_fld", [Address.new(node.codeOrigin, sp, Immediate.new(node.codeOrigin, 0)), op])
 +                newList << Instruction.new(node.codeOrigin, "rv_addi", [sp, Immediate.new(node.codeOrigin, 16), sp])
-+            when [VecRegisterID]
-+                newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode popv")
 +            else
 +                riscv64RaiseMismatchedOperands([op])
 +            end
@@ -651,7 +924,7 @@
      def emitMoveOperation(newList, node, precision)
          riscv64ValidateOperands(node.operands, [FPRegisterID, FPRegisterID])
          raise "Invalid precision" unless [:f, :d].include? precision
-@@ -1380,6 +1445,14 @@
+@@ -1380,6 +1468,14 @@
                  emitLoadOperation(newList, node, $1.to_sym)
              when /^store(f|d)$/
                  emitStoreOperation(newList, node, $1.to_sym)
@@ -666,7 +939,7 @@
              when /^move(d)$/
                  emitMoveOperation(newList, node, $1.to_sym)
              when /^f(i|p|q|f|d)2(i|p|q|f|d)$/
-@@ -1488,7 +1561,7 @@
+@@ -1488,7 +1584,7 @@
      end
 
      def emit(newList, node, precision, condition)
@@ -675,7 +948,17 @@
          operands = node.operands
 
          if [:equn, :nequn, :gtun, :gtequn, :ltun, :ltequn].include? condition
-@@ -1603,7 +1676,7 @@
+@@ -1537,8 +1633,7 @@
+         if node.is_a? Instruction
+             case node.opcode
+             when "loadlinkacqb", "loadlinkacqh", "loadlinkacqi", "loadlinkacqq",
+-                 "storecondrelb", "storecondrelh", "storecondreli", "storecondrelq",
+-                 "loadv", "storev"
++                 "storecondrelb", "storecondrelh", "storecondreli", "storecondrelq"
+                 newList << Instruction.new(node.codeOrigin, "rv_ebreak", [], "WebAssembly placeholder for opcode #{node.opcode}")
+             else
+                 newList << node
+@@ -1603,7 +1698,7 @@
              riscv64ValidateOperands(operands, [LabelReference], [LocalLabelReference])
              $asm.puts "#{rvop(opcode)} #{operands[0].asmLabel}"
          when /^rv_(la|lla)$/
@@ -684,7 +967,7 @@
              $asm.puts "#{rvop(opcode)} #{operands[1].riscv64Operand}, #{operands[0].asmLabel}"
          when "rv_mv"
              riscv64ValidateOperands(operands, [RegisterID, RegisterID])
-@@ -1641,7 +1714,7 @@
+@@ -1641,7 +1736,7 @@
              riscv64ValidateOperands(operands, [RegisterID, RegisterID, LocalLabelReference], [RegisterID, RegisterID, LabelReference])
              $asm.puts "#{rvop(opcode)} #{operands[0].riscv64Operand}, #{operands[1].riscv64Operand}, #{operands[2].asmLabel}"
          when /^rv_b(eqz|nez|lez|ltz|gez|gtz)$/
