@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,8 +20,9 @@
+ 
+ build() {
+   cd "$pkgname-$pkgver"
++  # Enable the compatibility handling for the system LLVM 22.
+   RUSTFLAGS+=" -C link-arg=-fuse-ld=lld" \
+-    cargo build --release --frozen
++    cargo build --release --frozen --no-default-features --features llvm-22
+ }
+ 
+ check() {
+@@ -31,7 +32,7 @@
+   # failed to build sysroot: "/usr/lib/rustlib/src/rust/library" does not seem to be a rust library
+   # source folder: `src/Cargo.toml` not found
+   RUSTFLAGS+=" -C link-arg=-fuse-ld=lld" \
+-    CARGO_MANIFEST_DIR="$PWD" cargo test --frozen \
++    CARGO_MANIFEST_DIR="$PWD" cargo test --frozen --no-default-features --features llvm-22 \
+     -- --skip compile_test --skip test_link_ir_files
+ }
+ 
