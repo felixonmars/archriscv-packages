@@ -1,24 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,7 +15,7 @@
- license=('GPL' 'LGPL' 'custom')
- backup=("etc/fpc.cfg")
- depends=('ncurses' 'zlib' 'expat' 'binutils' 'make')
--makedepends=(fpc)
-+makedepends=()
- options=(zipman libtool staticlibs)
- source=("https://downloads.sourceforge.net/project/freepascal/Source/${pkgver}/fpcbuild-${pkgver}.tar.gz"
-         honor_SOURCE_DATE_EPOCH_in_date.patch
-@@ -24,18 +24,53 @@
+@@ -24,18 +24,33 @@
              'a2261628760e85fc0a8f427b56b6054b9bd2b3641bd5c1a9e757a4d0c307162c8cce84c4623789606bddf14f4a010fd6f3020c38928d8e8825b05e6f7e390fa1'
              '26c036ba37982881ce9ae318e32b0ccdda54a6e477dbb54953b2f64dec2ff5a484282558da821d8ec43d7616593d8482813b42623acc7b4655f739b82aa3834f')
  
 +source+=("fpc-riscv64-90afbc8114.tar.gz::https://gitlab.com/freepascal.org/fpc/source/-/archive/90afbc8114/source-90afbc8114.tar.gz"
-+         "fpc-bootstrap-riscv64-3.3.1.tar.gz::https://downloads.freepascal.org/fpc/snapshot/trunk/riscv64-linux/fpc-3.3.1.riscv64-linux.tar.gz"
 +         riscv64-backport.patch)
-+noextract=(fpc-bootstrap-riscv64-3.3.1.tar.gz)
 +sha512sums+=('edbb40804aa8296cd4862be00d39a4ca39785fc86eb985772beac2b4a2a1dcc190af8c599a9fc63282041c3dda41d6e52fa3b12f046d970b0fa872500b6383c6'
-+             'c333d040219adb5a5ee25cfcf13974618a16f33899082e65fe8a0a8cc22e5292a0e1a2cc7abc7c6242c3bc438d619b453a33a376a08737c745335ad309b5c1de'
 +             'bad0fe9811e4227cca498df291f6b348f0257c106d31d8a68b8879cc99df8b7d75fa5c8ec6fe77ddc29b330073ddf640eba12745fc8041cfebd203343c829a4c')
 +
  prepare() {
@@ -31,49 +19,30 @@
 +  cp -r "${srcdir}"/source-90afbc8114/rtl/{riscv,riscv64} fpcsrc/rtl/
 +  cp -r "${srcdir}"/source-90afbc8114/rtl/linux/riscv64 fpcsrc/rtl/linux/
 +  patch -Np1 -i "${srcdir}"/riscv64-backport.patch
-+
-+  mkdir -p "${srcdir}"/bootstrap
-+  tar -xf "${srcdir}"/fpc-bootstrap-riscv64-3.3.1.tar.gz -C "${srcdir}"/bootstrap
  }
  
  build() {
    cd "${srcdir}"/fpcbuild-${pkgver}
 -  pushd fpcsrc/compiler
--  fpcmake -Tall
-+  # Bootstrap the backported makefile generator without an installed fpc package.
-+  pushd fpcsrc/utils/fpcm
-+  "${srcdir}"/bootstrap/lib/fpc/3.3.1/ppcrv64 -n \
-+    -Fu"${srcdir}"/bootstrap/lib/fpc/3.3.1/units/riscv64-linux/rtl \
-+    -FU"${srcdir}"/bootstrap/bin -FE"${srcdir}"/bootstrap/bin fpcmake.pp
-+  popd
-+  "${srcdir}"/bootstrap/bin/fpcmake -Tall -r
++  fpcmake -Tall -r
 +  # The fpmake bootstrap directory is outside fpcmake's recursive target list.
 +  pushd fpcsrc/packages/fpmkunit
-+  "${srcdir}"/bootstrap/bin/fpcmake -Tall
+   fpcmake -Tall
    popd
 -  make build
-+  "${srcdir}"/bootstrap/bin/data2inc -b -s fpcsrc/packages/fpmkunit/src/fpmkunit.pp \
++  data2inc -b -s fpcsrc/packages/fpmkunit/src/fpmkunit.pp \
 +    fpcsrc/packages/fppkg/src/fpmkunitsrc.inc fpmkunitsrc
-+  # The 3.3.1 compiler must use its matching RTL because its RTTI layout differs.
-+  make -C fpcsrc/compiler compiler RELEASE=1 CYCLELEVEL=1 \
-+    PP="${srcdir}"/bootstrap/lib/fpc/3.3.1/ppcrv64 \
-+    FPCMAKE="${srcdir}"/bootstrap/bin/fpcmake \
-+    UNITDIR_RTL="${srcdir}"/bootstrap/lib/fpc/3.3.1/units/riscv64-linux/rtl \
-+    CPU_UNITDIR="${srcdir}"/bootstrap/compiler \
-+    EXENAME="${srcdir}"/bootstrap/bin/ppcrv64 OPT="-Cg"
-+  make build PP="${srcdir}"/bootstrap/bin/ppcrv64 \
-+    FPCMAKE="${srcdir}"/bootstrap/bin/fpcmake OPT="-Cg"
++  make build OPT="-Cg"
  }
  
  package() {
-@@ -43,23 +78,25 @@
+@@ -43,23 +58,24 @@
  
    export HOME="${srcdir}"
  
 -  make -j1 PREFIX="${pkgdir}"/usr NO_MAN_COMPRESS=1 install
 +  make -j1 PREFIX="${pkgdir}"/usr NO_MAN_COMPRESS=1 \
-+    FPC="${srcdir}"/fpcbuild-${pkgver}/fpcsrc/compiler/ppcrv64 \
-+    FPCMAKE="${srcdir}"/bootstrap/bin/fpcmake install
++    FPC="${srcdir}"/fpcbuild-${pkgver}/fpcsrc/compiler/ppcrv64 install
  
    export PATH="${pkgdir}"/usr/bin:$PATH
  
