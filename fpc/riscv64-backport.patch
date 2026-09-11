@@ -60,6 +60,10 @@ Backport the saved-register array declarations from
 Include the .option directive tables from
 2b78a8fd3dec629d91b9fb74a01d06d904384117 required by the RISC-V assembler reader.
 
+Expand large virtual-method offsets in interface wrappers with the reserved x6
+register. These wrappers bypass register allocation, so using the generic
+reference helper leaves imaginary registers in the generated assembly.
+
 Backport .dc.a and combined section flags from
 4be5f07f276e2f8c9080a05f7c297fc9d578b5d5, including the section flag sets
 from 245b58c249b4b29ffc54e6c1e50a1474cc84f7b1 needed by the startup units.
@@ -1080,6 +1084,18 @@ make the Comp and Int64 TValue operators duplicate declarations.
                  paramanager.freecgpara(list,paraloc2);
 --- a/fpcsrc/compiler/riscv/hlcgrv.pas
 +++ b/fpcsrc/compiler/riscv/hlcgrv.pas
+@@ -118,0 +119 @@
++        vmtoffset: longint;
+@@ -123 +124,8 @@
+-        reference_reset_base(href,voidpointertype,NR_X5,tobjectdef(procdef.struct).vmtmethodoffset(procdef.extnumber),ctempposinvalid, sizeof(pint),[]);
++        vmtoffset:=tobjectdef(procdef.struct).vmtmethodoffset(procdef.extnumber);
++        if not is_imm12(vmtoffset) then
++          begin
++            cg.a_load_const_reg(list,OS_ADDR,vmtoffset,NR_X6);
++            cg.a_op_reg_reg(list,OP_ADD,OS_ADDR,NR_X6,NR_X5);
++            vmtoffset:=0;
++          end;
++        reference_reset_base(href,voidpointertype,NR_X5,vmtoffset,ctempposinvalid, sizeof(pint),[]);
 @@ -152,7 +152,7 @@
        if make_global then
          list.concat(Tai_symbol.Createname_global(labelname,AT_FUNCTION,0,voidcodepointertype))
