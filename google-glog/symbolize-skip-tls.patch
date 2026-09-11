@@ -1,0 +1,15 @@
+https://github.com/google/glog/issues/813
+
+--- a/src/symbolize.cc
++++ b/src/symbolize.cc
+@@ -322,6 +322,10 @@
+     GLOG_SAFE_ASSERT(num_symbols_in_buf <= num_symbols_to_read);
+     for (unsigned j = 0; j < num_symbols_in_buf; ++j) {
+       const ElfW(Sym)& symbol = buf[j];
++      // TLS symbol values are offsets within the TLS block, not addresses.
++      if (ELF64_ST_TYPE(symbol.st_info) == STT_TLS) {
++        continue;
++      }
+       uint64_t start_address = symbol.st_value;
+       start_address += symbol_offset;
+       uint64_t end_address = start_address + symbol.st_size;
