@@ -1,0 +1,406 @@
+--- a/minidump-common-0.26.1/src/format.rs
++++ b/minidump-common-0.26.1/src/format.rs
+@@ -786,8 +786,8 @@
+     /// CPU type values in the `context_flags` member of `CONTEXT_` structs
+     ///
+     /// This applies to the [`CONTEXT_ARM`], [`CONTEXT_PPC`], [`CONTEXT_MIPS`],
+-    /// [`CONTEXT_AMD64`], [`CONTEXT_ARM64`], [`CONTEXT_PPC64`], [`CONTEXT_SPARC`] and
+-    /// [`CONTEXT_ARM64_OLD`] structs.
++    /// [`CONTEXT_AMD64`], [`CONTEXT_ARM64`], [`CONTEXT_PPC64`], [`CONTEXT_SPARC`],
++    /// [`CONTEXT_RISCV64`] and [`CONTEXT_ARM64_OLD`] structs.
+     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+     pub struct ContextFlagsCpu: u32 {
+         const CONTEXT_IA64 = 0x80000;
+@@ -810,6 +810,7 @@
+         const CONTEXT_PPC64 = 0x1000000;
+         const CONTEXT_SPARC = 0x10000000;
+         const CONTEXT_X86 = 0x10000;
++        const CONTEXT_RISCV64 = 0x08000000;
+     }
+ }
+ 
+@@ -916,6 +917,16 @@
+     }
+ }
+ 
++bitflags! {
++    /// Flags available for use in [`CONTEXT_RISCV64::context_flags`].
++    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
++    pub struct ContextFlagsRiscv64: u32 {
++        const CONTEXT_RISCV64_INTEGER = 0x00000001 | ContextFlagsCpu::CONTEXT_RISCV64.bits();
++        const CONTEXT_RISCV64_FLOATING_POINT = 0x00000002 | ContextFlagsCpu::CONTEXT_RISCV64.bits();
++        const CONTEXT_RISCV64_FULL = Self::CONTEXT_RISCV64_INTEGER.bits() | Self::CONTEXT_RISCV64_FLOATING_POINT.bits();
++    }
++}
++
+ /// Possible contents of [`CONTEXT_AMD64::float_save`].
+ ///
+ /// This struct matches the definition of the struct with the same name from WinNT.h.
+@@ -1410,6 +1421,55 @@
+     pub extended_registers: [u8; 512], // MAXIMUM_SUPPORTED_EXTENSION
+ }
+ 
++/// RISC-V64 floating point state.
++#[derive(Debug, Default, Clone, Pread, Pwrite, SizeWith)]
++#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
++pub struct FLOATING_SAVE_AREA_RISCV64 {
++    pub fpregs: [u64; 32],
++    pub fpcsr: u32,
++}
++
++/// A RISC-V64 CPU context, using the Breakpad extension to the minidump format.
++#[derive(Debug, Default, Clone, Pread, Pwrite, SizeWith)]
++#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
++pub struct CONTEXT_RISCV64 {
++    pub context_flags: u32,
++    pub version: u32,
++    pub pc: u64,
++    pub ra: u64,
++    pub sp: u64,
++    pub gp: u64,
++    pub tp: u64,
++    pub t0: u64,
++    pub t1: u64,
++    pub t2: u64,
++    pub s0: u64,
++    pub s1: u64,
++    pub a0: u64,
++    pub a1: u64,
++    pub a2: u64,
++    pub a3: u64,
++    pub a4: u64,
++    pub a5: u64,
++    pub a6: u64,
++    pub a7: u64,
++    pub s2: u64,
++    pub s3: u64,
++    pub s4: u64,
++    pub s5: u64,
++    pub s6: u64,
++    pub s7: u64,
++    pub s8: u64,
++    pub s9: u64,
++    pub s10: u64,
++    pub s11: u64,
++    pub t3: u64,
++    pub t4: u64,
++    pub t5: u64,
++    pub t6: u64,
++    pub float_save: FLOATING_SAVE_AREA_RISCV64,
++}
++
+ /// CPU information contained within the [`MINIDUMP_SYSTEM_INFO`] struct
+ ///
+ /// This struct matches the definition of the `CPU_INFORMATION` union from minidumpapiset.h.
+@@ -1514,6 +1574,10 @@
+     PROCESSOR_ARCHITECTURE_ARM64_OLD = 0x8003,
+     /// Breakpad-defined value for MIPS64
+     PROCESSOR_ARCHITECTURE_MIPS64 = 0x8004,
++    /// Breakpad-defined value for RISC-V.
++    PROCESSOR_ARCHITECTURE_RISCV = 0x8005,
++    /// Breakpad-defined value for RISC-V64.
++    PROCESSOR_ARCHITECTURE_RISCV64 = 0x8006,
+     PROCESSOR_ARCHITECTURE_UNKNOWN = 0xffff,
+ }
+ 
+--- a/minidump-writer-0.13.0/src/linux/crash_context_ext/mod.rs
++++ b/minidump-writer-0.13.0/src/linux/crash_context_ext/mod.rs
+@@ -27,5 +27,7 @@
+         mod aarch64;
+     } else if #[cfg(target_arch = "arm")] {
+         mod arm;
++    } else if #[cfg(target_arch = "riscv64")] {
++        mod riscv64;
+     }
+ }
+--- /dev/null
++++ b/minidump-writer-0.13.0/src/linux/crash_context_ext/riscv64.rs
+@@ -0,0 +1,57 @@
++use crate::{
++    minidump_cpu::{FP_REG_COUNT, RawContextCPU},
++    minidump_format::format,
++};
++
++impl super::CrashContextExt {
++    pub fn get_instruction_pointer(&self) -> usize {
++        self.inner.context.uc_mcontext.__gregs[0] as usize
++    }
++
++    pub fn get_stack_pointer(&self) -> usize {
++        self.inner.context.uc_mcontext.__gregs[2] as usize
++    }
++
++    pub fn fill_cpu_context(&self, out: &mut RawContextCPU) {
++        out.context_flags = format::ContextFlagsRiscv64::CONTEXT_RISCV64_FULL.bits();
++
++        let gregs = &self.inner.context.uc_mcontext.__gregs;
++        out.pc = gregs[0];
++        out.ra = gregs[1];
++        out.sp = gregs[2];
++        out.gp = gregs[3];
++        out.tp = gregs[4];
++        out.t0 = gregs[5];
++        out.t1 = gregs[6];
++        out.t2 = gregs[7];
++        out.s0 = gregs[8];
++        out.s1 = gregs[9];
++        out.a0 = gregs[10];
++        out.a1 = gregs[11];
++        out.a2 = gregs[12];
++        out.a3 = gregs[13];
++        out.a4 = gregs[14];
++        out.a5 = gregs[15];
++        out.a6 = gregs[16];
++        out.a7 = gregs[17];
++        out.s2 = gregs[18];
++        out.s3 = gregs[19];
++        out.s4 = gregs[20];
++        out.s5 = gregs[21];
++        out.s6 = gregs[22];
++        out.s7 = gregs[23];
++        out.s8 = gregs[24];
++        out.s9 = gregs[25];
++        out.s10 = gregs[26];
++        out.s11 = gregs[27];
++        out.t3 = gregs[28];
++        out.t4 = gregs[29];
++        out.t5 = gregs[30];
++        out.t6 = gregs[31];
++
++        // Breakpad records the double-precision floating point state on RV64GC.
++        let fs = unsafe { &self.inner.float_state.__d };
++        out.float_save.fpcsr = fs.__fcsr;
++        out.float_save.fpregs[..FP_REG_COUNT].copy_from_slice(&fs.__f[..FP_REG_COUNT]);
++    }
++}
+--- a/minidump-writer-0.13.0/src/linux/dumper_cpu_info/mod.rs
++++ b/minidump-writer-0.13.0/src/linux/dumper_cpu_info/mod.rs
+@@ -22,6 +22,9 @@
+     {
+         pub mod arm;
+         pub use arm as imp;
++    } else if #[cfg(target_arch = "riscv64")] {
++        pub mod riscv64;
++        pub use riscv64 as imp;
+     }
+ }
+ 
+--- /dev/null
++++ b/minidump-writer-0.13.0/src/linux/dumper_cpu_info/riscv64.rs
+@@ -0,0 +1,50 @@
++use {
++    super::{CpuInfoError, ProcessInspector},
++    crate::minidump_format::*,
++    std::{collections::HashSet, io::Read},
++};
++
++fn parse_cpus_from_sysfile(mut file: impl Read) -> Result<HashSet<u32>, CpuInfoError> {
++    let mut cpus = HashSet::new();
++    let mut content = String::new();
++    file.read_to_string(&mut content)
++        .map_err(CpuInfoError::FileIOError)?;
++    for item in content.split(',') {
++        let item = item.trim();
++        if item.is_empty() {
++            continue;
++        }
++        let cores = item
++            .split('-')
++            .map(str::parse::<u32>)
++            .collect::<Result<Vec<_>, _>>()?;
++        match cores.as_slice() {
++            [core] => {
++                cpus.insert(*core);
++            }
++            [first, last] => cpus.extend(*first..=*last),
++            _ => return Err(CpuInfoError::UnparsableCores(format!("{cores:?}"))),
++        }
++    }
++    Ok(cpus)
++}
++
++pub fn write_cpu_information(
++    process_inspector: &ProcessInspector,
++    sys_info: &mut MDRawSystemInfo,
++) -> Result<(), CpuInfoError> {
++    sys_info.processor_architecture = MDCPUArchitecture::PROCESSOR_ARCHITECTURE_RISCV64 as u16;
++    sys_info.number_of_processors = 0;
++    sys_info.processor_level = 0;
++    sys_info.processor_revision = 0;
++
++    // Match the existing ARM port's present/possible CPU accounting.
++    if let Ok(present) = process_inspector.read_file("/sys/devices/system/cpu/present") {
++        let present = parse_cpus_from_sysfile(present).unwrap_or_default();
++        if let Ok(possible) = process_inspector.read_file("/sys/devices/system/cpu/possible") {
++            let possible = parse_cpus_from_sysfile(possible).unwrap_or_default();
++            sys_info.number_of_processors = present.intersection(&possible).count().min(255) as u8;
++        }
++    }
++    Ok(())
++}
+--- a/minidump-writer-0.13.0/src/linux/thread_info/mod.rs
++++ b/minidump-writer-0.13.0/src/linux/thread_info/mod.rs
+@@ -51,6 +51,9 @@
+     } else if #[cfg(target_arch = "aarch64")] {
+         mod aarch64;
+         pub type ThreadInfo = aarch64::ThreadInfoAarch64;
++    } else if #[cfg(target_arch = "riscv64")] {
++        mod riscv64;
++        pub type ThreadInfo = riscv64::ThreadInfoRiscv64;
+     }
+ }
+ 
+--- /dev/null
++++ b/minidump-writer-0.13.0/src/linux/thread_info/riscv64.rs
+@@ -0,0 +1,78 @@
++use {
++    super::{Pid, ProcessInspector, ThreadInfoError, regs::*},
++    crate::minidump_cpu::{FP_REG_COUNT, RawContextCPU},
++};
++
++#[derive(Debug)]
++pub struct ThreadInfoRiscv64 {
++    pub stack_pointer: usize,
++    pub tgid: Pid,
++    pub ppid: Pid,
++    pub regs: GenRegs,
++    pub fpregs: FpRegs,
++}
++
++impl ThreadInfoRiscv64 {
++    pub fn get_instruction_pointer(&self) -> usize {
++        self.regs.pc as usize
++    }
++
++    pub fn fill_cpu_context(&self, out: &mut RawContextCPU) {
++        out.context_flags =
++            crate::minidump_format::format::ContextFlagsRiscv64::CONTEXT_RISCV64_FULL.bits();
++
++        out.pc = self.regs.pc;
++        out.ra = self.regs.ra;
++        out.sp = self.regs.sp;
++        out.gp = self.regs.gp;
++        out.tp = self.regs.tp;
++        out.t0 = self.regs.t0;
++        out.t1 = self.regs.t1;
++        out.t2 = self.regs.t2;
++        out.s0 = self.regs.s0;
++        out.s1 = self.regs.s1;
++        out.a0 = self.regs.a0;
++        out.a1 = self.regs.a1;
++        out.a2 = self.regs.a2;
++        out.a3 = self.regs.a3;
++        out.a4 = self.regs.a4;
++        out.a5 = self.regs.a5;
++        out.a6 = self.regs.a6;
++        out.a7 = self.regs.a7;
++        out.s2 = self.regs.s2;
++        out.s3 = self.regs.s3;
++        out.s4 = self.regs.s4;
++        out.s5 = self.regs.s5;
++        out.s6 = self.regs.s6;
++        out.s7 = self.regs.s7;
++        out.s8 = self.regs.s8;
++        out.s9 = self.regs.s9;
++        out.s10 = self.regs.s10;
++        out.s11 = self.regs.s11;
++        out.t3 = self.regs.t3;
++        out.t4 = self.regs.t4;
++        out.t5 = self.regs.t5;
++        out.t6 = self.regs.t6;
++
++        out.float_save.fpcsr = self.fpregs.fcsr;
++        out.float_save.fpregs[..FP_REG_COUNT].copy_from_slice(&self.fpregs.f[..FP_REG_COUNT]);
++    }
++
++    pub fn create(process_inspector: &ProcessInspector, tid: Pid) -> Result<Self, ThreadInfoError> {
++        let (ppid, tgid) = super::get_ppid_and_tgid(process_inspector, tid)?;
++        let regs = process_inspector
++            .get_gen_regs(tid)
++            .map_err(ThreadInfoError::PtraceError)?;
++        let fpregs = process_inspector
++            .get_fp_regs(tid)
++            .map_err(ThreadInfoError::PtraceError)?;
++
++        Ok(Self {
++            stack_pointer: regs.sp as usize,
++            tgid,
++            ppid,
++            regs,
++            fpregs,
++        })
++    }
++}
+--- a/minidump-writer-0.13.0/src/minidump_cpu.rs
++++ b/minidump-writer-0.13.0/src/minidump_cpu.rs
+@@ -18,6 +18,9 @@
+         pub(crate) const FP_REG_COUNT: usize = 32;
+ 
+         pub type RawContextCPU = minidump_common::format::CONTEXT_ARM64_OLD;
++    } else if #[cfg(target_arch = "riscv64")] {
++        pub(crate) const FP_REG_COUNT: usize = 32;
++        pub type RawContextCPU = minidump_common::format::CONTEXT_RISCV64;
+     } else {
+         compile_error!("unsupported target architecture");
+     }
+--- a/process-backend-0.1.0/src/local/mod.rs
++++ b/process-backend-0.1.0/src/local/mod.rs
+@@ -202,7 +202,12 @@
+         {
+             Err(Error::NotSupported)
+         }
+-        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
++        #[cfg(any(
++            target_arch = "x86",
++            target_arch = "x86_64",
++            target_arch = "aarch64",
++            target_arch = "riscv64"
++        ))]
+         {
+             const NT_PRSTATUS: usize = 1;
+             self.ptrace_getregset(NT_PRSTATUS, _pid)
+@@ -220,7 +225,12 @@
+             const NT_ARM_VFP: usize = 0x400;
+             self.ptrace_getregset(NT_ARM_VFP, pid)
+         }
+-        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
++        #[cfg(any(
++            target_arch = "x86",
++            target_arch = "x86_64",
++            target_arch = "aarch64",
++            target_arch = "riscv64"
++        ))]
+         {
+             const NT_PRFPREGSET: usize = 2;
+             self.ptrace_getregset(NT_PRFPREGSET, pid)
+@@ -228,7 +238,7 @@
+     }
+ 
+     fn getfpregs(&self, _pid: libc::pid_t) -> Result<FpRegs, Error> {
+-        #[cfg(target_arch = "arm")]
++        #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
+         {
+             Err(Error::NotSupported)
+         }
+--- a/process-backend-0.1.0/src/regs.rs
++++ b/process-backend-0.1.0/src/regs.rs
+@@ -1,5 +1,19 @@
+ pub use imp::*;
+ 
++#[cfg(target_arch = "riscv64")]
++mod imp {
++    pub type GenRegs = libc::user_regs_struct;
++    pub type FpRegs = user_fpregs_struct;
++
++    // Linux NT_PRFPREG uses the double-precision register layout on RV64GC.
++    #[repr(C)]
++    #[derive(Debug, Default)]
++    pub struct user_fpregs_struct {
++        pub f: [u64; 32],
++        pub fcsr: u32,
++    }
++}
++
+ #[cfg(target_arch = "aarch64")]
+ mod imp {
+     pub type GenRegs = libc::user_regs_struct;
