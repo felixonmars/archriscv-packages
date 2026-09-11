@@ -1,0 +1,852 @@
+Keep the suite enabled on slow RISC-V builders: allow cold imports and bounded
+CPU work to finish, wait for asynchronous cleanup, avoid unsupported mobilecli
+binary probes, and leave terminal mock SSE streams open until abort so
+one-millisecond replay loops cannot starve React act.
+
+Status-line import fix, image-ingestion wait, and cleanup-retry precedent:
+https://github.com/QwenLM/qwen-code/pull/8982
+Bridge timeout override removal and startup-timeout precedent:
+https://github.com/QwenLM/qwen-code/pull/10552
+Two timer hops to drain transcript dispatch:
+https://github.com/QwenLM/qwen-code/pull/9058
+Bounded sanitizer input retained; assignment matching scans separators and their
+adjacent identifiers. Start JWT matching only at a base64url token boundary,
+not at every hyphen, to avoid quadratic rescans under the original deadline:
+https://github.com/QwenLM/qwen-code/pull/7877
+Worker-log redaction keeps a 20-second complexity bound, as upstream does for
+contended builders, rather than disabling its timing assertion:
+https://github.com/QwenLM/qwen-code/pull/10912
+Shell-safety complexity-budget precedent:
+https://github.com/QwenLM/qwen-code/pull/10735
+Mobilecli maps every non-arm64 architecture to its amd64 binary:
+https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobilecli.ts#L99-L103
+
+--- a/packages/channels/dingtalk/src/DingtalkAdapter.test.ts
++++ b/packages/channels/dingtalk/src/DingtalkAdapter.test.ts
+@@ -1011,12 +1011,22 @@
+     expect(attachReaction).not.toHaveBeenCalled();
+   });
+ 
+-  it('clears active lifecycle reactions on disconnect', () => {
++  it('clears active lifecycle reactions on disconnect', async () => {
+     const channel = createChannel();
+     const attachReaction = vi.fn().mockResolvedValue(undefined);
++    const recallReaction = vi.fn().mockResolvedValue(undefined);
+     (
+-      channel as unknown as { attachReaction: typeof attachReaction }
++      channel as unknown as {
++        attachReaction: typeof attachReaction;
++        recallReaction: typeof recallReaction;
++      }
+     ).attachReaction = attachReaction;
++    (
++      channel as unknown as {
++        attachReaction: typeof attachReaction;
++        recallReaction: typeof recallReaction;
++      }
++    ).recallReaction = recallReaction;
+     const activeReactionKeys = (
+       channel as unknown as { activeReactionKeys: Set<string> }
+     ).activeReactionKeys;
+@@ -1036,6 +1046,7 @@
+     channel.disconnect();
+ 
+     expect(activeReactionKeys.size).toBe(0);
++    await vi.waitFor(() => expect(recallReaction).toHaveBeenCalledOnce());
+   });
+ 
+   it('skips uppercase webhook URLs when starting a prompt', () => {
+--- a/packages/cli/src/commands/serve.test.ts
++++ b/packages/cli/src/commands/serve.test.ts
+@@ -955,7 +955,7 @@
+               `serve did not reach listening\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+             ),
+           );
+-        }, 30_000);
++        }, 180_000);
+ 
+         child.stdout.on('data', (chunk: Buffer) => {
+           stdout += chunk.toString('utf8');
+@@ -1001,5 +1001,5 @@
+       await removeTempDir(workspace);
+       await removeTempDir(qwenHome);
+     }
+-  }, 40_000);
++  }, 190_000);
+ });
+--- a/packages/cli/src/ui/components/SessionPreview.test.tsx
++++ b/packages/cli/src/ui/components/SessionPreview.test.tsx
+@@ -105,9 +105,11 @@
+         onResume={vi.fn()}
+       />,
+     );
+-    await wait(100);
++    await vi.waitFor(
++      () => expect(lastFrame()).toContain('PREVIEW-MARKER'),
++      { timeout: 30_000 },
++    );
+     const frame = lastFrame() ?? '';
+-    expect(frame).toContain('PREVIEW-MARKER');
+     expect(frame).toContain('REPLY-MARKER');
+   });
+ 
+@@ -131,7 +133,10 @@
+         onResume={vi.fn()}
+       />,
+     );
+-    await wait(100);
++    await vi.waitFor(
++      () => expect(lastFrame()).toContain('FINAL-ANSWER-MARKER'),
++      { timeout: 30_000 },
++    );
+     const frame = lastFrame() ?? '';
+     expect(frame).toContain('Thinking…');
+     expect(frame).toContain('RESUMED-THINKING-LINE-1');
+@@ -176,9 +181,11 @@
+         onResume={vi.fn()}
+       />,
+     );
+-    await wait(100);
++    await vi.waitFor(
++      () => expect(lastFrame()).toMatch(/2\s*messages/),
++      { timeout: 30_000 },
++    );
+     const frame = lastFrame() ?? '';
+-    expect(frame).toMatch(/2\s*messages/);
+     expect(frame).not.toContain('undefined');
+   });
+ 
+--- a/packages/core/src/tools/computer-use/client.test.ts
++++ b/packages/core/src/tools/computer-use/client.test.ts
+@@ -25,9 +25,18 @@
+   });
+ 
+   it('returns the same instance for repeated callers via singleton', () => {
+-    const a = ComputerUseClient.shared();
+-    const b = ComputerUseClient.shared();
+-    expect(a).toBe(b);
++    const client = new ComputerUseClient({
++      binary: '/fake/cua-driver',
++      onProgress: vi.fn(),
++    });
++    ComputerUseClient.setSharedForTest(client);
++
++    try {
++      expect(ComputerUseClient.shared()).toBe(client);
++      expect(ComputerUseClient.shared()).toBe(client);
++    } finally {
++      ComputerUseClient.setSharedForTest(undefined);
++    }
+   });
+ });
+ 
+--- a/packages/core/src/utils/shellReadOnlyChecker.test.ts
++++ b/packages/core/src/utils/shellReadOnlyChecker.test.ts
+@@ -463,7 +463,7 @@
+         true,
+         true,
+       ]);
+-      expect(performance.now() - startedAt).toBeLessThan(1000);
++      expect(performance.now() - startedAt).toBeLessThan(20_000);
+     });
+   });
+ });
+--- a/integrations/external-context/src/auto-recall.ts
++++ b/integrations/external-context/src/auto-recall.ts
+@@ -16,16 +16,53 @@
+ const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+ const MAX_AUTO_QUERY_CHARACTERS = 512;
+ const HOOK_WALL_CLOCK_TIMEOUT_MS = 6500;
+-// Bounds the input before the redaction regexes run. Only
++// Bounds the input before the redaction regexes and assignment scan run. Only
+ // MAX_AUTO_QUERY_CHARACTERS code points survive, and capping the work here
+-// keeps a worst-case prompt from driving the assignment regex into quadratic
+-// backtracking that would block the event loop past the wall-clock budget.
++// keeps the sanitizer below the Hook wall-clock budget.
+ const MAX_SANITIZER_INPUT_CHARACTERS = 4096;
+-// The secret keyword must belong to the name that owns the separator, so a
+-// preceding prose label cannot claim the match and a secret word used as
+-// ordinary prose is not redacted.
+-const SECRET_ASSIGNMENT_PATTERN =
+-  /["']?[A-Za-z0-9_.-]*(?:api[_-]?key|token|password|secret)[A-Za-z0-9_.-]*["']?[^\S\r\n]*[:=][^\S\r\n]*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)?/gi;
++const SECRET_NAME_PATTERN = /api[_-]?key|token|password|secret/i;
++const SECRET_IDENTIFIER_CHARACTER = /[A-Za-z0-9_.-]/;
++const SECRET_ASSIGNMENT_SEPARATOR_PATTERN = /[:=]/g;
++const SECRET_VALUE_PATTERN =
++  /[^\S\r\n]*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)?/y;
++
++function redactSecretAssignments(input: string): string {
++  const redacted: string[] = [];
++  let copiedUntil = 0;
++
++  for (const match of input.matchAll(SECRET_ASSIGNMENT_SEPARATOR_PATTERN)) {
++    const separator = match.index;
++    if (separator === undefined || separator < copiedUntil) continue;
++
++    let end = separator;
++    while (/[^\S\r\n]/.test(input[end - 1] ?? '')) end -= 1;
++    if (input[end - 1] === '"' || input[end - 1] === "'") end -= 1;
++
++    let start = end;
++    while (
++      start > 0 &&
++      SECRET_IDENTIFIER_CHARACTER.test(input[start - 1] ?? '')
++    ) {
++      start -= 1;
++    }
++    if (input[start - 1] === '"' || input[start - 1] === "'") {
++      start -= 1;
++    }
++
++    const name = input.slice(start, end).replaceAll(/["']/g, '');
++    if (!SECRET_NAME_PATTERN.test(name)) continue;
++
++    SECRET_VALUE_PATTERN.lastIndex = separator + 1;
++    const value = SECRET_VALUE_PATTERN.exec(input);
++    if (!value) continue;
++
++    redacted.push(input.slice(copiedUntil, start), ' ');
++    copiedUntil = SECRET_VALUE_PATTERN.lastIndex;
++  }
++
++  redacted.push(input.slice(copiedUntil));
++  return redacted.join('');
++}
+ 
+ interface HookInput {
+   hook_event_name: 'UserPromptSubmit';
+@@ -120,11 +157,10 @@
+     query = query.replaceAll(credential, ' ');
+   }
+ 
+-  query = query
+-    .replace(SECRET_ASSIGNMENT_PATTERN, ' ')
++  query = redactSecretAssignments(query)
+     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, ' ')
+     .replace(
+-      /\b[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
++      /(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g,
+       ' ',
+     )
+     .replace(/\b[A-Za-z0-9_-]{32,}\b/g, ' ')
+--- a/integrations/external-context/src/auto-recall.test.ts
++++ b/integrations/external-context/src/auto-recall.test.ts
+@@ -128,8 +128,8 @@
+ 
+   it('caps sanitizer work so a backtracking-shaped prompt cannot stall the Hook', async () => {
+     const { createAutoRecallQuery } = await import('./auto-recall.js');
+-    // Hyphens are word boundaries, so without the input bound the assignment
+-    // regex backtracks quadratically across this run and stalls the Hook.
++    // Hyphens are word boundaries, so unanchored assignment and JWT regexes
++    // can backtrack quadratically across this run and stall the Hook.
+     const submittedPrompt = 'a-'.repeat(25_000);
+     const startedAt = Date.now();
+     const query = createAutoRecallQuery(submittedPrompt, '');
+@@ -139,6 +139,17 @@
+     expect(query ?? '').not.toContain('a-a');
+   });
+ 
++  it.each(['abcdefgh', '-abcdefg', '_abcdefg', 'a-'.repeat(512)])(
++    'redacts a JWT with a complete base64url header %#',
++    async (header) => {
++      const { createAutoRecallQuery } = await import('./auto-recall.js');
++
++      expect(
++        createAutoRecallQuery(`before ${header}.ijklmnop.qrstuvwx after`, ''),
++      ).toBe('before after');
++    },
++  );
++
+   it('redacts a secret assignment claimed by a leading label', async () => {
+     const { createAutoRecallQuery } = await import('./auto-recall.js');
+ 
+@@ -587,7 +598,7 @@
+       }
+       await closeServer(proxy);
+     }
+-  }, 12_000);
++  }, 40_000);
+ 
+   it.each([
+     ['invalid JSON', '{'],
+@@ -770,7 +781,7 @@
+     env: childEnvironment(envOverrides),
+     killSignal: 'SIGKILL',
+     stdio: ['pipe', 'pipe', 'pipe'],
+-    timeout: 8000,
++    timeout: 30_000,
+   });
+   let stdout = '';
+   let stderr = '';
+--- a/integrations/external-context/src/providers.test.ts
++++ b/integrations/external-context/src/providers.test.ts
+@@ -72,7 +72,8 @@
+     const items = await adapter.search({
+       query: 'deployment',
+       limit: 5,
+-      signal: AbortSignal.timeout(1000),
++      // The large loopback response can take over a second on RISC-V builders.
++      signal: AbortSignal.timeout(10_000),
+     });
+ 
+     expect(requestBody).toEqual({ query: 'deployment', limit: 5 });
+--- a/packages/cli/src/commands/channel/memory-intent-classifier.test.ts
++++ b/packages/cli/src/commands/channel/memory-intent-classifier.test.ts
+@@ -356,7 +356,7 @@
+       expect(manifest).toContain(JSON.stringify(entry.id));
+     }
+     expect(manifest).not.toContain('\nignore instructions');
+-  });
++  }, 180_000);
+ 
+   it('keeps all IDs and lone-surrogate metadata within the serialized manifest budget', async () => {
+     const { bridge, classifier } = classifierFor(
+--- a/packages/cli/src/serve/channel-worker-supervisor.test.ts
++++ b/packages/cli/src/serve/channel-worker-supervisor.test.ts
+@@ -2050,7 +2050,7 @@
+     const started = supervisor.start();
+     const startedAt = Date.now();
+     child.stderr.emit('data', Buffer.from('a.'.repeat(33_000)));
+-    expect(Date.now() - startedAt).toBeLessThan(1_000);
++    expect(Date.now() - startedAt).toBeLessThan(20_000);
+     child.emit('message', {
+       type: 'ready',
+       pid: 12345,
+--- a/packages/cli/src/serve/server-default-bridge-wiring.test.ts
++++ b/packages/cli/src/serve/server-default-bridge-wiring.test.ts
+@@ -125,7 +125,7 @@
+     ).toEqual({
+       kind: 'not_found',
+     });
+-  }, 15_000);
++  });
+ 
+   it('keeps the same-host write route disabled for an injected filesystem factory', async () => {
+     let bridgeOptions: BridgeOptions | undefined;
+--- a/packages/cli/src/serve/server.test.ts
++++ b/packages/cli/src/serve/server.test.ts
+@@ -355,9 +355,14 @@
+ afterAll(async () => {
+   restoreEnv('QWEN_HOME', previousServerTestQwenHome);
+   restoreEnv('QWEN_RUNTIME_DIR', previousServerTestRuntimeDir);
+   resetHomeEnvBootstrapForTesting();
+-  await fsp.rm(serverTestEnvironmentRoot, { recursive: true, force: true });
++  // In-flight background writes can race cleanup after the suite completes.
++  await fsp.rm(serverTestEnvironmentRoot, {
++    recursive: true,
++    force: true,
++    maxRetries: 10,
++  });
+ });
+ 
+ function deferred<T = void>(): {
+   promise: Promise<T>;
+@@ -5703,9 +5708,10 @@
+           expect(managerTrustedFlag).toBe(false);
+         });
+       } finally {
+         restore();
+-        await fsp.rm(tempHome, { recursive: true, force: true });
++        // Background extension-store writes may still be settling after HTTP 202.
++        await fsp.rm(tempHome, { recursive: true, force: true, maxRetries: 10 });
+         restoreEnv('QWEN_HOME', previousQwenHome);
+         restoreEnv(
+           'QWEN_CODE_TRUSTED_FOLDERS_PATH',
+           previousTrustedFoldersPath,
+@@ -17177,9 +17183,10 @@
+         const after = await auth(request(app).get('/capabilities'));
+         expect(after.status).toBe(200);
+         expect(after.body.features).toContain('workspace_voice_transcription');
+       } finally {
+-        await fsp.rm(tempHome, { recursive: true, force: true });
++        // Allow in-flight initialization writes to settle during removal.
++        await fsp.rm(tempHome, { recursive: true, force: true, maxRetries: 10 });
+         restoreEnv('QWEN_HOME', previousQwenHome);
+         resetHomeEnvBootstrapForTesting();
+       }
+     });
+@@ -28715,9 +28722,10 @@
+     resetHomeEnvBootstrapForTesting();
+     return async () => {
+       restoreEnv('QWEN_HOME', previousQwenHome);
+       resetHomeEnvBootstrapForTesting();
+-      await fsp.rm(tmp, { recursive: true, force: true });
++      // Allow in-flight initialization writes to settle during removal.
++      await fsp.rm(tmp, { recursive: true, force: true, maxRetries: 10 });
+     };
+   }
+ 
+   async function disableLiveVoiceAtBoot() {
+@@ -28735,9 +28743,10 @@
+     resetHomeEnvBootstrapForTesting();
+     return async () => {
+       restoreEnv('QWEN_HOME', previousQwenHome);
+       resetHomeEnvBootstrapForTesting();
+-      await fsp.rm(tmp, { recursive: true, force: true });
++      // Allow in-flight initialization writes to settle during removal.
++      await fsp.rm(tmp, { recursive: true, force: true, maxRetries: 10 });
+     };
+   }
+ 
+   function setupLiveRuntime(liveBridgeOptions: FakeBridgeOpts = {}) {
+@@ -29335,9 +29344,14 @@
+       async cleanup() {
+         (app.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
+         restoreEnv('QWEN_HOME', previousQwenHome);
+         resetHomeEnvBootstrapForTesting();
+-        await fsp.rm(tmp, { recursive: true, force: true });
++        // In-flight initialization writes can race cleanup after HTTP 202.
++        await fsp.rm(tmp, {
++          recursive: true,
++          force: true,
++          maxRetries: 10,
++        });
+       },
+     };
+   }
+ 
+@@ -29576,9 +29590,10 @@
+           | undefined
+       )?.();
+       restoreEnv('QWEN_HOME', previousQwenHome);
+       resetHomeEnvBootstrapForTesting();
+-      await fsp.rm(tmp, { recursive: true, force: true });
++      // Background home writes may still be settling after coordinator shutdown.
++      await fsp.rm(tmp, { recursive: true, force: true, maxRetries: 10 });
+     }
+   });
+ 
+   it('binds the dedicated Appshot channel after Host hello and gates start until ready', async () => {
+@@ -29771,8 +29786,8 @@
+       (app?.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
+       restoreEnv('QWEN_HOME', previousQwenHome);
+       resetHomeEnvBootstrapForTesting();
+       loadSettings.mockRestore();
+-      await fsp.rm(tmp, { recursive: true, force: true });
++      await fsp.rm(tmp, { recursive: true, force: true, maxRetries: 10 });
+     }
+   });
+ });
+--- a/packages/cli/src/ui/hooks/useStatusLine.test.ts
++++ b/packages/cli/src/ui/hooks/useStatusLine.test.ts
+@@ -4,19 +4,12 @@
+  * SPDX-License-Identifier: Apache-2.0
+  */
+ 
+-import {
+-  describe,
+-  it,
+-  expect,
+-  vi,
+-  beforeAll,
+-  beforeEach,
+-  afterEach,
+-} from 'vitest';
++import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+ import { renderHook, act } from '@testing-library/react';
+ import * as child_process from 'child_process';
+ import { StreamingState } from '../types.js';
+ import type { StatusLinePresetReasoning } from '../statusLinePresets.js';
++import { useStatusLine } from './useStatusLine.js';
+ 
+ const debugLogMock = vi.hoisted(() => ({
+   log: vi.fn(),
+@@ -157,14 +150,6 @@
+ }
+ 
+ describe('useStatusLine', () => {
+-  // Must import dynamically after mocks are set up
+-  let useStatusLine: typeof import('./useStatusLine.js').useStatusLine;
+-
+-  beforeAll(async () => {
+-    const mod = await import('./useStatusLine.js');
+-    useStatusLine = mod.useStatusLine;
+-  }, 20_000);
+-
+   beforeEach(() => {
+     vi.useFakeTimers();
+     vi.clearAllMocks();
+--- a/packages/core/src/config/config-session-env.test.ts
++++ b/packages/core/src/config/config-session-env.test.ts
+@@ -111,7 +111,7 @@
+ // flag resets). That cold transform+evaluate runs several seconds and, under
+ // a contended CI runner, crosses the 5s default — a flaky timeout, not a hang.
+ // The reset is load-bearing for what these tests check, so give them headroom.
+-vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
++vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
+ 
+ let originalEnv: string | undefined;
+ let originalModelEnv: string | undefined;
+--- a/packages/core/src/services/cronScheduler.test.ts
++++ b/packages/core/src/services/cronScheduler.test.ts
+@@ -822,7 +822,7 @@
+     const waitForLockGone = (lockPath: string) =>
+       vi.waitFor(async () => {
+         await expect(fs.access(lockPath)).rejects.toThrow();
+-      });
++      }, { timeout: 10_000 });
+ 
+     it('tracks durableActive across enableDurable and stop', async () => {
+       expect(scheduler.durableActive).toBe(false);
+--- a/packages/webui/src/daemon/session/DaemonSessionProvider.test.tsx
++++ b/packages/webui/src/daemon/session/DaemonSessionProvider.test.tsx
+@@ -5317,7 +5317,9 @@
+     const session = createMockSession({
+       hasActivePrompt: true,
+       submitPrompt: vi.fn(() => accepted.promise),
+-      events: async function* restoredPromptCompleteDuringLocalPrompt() {
++      events: async function* restoredPromptCompleteDuringLocalPrompt(
++        opts: { signal?: AbortSignal } = {},
++      ) {
+         await releaseRestoredComplete.promise;
+         yield {
+           id: 6,
+@@ -5334,6 +5336,7 @@
+           data: { promptId: 'local-prompt', stopReason: 'end_turn' },
+         } satisfies DaemonEvent;
+         localCompleteDelivered.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -5404,7 +5407,9 @@
+     const session = createMockSession({
+       hasActivePrompt: true,
+       lastEventId: 5,
+-      events: async function* restoredPromptThenTurnComplete() {
++      events: async function* restoredPromptThenTurnComplete(
++        opts: { signal?: AbortSignal } = {},
++      ) {
+         yield {
+           id: 6,
+           v: 1,
+@@ -5412,6 +5417,7 @@
+           data: { promptId: 'restored-prompt', stopReason: 'end_turn' },
+         };
+         turnCompleted.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -5440,7 +5446,9 @@
+     const session = createMockSession({
+       hasActivePrompt: true,
+       lastEventId: 5,
+-      events: async function* restoredPromptThenTurnError() {
++      events: async function* restoredPromptThenTurnError(
++        opts: { signal?: AbortSignal } = {},
++      ) {
+         yield {
+           id: 6,
+           v: 1,
+@@ -5452,6 +5460,7 @@
+           },
+         } satisfies DaemonEvent;
+         turnErrored.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -5480,7 +5489,9 @@
+     const session = createMockSession({
+       hasActivePrompt: true,
+       lastEventId: 5,
+-      events: async function* restoredPromptThenPromptCancelled() {
++      events: async function* restoredPromptThenPromptCancelled(
++        opts: { signal?: AbortSignal } = {},
++      ) {
+         yield {
+           id: 6,
+           v: 1,
+@@ -5492,6 +5503,7 @@
+           },
+         } satisfies DaemonEvent;
+         promptCancelled.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -5524,7 +5536,9 @@
+     const session = createMockSession({
+       hasActivePrompt: true,
+       submitPrompt: vi.fn(() => accepted.promise),
+-      events: async function* restoredPromptCancelDuringLocalPrompt() {
++      events: async function* restoredPromptCancelDuringLocalPrompt(
++        opts: { signal?: AbortSignal } = {},
++      ) {
+         await releaseRestoredCancel.promise;
+         yield {
+           id: 6,
+@@ -5542,6 +5556,7 @@
+           data: { promptId: 'local-prompt', stopReason: 'end_turn' },
+         } satisfies DaemonEvent;
+         localCompleteDelivered.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -11832,6 +11847,7 @@
+           type: 'turn_complete',
+           data: { promptId: 'prompt-new', stopReason: 'end_turn' },
+         };
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(firstSession, reloadedSession);
+@@ -12706,10 +12722,18 @@
+       // NOT prevent reconnection — these are server-initiated closes,
+       // not user deletions. The provider should preserve the session
+       // handle and attempt to resume on the next iteration.
++      let closed = false;
++      const reconnected = createDeferred<void>();
+       const session = createMockSession({
+         events: async function* nonClientCloseEvents(
+           opts: { signal?: AbortSignal } = {},
+         ) {
++          if (closed) {
++            reconnected.resolve();
++            yield* createIdleEvents()(opts);
++            return;
++          }
++          closed = true;
+           yield {
+             id: 1,
+             v: 1,
+@@ -12738,7 +12762,7 @@
+         await flushPromises();
+       });
+       await act(async () => {
+-        await wait(50);
++        await reconnected.promise;
+         await flushPromises();
+       });
+ 
+@@ -12753,17 +12777,24 @@
+     // Defensive: if the server sends session_closed without a reason
+     // field (older daemon versions), treat it as non-client_close and
+     // let the normal reconnect path handle it.
++    let closed = false;
++    const reconnected = createDeferred<void>();
+     const session = createMockSession({
+       events: async function* noReasonEvents(
+         opts: { signal?: AbortSignal } = {},
+       ) {
++        if (closed) {
++          reconnected.resolve();
++          yield* createIdleEvents()(opts);
++          return;
++        }
++        closed = true;
+         yield {
+           id: 1,
+           v: 1,
+           type: 'session_closed',
+           data: {},
+         };
+-        if (opts.signal?.aborted) return;
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -12782,10 +12813,7 @@
+     });
+ 
+     await act(async () => {
+-      await flushPromises();
+-    });
+-    await act(async () => {
+-      await wait(50);
++      await reconnected.promise;
+       await flushPromises();
+     });
+ 
+@@ -12913,6 +12941,7 @@
+     });
+     await act(async () => {
+       await flushPromises();
++      await flushTranscriptDispatch();
+     });
+ 
+     // turn_error should stay in transcript as an error block
+@@ -13928,6 +13957,8 @@
+       sessionId: 'session-1',
+       data: { promptId, stopReason: 'end_turn' },
+     };
++    // A finished turn leaves the real SSE connection open until detach.
++    yield* createIdleEvents()(opts);
+   };
+ }
+ 
+@@ -13979,6 +14010,7 @@
+ // transcript state mid-stream drain the batched dispatch here.
+ async function flushTranscriptDispatch(): Promise<void> {
+   await new Promise((resolve) => setTimeout(resolve, 0));
++  await new Promise((resolve) => setTimeout(resolve, 0));
+   await Promise.resolve();
+   await Promise.resolve();
+ }
+--- a/packages/cli/src/ui/utils/MermaidDiagram.test.tsx
++++ b/packages/cli/src/ui/utils/MermaidDiagram.test.tsx
+@@ -162,6 +162,6 @@
+       expect(lastFrame()).toContain(
+         'Image rendering unavailable: renderer exploded',
+       );
+-    });
++    }, { timeout: 10_000 });
+   });
+ });
+--- a/packages/cli/src/ui/voice/voice-keyterms-race.test.ts
++++ b/packages/cli/src/ui/voice/voice-keyterms-race.test.ts
+@@ -76,7 +76,7 @@
+ 
+   beforeAll(async () => {
+     ({ buildVoiceKeyterms } = await import('./voice-keyterms.js'));
+-  }, 20_000);
++  }, 70_000);
+ 
+   afterEach(() => {
+     raceState.target = '';
+--- a/packages/core/src/services/session-writer-lease.test.ts
++++ b/packages/core/src/services/session-writer-lease.test.ts
+@@ -301,7 +301,7 @@
+   return new Promise((resolve, reject) => {
+     const timeout = setTimeout(() => {
+       reject(new Error(`Timed out waiting for lease helper command ${id}`));
+-    }, 10_000);
++    }, 60_000);
+     const onMessage = (message: SessionWriterLeaseTestResponse) => {
+       if (message.id !== id) return;
+       clearTimeout(timeout);
+--- a/packages/core/src/skills/skill-activation.test.ts
++++ b/packages/core/src/skills/skill-activation.test.ts
+@@ -276,7 +276,7 @@
+       for (const n of await reg.matchAndConsume(c)) activated.add(n);
+     }
+     expect(Array.from(activated)).toEqual(['tsx-helper']);
+-  }, 30_000);
++  }, 70_000);
+ 
+   it('does NOT activate from external glob.path (project-root guard wins)', async () => {
+     const { extractToolFilePaths } = await import(
+--- a/packages/core/src/utils/ripgrepUtils.test.ts
++++ b/packages/core/src/utils/ripgrepUtils.test.ts
+@@ -4,7 +4,7 @@
+  * SPDX-License-Identifier: Apache-2.0
+  */
+ 
+-import { describe, it, expect, beforeEach, vi } from 'vitest';
++import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+ import { EventEmitter } from 'node:events';
+ import {
+   _resetRipgrepUtilsCachesForTest,
+@@ -84,7 +84,15 @@
+ }));
+ 
+ describe('ripgrepUtils', () => {
++  const originalArch = process.arch;
++
++  afterEach(() => {
++    Object.defineProperty(process, 'arch', { value: originalArch });
++  });
++
+   beforeEach(() => {
++    // Bundled-binary fixtures require a supported architecture; RISC-V uses rg.
++    Object.defineProperty(process, 'arch', { value: 'x64' });
+     _resetRipgrepUtilsCachesForTest();
+     vi.mocked(fileExists).mockReset();
+     vi.mocked(execCommand).mockReset();
+--- a/packages/core/src/utils/shell-ast-parser-lazy.test.ts
++++ b/packages/core/src/utils/shell-ast-parser-lazy.test.ts
+@@ -328,5 +328,5 @@
+     const recoveredTree = await packagedParser.parseShellCommand('pwd');
+     expect(recoveredTree.rootNode.type).toBe('program');
+     recoveredTree.delete();
+-  }, 20_000);
++  }, 70_000);
+ });
+--- a/packages/core/src/utils/shellAstParser.test.ts
++++ b/packages/core/src/utils/shellAstParser.test.ts
+@@ -924,7 +924,7 @@
+       'unknown',
+       'read-only',
+     ]);
+-    expect(performance.now() - startedAt).toBeLessThan(1000);
++    expect(performance.now() - startedAt).toBeLessThan(20_000);
+   });
+ });
+ 
+--- a/packages/web-shell/client/hooks/useComposerCore.dom.test.tsx
++++ b/packages/web-shell/client/hooks/useComposerCore.dom.test.tsx
+@@ -150,6 +150,15 @@
+   };
+ }
+ 
++async function waitForImageIngestion() {
++  await vi.waitFor(async () => {
++    await act(async () => {
++      await new Promise((resolve) => setTimeout(resolve, 0));
++    });
++    expect(latest!.pendingImageBatchCount).toBe(0);
++  });
++}
++
+ afterEach(() => {
+   act(() => root?.unmount());
+   vi.useRealTimers();
+@@ -794,9 +803,7 @@
+     expect(onSubmit).not.toHaveBeenCalled();
+     expect(latest!.pendingImageBatchCount).toBe(1);
+ 
+-    await act(async () => {
+-      await new Promise((resolve) => setTimeout(resolve, 20));
+-    });
++    await waitForImageIngestion();
+     expect(latest!.pendingImageBatchCount).toBe(0);
+     expect(latest!.pastedImages).toMatchObject([{ media_type: 'image/png' }]);
+ 
+--- a/packages/mobile-mcp/test/iphone-simulator.ts
++++ b/packages/mobile-mcp/test/iphone-simulator.ts
+@@ -6,14 +6,15 @@
+ import { Mobilecli } from '../src/mobilecli';
+ 
+ test.describe('iphone-simulator', () => {
+-  const mobilecli = new Mobilecli();
+-  const devicesResponse = mobilecli.getDevices({
+-    platform: 'ios',
+-    type: 'simulator',
+-    includeOffline: false,
+-  });
+-
+-  const bootedSimulators = devicesResponse.data.devices;
++  // mobilecli does not ship a riscv64 binary, so no simulator can be present.
++  const bootedSimulators =
++    process.arch === 'riscv64'
++      ? []
++      : new Mobilecli().getDevices({
++          platform: 'ios',
++          type: 'simulator',
++          includeOffline: false,
++        }).data.devices;
+   const hasOneSimulator = bootedSimulators.length >= 1;
+   const device = new MobileDevice(bootedSimulators?.[0]?.id || '');
+ 
+--- a/packages/mobile-mcp/test/mobilecli.test.ts
++++ b/packages/mobile-mcp/test/mobilecli.test.ts
+@@ -21,16 +21,16 @@
+ }
+ 
+ test.describe('mobilecli', () => {
+-  const mobilecli = new Mobilecli();
+-
+   test.describe('getVersion', () => {
+     test('should return a version string', () => {
++      const { mobilecli } = createMockMobilecli('mobilecli version 0.0.45');
+       const version = mobilecli.getVersion();
+       expect(version.length).toBeGreaterThan(0);
+       expect(version).not.toContain('failed');
+     });
+ 
+     test('should return version in correct format', () => {
++      const { mobilecli } = createMockMobilecli('mobilecli version 0.0.45');
+       const version = mobilecli.getVersion();
+       // Version should be in format like "0.0.45" or similar
+       const versionPattern = /^\d+\.\d+\.\d+/;
