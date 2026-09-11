@@ -9,15 +9,16 @@
  provides=('jenkins-ci')
  conflicts=('jenkins-ci')
  replaces=('jenkins-ci')
-@@ -35,6 +35,7 @@
+@@ -34,6 +34,8 @@
  prepare() {
  	cd "${pkgname}"
  	patch -Np1 -i "${srcdir}/skip-failing-test.patch"
 +	patch -Np1 -i "${srcdir}/use-system-corepack.patch"
++	patch -Np1 -i "${srcdir}/use-rolldown-wasm.patch"
  }
  
  build() {
-@@ -46,7 +47,7 @@
+@@ -45,7 +47,7 @@
  check() {
  	cd "${pkgname}"
  	export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:${PATH}"
@@ -26,10 +27,11 @@
  }
  
  package() {
-@@ -58,3 +59,6 @@
+@@ -57,3 +59,7 @@
  	install -Dm 644 "${srcdir}/${pkgname}.conf" "${pkgdir}/etc/conf.d/${pkgname}"
  	install -Dm 644 LICENSE.txt "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
  }
 +
-+source+=('use-system-corepack.patch')
-+sha512sums+=('b4e0aa2ff77c94fd3e63b54ff0549b0f4caf6ce40068d390f0fb58bc2449aed98e5fed0e69aff4cad5df963baadd53c0d7bfb53b4c0b32b817c6bc132211cfa2')
++source+=('use-system-corepack.patch' 'use-rolldown-wasm.patch')
++sha512sums+=('88d8eb21704b36833ffb912169acb7b02bd181764520c5a2aad0a7fd739fb0e6b2888ddd60c814a090b10788ddf9d77dec8b6a0dbdddf7a2fd483e6a1c46e7a2'
++            'd14417be40462e1f1eb859f2c3a73cf7d29815e1aa5abe0ad0d639501b33981aa75b0a6147958bc741953c92b10b845ad80acc62368b88141062278b303cdc51')
