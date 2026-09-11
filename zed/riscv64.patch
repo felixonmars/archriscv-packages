@@ -1,57 +1,77 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,7 +37,14 @@ makedepends=(cargo
-              cmake
-              protobuf
-              vulkan-headers
--             vulkan-validation-layers)
-+             vulkan-validation-layers
-+             # needed when building libwebrtc
-+             cpio
-+             git
-+             gn
-+             ninja
-+             pulseaudio # not required at runtime
-+             python-httplib2)
- optdepends=('clang: improved C/C++ language support'
-             'eslint: improved Javascript language support'
-             'pyright: improved Python language support'
-@@ -53,6 +60,8 @@ _appid=dev.zed.Zed
- 
- prepare() {
- 	cd "$_archive"
-+	patch -Np1 -i ../minidumper-riscv64.patch
-+	cargo update -p crash-context -p crash-handler -p minidumper -p minidump-common -p minidump-writer
- 	cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
- 	export DO_STARTUP_NOTIFY="true"
- 	export APP_ICON="zed"
-@@ -69,10 +78,20 @@ _srcenv() {
+@@ -57,12 +57,26 @@
  	CFLAGS+=' -ffat-lto-objects'
  	CXXFLAGS+=' -ffat-lto-objects'
  	RUSTFLAGS+=" --remap-path-prefix $PWD=/"
 +	CFLAGS="${CFLAGS/-fstack-clash-protection}"
 +	CXXFLAGS="${CXXFLAGS/-fstack-clash-protection}"
++	# Chromium selects additional ISA extensions for individual source files.
++	CFLAGS="${CFLAGS/-march=rv64gc }"
++	CXXFLAGS="${CXXFLAGS/-march=rv64gc }"
+ 	export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
+ 	export ZSTD_SYS_USE_PKG_CONFIG=1
  }
+ 
+ prepare() {
+ 	_srcenv
++	patch -Np1 -i ../minidumper-riscv64.patch
++	patch -Np1 -d .. -i "$srcdir/minidump-riscv64.patch"
++	mkdir -p ../livekit-rust-sdks/webrtc-sys/libwebrtc/ffmpeg-scripts
++	cp -a ../chromium-mirror/media/ffmpeg/scripts/. ../livekit-rust-sdks/webrtc-sys/libwebrtc/ffmpeg-scripts/
++	install -m644 ../chromium-mirror/third_party/devscripts/licensecheck.pl ../livekit-rust-sdks/webrtc-sys/libwebrtc/licensecheck.pl
++	install -m644 ../rtp-config-riscv64.patch ../livekit-rust-sdks/webrtc-sys/libwebrtc/rtp-config-riscv64.patch
++	install -m644 ../pipewire-riscv64.patch ../livekit-rust-sdks/webrtc-sys/libwebrtc/pipewire-riscv64.patch
++	patch -Np1 -d ../livekit-rust-sdks -i "$srcdir/livekit-riscv64.patch"
++	cargo update -p minidump-common -p minidump-writer -p process-backend -p livekit -p libwebrtc -p webrtc-sys
+ 	cargo fetch --locked --target host-tuple
+ 	export DO_STARTUP_NOTIFY="true"
+ 	export APP_ICON="zed"
+@@ -80,6 +94,11 @@
  
  build() {
  	_srcenv
-+
 +	pushd "$srcdir/livekit-rust-sdks/webrtc-sys/libwebrtc"
 +	export CC=clang CXX=clang++ AR=ar NM=nm
-+	sed -i '2i set -e' build_linux.sh
-+	./build_linux.sh --arch riscv64 --toolchain host
-+	export LK_CUSTOM_WEBRTC="$(pwd)/linux-riscv64-release"
++	./build_linux.sh --arch riscv64
++	export LK_CUSTOM_WEBRTC="$PWD/linux-riscv64-release"
 +	popd
-+
  	export ZED_UPDATE_EXPLANATION='Updates are handled by pacman'
  	export RELEASE_VERSION="$pkgver"
  	export PROTOC=/usr/bin/protoc
-@@ -95,3 +114,8 @@ package() {
- 	install -Dm0644 -t "$pkgdir/usr/share/applications/" "$_appid.desktop"
- 	install -Dm0644 crates/zed/resources/app-icon.png "$pkgdir/usr/share/icons/$pkgname.png"
+@@ -117,3 +136,35 @@
+ 	install -Dm0644 completions.fish "$pkgdir/usr/share/fish/vendor_completions.d/$_binname.fish"
+ 	install -Dm0644 completions.zsh "$pkgdir/usr/share/zsh/site-functions/_$_binname"
  }
 +
-+source+=("git+https://github.com/hack3ric/livekit-rust-sdks.git#commit=0563cf43c285f61b7889922b917128bec5dc552f"
-+         "minidumper-riscv64.patch")
-+sha256sums+=('8262058073b7fb6f28ce30a701629986abcd8987745e040b1710801573502d75'
-+             '18b4bed2367ce1932b6b8669299629d3d1623206ae649d74941a32ba6ea5917b')
++# Native desktop-capture linkage replaces architecture-specific dlopen stubs.
++depends+=(libdrm libxcomposite libxdamage libxext libxfixes libxrandr mesa)
++makedepends+=(cpio
++              gn
++              lld
++              llvm
++              ninja
++              opus
++              pipewire
++              pulseaudio # needed to build libwebrtc, not at runtime
++              python-httplib2)
++source+=("git+https://github.com/zed-industries/livekit-rust-sdks.git#commit=0a1c519cfce9b365229026b55de9b9dbdb6fed3c"
++         "minidump-common-0.26.1.tar.gz::https://static.crates.io/crates/minidump-common/minidump-common-0.26.1.crate"
++         "minidump-writer-0.13.0.tar.gz::https://static.crates.io/crates/minidump-writer/minidump-writer-0.13.0.crate"
++         "process-backend-0.1.0.tar.gz::https://static.crates.io/crates/process-backend/process-backend-0.1.0.crate"
++         "chromium-mirror::git+https://github.com/chromium/chromium.git#commit=254bc711794d7ad269495f3d419a209935b78cad"
++         minidumper-riscv64.patch
++         minidump-riscv64.patch
++         livekit-riscv64.patch
++         rtp-config-riscv64.patch
++         pipewire-riscv64.patch)
++sha256sums+=('82439498056e8c98254abc6eb6f490b5e65b56c936524dc6117b11e6900a7b17'
++             '2e16d10087ae9e375bad7a40e8ef5504bc08e808ccc6019067ff9de42a84570f'
++             'f742d7445a9d4c63826d302dadbbcb607745560108e88b21c4014a9724d09dbe'
++             '07c02e259a3522eccc4957ee6e922db4945648fb7730a41192d919518d06a530'
++             'SKIP'
++             '3742c71d419d5ad3151fb9cc25851b77bfc0bf6fd36b68b8e89815af4961e61c'
++             '60b6ad619e49df9b049ee4584496eec02a132e4188b4ec3a4b3ce00005aa8421'
++             '3f8b01321040eabc9ad0642a1128cae4dcd56799e945f34740195c709a5b0cbe'
++             '069472965777da5d86464addf4406afabef85affd3e72306611a07ba19ee157f'
++             'e61ea4b4a6f2669c9f81fa5b5dfb3632cee9ffd41f3b92f9a8b14eb1d02c5a1c')
