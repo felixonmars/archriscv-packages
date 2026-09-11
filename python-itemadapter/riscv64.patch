@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -13,6 +13,12 @@
+ source=("git+https://github.com/scrapy/itemadapter.git#tag=v$pkgver")
+ sha512sums=('49f359eea11d51c92faaffdf6bc1dfb552433869240000abdcc961461f1f8304f084b7c38d68f507ca0178bef1a1ff18c31b39ba8a650cf7033f80daeed6c4c5')
+ 
++prepare() {
++  cd itemadapter
++  # Scrapy 2.17 preserves declaration order instead of sorting item fields.
++  patch -Np1 -i "$srcdir/scrapy-2.17.patch"
++}
++
+ build() {
+   cd itemadapter
+   python -m build --wheel --no-isolation
+@@ -29,3 +35,6 @@
+ 
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=("scrapy-2.17.patch::https://github.com/scrapy/itemadapter/commit/7cfd6d6b0cf133d4ba188e3f25b940c50c402b2e.patch")
++sha512sums+=('7b45369c5d9b8f8766493ad4add7fc4246fc055b8096c7afd9314fc393e8955ff7377f213e40d97d610b54bd6f84c3be16d00ee93c187af0baaaaeabe74c26b9')
