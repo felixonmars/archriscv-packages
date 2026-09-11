@@ -1,0 +1,65 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,19 +34,28 @@
+ 
+ prepare() {
+   cd $pkgname
++  patch -Np1 -i ../riscv64-tests.patch
+   # Upstream's ranged override currently resolves newer than package-lock.json.
+   npm pkg set 'overrides.@types/react=19.2.10'
+-  npm clean-install \
++  # Lightning CSS does not ship native riscv64 binaries.
++  npm install --save-dev --save-exact \
+     --registry=https://registry.npmjs.org \
+     --replace-registry-host=always \
+     --include=optional \
+-    --ignore-scripts
++    --ignore-scripts \
++    lightningcss@npm:lightningcss-wasm@1.32.0
+   # Upstream postinstall applies dependency patches; install scripts are disabled above.
+   ./node_modules/.bin/patch-package
++  # Vitest 3.2.4 hard-codes a 60-second worker RPC deadline.
++  patch -d node_modules/vitest -Np1 -i "$srcdir/vitest-rpc-timeout.patch"
++  cargo fetch --locked --manifest-path="$srcdir/tailwindcss-4.3.2/crates/node/Cargo.toml"
+ }
+ 
+ build() {
+   cd $pkgname
++  cargo build --frozen --release --manifest-path="$srcdir/tailwindcss-4.3.2/crates/node/Cargo.toml"
++  cp "$srcdir/tailwindcss-4.3.2/target/release/libtailwind_oxide.so" \
++    node_modules/@tailwindcss/oxide/tailwindcss-oxide.linux-riscv64-gnu.node
+   npm run build
+   npm run bundle
+   local bundled=$(jq '.dependencies + .optionalDependencies | keys' package.json)
+@@ -76,15 +85,12 @@
+       .exports["./yargs"][1] = "./yargs.cjs"' \
+     node_modules/yargs/package.json > yargs-package.json
+   mv yargs-package.json node_modules/yargs/package.json
+-  # mobile-mcp tests run from the workspace source tree, so point them at npm's
+-  # hoisted mobilecli binary instead of the package-local path used after install.
+-  export MOBILECLI_PATH="$PWD/node_modules/mobilecli/bin/mobilecli-linux-amd64"
+   npm run test --workspace=@qwen-code/mobile-mcp
+   # mobile-mcp uses Playwright; run it above without passing Vitest-only flags.
+   npm pkg set 'workspaces[]=!packages/mobile-mcp'
+   # NODE_OPTIONS gives Node's Web Storage one shared backing file; keep Vitest
+   # files serial so another jsdom test cannot clear draft storage mid-test.
+-  npm run test --workspaces --if-present -- --testTimeout=30000 --no-file-parallelism --exclude="$test_exclude"
++  npm run test --workspaces --if-present -- --testTimeout=70000 --hookTimeout=70000 --coverage.enabled=false --no-file-parallelism --exclude="$test_exclude"
+ }
+ 
+ package() {
+@@ -94,3 +100,14 @@
+   install -vDm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++makedepends+=(rust)
++source+=(riscv64-tests.patch
++         vitest-rpc-timeout.patch
++         "tailwindcss-4.3.2.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.2.tar.gz")
++sha256sums+=('b2ac36451d0d79c2170b6433792693e354e73f5ccb497543a691e61d9eacea15'
++             '683cacd67f676bfff4d4482ec2158780c98ef511109560baa26252094bd22e7e'
++             '608268447ff0c939da732245e0dbd77d24edfe22fa6b705b402626992361b741')
++b2sums+=('a26831963927aed97020f03c9c500fc5409ac66a3ba19239aed51735801b3e6dae770c7cbb2220dec07f4a545600a9334cd918141fb06bb1cd9c01a1b266133a'
++         'f41ab609e042f191a3df7c0a677e5f958ac731bb36e7e6cacd988ee8273f276f9099db3d43af8496c72ab0bdd59b048d7bd502386710b54b380e52a5310942e6'
++         '6221b574173fec02d401c14fd77661be2762cd3d555034488d0d4b0ad83348b4409a41216f9a1e7acaecbb85059e399473aa49d44d4cd0914fe35d3c6889da47')
