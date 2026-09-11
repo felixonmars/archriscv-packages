@@ -1,0 +1,11 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,6 +23,8 @@
+ 
+ check() {
+   cd $_pkgname
++  # Slow input generation trips Hypothesis's health check on riscv64.
++  sed -i 's/settings(deadline=400)/settings(deadline=400, suppress_health_check=["too_slow"])/' tests/test_numbits.py
+   python -m venv --system-site-packages test-env
+   test-env/bin/python -m installer dist/*.whl
+   test-env/bin/python setup.py --quiet build_ext --inplace
