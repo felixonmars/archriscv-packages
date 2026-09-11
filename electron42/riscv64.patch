@@ -1,0 +1,77 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -59,7 +59,7 @@
+             'trash-cli: file deletion support (trash-put)'
+             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
+ options=('!lto') # Electron adds its own flags for ThinLTO
+-source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
++source=("git+https://github.com/riscv-forks/electron.git#commit=3b528db51a1fb3ea32ffcf32ff94197d098a03c1"
+         https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+         # Chromium
+         chromium-138-nodejs-version-check.patch
+@@ -476,8 +476,7 @@
+     -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
+   src/build/util/lastchange.py \
+     -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
+-  src/tools/update_pgo_profiles.py --target=linux update \
+-    --gs-url-base=chromium-optimization-profiles/pgo_profiles
++  # PGO is disabled below; no profile download is needed.
+ 
+   # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
+   src/third_party/node/update_npm_deps
+@@ -490,11 +489,15 @@
+ 
+   pushd src
+   pushd electron
+-  yarn install --frozen-lockfile
++  # sentry-cli is only used for upstream release-symbol uploads.
++  SENTRYCLI_SKIP_DOWNLOAD=1 yarn install --frozen-lockfile
+   popd
+ 
+   echo "Applying local patches..."
+ 
++  # https://github.com/v8/v8/commit/639a7d02772c0bc212bc29b6b4eaddbed115488a
++  patch -Np1 -i "${srcdir}/v8-riscv-grow-buffer.patch" -d v8
++
+   # https://crbug.com/893950
+   sed -i -e 's/\<xmlMalloc\>/malloc/' -e 's/\<xmlFree\>/free/' \
+          -e '1i #include <cstdlib>' \
+@@ -550,9 +553,6 @@
+   ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
+ 
+   # Electron specific fixes
+-  #  fix: use GTK UI theme for Linux message boxes #52238
+-  git -C electron cherry-pick -n 5b8ae0abd177198e1936c669e5de90cebaa345d7
+-
+   patch -Np1 -i "${srcdir}/jinja-python-3.10.patch" -d "third_party/electron_node/tools/inspector_protocol/jinja2"
+   patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
+ 
+@@ -612,6 +612,7 @@
+     'use_system_libffi=true'
+     'enable_hangout_services_extension=true'
+     'enable_widevine=false'
++    "override_electron_version=\"$pkgver\""
+     'use_qt5=false'
+     'use_qt6=true'
+     'moc_qt6_path="/usr/lib/qt6"'
+@@ -670,9 +671,9 @@
+   # https://crbug.com/957519#c122
+   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
+ 
+-  if [[ $CARCH == aarch64 ]]; then
+-    # On aarch64, certain files (e.g. in libvpx and libyuv) needs to be compiled
+-    # with additional arch features (e.g. dotprod, sve, sme)
++  if [[ $CARCH == aarch64 || $CARCH == riscv64 ]]; then
++    # Some files need additional arch features (e.g. dotprod, sve, sme in
++    # libvpx/libyuv on aarch64, or RVV in XNNPACK on riscv64).
+     # Having an arch setting in the C(XX)FLAGS overrides those
+     # and causes compilation failure
+     CFLAGS="${CFLAGS/-march=*([^ ]) }"
+@@ -703,3 +704,7 @@
+   install -Dm644 src/electron/default_app/icon.png \
+           "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
+ }
++
++source+=("v8-riscv-grow-buffer.patch::https://github.com/v8/v8/commit/639a7d02772c0bc212bc29b6b4eaddbed115488a.patch")
++sha256sums+=('7d27f4500d13e3729342dfac28ff1ea1dc53b62169bd921b5794dbb14ea98d25')
++sha256sums[0]=SKIP
