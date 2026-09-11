@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,6 +21,9 @@
+ 
+ prepare() {
+   sed -e 's/,<9//' -e '/oldest-supported-numpy/d' -i statsmodels/pyproject.toml
++  patch -Np1 -d statsmodels -i "$srcdir/fix-duplicate-test-params.patch"
++  patch -Np1 -d statsmodels -i "$srcdir/fix-scipy-1.18-apply-where.patch"
++  patch -Np1 -d statsmodels -i "$srcdir/fix-numpy-2.5-complex-casting.patch"
+ }
+ 
+ build() {
+@@ -39,3 +42,10 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 LICENSE.txt -t "${pkgdir}"/usr/share/licenses/${pkgname}
+ }
++
++source+=(fix-duplicate-test-params.patch
++         "fix-scipy-1.18-apply-where.patch::https://github.com/statsmodels/statsmodels/commit/d72a99c908c939cc744312b1c33facb754199295.patch"
++         "fix-numpy-2.5-complex-casting.patch::https://github.com/statsmodels/statsmodels/commit/7cda9e610a1a7d72fccebad99d4dd30a077f0eba.patch")
++sha256sums+=('5a292d525d2d40390151b0392332f3dabdba8e7eb456adeef042f1e85aa226bc'
++             'ce0823e2fa14a859953409d882ebccc99a999815b124136be7ba99dc5a4395e4'
++             '681a983c4a386b97e60bc2e7c3bb689f5a33c2465eff3709b912f8cb68f3e75d')
