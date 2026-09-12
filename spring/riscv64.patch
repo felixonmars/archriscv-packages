@@ -1,16 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -26,6 +26,9 @@ prepare() {
- 
+@@ -14,7 +14,7 @@
+ makedepends=('cmake' 'zip' 'xz' 'p7zip' 'python' 'jdk8-openjdk' 'mesa')
+ optdepends=('python: python-based bots'
+             'java-runtime: java-based bots')
+-source=("https://springrts.com/dl/buildbot/default/master/106.0/source/spring_106.0_src.tar.gz"
++source=("https://downloads.sourceforge.net/project/springrts/springrts/spring-$pkgver/spring_${pkgver}_src.tar.gz"
+          spring-gcc12.patch
+          spring-gcc13.patch
+          spring-gcc15.patch)
+@@ -29,6 +29,9 @@
    patch -Np1 -i ../spring-gcc12.patch
    patch -Np1 -i ../spring-gcc13.patch # missing includes
+   patch -Np1 -i ../spring-gcc15.patch # missing included
 +  patch -Np1 -i ../disable-streflop-for-cutils.patch
 +  patch -Np1 -i ../support-riscv64-build.patch
 +  patch -Np1 -i ../use-simde.patch
    #remove bundled libraries
    rm -r tools/pr-downloader/src/lib/jsoncpp
    rm -r tools/pr-downloader/src/lib/minizip
-@@ -34,13 +37,18 @@ prepare() {
+@@ -37,6 +40,9 @@
  build() {
    cd spring_$pkgver
  
@@ -20,9 +29,10 @@
    cmake \
      -Bbuild \
      -DCMAKE_INSTALL_PREFIX=/usr \
-     -DDATADIR=share/spring \
+@@ -44,7 +50,9 @@
      -DJAVA_HOME=/usr/lib/jvm/java-8-openjdk \
      -DCMAKE_SKIP_RPATH=ON \
+     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
 -    -DPRD_JSONCPP_INTERNAL=OFF
 +    -DPRD_JSONCPP_INTERNAL=OFF \
 +    -DENABLE_STREFLOP=OFF \
@@ -30,7 +40,7 @@
    make -C build
  }
  
-@@ -53,4 +61,12 @@ package() {
+@@ -57,4 +65,12 @@
    echo '$HOME/.spring' > "$pkgdir/etc/spring/datadir"
  }
  
