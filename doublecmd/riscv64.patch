@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,8 +23,10 @@
+ )
+ source=(
+     "https://downloads.sourceforge.net/project/$pkgbase/Double%20Commander%20Source/$pkgbase-$pkgver-src.tar.gz"
++    'fix-riscv64-time-type.patch'
+ )
+-sha512sums=('55432468baae690e58f3ae90d4a4a6bcd91233aee38225813f833b743d2ff1c19bc1f5d413e411c36a9480254d90336a75da7655daf857156cd3105de2586e7b')
++sha512sums=('55432468baae690e58f3ae90d4a4a6bcd91233aee38225813f833b743d2ff1c19bc1f5d413e411c36a9480254d90336a75da7655daf857156cd3105de2586e7b'
++            '5299c0566506d087766f7ad9737352b3f408672795d89805634446eca82fb5635d4255c604bbf13c4830ef20f1cda967af4aaeb8b7bb9df8e17ab0b7ab3875d2')
+ 
+ prepare() {
+     cp -a /usr/lib/lazarus ./
+@@ -33,6 +35,7 @@
+     sed -e 's/LIB_SUFFIX=.*/LIB_SUFFIX=/g' -i install/linux/install.sh
+     sed -e "s@=\$(which lazbuild)@=\"\$(which lazbuild) --lazarusdir=$srcdir/lazarus\"@" -i build.sh
+     sed -e '/doublecmd.zdli/d' -i install/linux/install.sh
++    patch -Np1 -i "$srcdir/fix-riscv64-time-type.patch"
+ }
+ 
+ build() {
