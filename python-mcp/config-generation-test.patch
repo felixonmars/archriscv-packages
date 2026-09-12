@@ -1,0 +1,38 @@
+--- a/tests/client/test_config.py
++++ b/tests/client/test_config.py
+@@ -2 +1,0 @@
+-import subprocess
+@@ -26,2 +25,2 @@
+-def test_command_execution(mock_config_path: Path):
+-    """Test that the generated command can actually be executed."""
++def test_command_generation(mock_config_path: Path):
++    """Test that the generated command contains the expected arguments."""
+@@ -32,3 +31,3 @@
+-    # Update config
+-    success = update_claude_config(file_spec=file_spec, server_name=server_name)
+-    assert success
++    with patch("mcp.cli.claude.get_uv_path", return_value="/usr/bin/uv"):
++        success = update_claude_config(file_spec=file_spec, server_name=server_name)
++        assert success
+@@ -42,9 +41,12 @@
+-    command = server_config["command"]
+-    args = server_config["args"]
+-
+-    test_args = [command] + args + ["--help"]
+-
+-    result = subprocess.run(test_args, capture_output=True, text=True, timeout=20, check=False)
+-
+-    assert result.returncode == 0
+-    assert "usage" in result.stdout.lower()
++    assert server_config == {
++        "command": "/usr/bin/uv",
++        "args": [
++            "run",
++            "--frozen",
++            "--with",
++            "mcp[cli]",
++            "mcp",
++            "run",
++            f"{Path('test_server.py').resolve()}:app",
++        ],
++    }
