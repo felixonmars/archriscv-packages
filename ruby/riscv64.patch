@@ -1,0 +1,29 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -163,6 +163,9 @@
+ prepare() {
+   cd "ruby-${pkgver}"
+ 
++  # This object tracing test exceeds its 10-second subprocess timeout on riscv64.
++  patch -Np1 -i "${srcdir}/increase-objspace-timeout.patch"
++
+   autoreconf -fiv
+ }
+ 
+@@ -193,6 +196,8 @@
+   # this uses malloc_usable_size, which is incompatible with fortification level 3
+   export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+   export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
++  # The ruby_buildpack integration fixture exceeds SyntaxSuggest's one-second limit on riscv64.
++  export SYNTAX_SUGGEST_TIMEOUT=60
+ 
+   make check
+ }
+@@ -363,3 +368,7 @@
+ }
+ 
+ # vim: tabstop=2 shiftwidth=2 expandtab:
++
++source+=(increase-objspace-timeout.patch)
++sha512sums+=('016a9b38f17e2bf5863747898ff864d51299bfd53b0198fa5bb20209761233022f184a7501a8b7596259bda66c7a7d57dfebb3479911aab477b57a1562a6d021')
++b2sums+=('d9503f49aba8f3f9eff25077891e136d925baa3c83c4f01eabc5edf224930b6cdb86298f996aafdec0639630548b575d4e5c89f8df027f70ca9f2225cd59e01b')
