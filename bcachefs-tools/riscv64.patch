@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -58,6 +58,9 @@
+@@ -59,6 +59,9 @@
    export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
  
@@ -10,3 +10,14 @@
    make \
      LIBEXECDIR=/usr/lib \
      DESTDIR="${pkgdir}" \
+@@ -68,7 +71,9 @@
+ 
+ check() {
+   cd ${pkgname}
+-  cargo test --profile release -- --no-capture
++  # LLD pulls unused static wrappers whose C implementations are not linked here.
++  RUSTFLAGS="${RUSTFLAGS//-C link-arg=-Wl,--icf=safe/} -C link-arg=-fuse-ld=bfd" \
++    cargo test --profile release -- --no-capture
+ }
+ 
+ package_bcachefs-tools() {
