@@ -1,0 +1,2730 @@
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/spec/compiler/codegen/abi/riscv64_spec.cr crystal-riscv-src/spec/compiler/codegen/abi/riscv64_spec.cr
+--- crystal-upstream/spec/compiler/codegen/abi/riscv64_spec.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/spec/compiler/codegen/abi/riscv64_spec.cr	2026-09-12 14:12:08.216610598 +0000
+@@ -0,0 +1,187 @@
++require "../../../spec_helper"
++require "compiler/crystal/codegen/abi/riscv64"
++
++{% if LibLLVM::BUILT_TARGETS.includes?(:riscv) %}
++  LLVM.init_riscv
++{% end %}
++
++private def riscv64_abi
++  triple = "riscv64-unknown-linux-gnu"
++  target = LLVM::Target.from_triple(triple)
++  machine = target.create_target_machine(triple, cpu: "generic-rv64", features: "+m,+a,+f,+d,+c")
++  machine.enable_global_isel = false
++  Crystal::ABI::RISCV64.new(machine)
++end
++
++private def riscv64_types(source, *names)
++  result = semantic("#{source}\n0")
++  lib_type = result.program.types["LibTest"]
++  {result.program, names.map { |name| lib_type.types[name].as(Crystal::Type) }.to_a}
++end
++
++private def riscv64_test(message, &block : Crystal::ABI::RISCV64, LLVM::Context ->)
++  it message do
++    block.call(riscv64_abi, LLVM::Context.new)
++  end
++end
++
++class Crystal::ABI
++  describe RISCV64 do
++    {% if LibLLVM::BUILT_TARGETS.includes?(:riscv) %}
++      riscv64_test "uses the RV64 data layout" do |abi, ctx|
++        abi.align(ctx.int1).should eq(1)
++        abi.align(ctx.int32).should eq(4)
++        abi.align(ctx.int64).should eq(8)
++        abi.align(ctx.int128).should eq(16)
++        abi.align(ctx.void_pointer).should eq(8)
++        abi.size(ctx.struct([ctx.int8, ctx.int64])).should eq(16)
++      end
++
++      riscv64_test "keeps pointer-represented static arrays scalar" do |abi, ctx|
++        program = semantic("0").program
++        type = program.static_array_of(program.uint8, 4)
++        pointer = ctx.void_pointer
++        info = abi.abi_info([pointer], pointer, true, ctx, [type] of Crystal::Type, type, 1)
++
++        info.arg_types[0].should eq(ArgType.direct(pointer))
++        info.return_type.should eq(ArgType.direct(pointer))
++      end
++
++      riscv64_test "extends integer scalars according to the psABI" do |abi, ctx|
++        program = semantic("0").program
++        types = [program.int8, program.uint8, program.int32, program.uint32, program.int64] of Crystal::Type
++        llvm_types = [ctx.int8, ctx.int8, ctx.int32, ctx.int32, ctx.int64]
++        info = abi.abi_info(llvm_types, ctx.void, false, ctx, types, program.nil_type, types.size)
++
++        info.arg_types.map(&.attr).should eq([
++          LLVM::Attribute::SExt,
++          LLVM::Attribute::ZExt,
++          LLVM::Attribute::SExt,
++          LLVM::Attribute::SExt,
++          nil,
++        ])
++      end
++
++      riscv64_test "flattens eligible floating-point aggregates" do |abi, ctx|
++        _, types = riscv64_types(<<-CRYSTAL, "Pair", "Mixed", "Padded")
++          lib LibTest
++            struct Pair
++              x : Float32
++              y : Float64
++            end
++
++            struct Mixed
++              x : Float64
++              y : Int32
++            end
++
++            struct Padded
++              x : Int8
++              y : Float64
++            end
++          end
++          CRYSTAL
++
++        llvm_types = [
++          ctx.struct([ctx.float, ctx.double]),
++          ctx.struct([ctx.double, ctx.int32]),
++          ctx.struct([ctx.int8, ctx.double]),
++        ]
++        info = abi.abi_info(llvm_types, ctx.void, false, ctx, types, types[0], types.size)
++
++        info.arg_types[0].cast.should eq(ctx.struct([ctx.float, ctx.double]))
++        info.arg_types[0].cast_offsets.should eq([0, 8])
++        info.arg_types[1].cast.should eq(ctx.struct([ctx.double, ctx.int32]))
++        info.arg_types[1].cast_offsets.should eq([0, 8])
++        info.arg_types[2].cast.should eq(ctx.struct([ctx.int8, ctx.double]))
++        info.arg_types[2].cast_offsets.should eq([0, 8])
++      end
++
++      riscv64_test "uses the integer convention for unions and variadic aggregates" do |abi, ctx|
++        _, types = riscv64_types(<<-CRYSTAL, "Pair", "Value")
++          lib LibTest
++            struct Pair
++              x : Float64
++              y : Int32
++            end
++
++            union Value
++              x : Float64
++              y : Int64
++            end
++          end
++          CRYSTAL
++
++        pair = ctx.struct([ctx.double, ctx.int32])
++        union_value = ctx.struct([ctx.int64])
++        info = abi.abi_info([pair, union_value], ctx.void, false, ctx, types, types[0], 0)
++
++        info.arg_types[0].cast.should eq(ctx.int64.array(2))
++        info.arg_types[0].cast_offsets.should be_nil
++        info.arg_types[1].cast.should eq(ctx.int64)
++      end
++
++      riscv64_test "passes large aggregates indirectly without byval" do |abi, ctx|
++        _, types = riscv64_types(<<-CRYSTAL, "Large")
++          lib LibTest
++            struct Large
++              x : Int64
++              y : Int64
++              z : Int64
++            end
++          end
++          CRYSTAL
++
++        large = ctx.struct([ctx.int64, ctx.int64, ctx.int64])
++        info = abi.abi_info([large], large, true, ctx, types, types[0], 1)
++
++        info.arg_types[0].should eq(ArgType.indirect(large, nil))
++        info.return_type.should eq(ArgType.indirect(large, LLVM::Attribute::StructRet))
++      end
++
++      riscv64_test "accounts for the hidden sret pointer" do |abi, ctx|
++        program, types = riscv64_types(<<-CRYSTAL, "Mixed", "Large")
++          lib LibTest
++            struct Mixed
++              x : Float64
++              y : Int64
++            end
++
++            struct Large
++              x : Int64
++              y : Int64
++              z : Int64
++            end
++          end
++          CRYSTAL
++
++        arg_types = Array(Crystal::Type).new(8, program.int64)
++        arg_types << types[0]
++        llvm_types = Array(LLVM::Type).new(8, ctx.int64)
++        llvm_types << ctx.struct([ctx.double, ctx.int64])
++        large = ctx.struct([ctx.int64, ctx.int64, ctx.int64])
++        info = abi.abi_info(llvm_types, large, true, ctx, arg_types, types[1], arg_types.size)
++
++        info.arg_types.last.cast.should eq(ctx.int64.array(2))
++      end
++
++      riscv64_test "keeps zero-sized arguments and aligned aggregates representable" do |abi, ctx|
++        program, types = riscv64_types(<<-CRYSTAL, "Aligned")
++          lib LibTest
++            struct Aligned
++              x : Int128
++            end
++          end
++          CRYSTAL
++
++        empty = ctx.int8.array(0)
++        aligned = ctx.struct([ctx.int128])
++        arg_types = [program.static_array_of(program.uint8, 0), types[0]] of Crystal::Type
++        info = abi.abi_info([empty, aligned], ctx.void, false, ctx, arg_types, types[0], arg_types.size)
++
++        info.arg_types[0].should eq(ArgType.direct(empty, ctx.int64.array(0)))
++        info.arg_types[1].should eq(ArgType.direct(aligned, ctx.int128))
++      end
++    {% end %}
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/abi/riscv64.cr crystal-riscv-src/src/compiler/crystal/codegen/abi/riscv64.cr
+--- crystal-upstream/src/compiler/crystal/codegen/abi/riscv64.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/abi/riscv64.cr	2026-09-12 14:12:08.241610572 +0000
+@@ -0,0 +1,227 @@
++require "../abi"
++
++# RISC-V ELF psABI, LP64D calling convention.
++# https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
++class Crystal::ABI::RISCV64 < Crystal::ABI
++  enum FieldKind
++    Integer
++    Float
++  end
++
++  record Field, kind : FieldKind, type : LLVM::Type, offset : Int32
++
++  private class State
++    property gprs : Int32
++    property fprs : Int32
++    property? varargs_on_stack : Bool
++
++    def initialize(@gprs = 8, @fprs = 8, @varargs_on_stack = false)
++    end
++  end
++
++  def align(type : LLVM::Type) : Int32
++    target_data.abi_alignment(type).to_i32
++  end
++
++  def size(type : LLVM::Type) : Int32
++    target_data.abi_size(type).to_i32
++  end
++
++  def abi_info(atys : Array(LLVM::Type), rty : LLVM::Type, ret_def : Bool,
++               context : LLVM::Context) : Crystal::ABI::FunctionType
++    raise "RISC-V ABI classification requires semantic C types"
++  end
++
++  def abi_info(atys : Array(LLVM::Type), rty : LLVM::Type, ret_def : Bool,
++               context : LLVM::Context, arg_types : Array(Crystal::Type),
++               return_type : Crystal::Type, fixed_args : Int32) : Crystal::ABI::FunctionType
++    state = State.new
++
++    ret_ty = if ret_def
++               classify_return(rty, return_type, context)
++             else
++               ArgType.direct(context.void)
++             end
++    consume_gprs(state, 1) if ret_ty.kind.indirect?
++
++    args = atys.zip(arg_types).map_with_index do |types, index|
++      classify_argument(types[0], types[1], context, state, vararg: index >= fixed_args)
++    end
++    FunctionType.new(args, ret_ty)
++  end
++
++  private def classify_return(llvm_type, type, context)
++    if aggregate?(type, llvm_type)
++      if cast = float_aggregate_cast(type, llvm_type, context, 2, 2)
++        return cast
++      end
++
++      return integer_aggregate(llvm_type, context, return_value: true)
++    end
++
++    scalar(llvm_type, type)
++  end
++
++  private def classify_argument(llvm_type, type, context, state, *, vararg)
++    if aggregate?(type, llvm_type)
++      unless vararg
++        if cast = float_aggregate_cast(type, llvm_type, context, state.gprs, state.fprs)
++          fields = cast.cast_offsets.not_nil!.size
++          float_fields = cast.cast.not_nil!.kind == LLVM::Type::Kind::Struct ?
++                           cast.cast.not_nil!.struct_element_types.count { |field| float?(field) } : 1
++          consume_fprs(state, float_fields)
++          consume_gprs(state, fields - float_fields)
++          return cast
++        end
++      end
++
++      arg = integer_aggregate(llvm_type, context, return_value: false)
++      if arg.kind.indirect?
++        consume_integer_argument(state, context.void_pointer, vararg)
++      else
++        consume_integer_argument(state, llvm_type, vararg)
++      end
++      return arg
++    end
++
++    if float?(llvm_type) && !vararg && state.fprs > 0
++      consume_fprs(state, 1)
++    else
++      consume_integer_argument(state, llvm_type, vararg)
++    end
++    scalar(llvm_type, type)
++  end
++
++  private def scalar(llvm_type, type)
++    type = underlying_type(type)
++    attr = case type
++           when BoolType
++             LLVM::Attribute::ZExt
++           when CharType
++             LLVM::Attribute::SExt
++           when IntegerType
++             if type.bits == 32
++               LLVM::Attribute::SExt
++             elsif type.bits < 64
++               type.signed? ? LLVM::Attribute::SExt : LLVM::Attribute::ZExt
++             end
++           when EnumType
++             base = type.base_type
++             if base.bits == 32
++               LLVM::Attribute::SExt
++             elsif base.bits < 64
++               base.signed? ? LLVM::Attribute::SExt : LLVM::Attribute::ZExt
++             end
++           end
++    ArgType.direct(llvm_type, attr: attr)
++  end
++
++  private def integer_aggregate(llvm_type, context, *, return_value)
++    bytes = size(llvm_type)
++    if bytes == 0
++      ArgType.direct(llvm_type, context.int64.array(0))
++    elsif bytes > 16
++      ArgType.indirect(llvm_type, return_value ? LLVM::Attribute::StructRet : nil)
++    elsif bytes <= 8
++      ArgType.direct(llvm_type, context.int64)
++    else
++      cast = align(llvm_type) > 8 ? context.int128 : context.int64.array(2)
++      ArgType.direct(llvm_type, cast)
++    end
++  end
++
++  private def float_aggregate_cast(type, llvm_type, context, gprs, fprs)
++    fields = [] of Field
++    return unless flatten(type, llvm_type, 0, fields)
++    return if fields.empty? || fields.size > 2
++
++    float_fields = fields.count(&.kind.float?)
++    integer_fields = fields.size - float_fields
++    return if float_fields == 0 || float_fields > fprs || integer_fields > gprs
++
++    cast = if fields.size == 1
++             fields[0].type
++           else
++             context.struct(fields.map(&.type))
++           end
++    ArgType.direct(llvm_type, cast, cast_offsets: fields.map(&.offset))
++  end
++
++  private def flatten(type, llvm_type, base_offset, fields) : Bool
++    type = underlying_type(type)
++
++    case type
++    when FloatType
++      return false if size(llvm_type) > 8
++      fields << Field.new(FieldKind::Float, llvm_type, base_offset)
++    when IntegerType, BoolType, CharType, EnumType, PointerInstanceType,
++         ProcInstanceType, NilableProcType
++      return false if size(llvm_type) > 8
++      fields << Field.new(FieldKind::Integer, llvm_type, base_offset)
++    when StaticArrayInstanceType
++      element_type = llvm_type.element_type
++      type.size.as(NumberLiteral).value.to_i.times do |index|
++        return false unless flatten(type.element_type, element_type,
++          base_offset + index * size(element_type), fields)
++        return false if fields.size > 2
++      end
++    when InstanceVarContainer
++      return false unless type.extern?
++      return size(llvm_type) == 0 if type.extern_union?
++
++      llvm_fields = llvm_type.struct_element_types
++      type.all_instance_vars.each_value.with_index do |var, index|
++        offset = target_data.offset_of_element(llvm_type, index).to_i32
++        return false unless flatten(var.type, llvm_fields[index], base_offset + offset, fields)
++        return false if fields.size > 2
++      end
++    else
++      return false
++    end
++
++    true
++  end
++
++  private def aggregate?(type, llvm_type)
++    return false if llvm_type.kind == LLVM::Type::Kind::Pointer
++
++    type = underlying_type(type)
++    type.is_a?(StaticArrayInstanceType) || (type.is_a?(InstanceVarContainer) && type.extern?)
++  end
++
++  private def underlying_type(type)
++    type = type.remove_alias
++    while type.is_a?(TypeDefType)
++      type = type.typedef.remove_alias
++    end
++    type
++  end
++
++  private def float?(type : LLVM::Type)
++    type.kind.in?(LLVM::Type::Kind::Float, LLVM::Type::Kind::Double)
++  end
++
++  private def consume_integer_argument(state, type, vararg)
++    return if size(type) == 0
++
++    registers = size(type) > 8 ? 2 : 1
++    if vararg && registers == 2 && align(type) > 8
++      state.gprs -= state.gprs % 2
++    end
++
++    if state.varargs_on_stack? || state.gprs == 0 || (vararg && registers == 2 && state.gprs < 2)
++      state.gprs = 0 if vararg
++      state.varargs_on_stack = true if vararg
++    else
++      consume_gprs(state, registers)
++    end
++  end
++
++  private def consume_gprs(state, count)
++    state.gprs = Math.max(0, state.gprs - count)
++  end
++
++  private def consume_fprs(state, count)
++    state.fprs = Math.max(0, state.fprs - count)
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/abi.cr crystal-riscv-src/src/compiler/crystal/codegen/abi.cr
+--- crystal-upstream/src/compiler/crystal/codegen/abi.cr	2026-09-12 08:43:17.761476035 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/abi.cr	2026-09-12 19:02:04.851484244 +0000
+@@ -24,6 +24,8 @@
+       AArch64.new(target_machine)
+     when /arm/
+       ARM.new(target_machine)
++    when /riscv64/
++      RISCV64.new(target_machine)
+     when /avr/
+       AVR.new(target_machine, target_machine.cpu)
+     when /wasm32/
+@@ -34,6 +36,11 @@
+   end
+ 
+   abstract def abi_info(atys : Array(LLVM::Type), rty : LLVM::Type, ret_def : Bool, context : Context)
++
++  def abi_info(atys : Array(LLVM::Type), rty : LLVM::Type, ret_def : Bool, context : LLVM::Context,
++               arg_types : Array(Crystal::Type), return_type : Crystal::Type, fixed_args : Int32)
++    abi_info(atys, rty, ret_def, context)
++  end
+   abstract def size(type : LLVM::Type)
+   abstract def align(type : LLVM::Type)
+ 
+@@ -105,11 +112,12 @@
+     getter kind : ArgKind
+     getter type : LLVM::Type
+     getter cast : LLVM::Type?
++    getter cast_offsets : Array(Int32)?
+     getter pad : Nil
+     getter attr : LLVM::Attribute?
+ 
+-    def self.direct(type, cast = nil, pad = nil, attr = nil)
+-      new ArgKind::Direct, type, cast, pad, attr
++    def self.direct(type, cast = nil, pad = nil, attr = nil, cast_offsets = nil)
++      new ArgKind::Direct, type, cast, pad, attr, cast_offsets
+     end
+ 
+     def self.indirect(type, attr) : self
+@@ -120,7 +128,7 @@
+       new ArgKind::Ignore, type
+     end
+ 
+-    def initialize(@kind, @type, @cast = nil, @pad = nil, @attr = nil)
++    def initialize(@kind, @type, @cast = nil, @pad = nil, @attr = nil, @cast_offsets = nil)
+     end
+   end
+ 
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/call.cr crystal-riscv-src/src/compiler/crystal/codegen/call.cr
+--- crystal-upstream/src/compiler/crystal/codegen/call.cr	2026-09-12 08:43:44.920071196 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/call.cr	2026-09-12 14:39:50.321881895 +0000
+@@ -244,19 +244,68 @@
+ 
+   def codegen_direct_abi_call(call_arg_type, call_arg, abi_arg_type)
+     if cast = abi_arg_type.cast
+-      final_value = alloca cast
+-      final_value_casted = cast_to_void_pointer final_value
+       gep_call_arg = cast_to_void_pointer gep(llvm_type(call_arg_type), call_arg, 0, 0)
+-      size = @abi.size(abi_arg_type.type)
+-      align = @abi.align(abi_arg_type.type)
+-      memcpy(final_value_casted, gep_call_arg, size_t(size), align, int1(0))
+-      call_arg = load cast, final_value
++      if abi_arg_type.cast_offsets
++        call_arg = load_abi_cast(gep_call_arg, abi_arg_type)
++      else
++        final_value = alloca cast
++        final_value_casted = cast_to_void_pointer final_value
++        size = @abi.size(abi_arg_type.type)
++        align = @abi.align(abi_arg_type.type)
++        memcpy(final_value_casted, gep_call_arg, size_t(size), align, int1(0))
++        call_arg = load cast, final_value
++      end
+     else
+       # Keep same call arg
+     end
+     call_arg
+   end
+ 
++  private def load_abi_cast(value_ptr, abi_arg_type)
++    cast = abi_arg_type.cast.not_nil!
++    offsets = abi_arg_type.cast_offsets.not_nil!
++    if cast.kind != LLVM::Type::Kind::Struct
++      value = load(cast, gep(llvm_context.int8, value_ptr, offsets[0]))
++      value.alignment = abi_field_alignment(abi_arg_type, offsets[0])
++      return value
++    end
++
++    value = cast.undef
++
++    cast.struct_element_types.each_with_index do |type, index|
++      offset = offsets[index]
++      field_ptr = gep(llvm_context.int8, value_ptr, offset)
++      field = load(type, field_ptr)
++      field.alignment = abi_field_alignment(abi_arg_type, offset)
++      value = insert_value(value, field, index)
++    end
++
++    value
++  end
++
++  private def store_abi_cast(value, value_ptr, abi_arg_type)
++    cast = abi_arg_type.cast.not_nil!
++    if cast.kind != LLVM::Type::Kind::Struct
++      store = self.store(value, gep(llvm_context.int8, value_ptr, abi_arg_type.cast_offsets.not_nil![0]))
++      store.alignment = abi_field_alignment(abi_arg_type, abi_arg_type.cast_offsets.not_nil![0])
++      return
++    end
++
++    cast.struct_element_types.each_with_index do |type, index|
++      offset = abi_arg_type.cast_offsets.not_nil![index]
++      field_ptr = gep(llvm_context.int8, value_ptr, offset)
++      store = self.store(extract_value(value, index), field_ptr)
++      store.alignment = abi_field_alignment(abi_arg_type, offset)
++    end
++  end
++
++  private def abi_field_alignment(abi_arg_type, offset)
++    align = @abi.align(abi_arg_type.type)
++    return align if offset == 0
++
++    Math.min(align, offset & -offset)
++  end
++
+   # For an indirect argument we need to make a copy of the value in the stack
+   # and *replace* the call argument by a pointer to the allocated memory
+   def codegen_indirect_abi_call(call_arg, abi_arg_type)
+@@ -542,14 +591,18 @@
+         case abi_return.kind
+         in .direct?
+           if cast = abi_return.cast
+-            cast1 = alloca cast
+-            store @last, cast1
+-            cast2 = cast_to_void_pointer(cast1)
+             final_value = alloca abi_return.type
+             final_value_casted = cast_to_void_pointer final_value
+-            size = @abi.size(abi_return.type)
+-            align = @abi.align(abi_return.type)
+-            memcpy(final_value_casted, cast2, size_t(size), align, int1(0))
++            if abi_return.cast_offsets
++              store_abi_cast(@last, final_value_casted, abi_return)
++            else
++              cast1 = alloca cast
++              store @last, cast1
++              cast2 = cast_to_void_pointer(cast1)
++              size = @abi.size(abi_return.type)
++              align = @abi.align(abi_return.type)
++              memcpy(final_value_casted, cast2, size_t(size), align, int1(0))
++            end
+             @last = final_value
+           end
+         in .indirect?
+@@ -603,6 +656,9 @@
+ 
+     if sret
+       @last.add_instruction_attribute(1, LLVM::Attribute::StructRet, llvm_context, abi_info.return_type.type)
++    elsif attr = abi_info.return_type.attr
++      @last.add_instruction_attribute(LLVM::AttributeIndex::ReturnIndex.value.to_i, attr,
++        llvm_context, abi_info.return_type.type)
+     end
+   end
+ 
+@@ -625,6 +681,9 @@
+ 
+     if abi_info && sret
+       @last.add_instruction_attribute(1, LLVM::Attribute::StructRet, llvm_context, abi_info.return_type.type)
++    elsif abi_info && (attr = abi_info.return_type.attr)
++      @last.add_instruction_attribute(LLVM::AttributeIndex::ReturnIndex.value.to_i, attr,
++        llvm_context, abi_info.return_type.type)
+     end
+   end
+ 
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/crystal_llvm_builder.cr crystal-riscv-src/src/compiler/crystal/codegen/crystal_llvm_builder.cr
+--- crystal-upstream/src/compiler/crystal/codegen/crystal_llvm_builder.cr	2026-09-12 08:43:17.761541462 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/crystal_llvm_builder.cr	2026-09-12 20:19:23.657669760 +0000
+@@ -81,7 +81,7 @@
+                      catch_pad catch_switch clear_current_debug_location cmpxchg cond
+                      current_debug_location exact_sdiv extract_value fadd fcmp fdiv fence fmul
+                      fp2si fp2ui fpext fptrunc fsub global_string_pointer icmp inbounds_gep int2ptr
+-                     invoke landing_pad load lshr mul not or phi ptr2int sdiv select
++                     insert_value invoke landing_pad load lshr mul not or phi ptr2int sdiv select
+                      set_current_debug_location sext shl si2fp srem store store_volatile sub switch
+                      trunc udiv ui2fp urem va_arg xor zext) %}
+       def {{name.id}}(*args, **kwargs)
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/fun.cr crystal-riscv-src/src/compiler/crystal/codegen/fun.cr
+--- crystal-upstream/src/compiler/crystal/codegen/fun.cr	2026-09-12 08:43:17.762107178 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/fun.cr	2026-09-12 19:22:30.758874191 +0000
+@@ -50,6 +50,10 @@
+ 
+     source_fun = func.func
+     new_fun = typed_fun.func
++    attrs = source_fun.attributes(LLVM::AttributeIndex::ReturnIndex)
++    if attrs.value != 0
++      new_fun.add_attribute(attrs, LLVM::AttributeIndex::ReturnIndex, type.return_type)
++    end
+     source_fun.params.each_index do |index|
+       attrs = source_fun.attributes(index + 1)
+       if attrs.value != 0
+@@ -248,8 +252,12 @@
+       abi_info = abi_info(target_def)
+       abi_ret_type = abi_info.return_type
+       if cast = abi_ret_type.cast
+-        casted_last = pointer_cast @last, cast.pointer
+-        last = load cast, casted_last
++        if abi_ret_type.cast_offsets
++          last = load_abi_cast(cast_to_void_pointer(@last), abi_ret_type)
++        else
++          casted_last = pointer_cast @last, cast.pointer
++          last = load cast, casted_last
++        end
+         ret last
+         return
+       end
+@@ -421,9 +429,12 @@
+       i += 1 unless abi_arg_type.kind == ABI::ArgKind::Ignore
+     end
+ 
+-    # This is for sret
+-    if (attr = abi_info.return_type.attr) && attr == LLVM::Attribute::StructRet
+-      context.fun.add_attribute(attr, 1, abi_info.return_type.type)
++    if attr = abi_info.return_type.attr
++      if attr == LLVM::Attribute::StructRet
++        context.fun.add_attribute(attr, 1, abi_info.return_type.type)
++      else
++        context.fun.add_attribute(attr, LLVM::AttributeIndex::ReturnIndex, abi_info.return_type.type)
++      end
+     end
+ 
+     args
+@@ -434,15 +445,28 @@
+ 
+     llvm_args_types = external.args.map { |arg| llvm_c_type(arg.type) }
+     llvm_return_type = llvm_c_return_type(external.type)
+-    @abi.abi_info(llvm_args_types, llvm_return_type, !llvm_return_type.void?, llvm_context)
++    arg_types = external.args.map(&.type)
++    @abi.abi_info(llvm_args_types, llvm_return_type, !llvm_return_type.void?, llvm_context,
++      arg_types, external.type, arg_types.size)
+   end
+ 
+   def abi_info(external : Def, node : Call)
+-    llvm_args_types = node.args.map_with_index do |arg, i|
+-      llvm_c_type((external.args[i]? || arg).type)
++    arg_types = node.args.map_with_index do |arg, i|
++      type = (external.args[i]? || arg).type
++      if i >= external.args.size
++        type = type.remove_indirection
++        if type.is_a?(FloatType) && type.kind.bytesize < 64
++          type = @program.float64
++        elsif type.is_a?(IntegerType) && type.kind.bytesize < 32
++          type = @program.int32
++        end
++      end
++      type
+     end
++    llvm_args_types = arg_types.map { |type| llvm_c_type(type) }
+     llvm_return_type = llvm_c_return_type(external.type)
+-    @abi.abi_info(llvm_args_types, llvm_return_type, !llvm_return_type.void?, llvm_context)
++    @abi.abi_info(llvm_args_types, llvm_return_type, !llvm_return_type.void?, llvm_context,
++      arg_types, external.type, external.args.size)
+   end
+ 
+   def setup_context_fun(mangled_name, target_def, llvm_args_types, llvm_return_type) : Nil
+@@ -585,13 +609,18 @@
+       # compatibility, and it's not passed byval, we must cast the value
+       if target_def.c_calling_convention? && arg.type.extern? && !context.fun.attributes(index + 1).by_val?
+         # ... unless it's passed indirectly (ie. as a pointer to memory allocated by the caller)
+-        if abi_info.try &.arg_types[index - (sret ? 1 : 0)].kind.indirect?
++        abi_arg_type = abi_info.try &.arg_types[index - (sret ? 1 : 0)]
++        if abi_arg_type.try &.kind.indirect?
+           value = declare_debug_for_function_argument(arg.name, var_type, index + 1, value, location) unless target_def.naked?
+           context.vars[arg.name] = LLVMVar.new(value, var_type)
+         else
+           pointer = alloca(llvm_type(var_type), arg.name)
+-          casted_pointer = pointer_cast pointer, value.type.pointer
+-          store value, casted_pointer
++          if abi_arg_type.try &.cast_offsets
++            store_abi_cast(value, cast_to_void_pointer(pointer), abi_arg_type.not_nil!)
++          else
++            casted_pointer = pointer_cast pointer, value.type.pointer
++            store value, casted_pointer
++          end
+           pointer = declare_debug_for_function_argument(arg.name, var_type, index + 1, pointer, location) unless target_def.naked?
+           context.vars[arg.name] = LLVMVar.new(pointer, var_type)
+         end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/llvm_builder_helper.cr crystal-riscv-src/src/compiler/crystal/codegen/llvm_builder_helper.cr
+--- crystal-upstream/src/compiler/crystal/codegen/llvm_builder_helper.cr	2026-09-12 08:43:17.762107178 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/llvm_builder_helper.cr	2026-09-12 14:12:07.961610865 +0000
+@@ -170,7 +170,7 @@
+ 
+     delegate ptr2int, int2ptr, and, or, not, bit_cast,
+       trunc, load, store, load_volatile, store_volatile, br, insert_block, position_at_end,
+-      cond, phi, extract_value, switch, to: builder
++      cond, phi, extract_value, insert_value, switch, to: builder
+ 
+     def ret
+       builder.ret
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/codegen/target.cr crystal-riscv-src/src/compiler/crystal/codegen/target.cr
+--- crystal-upstream/src/compiler/crystal/codegen/target.cr	2026-09-12 08:43:17.762107178 +0000
++++ crystal-riscv-src/src/compiler/crystal/codegen/target.cr	2026-09-12 14:12:08.201610614 +0000
+@@ -51,7 +51,7 @@
+ 
+   def pointer_bit_width
+     case @architecture
+-    when "aarch64", "x86_64"
++    when "aarch64", "riscv64", "x86_64"
+       64
+     when "arm", "i386", "wasm32"
+       32
+@@ -64,7 +64,7 @@
+ 
+   def size_bit_width
+     case @architecture
+-    when "aarch64", "x86_64"
++    when "aarch64", "riscv64", "x86_64"
+       64
+     when "arm", "i386", "wasm32"
+       32
+@@ -221,6 +221,11 @@
+       end
+     when "wasm32"
+       LLVM.init_webassembly
++    when "riscv64"
++      LLVM.init_riscv
++
++      cpu = "generic-rv64" if cpu.empty?
++      features = "#{features}#{"," unless features.empty?}+m,+a,+f,+d,+c,+zicsr,+zifencei"
+     else
+       raise Target::Error.new("Unsupported architecture for target triple: #{self}")
+     end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/compiler/crystal/ffi/lib_ffi.cr crystal-riscv-src/src/compiler/crystal/ffi/lib_ffi.cr
+--- crystal-upstream/src/compiler/crystal/ffi/lib_ffi.cr	2026-09-12 08:43:44.921071195 +0000
++++ crystal-riscv-src/src/compiler/crystal/ffi/lib_ffi.cr	2026-09-12 14:12:08.139610679 +0000
+@@ -68,6 +68,10 @@
+         {% else %}
+           DEFAULT = SYSV
+         {% end %}
++      {% elsif flag?(:riscv64) %}
++        SYSV = 1
++
++        DEFAULT = SYSV
+       {% else %}
+         {% raise "Unsupported target for ABI" %}
+       {% end %}
+@@ -107,6 +111,10 @@
+       rtype : Type*
+       bytes : LibC::UInt
+       flags : LibC::UInt
++      {% if flag?(:riscv64) %}
++        riscv_nfixedargs : LibC::UInt
++        riscv_unused : LibC::UInt
++      {% end %}
+     end
+ 
+     struct Type
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/exception/lib_unwind.cr crystal-riscv-src/src/exception/lib_unwind.cr
+--- crystal-upstream/src/exception/lib_unwind.cr	2026-09-12 08:43:17.780199989 +0000
++++ crystal-riscv-src/src/exception/lib_unwind.cr	2026-09-12 14:12:08.146610672 +0000
+@@ -132,7 +132,10 @@
+     fun raise_exception = _Unwind_RaiseException(ex : Exception*) : ReasonCode
+   {% end %}
+ 
+-  {% if flag?(:x86_64) || flag?(:arm) || flag?(:aarch64) %}
++  {% if flag?(:riscv64) %}
++    EH_REGISTER_0 = 10 # a0
++    EH_REGISTER_1 = 11 # a1
++  {% elsif flag?(:x86_64) || flag?(:arm) || flag?(:aarch64) %}
+     EH_REGISTER_0 = 0
+     EH_REGISTER_1 = 1
+   {% else %}
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/fiber/context/riscv64.cr crystal-riscv-src/src/fiber/context/riscv64.cr
+--- crystal-upstream/src/fiber/context/riscv64.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/fiber/context/riscv64.cr	2026-09-12 14:12:08.209610606 +0000
+@@ -0,0 +1,100 @@
++{% skip_file unless flag?(:riscv64) %}
++
++class Fiber
++  # :nodoc:
++  def makecontext(stack_ptr, fiber_main) : Nil
++    # ra, s0-s11, a0, fs0-fs11, fcsr, and one padding slot
++    @context.stack_top = (stack_ptr - 28).as(Void*)
++    @context.resumable = 1
++
++    stack_ptr[-28] = fiber_main.pointer # ra
++    stack_ptr[-15] = self.as(Void*)     # a0
++    stack_ptr[-2] = Pointer(Void).null  # fcsr
++  end
++
++  # :nodoc:
++  @[NoInline]
++  @[Naked]
++  def self.swapcontext(current_context, new_context) : Nil
++    #                  a0,              a1
++    {% begin %}
++      asm("
++    addi sp, sp, -224
++
++    sd ra, 0(sp)
++    sd s0, 8(sp)
++    sd s1, 16(sp)
++    sd s2, 24(sp)
++    sd s3, 32(sp)
++    sd s4, 40(sp)
++    sd s5, 48(sp)
++    sd s6, 56(sp)
++    sd s7, 64(sp)
++    sd s8, 72(sp)
++    sd s9, 80(sp)
++    sd s10, 88(sp)
++    sd s11, 96(sp)
++    sd a0, 104(sp)
++
++    fsd fs0, 112(sp)
++    fsd fs1, 120(sp)
++    fsd fs2, 128(sp)
++    fsd fs3, 136(sp)
++    fsd fs4, 144(sp)
++    fsd fs5, 152(sp)
++    fsd fs6, 160(sp)
++    fsd fs7, 168(sp)
++    fsd fs8, 176(sp)
++    fsd fs9, 184(sp)
++    fsd fs10, 192(sp)
++    fsd fs11, 200(sp)
++    frcsr t0
++    sd t0, 208(sp)
++
++    sd sp, 0(a0)
++    {% unless flag?(:without_mt) %}
++    fence rw, rw
++    {% end %}
++    li t0, 1
++    sd t0, 8(a0)
++
++    sd zero, 8(a1)
++    ld sp, 0(a1)
++
++    ld t0, 0(sp)
++    ld s0, 8(sp)
++    ld s1, 16(sp)
++    ld s2, 24(sp)
++    ld s3, 32(sp)
++    ld s4, 40(sp)
++    ld s5, 48(sp)
++    ld s6, 56(sp)
++    ld s7, 64(sp)
++    ld s8, 72(sp)
++    ld s9, 80(sp)
++    ld s10, 88(sp)
++    ld s11, 96(sp)
++
++    fld fs0, 112(sp)
++    fld fs1, 120(sp)
++    fld fs2, 128(sp)
++    fld fs3, 136(sp)
++    fld fs4, 144(sp)
++    fld fs5, 152(sp)
++    fld fs6, 160(sp)
++    fld fs7, 168(sp)
++    fld fs8, 176(sp)
++    fld fs9, 184(sp)
++    fld fs10, 192(sp)
++    fld fs11, 200(sp)
++    ld t1, 208(sp)
++    fscsr t1
++
++    ld a0, 104(sp)
++    addi sp, sp, 224
++    mv ra, zero
++    jr t0
++      ")
++    {% end %}
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/arpa/inet.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/arpa/inet.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/arpa/inet.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/arpa/inet.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,9 @@
++require "../netinet/in"
++require "../stdint"
++
++lib LibC
++  fun htons(hostshort : UInt16T) : UInt16T
++  fun ntohs(netshort : UInt16T) : UInt16T
++  fun inet_ntop(af : Int, cp : Void*, buf : Char*, len : SocklenT) : Char*
++  fun inet_pton(af : Int, cp : Char*, buf : Void*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/dirent.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/dirent.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/dirent.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/dirent.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,23 @@
++require "./sys/types"
++
++lib LibC
++  type DIR = Void
++
++  DT_UNKNOWN =  0
++  DT_DIR     =  4
++  DT_LNK     = 10
++
++  struct Dirent
++    d_ino : InoT
++    d_off : OffT
++    d_reclen : UShort
++    d_type : UChar
++    d_name : StaticArray(Char, 256)
++  end
++
++  fun closedir(dirp : DIR*) : Int
++  fun opendir(name : Char*) : DIR*
++  fun readdir(dirp : DIR*) : Dirent*
++  fun rewinddir(dirp : DIR*) : Void
++  fun dirfd(dirp : DIR*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/dlfcn.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/dlfcn.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/dlfcn.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/dlfcn.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,24 @@
++{% unless flag?(:interpreted) %}
++  @[Link("dl")]
++{% end %}
++
++lib LibC
++  RTLD_LAZY    = 0x00001
++  RTLD_NOW     = 0x00002
++  RTLD_GLOBAL  = 0x00100
++  RTLD_LOCAL   =       0
++  RTLD_DEFAULT = Pointer(Void).new(0_u64)
++
++  struct DlInfo
++    dli_fname : Char*
++    dli_fbase : Void*
++    dli_sname : Char*
++    dli_saddr : Void*
++  end
++
++  fun dlclose(handle : Void*) : Int
++  fun dlerror : Char*
++  fun dlopen(file : Char*, mode : Int) : Void*
++  fun dlsym(handle : Void*, name : Char*) : Void*
++  fun dladdr(address : Void*, info : DlInfo*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/elf.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/elf.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/elf.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/elf.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,24 @@
++require "./sys/types"
++
++lib LibC
++  alias Elf_Half = UInt16T
++  alias Elf_Word = UInt32T
++  alias Elf_Sword = Int32T
++  alias Elf_Xword = UInt64T
++  alias Elf_Sxword = Int64T
++  alias Elf_Addr = UInt64T
++  alias Elf_Off = UInt64T
++  alias Elf_Section = UInt16T
++  alias Elf_Versym = Elf_Half
++
++  struct Elf_Phdr
++    type : Elf_Word    # Segment type
++    flags : Elf_Word   # Segment flags
++    offset : Elf_Off   # Segment file offset
++    vaddr : Elf_Addr   # Segment virtual address
++    paddr : Elf_Addr   # Segment physical address
++    filesz : Elf_Xword # Segment size in file
++    memsz : Elf_Xword  # Segment size in memory
++    align : Elf_Xword  # Segment alignment
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/errno.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/errno.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/errno.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/errno.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,86 @@
++lib LibC
++  fun __errno_location : Int*
++
++  E2BIG           =   7
++  EACCES          =  13
++  EADDRINUSE      =  98
++  EADDRNOTAVAIL   =  99
++  EAFNOSUPPORT    =  97
++  EAGAIN          =  11
++  EALREADY        = 114
++  EBADF           =   9
++  EBADMSG         =  74
++  EBADR           =  53
++  EBUSY           =  16
++  ECANCELED       = 125
++  ECHILD          =  10
++  ECONNABORTED    = 103
++  ECONNREFUSED    = 111
++  ECONNRESET      = 104
++  EDEADLK         =  35
++  EDESTADDRREQ    =  89
++  EDOM            =  33
++  EDQUOT          = 122
++  EEXIST          =  17
++  EFAULT          =  14
++  EFBIG           =  27
++  EHOSTUNREACH    = 113
++  EIDRM           =  43
++  EILSEQ          =  84
++  EINPROGRESS     = 115
++  EINTR           =   4
++  EINVAL          =  22
++  EIO             =   5
++  EISCONN         = 106
++  EISDIR          =  21
++  ELOOP           =  40
++  EMFILE          =  24
++  EMLINK          =  31
++  EMSGSIZE        =  90
++  EMULTIHOP       =  72
++  ENAMETOOLONG    =  36
++  ENETDOWN        = 100
++  ENETRESET       = 102
++  ENETUNREACH     = 101
++  ENFILE          =  23
++  ENOBUFS         = 105
++  ENODEV          =  19
++  ENOENT          =   2
++  ENOEXEC         =   8
++  ENOLCK          =  37
++  ENOLINK         =  67
++  ENOMEM          =  12
++  ENOMSG          =  42
++  ENOPROTOOPT     =  92
++  ENOSPC          =  28
++  ENOSYS          =  38
++  ENOTCONN        = 107
++  ENOTDIR         =  20
++  ENOTEMPTY       =  39
++  ENOTRECOVERABLE = 131
++  ENOTSOCK        =  88
++  ENOTSUP         = LibC::EOPNOTSUPP
++  ENOTTY          =  25
++  ENXIO           =   6
++  EOPNOTSUPP      =  95
++  EOVERFLOW       =  75
++  EOWNERDEAD      = 130
++  EPERM           =   1
++  EPIPE           =  32
++  EPROTO          =  71
++  EPROTONOSUPPORT =  93
++  EPROTOTYPE      =  91
++  ERANGE          =  34
++  EROFS           =  30
++  ESPIPE          =  29
++  ESRCH           =   3
++  ESTALE          = 116
++  ETIMEDOUT       = 110
++  ETXTBSY         =  26
++  EWOULDBLOCK     = LibC::EAGAIN
++  EXDEV           = 18
++  ENODATA         = 61
++  ENOSR           = 63
++  ENOSTR          = 60
++  ETIME           = 62
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/fcntl.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/fcntl.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/fcntl.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/fcntl.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,34 @@
++require "./sys/types"
++require "./sys/stat"
++require "./unistd"
++
++lib LibC
++  F_GETFD    =         1
++  F_SETFD    =         2
++  F_GETFL    =         3
++  F_SETFL    =         4
++  FD_CLOEXEC =         1
++  O_CLOEXEC  = 0o2000000
++  O_CREAT    =     0o100
++  O_EXCL     =     0o200
++  O_NOFOLLOW =  0o400000
++  O_TRUNC    =    0o1000
++  O_APPEND   =    0o2000
++  O_NONBLOCK =    0o4000
++  O_SYNC     = 0o4010000
++  O_RDONLY   =       0o0
++  O_RDWR     =       0o2
++  O_WRONLY   =       0o1
++  AT_FDCWD   =      -100
++
++  struct Flock
++    l_type : Short
++    l_whence : Short
++    l_start : OffT
++    l_len : OffT
++    l_pid : PidT
++  end
++
++  fun fcntl(fd : Int, cmd : Int, ...) : Int
++  fun open(file : Char*, oflag : Int, ...) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/grp.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/grp.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/grp.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/grp.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,11 @@
++lib LibC
++  struct Group
++    gr_name : Char*
++    gr_passwd : Char*
++    gr_gid : GidT
++    gr_mem : Char**
++  end
++
++  fun getgrnam_r(name : Char*, grp : Group*, buf : Char*, bufsize : SizeT, result : Group**) : Int
++  fun getgrgid_r(gid : GidT, grp : Group*, buf : Char*, bufsize : SizeT, result : Group**) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/iconv.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/iconv.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/iconv.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/iconv.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,9 @@
++require "./stddef"
++
++lib LibC
++  type IconvT = Void*
++
++  fun iconv(cd : IconvT, inbuf : Char**, inbytesleft : SizeT*, outbuf : Char**, outbytesleft : SizeT*) : SizeT
++  fun iconv_close(cd : IconvT) : Int
++  fun iconv_open(tocode : Char*, fromcode : Char*) : IconvT
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/limits.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/limits.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/limits.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/limits.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,4 @@
++lib LibC
++  NAME_MAX =  255
++  PATH_MAX = 4096
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/link.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/link.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/link.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/link.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,17 @@
++require "./elf"
++
++lib LibC
++  struct DlPhdrInfo
++    addr : Elf_Addr
++    name : Char*
++    phdr : Elf_Phdr*
++    phnum : Elf_Half
++    adds : ULongLong
++    subs : ULongLong
++    tls_modid : SizeT
++    tls_data : Void*
++  end
++
++  alias DlPhdrCallback = (DlPhdrInfo*, LibC::SizeT, Void*) -> LibC::Int
++  fun dl_iterate_phdr(callback : DlPhdrCallback, data : Void*)
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/net/if.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/net/if.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/net/if.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/net/if.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,9 @@
++require "../netinet/in"
++require "../stdint"
++
++lib LibC
++  IF_NAMESIZE = 16
++
++  fun if_nametoindex(ifname : Char*) : UInt
++  fun if_indextoname(ifindex : UInt, ifname : LibC::Char*) : LibC::Char*
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/netdb.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/netdb.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/netdb.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/netdb.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,40 @@
++require "./netinet/in"
++require "./sys/socket"
++require "./stdint"
++
++lib LibC
++  AI_PASSIVE     = 0x0001
++  AI_CANONNAME   = 0x0002
++  AI_NUMERICHOST = 0x0004
++  AI_NUMERICSERV = 0x0400
++  AI_V4MAPPED    = 0x0008
++  AI_ALL         = 0x0010
++  AI_ADDRCONFIG  = 0x0020
++  EAI_AGAIN      =     -3
++  EAI_BADFLAGS   =     -1
++  EAI_FAIL       =     -4
++  EAI_NODATA     =     -5
++  EAI_FAMILY     =     -6
++  EAI_MEMORY     =    -10
++  EAI_NONAME     =     -2
++  EAI_SERVICE    =     -8
++  EAI_SOCKTYPE   =     -7
++  EAI_SYSTEM     =    -11
++  EAI_OVERFLOW   =    -12
++
++  struct Addrinfo
++    ai_flags : Int
++    ai_family : Int
++    ai_socktype : Int
++    ai_protocol : Int
++    ai_addrlen : SocklenT
++    ai_addr : Sockaddr*
++    ai_canonname : Char*
++    ai_next : Addrinfo*
++  end
++
++  fun freeaddrinfo(ai : Addrinfo*) : Void
++  fun gai_strerror(ecode : Int) : Char*
++  fun getaddrinfo(name : Char*, service : Char*, req : Addrinfo*, pai : Addrinfo**) : Int
++  fun getnameinfo(sa : Sockaddr*, salen : SocklenT, host : Char*, hostlen : SocklenT, serv : Char*, servlen : SocklenT, flags : Int) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/netinet/in.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/netinet/in.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/netinet/in.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/netinet/in.cr	2026-09-12 14:08:30.824161392 +0000
+@@ -0,0 +1,70 @@
++require "../sys/socket"
++require "../stdint"
++
++lib LibC
++  IPPROTO_IP   =   0
++  IPPROTO_IPV6 =  41
++  IPPROTO_ICMP =   1
++  IPPROTO_RAW  = 255
++  IPPROTO_TCP  =   6
++  IPPROTO_UDP  =  17
++
++  alias InPortT = UInt16T
++  alias InAddrT = UInt32T
++
++  struct InAddr
++    s_addr : InAddrT
++  end
++
++  union In6AddrIn6U
++    __u6_addr8 : StaticArray(UInt8T, 16)
++    __u6_addr16 : StaticArray(UInt16T, 8)
++    __u6_addr32 : StaticArray(UInt32T, 4)
++  end
++
++  struct In6Addr
++    __in6_u : In6AddrIn6U
++  end
++
++  struct SockaddrIn
++    sin_family : SaFamilyT
++    sin_port : InPortT
++    sin_addr : InAddr
++    sin_zero : StaticArray(Char, 8)
++  end
++
++  struct SockaddrIn6
++    sin6_family : SaFamilyT
++    sin6_port : InPortT
++    sin6_flowinfo : UInt32T
++    sin6_addr : In6Addr
++    sin6_scope_id : UInt32T
++  end
++
++  IP_MULTICAST_IF   = 32
++  IPV6_MULTICAST_IF = 17
++
++  IP_MULTICAST_TTL    = 33
++  IPV6_MULTICAST_HOPS = 18
++
++  IP_MULTICAST_LOOP   = 34
++  IPV6_MULTICAST_LOOP = 19
++
++  IP_ADD_MEMBERSHIP = 35
++  IPV6_JOIN_GROUP   = 20
++
++  IP_DROP_MEMBERSHIP = 36
++  IPV6_LEAVE_GROUP   = 21
++
++  IPV6_V6ONLY = 26
++
++  struct IpMreq
++    imr_multiaddr : InAddr
++    imr_interface : InAddr
++  end
++
++  struct Ipv6Mreq
++    ipv6mr_multiaddr : In6Addr
++    ipv6mr_interface : UInt
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/netinet/tcp.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/netinet/tcp.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/netinet/tcp.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/netinet/tcp.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,7 @@
++lib LibC
++  TCP_NODELAY   =  1
++  TCP_KEEPIDLE  =  4
++  TCP_KEEPINTVL =  5
++  TCP_KEEPCNT   =  6
++  TCP_ULP       = 31
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/poll.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/poll.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/poll.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/poll.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,7 @@
++lib LibC
++  POLLIN    =    1
++  POLLOUT   =    4
++  POLLERR   =    8
++  POLLHUP   =   16
++  POLLRDHUP = 8192
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/pthread.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/pthread.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/pthread.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/pthread.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,46 @@
++require "./sys/types"
++
++# Starting with glibc 2.34, `pthread` is integrated into `libc` and may not even
++# be available as a separate shared library.
++# There's always a static library for compiled mode, but `Crystal::Loader` does not support
++# static libraries. So we just skip `pthread` entirely in interpreted mode.
++# The symbols are still available in the interpreter because they are loaded in the compiler.
++{% unless flag?(:interpreted) %}
++  @[Link("pthread")]
++{% end %}
++lib LibC
++  PTHREAD_MUTEX_ERRORCHECK = 2
++
++  PTHREAD_CANCEL_ENABLE  = 0
++  PTHREAD_CANCEL_DISABLE = 1
++
++  fun pthread_attr_destroy(attr : PthreadAttrT*) : Int
++  fun pthread_attr_getstack(addr : PthreadAttrT*, stackaddr : Void**, stacksize : SizeT*) : Int
++  fun pthread_condattr_destroy(attr : PthreadCondattrT*) : Int
++  fun pthread_condattr_init(attr : PthreadCondattrT*) : Int
++  fun pthread_condattr_setclock(attr : PthreadCondattrT*, type : ClockidT) : Int
++  fun pthread_cond_broadcast(cond : PthreadCondT*) : Int
++  fun pthread_cond_destroy(cond : PthreadCondT*) : Int
++  fun pthread_cond_init(cond : PthreadCondT*, cond_attr : PthreadCondattrT*) : Int
++  fun pthread_cond_signal(cond : PthreadCondT*) : Int
++  fun pthread_cond_timedwait(cond : PthreadCondT*, mutex : PthreadMutexT*, abstime : Timespec*) : Int
++  fun pthread_cond_wait(cond : PthreadCondT*, mutex : PthreadMutexT*) : Int
++  fun pthread_create(newthread : PthreadT*, attr : PthreadAttrT*, start_routine : Void* -> Void*, arg : Void*) : Int
++  fun pthread_detach(th : PthreadT) : Int
++  fun pthread_getattr_np(thread : PthreadT, attr : PthreadAttrT*) : Int
++  fun pthread_join(th : PthreadT, thread_return : Void**) : Int
++  fun pthread_mutexattr_destroy(attr : PthreadMutexattrT*) : Int
++  fun pthread_mutexattr_init(attr : PthreadMutexattrT*) : Int
++  fun pthread_mutexattr_settype(attr : PthreadMutexattrT*, type : Int) : Int
++  fun pthread_mutex_destroy(mutex : PthreadMutexT*) : Int
++  fun pthread_mutex_init(mutex : PthreadMutexT*, mutexattr : PthreadMutexattrT*) : Int
++  fun pthread_mutex_lock(mutex : PthreadMutexT*) : Int
++  fun pthread_mutex_trylock(mutex : PthreadMutexT*) : Int
++  fun pthread_mutex_unlock(mutex : PthreadMutexT*) : Int
++  fun pthread_self : PthreadT
++  fun pthread_setname_np(PthreadT, Char*) : Int
++
++  # Set cancellability state of current thread to STATE, returning old
++  # state in *OLDSTATE if OLDSTATE is not NULL.
++  fun pthread_setcancelstate(__state : Int, __oldstate : Int*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/pwd.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/pwd.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/pwd.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/pwd.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,14 @@
++lib LibC
++  struct Passwd
++    pw_name : Char*
++    pw_passwd : Char*
++    pw_uid : UidT
++    pw_gid : GidT
++    pw_gecos : Char*
++    pw_dir : Char*
++    pw_shell : Char*
++  end
++
++  fun getpwnam_r(login : Char*, pwstore : Passwd*, buf : Char*, bufsize : SizeT, result : Passwd**) : Int
++  fun getpwuid_r(uid : UidT, pwstore : Passwd*, buf : Char*, bufsize : SizeT, result : Passwd**) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sched.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sched.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sched.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sched.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,3 @@
++lib LibC
++  fun sched_yield : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/signal.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/signal.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/signal.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/signal.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,91 @@
++require "./sys/types"
++require "./time"
++
++lib LibC
++  SIGHUP    =  1
++  SIGINT    =  2
++  SIGQUIT   =  3
++  SIGILL    =  4
++  SIGTRAP   =  5
++  SIGIOT    =  6
++  SIGABRT   =  6
++  SIGFPE    =  8
++  SIGKILL   =  9
++  SIGBUS    =  7
++  SIGSEGV   = 11
++  SIGSYS    = 31
++  SIGPIPE   = 13
++  SIGALRM   = 14
++  SIGTERM   = 15
++  SIGURG    = 23
++  SIGSTOP   = 19
++  SIGTSTP   = 20
++  SIGCONT   = 18
++  SIGCHLD   = 17
++  SIGCLD    = LibC::SIGCHLD
++  SIGTTIN   = 21
++  SIGTTOU   = 22
++  SIGIO     = 29
++  SIGXCPU   = 24
++  SIGXFSZ   = 25
++  SIGVTALRM = 26
++  SIGUSR1   = 10
++  SIGUSR2   = 12
++  SIGWINCH  = 28
++  SIGPWR    = 30
++  SIGSTKFLT = 16
++  SIGUNUSED = 31
++
++  SIGSTKSZ = 8192
++
++  SIG_SETMASK = 2
++
++  alias SighandlerT = Int ->
++  SIG_DFL = SighandlerT.new(Pointer(Void).new(0_u64), Pointer(Void).null)
++  SIG_IGN = SighandlerT.new(Pointer(Void).new(1_u64), Pointer(Void).null)
++
++  struct SigsetT
++    val : ULong[16] # (1024 / (8 * sizeof(ULong)))
++  end
++
++  SA_ONSTACK = 0x08000000
++  SA_RESTART = 0x10000000
++  SA_SIGINFO = 0x00000004
++
++  struct SiginfoT
++    si_signo : Int
++    si_errno : Int
++    si_code : Int
++    __pad0 : Int
++    si_addr : Void*               # Assuming the segfault form of siginfo_t
++    __pad1 : StaticArray(Int, 26) # __SI_PAD_SIZE (28) - sizeof(void*) / sizeof(int) = 26
++  end
++
++  alias SigactionHandlerT = (Int, SiginfoT*, Void*) ->
++
++  struct Sigaction
++    sa_sigaction : SigactionHandlerT
++    sa_mask : SigsetT
++    sa_flags : Int
++    sa_restorer : ->
++  end
++
++  struct StackT
++    ss_sp : Void*
++    ss_flags : Int
++    ss_size : SizeT
++  end
++
++  fun kill(pid : PidT, sig : Int) : Int
++  fun pthread_sigmask(Int, SigsetT*, SigsetT*) : Int
++  fun pthread_kill(PthreadT, Int) : Int
++  fun signal(sig : Int, handler : Int -> Void) : Int -> Void
++  fun sigaction(x0 : Int, x1 : Sigaction*, x2 : Sigaction*) : Int
++  fun sigaltstack(x0 : StackT*, x1 : StackT*) : Int
++  fun sigemptyset(SigsetT*) : Int
++  fun sigfillset(SigsetT*) : Int
++  fun sigaddset(SigsetT*, Int) : Int
++  fun sigdelset(SigsetT*, Int) : Int
++  fun sigismember(SigsetT*, Int) : Int
++  fun sigsuspend(SigsetT*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdarg.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdarg.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdarg.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdarg.cr	2026-09-12 14:12:08.123610696 +0000
+@@ -0,0 +1,3 @@
++lib LibC
++  alias VaList = Void*
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stddef.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stddef.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stddef.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stddef.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,3 @@
++lib LibC
++  alias SizeT = ULong
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdint.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdint.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdint.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdint.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,10 @@
++lib LibC
++  alias Int8T = SChar
++  alias Int16T = Short
++  alias Int32T = Int
++  alias Int64T = Long
++  alias UInt8T = Char
++  alias UInt16T = UShort
++  alias UInt32T = UInt
++  alias UInt64T = ULong
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdio.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdio.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdio.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdio.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,9 @@
++require "./sys/types"
++require "./stddef"
++
++lib LibC
++  fun printf(format : Char*, ...) : Int
++  fun dprintf(fd : Int, format : Char*, ...) : Int
++  fun rename(old : Char*, new : Char*) : Int
++  fun snprintf(s : Char*, maxlen : SizeT, format : Char*, ...) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdlib.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdlib.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/stdlib.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/stdlib.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,25 @@
++require "./stddef"
++require "./sys/wait"
++
++lib LibC
++  struct DivT
++    quot : Int
++    rem : Int
++  end
++
++  fun atof(nptr : Char*) : Double
++  fun div(numer : Int, denom : Int) : DivT
++  fun exit(status : Int) : NoReturn
++  fun free(ptr : Void*) : Void
++  fun getenv(name : Char*) : Char*
++  fun malloc(size : SizeT) : Void*
++  fun mkstemp(template : Char*) : Int
++  fun mkstemps(template : Char*, suffixlen : Int) : Int
++  fun putenv(string : Char*) : Int
++  fun realloc(ptr : Void*, size : SizeT) : Void*
++  fun realpath(name : Char*, resolved : Char*) : Char*
++  fun setenv(name : Char*, value : Char*, replace : Int) : Int
++  fun strtof(nptr : Char*, endptr : Char**) : Float
++  fun strtod(nptr : Char*, endptr : Char**) : Double
++  fun unsetenv(name : Char*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/string.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/string.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/string.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/string.cr	2026-09-12 14:08:30.824412290 +0000
+@@ -0,0 +1,10 @@
++require "./stddef"
++
++lib LibC
++  fun memchr(x0 : Void*, c : Int, n : SizeT) : Void*
++  fun memcmp(s1 : Void*, s2 : Void*, n : SizeT) : Int
++  fun strcmp(s1 : Char*, s2 : Char*) : Int
++  fun strerror(errnum : Int) : Char*
++  fun strerror_r = __xpg_strerror_r(Int, Char*, SizeT) : Int
++  fun strlen(s : Char*) : SizeT
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/epoll.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/epoll.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/epoll.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/epoll.cr	2026-09-12 14:12:08.117167345 +0000
+@@ -0,0 +1,32 @@
++lib LibC
++  EPOLLIN    =  0x001_u32
++  EPOLLOUT   =  0x004_u32
++  EPOLLERR   =  0x008_u32
++  EPOLLHUP   =  0x010_u32
++  EPOLLRDHUP = 0x2000_u32
++
++  EPOLLEXCLUSIVE = 1_u32 << 28
++  EPOLLET        = 1_u32 << 31
++
++  EPOLL_CTL_ADD = 1
++  EPOLL_CTL_DEL = 2
++  EPOLL_CTL_MOD = 3
++
++  EPOLL_CLOEXEC = 0o2000000
++
++  union EpollDataT
++    ptr : Void*
++    fd : Int
++    u32 : UInt32
++    u64 : UInt64
++  end
++
++  struct EpollEvent
++    events : UInt32
++    data : EpollDataT
++  end
++
++  fun epoll_create1(Int) : Int
++  fun epoll_ctl(Int, Int, Int, EpollEvent*) : Int
++  fun epoll_wait(Int, EpollEvent*, Int, Int) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/eventfd.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/eventfd.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/eventfd.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/eventfd.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,5 @@
++lib LibC
++  EFD_CLOEXEC = 0o2000000
++
++  fun eventfd(count : UInt, flags : Int) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/file.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/file.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/file.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/file.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,11 @@
++lib LibC
++  @[Flags]
++  enum FlockOp
++    SH = 0x1
++    EX = 0x2
++    NB = 0x4
++    UN = 0x8
++  end
++
++  fun flock(fd : Int, op : FlockOp) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/mman.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/mman.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/mman.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/mman.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,33 @@
++require "./types"
++
++lib LibC
++  PROT_EXEC             =  0x4
++  PROT_NONE             =  0x0
++  PROT_READ             =  0x1
++  PROT_WRITE            =  0x2
++  MAP_FIXED             = 0x10
++  MAP_PRIVATE           = 0x02
++  MAP_SHARED            = 0x01
++  MAP_ANON              = LibC::MAP_ANONYMOUS
++  MAP_ANONYMOUS         =   0x20
++  MAP_POPULATE          = 0x8000
++  MAP_FAILED            = Pointer(Void).new(-1.to_u64!)
++  POSIX_MADV_DONTNEED   =  4
++  POSIX_MADV_NORMAL     =  0
++  POSIX_MADV_RANDOM     =  1
++  POSIX_MADV_SEQUENTIAL =  2
++  POSIX_MADV_WILLNEED   =  3
++  MADV_DONTNEED         =  4
++  MADV_NORMAL           =  0
++  MADV_RANDOM           =  1
++  MADV_SEQUENTIAL       =  2
++  MADV_WILLNEED         =  3
++  MADV_DONTFORK         = 10
++  MADV_HUGEPAGE         = 14
++  MADV_NOHUGEPAGE       = 15
++
++  fun mmap(addr : Void*, len : SizeT, prot : Int, flags : Int, fd : Int, offset : OffT) : Void*
++  fun mprotect(addr : Void*, len : SizeT, prot : Int) : Int
++  fun munmap(addr : Void*, len : SizeT) : Int
++  fun madvise(addr : Void*, len : SizeT, advice : Int) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/random.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/random.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/random.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/random.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,5 @@
++lib LibC
++  GRND_NONBLOCK = 1_u32
++
++  fun getrandom(buf : Void*, buflen : SizeT, flags : UInt32) : SSizeT
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/resource.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/resource.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/resource.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/resource.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,36 @@
++lib LibC
++  struct RUsage
++    ru_utime : Timeval
++    ru_stime : Timeval
++    ru_maxrss : Long
++    ru_ix_rss : Long
++    ru_idrss : Long
++    ru_isrss : Long
++    ru_minflt : Long
++    ru_majflt : Long
++    ru_nswap : Long
++    ru_inblock : Long
++    ru_oublock : Long
++    ru_msgsnd : Long
++    ru_msgrcv : Long
++    ru_nsignals : Long
++    ru_nvcsw : Long
++    ru_nivcsw : Long
++  end
++
++  RUSAGE_SELF     =  0
++  RUSAGE_CHILDREN = -1
++
++  fun getrusage(who : Int, usage : RUsage*) : Int
++
++  alias RlimT = ULongLong
++
++  struct Rlimit
++    rlim_cur : RlimT
++    rlim_max : RlimT
++  end
++
++  RLIMIT_NOFILE = 7
++
++  fun getrlimit(resource : Int, rlim : Rlimit*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/select.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/select.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/select.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/select.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,14 @@
++require "./types"
++require "./time"
++require "../time"
++require "../signal"
++
++lib LibC
++  alias FdMask = Long
++
++  struct FdSet
++    fds_bits : StaticArray(FdMask, 16)
++  end
++
++  fun select(nfds : Int, readfds : FdSet*, writefds : FdSet*, exceptfds : FdSet*, timeout : Timeval*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/sendfile.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/sendfile.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/sendfile.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/sendfile.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,3 @@
++lib LibC
++  fun sendfile(Int, Int, OffT*, SizeT) : SSizeT
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/socket.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/socket.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/socket.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/socket.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,89 @@
++require "./types"
++require "./uio"
++
++lib LibC
++  SOCK_DGRAM     =  2
++  SOCK_RAW       =  3
++  SOCK_SEQPACKET =  5
++  SOCK_STREAM    =  1
++  SOL_SOCKET     =  1
++  SO_BROADCAST   =  6
++  SO_KEEPALIVE   =  9
++  SO_LINGER      = 13
++  SO_RCVBUF      =  8
++  SO_REUSEADDR   =  2
++  SO_REUSEPORT   = 15
++  SO_SNDBUF      =  7
++  PF_INET        =  2
++  PF_INET6       = 10
++  PF_UNIX        = LibC::PF_LOCAL
++  PF_UNSPEC      = 0
++  PF_LOCAL       = 1
++  AF_INET        = LibC::PF_INET
++  AF_INET6       = LibC::PF_INET6
++  AF_UNIX        = LibC::PF_UNIX
++  AF_UNSPEC      = LibC::PF_UNSPEC
++  AF_LOCAL       = LibC::PF_LOCAL
++  SHUT_RD        =      0
++  SHUT_RDWR      =      2
++  SHUT_WR        =      1
++  SOCK_CLOEXEC   = 524288
++  SOCK_NONBLOCK  =   2048
++  SOL_TCP        =      6
++  SOL_TLS        =    282
++
++  alias SocklenT = UInt
++  alias SaFamilyT = UShort
++
++  struct Sockaddr
++    sa_family : SaFamilyT
++    sa_data : StaticArray(Char, 14)
++  end
++
++  struct SockaddrStorage
++    ss_family : SaFamilyT
++    __ss_padding : StaticArray(Char, 118)
++    __ss_align : ULong
++  end
++
++  struct Linger
++    l_onoff : Int
++    l_linger : Int
++  end
++
++  struct Msghdr
++    msg_name : Void*
++    msg_namelen : SocklenT
++    msg_iov : Iovec*
++    msg_iovlen : SizeT
++    msg_control : Void*
++    msg_controllen : SizeT
++    msg_flags : Int
++  end
++
++  struct Cmsghdr
++    cmsg_len : SizeT
++    cmsg_level : Int
++    cmsg_type : Int
++    cmsg_data : Char[0]
++  end
++
++  fun accept(fd : Int, addr : Sockaddr*, addr_len : SocklenT*) : Int
++  fun accept4(fd : Int, addr : Sockaddr*, addr_len : SocklenT*, flags : Int) : Int
++  fun bind(fd : Int, addr : Sockaddr*, len : SocklenT) : Int
++  fun connect(fd : Int, addr : Sockaddr*, len : SocklenT) : Int
++  fun getpeername(fd : Int, addr : Sockaddr*, len : SocklenT*) : Int
++  fun getsockname(fd : Int, addr : Sockaddr*, len : SocklenT*) : Int
++  fun getsockopt(fd : Int, level : Int, optname : Int, optval : Void*, optlen : SocklenT*) : Int
++  fun listen(fd : Int, n : Int) : Int
++  fun recv(fd : Int, buf : Void*, n : SizeT, flags : Int) : SSizeT
++  fun recvfrom(fd : Int, buf : Void*, n : SizeT, flags : Int, addr : Sockaddr*, addr_len : SocklenT*) : SSizeT
++  fun recvmsg(Int, Msghdr*, Int) : Int
++  fun send(fd : Int, buf : Void*, n : SizeT, flags : Int) : SSizeT
++  fun sendmsg(Int, Msghdr*, Int) : Int
++  fun sendto(fd : Int, buf : Void*, n : SizeT, flags : Int, addr : Sockaddr*, addr_len : SocklenT) : SSizeT
++  fun setsockopt(fd : Int, level : Int, optname : Int, optval : Void*, optlen : SocklenT) : Int
++  fun shutdown(fd : Int, how : Int) : Int
++  fun socket(domain : Int, type : Int, protocol : Int) : Int
++  fun socketpair(domain : Int, type : Int, protocol : Int, fds : StaticArray(Int, 2)) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/stat.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/stat.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/stat.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/stat.cr	2026-09-12 14:12:08.118027976 +0000
+@@ -0,0 +1,58 @@
++require "./types"
++require "../time"
++
++lib LibC
++  S_IFMT   = 0o170000
++  S_IFBLK  = 0o060000
++  S_IFCHR  = 0o020000
++  S_IFIFO  = 0o010000
++  S_IFREG  = 0o100000
++  S_IFDIR  = 0o040000
++  S_IFLNK  = 0o120000
++  S_IFSOCK = 0o140000
++  S_IRUSR  =    0o400
++  S_IWUSR  =    0o200
++  S_IXUSR  =    0o100
++  S_IRWXU  = 0o400 | 0o200 | 0o100
++  S_IRGRP  = S_IRUSR >> 3
++  S_IWGRP  = S_IWUSR >> 3
++  S_IXGRP  = S_IXUSR >> 3
++  S_IRWXG  = S_IRWXU >> 3
++  S_IROTH  = S_IRGRP >> 3
++  S_IWOTH  = S_IWGRP >> 3
++  S_IXOTH  = S_IXGRP >> 3
++  S_IRWXO  = S_IRWXG >> 3
++  S_ISUID  = 0o4000
++  S_ISGID  = 0o2000
++  S_ISVTX  = 0o1000
++
++  struct Stat
++    st_dev : DevT
++    st_ino : InoT
++    st_mode : ModeT
++    st_nlink : NlinkT
++    st_uid : UidT
++    st_gid : GidT
++    st_rdev : DevT
++    __pad1 : DevT
++    st_size : OffT
++    st_blksize : BlksizeT
++    __pad2 : Int
++    st_blocks : BlkcntT
++    st_atim : Timespec
++    st_mtim : Timespec
++    st_ctim : Timespec
++    __glibc_reserved : StaticArray(Int, 2)
++  end
++
++  fun chmod(file : Char*, mode : ModeT) : Int
++  fun fchmod(fd : Int, mode : ModeT) : Int
++  fun fstat(fd : Int, buf : Stat*) : Int
++  fun lstat(file : Char*, buf : Stat*) : Int
++  fun mkdir(path : Char*, mode : ModeT) : Int
++  fun mkfifo(path : Char*, mode : ModeT) : Int
++  fun mknod(path : Char*, mode : ModeT, dev : DevT) : Int
++  fun stat(file : Char*, buf : Stat*) : Int
++  fun umask(mask : ModeT) : ModeT
++  fun utimensat(fd : Int, path : Char*, times : Timespec[2], flag : Int) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/time.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/time.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/time.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/time.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,16 @@
++require "./types"
++
++lib LibC
++  struct Timeval
++    tv_sec : TimeT
++    tv_usec : SusecondsT
++  end
++
++  struct Timezone
++    tz_minuteswest : Int
++    tz_dsttime : Int
++  end
++
++  fun gettimeofday(tv : Timeval*, tz : Void*) : Int
++  fun futimens(fd : Int, times : Timespec[2]) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/timerfd.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/timerfd.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/timerfd.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/timerfd.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,10 @@
++require "../time"
++
++lib LibC
++  TFD_NONBLOCK      = 0o0004000
++  TFD_CLOEXEC       = 0o2000000
++  TFD_TIMER_ABSTIME = 1 << 0
++
++  fun timerfd_create(ClockidT, Int) : Int
++  fun timerfd_settime(Int, Int, Itimerspec*, Itimerspec*) : Int
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/types.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/types.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/types.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/types.cr	2026-09-12 14:12:08.131610687 +0000
+@@ -0,0 +1,48 @@
++require "../stddef"
++require "../stdint"
++
++lib LibC
++  alias BlkcntT = Long
++  alias BlksizeT = Int
++  alias ClockT = Long
++  alias ClockidT = Int
++  alias DevT = ULong
++  alias GidT = UInt
++  alias IdT = UInt
++  alias InoT = ULong
++  alias ModeT = UInt
++  alias NlinkT = UInt
++  alias OffT = Long
++  alias PidT = Int
++
++  union PthreadAttrT
++    __size : StaticArray(Char, 56)
++    __align : Long
++  end
++
++  union PthreadCondT
++    __size : StaticArray(Char, 48)
++    __align : LongLong
++  end
++
++  union PthreadCondattrT
++    __size : StaticArray(Char, 4)
++    __align : Int
++  end
++
++  union PthreadMutexT
++    __size : StaticArray(Char, 40)
++    __align : Long
++  end
++
++  union PthreadMutexattrT
++    __size : StaticArray(Char, 4)
++    __align : Int
++  end
++
++  alias PthreadT = ULong
++  alias SSizeT = Long
++  alias SusecondsT = Long
++  alias TimeT = Long
++  alias UidT = UInt
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/uio.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/uio.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/uio.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/uio.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,6 @@
++lib LibC
++  struct Iovec
++    iov_base : Void*
++    iov_len : SizeT
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/un.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/un.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/un.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/un.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,8 @@
++require "./socket"
++
++lib LibC
++  struct SockaddrUn
++    sun_family : SaFamilyT
++    sun_path : StaticArray(Char, 108)
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/wait.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/wait.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/sys/wait.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/sys/wait.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,8 @@
++require "./types"
++require "../signal"
++
++lib LibC
++  WNOHANG = 1
++
++  fun waitpid(pid : PidT, stat_loc : Int*, options : Int) : PidT
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/termios.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/termios.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/termios.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/termios.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,120 @@
++require "./sys/types"
++
++lib LibC
++  VEOF      =        4
++  VEOL      =       11
++  VERASE    =        2
++  VINTR     =        0
++  VKILL     =        3
++  VMIN      =        6
++  VQUIT     =        1
++  VSTART    =        8
++  VSTOP     =        9
++  VSUSP     =       10
++  BRKINT    = 0o000002
++  ICRNL     = 0o000400
++  IGNBRK    = 0o000001
++  IGNCR     = 0o000200
++  IGNPAR    = 0o000004
++  INLCR     = 0o000100
++  INPCK     = 0o000020
++  ISTRIP    = 0o000040
++  IXANY     = 0o004000
++  IXOFF     = 0o010000
++  IXON      = 0o002000
++  PARMRK    = 0o000010
++  OPOST     = 0o000001
++  ONLCR     = 0o000004
++  OCRNL     = 0o000010
++  ONOCR     = 0o000020
++  ONLRET    = 0o000040
++  OFDEL     = 0o000200
++  OFILL     = 0o000100
++  CRDLY     = 0o003000
++  CR0       = 0o000000
++  CR1       = 0o001000
++  CR2       = 0o002000
++  CR3       = 0o003000
++  TABDLY    = 0o014000
++  TAB0      = 0o000000
++  TAB1      = 0o004000
++  TAB2      = 0o010000
++  TAB3      = 0o014000
++  BSDLY     = 0o020000
++  BS0       = 0o000000
++  BS1       = 0o020000
++  VTDLY     = 0o040000
++  VT0       = 0o000000
++  VT1       = 0o040000
++  FFDLY     = 0o100000
++  FF0       = 0o000000
++  FF1       = 0o100000
++  NLDLY     = 0o000400
++  NL0       = 0o000000
++  NL1       = 0o000400
++  B0        = 0o000000
++  B50       = 0o000001
++  B75       = 0o000002
++  B110      = 0o000003
++  B134      = 0o000004
++  B150      = 0o000005
++  B200      = 0o000006
++  B300      = 0o000007
++  B600      = 0o000010
++  B1200     = 0o000011
++  B1800     = 0o000012
++  B2400     = 0o000013
++  B4800     = 0o000014
++  B9600     = 0o000015
++  B19200    = 0o000016
++  B38400    = 0o000017
++  CSIZE     = 0o000060
++  CS5       = 0o000000
++  CS6       = 0o000020
++  CS7       = 0o000040
++  CS8       = 0o000060
++  CSTOPB    = 0o000100
++  CREAD     = 0o000200
++  PARENB    = 0o000400
++  PARODD    = 0o001000
++  HUPCL     = 0o002000
++  CLOCAL    = 0o004000
++  ECHO      = 0o000010
++  ECHOE     = 0o000020
++  ECHOK     = 0o000040
++  ECHONL    = 0o000100
++  ICANON    = 0o000002
++  IEXTEN    = 0o100000
++  ISIG      = 0o000001
++  NOFLSH    = 0o000200
++  TOSTOP    = 0o000400
++  TCSANOW   =        0
++  TCSADRAIN =        1
++  TCSAFLUSH =        2
++  TCIFLUSH  =        0
++  TCIOFLUSH =        2
++  TCOFLUSH  =        1
++  TCIOFF    =        2
++  TCION     =        3
++  TCOOFF    =        0
++  TCOON     =        1
++
++  alias CcT = Char
++  alias SpeedT = UInt
++  alias TcflagT = UInt
++
++  struct Termios
++    c_iflag : TcflagT
++    c_oflag : TcflagT
++    c_cflag : TcflagT
++    c_lflag : TcflagT
++    c_line : CcT
++    c_cc : StaticArray(CcT, 32)
++    c_ispeed : SpeedT
++    c_ospeed : SpeedT
++  end
++
++  fun tcgetattr(fd : Int, termios_p : Termios*) : Int
++  fun tcsetattr(fd : Int, optional_actions : Int, termios_p : Termios*) : Int
++  fun cfmakeraw(termios_p : Termios*) : Void
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/time.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/time.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/time.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/time.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,52 @@
++require "./sys/types"
++
++lib LibC
++  CLOCK_REALTIME           =  0
++  CLOCK_MONOTONIC          =  1
++  CLOCK_PROCESS_CPUTIME_ID =  2
++  CLOCK_THREAD_CPUTIME_ID  =  3
++  CLOCK_MONOTONIC_RAW      =  4
++  CLOCK_REALTIME_COARSE    =  5
++  CLOCK_MONOTONIC_COARSE   =  6
++  CLOCK_BOOTTIME           =  7
++  CLOCK_REALTIME_ALARM     =  8
++  CLOCK_BOOTTIME_ALARM     =  9
++  CLOCK_TAI                = 11
++
++  struct Tm
++    tm_sec : Int
++    tm_min : Int
++    tm_hour : Int
++    tm_mday : Int
++    tm_mon : Int
++    tm_year : Int
++    tm_wday : Int
++    tm_yday : Int
++    tm_isdst : Int
++    tm_gmtoff : Long
++    tm_zone : Char*
++  end
++
++  struct Timespec
++    tv_sec : TimeT
++    tv_nsec : Long
++  end
++
++  struct Itimerspec
++    it_interval : Timespec
++    it_value : Timespec
++  end
++
++  fun clock_gettime(clock_id : ClockidT, tp : Timespec*) : Int
++  fun clock_settime(clock_id : ClockidT, tp : Timespec*) : Int
++  fun gmtime_r(timer : TimeT*, tp : Tm*) : Tm*
++  fun localtime_r(timer : TimeT*, tp : Tm*) : Tm*
++  fun mktime(tp : Tm*) : TimeT
++  fun nanosleep(req : Timespec*, rem : Timespec*) : Int
++  fun tzset : Void
++  fun timegm(tp : Tm*) : TimeT
++
++  $daylight : Int
++  $timezone : Long
++  $tzname : StaticArray(Char*, 2)
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/lib_c/riscv64-linux-gnu/c/unistd.cr crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/unistd.cr
+--- crystal-upstream/src/lib_c/riscv64-linux-gnu/c/unistd.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/lib_c/riscv64-linux-gnu/c/unistd.cr	2026-09-12 14:08:30.824568489 +0000
+@@ -0,0 +1,54 @@
++require "./sys/types"
++require "./stdint"
++
++lib LibC
++  F_OK                =  0
++  R_OK                =  4
++  W_OK                =  2
++  X_OK                =  1
++  SC_CLK_TCK          =  2
++  SC_NPROCESSORS_ONLN = 84
++  SC_PAGESIZE         = 30
++
++  fun chroot(path : Char*) : Int
++  fun access(name : Char*, type : Int) : Int
++  fun chdir(path : Char*) : Int
++  fun chown(file : Char*, owner : UidT, group : GidT) : Int
++  fun fchown(fd : Int, owner : UidT, group : GidT) : Int
++  fun close(fd : Int) : Int
++  fun dup2(fd : Int, fd2 : Int) : Int
++  fun dup3(fd : Int, fd2 : Int, flags : Int) : Int
++  fun _exit(status : Int) : NoReturn
++  fun execve(file : Char*, argv : Char**, envp : Char**) : Int
++  fun execvp(file : Char*, argv : Char**) : Int
++  fun execvpe(file : Char*, argv : Char**, envp : Char**) : Int
++  fun fdatasync(fd : Int) : Int
++  @[ReturnsTwice]
++  fun fork : PidT
++  fun fsync(fd : Int) : Int
++  fun ftruncate(fd : Int, length : OffT) : Int
++  fun getcwd(buf : Char*, size : SizeT) : Char*
++  fun gethostname(name : Char*, len : SizeT) : Int
++  fun getpgid(pid : PidT) : PidT
++  fun getpid : PidT
++  fun getppid : PidT
++  fun getuid : UidT
++  fun setuid(uid : UidT) : Int
++  fun isatty(fd : Int) : Int
++  fun ttyname_r(fd : Int, buf : Char*, buffersize : SizeT) : Int
++  fun lchown(file : Char*, owner : UidT, group : GidT) : Int
++  fun link(from : Char*, to : Char*) : Int
++  fun lockf(fd : Int, cmd : Int, len : OffT) : Int
++  fun lseek(fd : Int, offset : OffT, whence : Int) : OffT
++  fun pipe(pipedes : StaticArray(Int, 2)) : Int
++  fun pipe2(pipedes : StaticArray(Int, 2), flags : Int) : Int
++  fun read(fd : Int, buf : Void*, nbytes : SizeT) : SSizeT
++  fun pread(x0 : Int, x1 : Void*, x2 : SizeT, x3 : OffT) : SSizeT
++  fun rmdir(path : Char*) : Int
++  fun symlink(from : Char*, to : Char*) : Int
++  fun readlink(path : Char*, buf : Char*, size : SizeT) : SSizeT
++  fun syscall(sysno : Long, ...) : Long
++  fun sysconf(name : Int) : Long
++  fun unlink(name : Char*) : Int
++  fun write(fd : Int, buf : Void*, n : SizeT) : SSizeT
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/llvm/builder.cr crystal-riscv-src/src/llvm/builder.cr
+--- crystal-upstream/src/llvm/builder.cr	2026-09-12 08:43:17.798269152 +0000
++++ crystal-riscv-src/src/llvm/builder.cr	2026-09-12 14:12:07.953610874 +0000
+@@ -212,6 +212,10 @@
+     Value.new LibLLVM.build_extract_value(self, value, index, name)
+   end
+ 
++  def insert_value(aggregate, value, index, name = "")
++    Value.new LibLLVM.build_insert_value(self, aggregate, value, index, name)
++  end
++
+   {% for name in %w(bit_cast zext sext trunc fpext fptrunc fp2si fp2ui si2fp ui2fp int2ptr ptr2int) %}
+     def {{name.id}}(value, type, name = "")
+       # check_type({{name}}, type)
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/llvm/lib_llvm/core.cr crystal-riscv-src/src/llvm/lib_llvm/core.cr
+--- crystal-upstream/src/llvm/lib_llvm/core.cr	2026-09-12 08:43:17.798878172 +0000
++++ crystal-riscv-src/src/llvm/lib_llvm/core.cr	2026-09-12 14:12:07.945610882 +0000
+@@ -303,6 +303,7 @@
+   fun build_select = LLVMBuildSelect(BuilderRef, if : ValueRef, then : ValueRef, else : ValueRef, name : Char*) : ValueRef
+   fun build_va_arg = LLVMBuildVAArg(BuilderRef, list : ValueRef, ty : TypeRef, name : Char*) : ValueRef
+   fun build_extract_value = LLVMBuildExtractValue(BuilderRef, agg_val : ValueRef, index : UInt, name : Char*) : ValueRef
++  fun build_insert_value = LLVMBuildInsertValue(BuilderRef, agg_val : ValueRef, elt : ValueRef, index : UInt, name : Char*) : ValueRef
+   fun build_fence = LLVMBuildFence(b : BuilderRef, ordering : LLVM::AtomicOrdering, single_thread : Bool, name : Char*) : ValueRef
+   fun build_atomicrmw = LLVMBuildAtomicRMW(b : BuilderRef, op : LLVM::AtomicRMWBinOp, ptr : ValueRef, val : ValueRef, ordering : LLVM::AtomicOrdering, single_thread : Bool) : ValueRef
+   fun build_atomic_cmp_xchg = LLVMBuildAtomicCmpXchg(b : BuilderRef, ptr : ValueRef, cmp : ValueRef, new : ValueRef, success_ordering : LLVM::AtomicOrdering, failure_ordering : LLVM::AtomicOrdering, single_thread : Bool) : ValueRef
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/llvm/lib_llvm.cr crystal-riscv-src/src/llvm/lib_llvm.cr
+--- crystal-upstream/src/llvm/lib_llvm.cr	2026-09-12 08:43:17.798668849 +0000
++++ crystal-riscv-src/src/llvm/lib_llvm.cr	2026-09-12 14:12:08.058610764 +0000
+@@ -38,6 +38,8 @@
+       {% llvm_targets = "ARM" %}
+     {% elsif flag?(:aarch64) %}
+       {% llvm_targets = "AArch64" %}
++    {% elsif flag?(:riscv64) %}
++      {% llvm_targets = "RISCV" %}
+     {% elsif flag?(:wasm32) %}
+       {% llvm_targets = "WebAssembly" %}
+     {% elsif flag?(:avr) %}
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/llvm/target_machine.cr crystal-riscv-src/src/llvm/target_machine.cr
+--- crystal-upstream/src/llvm/target_machine.cr	2026-09-12 08:43:17.799491904 +0000
++++ crystal-riscv-src/src/llvm/target_machine.cr	2026-09-12 14:12:08.162610655 +0000
+@@ -59,6 +59,8 @@
+       ABI::AArch64.new(self)
+     when /arm/
+       ABI::ARM.new(self)
++    when /riscv64/
++      ABI::RISCV64.new(self)
+     when /avr/
+       ABI::AVR.new(self, cpu)
+     when /wasm32/
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/llvm.cr crystal-riscv-src/src/llvm.cr
+--- crystal-upstream/src/llvm.cr	2026-09-12 08:43:17.797754143 +0000
++++ crystal-riscv-src/src/llvm.cr	2026-09-12 14:12:08.050610772 +0000
+@@ -45,6 +45,8 @@
+       init_aarch64
+     {% elsif flag?(:arm) %}
+       init_arm
++    {% elsif flag?(:riscv64) %}
++      init_riscv
+     {% elsif flag?(:wasm32) %}
+       init_webassembly
+     {% elsif flag?(:avr) %}
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/syscall/riscv64-linux.cr crystal-riscv-src/src/syscall/riscv64-linux.cr
+--- crystal-upstream/src/syscall/riscv64-linux.cr	1970-01-01 00:00:00.000000000 +0000
++++ crystal-riscv-src/src/syscall/riscv64-linux.cr	2026-09-12 14:12:08.111265329 +0000
+@@ -0,0 +1,387 @@
++{% skip_file unless flag?(:linux) && flag?(:riscv64) && !flag?(:interpreted) %}
++
++module Syscall
++  # :nodoc:
++  # Based on https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/unistd.h
++  enum Code : UInt64
++    IO_SETUP                     =   0
++    IO_DESTROY                   =   1
++    IO_SUBMIT                    =   2
++    IO_CANCEL                    =   3
++    IO_GETEVENTS                 =   4
++    SETXATTR                     =   5
++    LSETXATTR                    =   6
++    FSETXATTR                    =   7
++    GETXATTR                     =   8
++    LGETXATTR                    =   9
++    FGETXATTR                    =  10
++    LISTXATTR                    =  11
++    LLISTXATTR                   =  12
++    FLISTXATTR                   =  13
++    REMOVEXATTR                  =  14
++    LREMOVEXATTR                 =  15
++    FREMOVEXATTR                 =  16
++    GETCWD                       =  17
++    LOOKUP_DCOOKIE               =  18
++    EVENTFD2                     =  19
++    EPOLL_CREATE1                =  20
++    EPOLL_CTL                    =  21
++    EPOLL_PWAIT                  =  22
++    DUP                          =  23
++    DUP3                         =  24
++    FCNTL                        =  25
++    INOTIFY_INIT1                =  26
++    INOTIFY_ADD_WATCH            =  27
++    INOTIFY_RM_WATCH             =  28
++    IOCTL                        =  29
++    IOPRIO_SET                   =  30
++    IOPRIO_GET                   =  31
++    FLOCK                        =  32
++    MKNODAT                      =  33
++    MKDIRAT                      =  34
++    UNLINKAT                     =  35
++    SYMLINKAT                    =  36
++    LINKAT                       =  37
++    RENAMEAT                     =  38
++    UMOUNT2                      =  39
++    MOUNT                        =  40
++    PIVOT_ROOT                   =  41
++    NFSSERVCTL                   =  42
++    STATFS                       =  43
++    FSTATFS                      =  44
++    TRUNCATE                     =  45
++    FTRUNCATE                    =  46
++    FALLOCATE                    =  47
++    FACCESSAT                    =  48
++    CHDIR                        =  49
++    FCHDIR                       =  50
++    CHROOT                       =  51
++    FCHMOD                       =  52
++    FCHMODAT                     =  53
++    FCHOWNAT                     =  54
++    FCHOWN                       =  55
++    OPENAT                       =  56
++    CLOSE                        =  57
++    VHANGUP                      =  58
++    PIPE2                        =  59
++    QUOTACTL                     =  60
++    GETDENTS64                   =  61
++    LSEEK                        =  62
++    READ                         =  63
++    WRITE                        =  64
++    READV                        =  65
++    WRITEV                       =  66
++    PREAD64                      =  67
++    PWRITE64                     =  68
++    PREADV                       =  69
++    PWRITEV                      =  70
++    SENDFILE                     =  71
++    PSELECT6                     =  72
++    PPOLL                        =  73
++    SIGNALFD4                    =  74
++    VMSPLICE                     =  75
++    SPLICE                       =  76
++    TEE                          =  77
++    READLINKAT                   =  78
++    FSTATAT                      =  79
++    FSTAT                        =  80
++    SYNC                         =  81
++    FSYNC                        =  82
++    FDATASYNC                    =  83
++    SYNC_FILE_RANGE2             =  84
++    SYNC_FILE_RANGE              =  84
++    TIMERFD_CREATE               =  85
++    TIMERFD_SETTIME              =  86
++    TIMERFD_GETTIME              =  87
++    UTIMENSAT                    =  88
++    ACCT                         =  89
++    CAPGET                       =  90
++    CAPSET                       =  91
++    PERSONALITY                  =  92
++    EXIT                         =  93
++    EXIT_GROUP                   =  94
++    WAITID                       =  95
++    SET_TID_ADDRESS              =  96
++    UNSHARE                      =  97
++    FUTEX                        =  98
++    SET_ROBUST_LIST              =  99
++    GET_ROBUST_LIST              = 100
++    NANOSLEEP                    = 101
++    GETITIMER                    = 102
++    SETITIMER                    = 103
++    KEXEC_LOAD                   = 104
++    INIT_MODULE                  = 105
++    DELETE_MODULE                = 106
++    TIMER_CREATE                 = 107
++    TIMER_GETTIME                = 108
++    TIMER_GETOVERRUN             = 109
++    TIMER_SETTIME                = 110
++    TIMER_DELETE                 = 111
++    CLOCK_SETTIME                = 112
++    CLOCK_GETTIME                = 113
++    CLOCK_GETRES                 = 114
++    CLOCK_NANOSLEEP              = 115
++    SYSLOG                       = 116
++    PTRACE                       = 117
++    SCHED_SETPARAM               = 118
++    SCHED_SETSCHEDULER           = 119
++    SCHED_GETSCHEDULER           = 120
++    SCHED_GETPARAM               = 121
++    SCHED_SETAFFINITY            = 122
++    SCHED_GETAFFINITY            = 123
++    SCHED_YIELD                  = 124
++    SCHED_GET_PRIORITY_MAX       = 125
++    SCHED_GET_PRIORITY_MIN       = 126
++    SCHED_RR_GET_INTERVAL        = 127
++    RESTART_SYSCALL              = 128
++    KILL                         = 129
++    TKILL                        = 130
++    TGKILL                       = 131
++    SIGALTSTACK                  = 132
++    RT_SIGSUSPEND                = 133
++    RT_SIGACTION                 = 134
++    RT_SIGPROCMASK               = 135
++    RT_SIGPENDING                = 136
++    RT_SIGTIMEDWAIT              = 137
++    RT_SIGQUEUEINFO              = 138
++    RT_SIGRETURN                 = 139
++    SETPRIORITY                  = 140
++    GETPRIORITY                  = 141
++    REBOOT                       = 142
++    SETREGID                     = 143
++    SETGID                       = 144
++    SETREUID                     = 145
++    SETUID                       = 146
++    SETRESUID                    = 147
++    GETRESUID                    = 148
++    SETRESGID                    = 149
++    GETRESGID                    = 150
++    SETFSUID                     = 151
++    SETFSGID                     = 152
++    TIMES                        = 153
++    SETPGID                      = 154
++    GETPGID                      = 155
++    GETSID                       = 156
++    SETSID                       = 157
++    GETGROUPS                    = 158
++    SETGROUPS                    = 159
++    UNAME                        = 160
++    SETHOSTNAME                  = 161
++    SETDOMAINNAME                = 162
++    GETRLIMIT                    = 163
++    SETRLIMIT                    = 164
++    GETRUSAGE                    = 165
++    UMASK                        = 166
++    PRCTL                        = 167
++    GETCPU                       = 168
++    GETTIMEOFDAY                 = 169
++    SETTIMEOFDAY                 = 170
++    ADJTIMEX                     = 171
++    GETPID                       = 172
++    GETPPID                      = 173
++    GETUID                       = 174
++    GETEUID                      = 175
++    GETGID                       = 176
++    GETEGID                      = 177
++    GETTID                       = 178
++    SYSINFO                      = 179
++    MQ_OPEN                      = 180
++    MQ_UNLINK                    = 181
++    MQ_TIMEDSEND                 = 182
++    MQ_TIMEDRECEIVE              = 183
++    MQ_NOTIFY                    = 184
++    MQ_GETSETATTR                = 185
++    MSGGET                       = 186
++    MSGCTL                       = 187
++    MSGRCV                       = 188
++    MSGSND                       = 189
++    SEMGET                       = 190
++    SEMCTL                       = 191
++    SEMTIMEDOP                   = 192
++    SEMOP                        = 193
++    SHMGET                       = 194
++    SHMCTL                       = 195
++    SHMAT                        = 196
++    SHMDT                        = 197
++    SOCKET                       = 198
++    SOCKETPAIR                   = 199
++    BIND                         = 200
++    LISTEN                       = 201
++    ACCEPT                       = 202
++    CONNECT                      = 203
++    GETSOCKNAME                  = 204
++    GETPEERNAME                  = 205
++    SENDTO                       = 206
++    RECVFROM                     = 207
++    SETSOCKOPT                   = 208
++    GETSOCKOPT                   = 209
++    SHUTDOWN                     = 210
++    SENDMSG                      = 211
++    RECVMSG                      = 212
++    READAHEAD                    = 213
++    BRK                          = 214
++    MUNMAP                       = 215
++    MREMAP                       = 216
++    ADD_KEY                      = 217
++    REQUEST_KEY                  = 218
++    KEYCTL                       = 219
++    CLONE                        = 220
++    EXECVE                       = 221
++    MMAP                         = 222
++    FADVISE64                    = 223
++    SWAPON                       = 224
++    SWAPOFF                      = 225
++    MPROTECT                     = 226
++    MSYNC                        = 227
++    MLOCK                        = 228
++    MUNLOCK                      = 229
++    MLOCKALL                     = 230
++    MUNLOCKALL                   = 231
++    MINCORE                      = 232
++    MADVISE                      = 233
++    REMAP_FILE_PAGES             = 234
++    MBIND                        = 235
++    GET_MEMPOLICY                = 236
++    SET_MEMPOLICY                = 237
++    MIGRATE_PAGES                = 238
++    MOVE_PAGES                   = 239
++    RT_TGSIGQUEUEINFO            = 240
++    PERF_EVENT_OPEN              = 241
++    ACCEPT4                      = 242
++    RECVMMSG                     = 243
++    ARCH_SPECIFIC_SYSCALL        = 244
++    WAIT4                        = 260
++    PRLIMIT64                    = 261
++    FANOTIFY_INIT                = 262
++    FANOTIFY_MARK                = 263
++    NAME_TO_HANDLE_AT            = 264
++    OPEN_BY_HANDLE_AT            = 265
++    CLOCK_ADJTIME                = 266
++    SYNCFS                       = 267
++    SETNS                        = 268
++    SENDMMSG                     = 269
++    PROCESS_VM_READV             = 270
++    PROCESS_VM_WRITEV            = 271
++    KCMP                         = 272
++    FINIT_MODULE                 = 273
++    SCHED_SETATTR                = 274
++    SCHED_GETATTR                = 275
++    RENAMEAT2                    = 276
++    SECCOMP                      = 277
++    GETRANDOM                    = 278
++    MEMFD_CREATE                 = 279
++    BPF                          = 280
++    EXECVEAT                     = 281
++    USERFAULTFD                  = 282
++    MEMBARRIER                   = 283
++    MLOCK2                       = 284
++    COPY_FILE_RANGE              = 285
++    PREADV2                      = 286
++    PWRITEV2                     = 287
++    PKEY_MPROTECT                = 288
++    PKEY_ALLOC                   = 289
++    PKEY_FREE                    = 290
++    STATX                        = 291
++    IO_PGETEVENTS                = 292
++    RSEQ                         = 293
++    KEXEC_FILE_LOAD              = 294
++    CLOCK_GETTIME64              = 403
++    CLOCK_SETTIME64              = 404
++    CLOCK_ADJTIME64              = 405
++    CLOCK_GETRES_TIME64          = 406
++    CLOCK_NANOSLEEP_TIME64       = 407
++    TIMER_GETTIME64              = 408
++    TIMER_SETTIME64              = 409
++    TIMERFD_GETTIME64            = 410
++    TIMERFD_SETTIME64            = 411
++    UTIMENSAT_TIME64             = 412
++    PSELECT6_TIME64              = 413
++    PPOLL_TIME64                 = 414
++    IO_PGETEVENTS_TIME64         = 416
++    RECVMMSG_TIME64              = 417
++    MQ_TIMEDSEND_TIME64          = 418
++    MQ_TIMEDRECEIVE_TIME64       = 419
++    SEMTIMEDOP_TIME64            = 420
++    RT_SIGTIMEDWAIT_TIME64       = 421
++    FUTEX_TIME64                 = 422
++    SCHED_RR_GET_INTERVAL_TIME64 = 423
++    PIDFD_SEND_SIGNAL            = 424
++    IO_URING_SETUP               = 425
++    IO_URING_ENTER               = 426
++    IO_URING_REGISTER            = 427
++    OPEN_TREE                    = 428
++    MOVE_MOUNT                   = 429
++    FSOPEN                       = 430
++    FSCONFIG                     = 431
++    FSMOUNT                      = 432
++    FSPICK                       = 433
++    PIDFD_OPEN                   = 434
++    CLONE3                       = 435
++    CLOSE_RANGE                  = 436
++    OPENAT2                      = 437
++    PIDFD_GETFD                  = 438
++    FACCESSAT2                   = 439
++    PROCESS_MADVISE              = 440
++    EPOLL_PWAIT2                 = 441
++    MOUNT_SETATTR                = 442
++    QUOTACTL_PATH                = 443
++    LANDLOCK_CREATE_RULESET      = 444
++    LANDLOCK_ADD_RULE            = 445
++    LANDLOCK_RESTRICT_SELF       = 446
++    MEMFD_SECRET                 = 447
++    PROCESS_MRELEASE             = 448
++    FUTEX_WAITV                  = 449
++  end
++
++  macro def_syscall(name, return_type, *args)
++    @[::AlwaysInline]
++    def self.{{name.id}}({{args.splat}}) : {{return_type}}
++      ret = uninitialized {{return_type}}
++
++      {% if args.size == 0 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}})
++                     : "memory"
++                     : "volatile")
++      {% elsif args.size == 1 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}}), "{a0}"({{args[0].var.id}})
++                     : "memory"
++                     : "volatile")
++      {% elsif args.size == 2 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}}), "{a0}"({{args[0].var.id}}), "{a1}"({{args[1].var.id}})
++                     : "memory"
++                     : "volatile")
++      {% elsif args.size == 3 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}}), "{a0}"({{args[0].var.id}}), "{a1}"({{args[1].var.id}}),
++                       "{a2}"({{args[2].var.id}})
++                     : "memory"
++                     : "volatile")
++      {% elsif args.size == 4 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}}), "{a0}"({{args[0].var.id}}), "{a1}"({{args[1].var.id}}),
++                       "{a2}"({{args[2].var.id}}), "{a3}"({{args[3].var.id}})
++                     : "memory"
++                     : "volatile")
++      {% elsif args.size == 5 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}}), "{a0}"({{args[0].var.id}}), "{a1}"({{args[1].var.id}}),
++                       "{a2}"({{args[2].var.id}}), "{a3}"({{args[3].var.id}}), "{a4}"({{args[4].var.id}})
++                     : "memory"
++                     : "volatile")
++      {% elsif args.size == 6 %}
++        asm("ecall" : "={a0}"(ret)
++                     : "{a7}"(::Syscall::Code::{{name.stringify.upcase.id}}), "{a0}"({{args[0].var.id}}), "{a1}"({{args[1].var.id}}),
++                       "{a2}"({{args[2].var.id}}), "{a3}"({{args[3].var.id}}), "{a4}"({{args[4].var.id}}), "{a5}"({{args[5].var.id}})
++                     : "memory"
++                     : "volatile")
++      {% else %}
++        {% raise "Not supported number of arguments for syscall" %}
++      {% end %}
++
++      ret
++    end
++  end
++end
+diff -ruN --no-dereference '--exclude=.git' '--exclude=linux' crystal-upstream/src/yaml/lib_yaml.cr crystal-riscv-src/src/yaml/lib_yaml.cr
+--- crystal-upstream/src/yaml/lib_yaml.cr	2026-09-12 08:43:17.809485304 +0000
++++ crystal-riscv-src/src/yaml/lib_yaml.cr	2026-09-12 14:12:08.154610663 +0000
+@@ -17,7 +17,7 @@
+   # the necessary memory and cast to the Parser and Emitter
+   # structs if necessary, where we mapped only some fields
+   # we are interested in.
+-  {% if flag?(:x86_64) || flag?(:aarch64) %}
++  {% if flag?(:x86_64) || flag?(:aarch64) || flag?(:riscv64) %}
+     PARSER_SIZE  = 480
+     EMITTER_SIZE = 432
+   {% else %}

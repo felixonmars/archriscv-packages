@@ -1,0 +1,174 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,7 +22,12 @@
+   'libxml2'
+   'llvm'
+   'asciidoctor'
+-  'crystal'  # to compile version N we need crystal compiler of N-1 version
++)
++makedepends_x86_64=('crystal')  # to compile version N we need crystal compiler of N-1 version
++makedepends_riscv64=(
++  'qemu-user-static'
++  'x86_64-linux-gnu-gcc'
++  'x86_64-linux-gnu-glibc'
+ )
+ checkdepends=(
+   'libyaml'
+@@ -41,22 +46,154 @@
+   "crystal-${pkgver}.tar.gz::https://github.com/crystal-lang/crystal/archive/${pkgver}.tar.gz"
+ )
+ sha256sums=('5e2d69f565553aa7287e76570d4540a231bfdf1a37f3be179f497ef1df8a0d9a')
++source_riscv64=(
++  'crystal-riscv64.patch'
++  'crystal-x86_64-cc'
++  'crystal-thread-wait.patch::https://github.com/crystal-lang/crystal/commit/83eb03ae58bc812c8d86c95953622b870f1a034f.patch'
++  'crystal-once-bare-threads.patch::https://github.com/crystal-lang/crystal/commit/9d70354f21030227f208be20238f62b7a6b36de5.patch'
++  'crystal-thread-wait-eintr.patch::https://github.com/crystal-lang/crystal/commit/d1298fe366acb90da86398dcb9d94a7866cc5109.patch'
++  'crystal-bootstrap-1.20.3-x86_64.tar.gz::https://github.com/crystal-lang/crystal/releases/download/1.20.3/crystal-1.20.3-1-linux-x86_64-bundled.tar.gz'
++  'llvm21-libs-21.1.8-1-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/l/llvm21-libs/llvm21-libs-21.1.8-1-x86_64.pkg.tar.zst'
++  'libffi-3.5.2-1-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/l/libffi/libffi-3.5.2-1-x86_64.pkg.tar.zst'
++  'libedit-20250104_3.1-1-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/l/libedit/libedit-20250104_3.1-1-x86_64.pkg.tar.zst'
++  'zlib-1.3.2-2-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/z/zlib/zlib-1%3A1.3.2-2-x86_64.pkg.tar.zst'
++  'zstd-1.5.7-3-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/z/zstd/zstd-1.5.7-3-x86_64.pkg.tar.zst'
++  'libxml2-2.15.2-1-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/l/libxml2/libxml2-2.15.2-1-x86_64.pkg.tar.zst'
++  'ncurses-6.5-4-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/n/ncurses/ncurses-6.5-4-x86_64.pkg.tar.zst'
++  'icu-78.2-2-x86_64.pkg.tar.zst::https://archive.archlinux.org/packages/i/icu/icu-78.2-2-x86_64.pkg.tar.zst'
++)
++sha256sums_riscv64=(
++  'be4fb34992048ab81a6bcb92244c7fda5d1b7ed374fac9a70fc218e148eb35a4'
++  '24ac9b8040a95e9a7a3aaca35e512e604ee90472eb2e8a36a43d13b8b5fc0cfa'
++  'f21ad170e837d7de9b4c455efeda33d82c3f4f0746b4a469d84c637fbc90d541'
++  '73aceafaffe6232208504e0de5f5eb3f590a201ffc993e63df40c2dbf3d4d335'
++  '38d4b07466849d13157e9d8037d92bc37ac182d7749c48a4faecf8d47ffbcb81'
++  'c5f413502b57921fffd062fb5e3f560b913d36364cd987ea45a0525faafdc449'
++  'aa14ec64730e98ad762959197fdcebe56dcb90d74aadf30169e9003f2bc6ec17'
++  '6855aa68ae506c124f9e62c6be3dd40dd750a050d7126d5265118128638da5c3'
++  '9b4167ade67f899d5f4d1e0d3e8e8f18b5edfdd076f5aeffd100cb3093117987'
++  'd192f89ca1efae953f13c907359bcb1a6d688326220953f178752d667021b836'
++  'd4cf0049137124c8a025eedfad267a3e8a02310c9efb9d1ae4a61aa1d02789fc'
++  'b607b4fe7990f7ffe8b3b13339fbec55ceb7e4d306c710437a3650bb322e51e3'
++  '2d06710b287264cbf2e27fdd25f99fb080b2e8ecff53302af965435c0b83ec6a'
++  'b8b74816d2bda0727f43757ac9806086036a28de7a07cfc2a6e998bb9beb53b3'
++)
++noextract=(
++  'crystal-bootstrap-1.20.3-x86_64.tar.gz'
++  'llvm21-libs-21.1.8-1-x86_64.pkg.tar.zst'
++  'libffi-3.5.2-1-x86_64.pkg.tar.zst'
++  'libedit-20250104_3.1-1-x86_64.pkg.tar.zst'
++  'zlib-1.3.2-2-x86_64.pkg.tar.zst'
++  'zstd-1.5.7-3-x86_64.pkg.tar.zst'
++  'libxml2-2.15.2-1-x86_64.pkg.tar.zst'
++  'ncurses-6.5-4-x86_64.pkg.tar.zst'
++  'icu-78.2-2-x86_64.pkg.tar.zst'
++)
+ 
+ prepare() {
+   cd "${pkgbase}-${pkgver}"
++
++  if [[ $CARCH == riscv64 ]]; then
++    patch -Np1 -i ../crystal-riscv64.patch
++    ln -s ../../linux src/lib_c/riscv64-linux-gnu/c/linux
++
++    # Constant initialization must also support the execution-context monitor's bare thread.
++    patch -Np1 -i ../crystal-thread-wait.patch
++    patch -Np1 -i ../crystal-once-bare-threads.patch
++    patch -Np1 -i ../crystal-thread-wait-eintr.patch
++    cp src/lib_c/aarch64-linux-gnu/c/semaphore.cr src/lib_c/riscv64-linux-gnu/c/semaphore.cr
++    chmod +x "$srcdir/crystal-x86_64-cc"
++
++    mkdir -p "$srcdir/crystal-bootstrap" "$srcdir/crystal-x86-runtime"
++    bsdtar --no-same-owner -xf "$srcdir/crystal-bootstrap-1.20.3-x86_64.tar.gz" \
++      -C "$srcdir/crystal-bootstrap" --strip-components 2
++
++    local archive
++    for archive in llvm21-libs-21.1.8-1 libffi-3.5.2-1 libedit-20250104_3.1-1 \
++      zlib-1.3.2-2 zstd-1.5.7-3 libxml2-2.15.2-1 ncurses-6.5-4 icu-78.2-2; do
++      bsdtar --no-same-owner -xf "$srcdir/${archive}-x86_64.pkg.tar.zst" \
++        -C "$srcdir/crystal-x86-runtime"
++    done
++  fi
+ }
+ 
+ build() {
+   cd "${pkgbase}-${pkgver}"
+ 
++  local make_args=()
++  if [[ $CARCH == riscv64 ]]; then
++    local bootstrap="$srcdir/crystal-bootstrap"
++    local runtime="$srcdir/crystal-x86-runtime/usr/lib"
++    local x86_gcc_lib
++    local llvm_version llvm_targets llvm_ldflags
++
++    x86_gcc_lib=$(dirname "$(x86_64-linux-gnu-gcc -print-file-name=libstdc++.so.6)")
++    llvm_version=$(llvm-config --version)
++    llvm_targets=$(llvm-config --targets-built)
++    llvm_ldflags=$(llvm-config --libs --system-libs --ldflags)
++
++    mkdir -p .build/bootstrap
++
++    env \
++      CC="$srcdir/crystal-x86_64-cc" \
++      CRYSTAL_X86_LIBRARY_PATH="/usr/x86_64-linux-gnu/lib:$x86_gcc_lib:$runtime" \
++      CRYSTAL_PATH="lib:src" \
++      CRYSTAL_LIBRARY_PATH="$bootstrap/lib/crystal:$runtime" \
++      CRYSTAL_CONFIG_PATH="lib:src" \
++      CRYSTAL_CONFIG_LIBRARY_PATH="$bootstrap/lib/crystal:$runtime" \
++      CRYSTAL_HAS_WRAPPER=1 \
++      LLVM_VERSION=21.1.8 \
++      LLVM_TARGETS='X86,RISCV' \
++      LLVM_LDFLAGS="-L$runtime -lLLVM-21" \
++      qemu-x86_64-static "$bootstrap/bin/crystal" build \
++        --release --no-debug --cross-compile --target=x86_64-linux-gnu \
++        -Dstrict_multi_assign -Dpreview_overload_order \
++        -Dwithout_interpreter -Dwithout_libxml2 -Dwithout_mt \
++        -Dwithout_openssl -Dwithout_zlib \
++        -o .build/crystal-x86 src/compiler/crystal.cr
++
++    x86_64-linux-gnu-gcc .build/crystal-x86.o -o .build/crystal-x86 \
++      -rdynamic -Wl,-rpath-link,"$runtime" -L"$runtime" -lLLVM-21 \
++      "$bootstrap/lib/crystal/libpcre2-8.a" \
++      "$bootstrap/lib/crystal/libgc.a" \
++      -lpthread -ldl -lm -lstdc++
++
++    env \
++      CC="$srcdir/crystal-x86_64-cc" \
++      CRYSTAL_X86_LIBRARY_PATH="/usr/x86_64-linux-gnu/lib:$x86_gcc_lib:$runtime" \
++      CRYSTAL_PATH="lib:src" \
++      CRYSTAL_LIBRARY_PATH="$bootstrap/lib/crystal:$runtime" \
++      CRYSTAL_CONFIG_PATH="lib:src" \
++      CRYSTAL_CONFIG_LIBRARY_PATH='/usr/lib' \
++      CRYSTAL_HAS_WRAPPER=1 \
++      LLVM_VERSION="$llvm_version" \
++      LLVM_TARGETS="$llvm_targets" \
++      LLVM_LDFLAGS="$llvm_ldflags" \
++      qemu-x86_64-static /usr/x86_64-linux-gnu/lib/ld-linux-x86-64.so.2 \
++        --library-path "/usr/x86_64-linux-gnu/lib:$x86_gcc_lib:$runtime" \
++        .build/crystal-x86 build \
++        --release --no-debug --cross-compile --target=riscv64-linux-gnu \
++        -Dstrict_multi_assign -Dpreview_overload_order \
++        -Dwithout_interpreter -Dwithout_libxml2 -Dwithout_mt \
++        -Dwithout_openssl -Dwithout_zlib \
++        -o .build/bootstrap/crystal src/compiler/crystal.cr
++
++    cc .build/bootstrap/crystal.o -o .build/bootstrap/crystal \
++      -rdynamic $llvm_ldflags -lstdc++ -lm \
++      $(pkg-config --libs libpcre2-8 bdw-gc)
++
++    make_args=(CRYSTAL="$PWD/.build/bootstrap/crystal")
++  fi
++
+   make release=1 interpreter=1 progress=1 \
+        FLAGS="--release --no-debug" \
+        CRYSTAL_CONFIG_PATH="lib:/usr/lib/crystal" \
+-       CRYSTAL_CACHE_DIR="/tmp/crystal"
++       CRYSTAL_CACHE_DIR="/tmp/crystal" \
++       "${make_args[@]}"
+ 
+-  make docs CRYSTAL_CACHE_DIR="/tmp/crystal"
++  make docs CRYSTAL_CACHE_DIR="/tmp/crystal" "${make_args[@]}"
+ 
+-  make man/
++  make man/ "${make_args[@]}"
+ }
+ 
+ check() {
