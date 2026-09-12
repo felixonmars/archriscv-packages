@@ -1,18 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -43,6 +43,7 @@ b2sums=('cd1ad877f36a9b1a403f1c8d789a60aaef9d719e160c0aa40c9cc9b29bbaa7e84e8bdd4
+@@ -47,8 +47,10 @@
  
  prepare() {
    cd Aegisub
 +  patch -Np1 -i ../use-plct-luajit.patch
    meson subprojects download luajit
    meson subprojects packagefiles --apply luajit
++  patch -Np1 -d subprojects/LuaJIT-* -i "$srcdir/luajit-riscv64.patch"
    sed "/subdir('tests')/d" -i meson.build
-@@ -69,4 +70,7 @@ package() {
+   echo "#define BUILD_GIT_VERSION_NUMBER ${pkgver/./}" >> git_version.h
+   echo "#define BUILD_GIT_VERSION_STRING \"${pkgver}\"" >> git_version.h
+@@ -72,3 +74,7 @@
+   cp -dr --no-preserve=ownership Aegisub/automation/include/{aegisub,*.lua} "${pkgdir}"/usr/share/aegisub/automation/include/
    install -Dm 644 Aegisub/LICENCE -t "${pkgdir}"/usr/share/licenses/aegisub/
  }
- 
-+source+=(use-plct-luajit.patch)
-+b2sums+=('6e56712104026c9cd6f4040722d71091d705f8093c39eb8140bebe0ef0cfb44939f543e8c39ce8313c927e7cae5c9dbb901d909ecf7003b15a806b47403e0d1d')
 +
- # vim: ts=2 sw=2 et:
++source+=(use-plct-luajit.patch luajit-riscv64.patch)
++b2sums+=('320262c309087c34ed212446a34935465d83b29fc4bf2b8f8f9ea7adf0c9f3bce008b563bd5cc7a129cd8068c88ea1797839ddd7fe7cd96aec3ad67fb03607b9'
++         '8cc50c97efcaf7c474c43b3f0d22c2b6c997544e4d65e4f817a8aaceef718b4a4e108f9d0681fa5328b63e3abc364a65b136d8e6c7e676d68d081ee3350caa08')
