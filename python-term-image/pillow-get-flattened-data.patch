@@ -1,0 +1,38 @@
+--- a/src/term_image/image/common.py
++++ b/src/term_image/image/common.py
+@@ -1496,7 +1496,7 @@
+         if alpha is None or img.mode in {"1", "L", "RGB", "HSV", "CMYK"}:
+             convert_resize_img("RGB")
+             if pixel_data:
+-                rgb = list(img.getdata())
++                rgb = list(img.get_flattened_data())
+                 a = [255] * mul(*size)
+         else:
+             convert_resize_img("RGBA")
+@@ -1512,7 +1512,7 @@
+                     a = [255] * mul(*size)
+             else:
+                 if pixel_data:
+-                    a = list(img.getdata(3))
++                    a = list(img.get_flattened_data(3))
+                     if round_alpha:
+                         alpha = round(alpha * 255)
+                         a = [0 if val < alpha else 255 for val in a]
+@@ -1527,7 +1527,7 @@
+                     img = bg
+ 
+             if pixel_data:
+-                rgb = list((img if img.mode == "RGB" else img.convert("RGB")).getdata())
++                rgb = list((img if img.mode == "RGB" else img.convert("RGB")).get_flattened_data())
+ 
+         return (img, *(pixel_data and (rgb, a) or (None, None)))
+ 
+@@ -2005,7 +2005,7 @@
+                 self._close_image(orig_img)
+ 
+             img = quantized_img
+-            rgb = [index + 16 for index in img.getdata(0)]
++            rgb = [index + 16 for index in img.get_flattened_data(0)]
+ 
+         return (img, rgb, a)
+ 
