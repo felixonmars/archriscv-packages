@@ -1,3 +1,14 @@
+--- test/utils/which_test.dart
++++ test/utils/which_test.dart
+@@ -21,7 +21,7 @@
+ 
+     // Platform-specific performance expectations
+     // Windows PATH lookup is significantly slower than Unix systems
+-    final expectedMaxTime = Platform.isWindows ? 50.0 : 1.0;
++    final expectedMaxTime = Platform.isWindows ? 50.0 : 5.0;
+ 
+     expect(
+       perInvocationSpeed,
 --- test/src/commands/remove_command_non_tty_test.dart
 +++ test/src/commands/remove_command_non_tty_test.dart
 @@ -69,7 +69,7 @@
@@ -20,6 +31,33 @@
 +    timeout: const Timeout(Duration(minutes: 4)),
    );
  }
+--- test/src/services/process_service_sigint_pty_test.dart
++++ test/src/services/process_service_sigint_pty_test.dart
+@@ -88,7 +88,7 @@
+       expect(report['parentExitCode'], 130);
+     },
+     skip: Platform.isWindows ? 'POSIX pseudo-terminal required' : false,
+-    timeout: const Timeout(Duration(minutes: 2)),
++    timeout: const Timeout(Duration(minutes: 4)),
+   );
+ }
+ 
+--- test/support_assets/process_service_sigint_pty.py
++++ test/support_assets/process_service_sigint_pty.py
+@@ -97,11 +97,11 @@
+         os.set_blocking(master_fd, False)
+         _configure_terminal(master_fd)
+ 
+-        _wait_for(master_fd, output, PARENT_CONTEXT, 20)
++        _wait_for(master_fd, output, PARENT_CONTEXT, 60)
+         if os.tcgetpgrp(master_fd) != parent_pid:
+             raise RuntimeError("Dart parent is not the PTY foreground process group")
+ 
+-        _wait_for(master_fd, output, b"FVM_PTY_TEST:CHILD_READY:", 20)
++        _wait_for(master_fd, output, b"FVM_PTY_TEST:CHILD_READY:", 60)
+         child_match = CHILD_READY_PATTERN.search(output)
+         if child_match is None:
+             raise RuntimeError("Could not parse the fake Flutter child PID")
 --- test/services/flutter_service_test.dart
 +++ test/services/flutter_service_test.dart
 @@ -495,7 +495,7 @@

@@ -5,11 +5,11 @@
  depends=('git' 'glibc' 'unzip')
  makedepends=('dart')
 -source=("git+https://github.com/leoafarias/${pkgname}.git#tag=${pkgver}")
--sha256sums=('90653d9b61ba5e33c23c3f81a5473b885808f1143368e99ea5fe38f8608a95e4')
+-sha256sums=('a98573a6477893b7d281275e63fdd9730063d9ea91f971c670775b3b1fcdf4d4')
 +source=("git+https://github.com/leoafarias/${pkgname}.git#tag=${pkgver}"
 +        "riscv64-test-deadlines.patch")
-+sha256sums=('90653d9b61ba5e33c23c3f81a5473b885808f1143368e99ea5fe38f8608a95e4'
-+            '8c9675f3302accf71bfd88b4c07fb11823fd332c379cf2b2bd4dc4dec4c078c0')
++sha256sums=('a98573a6477893b7d281275e63fdd9730063d9ea91f971c670775b3b1fcdf4d4'
++            'b8996c7bb58928024f434b9d3048d5a4cb8428c4d4cd8843771c67a080f17b8a')
  options=('!strip' '!debug')
  
  prepare() {
@@ -22,13 +22,14 @@
  	# Disable analytics
  	dart --disable-analytics
  
-@@ -31,7 +37,8 @@
+@@ -31,7 +37,9 @@
  
  check() {
  	cd "${pkgname}/"
 -	dart test
 +	# The sdk tests need Flutter artifacts unavailable on riscv64 builders.
-+	dart test --exclude-tags=sdk
++	# Run test files serially so nested Dart processes are not starved.
++	dart test --concurrency=1 --exclude-tags=sdk
  }
  
  package() {
