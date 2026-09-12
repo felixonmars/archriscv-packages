@@ -1,0 +1,41 @@
+diff --unified --recursive --text --new-file libdbi-0.9.0.orig/include/dbi/dbi-dev.h libdbi-0.9.0/include/dbi/dbi-dev.h
+--- libdbi-0.9.0.orig/include/dbi/dbi-dev.h	2013-01-09 07:54:30.000000000 +0800
++++ libdbi-0.9.0/include/dbi/dbi-dev.h	2026-09-12 16:19:26.206081256 +0800
+@@ -41,7 +41,7 @@
+ typedef struct _field_binding_s *_field_binding_t_pointer;
+ 
+ typedef union dbi_data_u {
+-	char d_char;
++	signed char d_char;
+ 	short d_short;
+         int d_long; /* misnomer */
+ 	long long d_longlong;
+diff --unified --recursive --text --new-file libdbi-0.9.0.orig/src/dbi_result.c libdbi-0.9.0/src/dbi_result.c
+--- libdbi-0.9.0.orig/src/dbi_result.c	2013-01-09 07:54:30.000000000 +0800
++++ libdbi-0.9.0/src/dbi_result.c	2026-09-12 16:22:51.868280995 +0800
+@@ -1383,6 +1383,13 @@
+   return dbi_result_get_as_longlong_idx(Result, fieldidx+1);
+ }
+ 
++static long long _dbi_decimal_to_longlong(double value) {
++  if (!isfinite(value) || value >= (double)LLONG_MAX || value < (double)LLONG_MIN) {
++    return LLONG_MIN;
++  }
++  return (long long)value;
++}
++
+ long long dbi_result_get_as_longlong_idx(dbi_result Result, unsigned int fieldidx) {
+   long long my_ERROR = 0;
+   fieldidx--;
+@@ -1406,9 +1413,9 @@
+   case DBI_TYPE_DECIMAL:
+     switch (RESULT->field_attribs[fieldidx] & DBI_DECIMAL_SIZEMASK) {
+     case DBI_DECIMAL_SIZE4:
+-      return (long long)RESULT->rows[RESULT->currowidx]->field_values[fieldidx].d_float;
++      return _dbi_decimal_to_longlong(RESULT->rows[RESULT->currowidx]->field_values[fieldidx].d_float);
+     case DBI_DECIMAL_SIZE8:
+-      return (long long)RESULT->rows[RESULT->currowidx]->field_values[fieldidx].d_double;
++      return _dbi_decimal_to_longlong(RESULT->rows[RESULT->currowidx]->field_values[fieldidx].d_double);
+     default:
+       _error_handler(RESULT->conn, DBI_ERROR_BADTYPE);
+       return my_ERROR;
