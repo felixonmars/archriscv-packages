@@ -1,33 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,6 +18,13 @@ source=("https://releases.wildfiregames.com/$pkgname-$_pkgver-unix-build.tar.xz"
+@@ -18,6 +18,13 @@
  validpgpkeys=('A035C8C19219BA821ECEA86B64E628F8D684696D')  # Pablo Galindo Salgado <pablogsal@gmail.com>
- sha512sums=('7ddc355afed44511f3c62bb4119e308f921fc9624980a3171853d923042777eeb248a1ce326d3768f23596d75e8346025321d7d72d6fa3b1106a5818ca62b40d')
+ sha512sums=('6b5d7893d27d5fa71ce4cad1b424a7d4b36e8bc438c590cbd86d9872148d5051cd3215f8f8f4b817e48d4fe386d8902ecc0dcd612ca779306ef35dfa2898a878')
  
 +prepare() {
-+  cd "$pkgname-$_pkgver"
++  cd "$pkgname-$pkgver"
 +
 +  patch -Np1 -i "$srcdir"/0ad-riscv64.patch
 +  patch -Np1 -i "$srcdir"/nvtt-riscv64.patch
 +}
 +
  build() {
-   cd "$pkgname-$_pkgver"
+   cd "$pkgname-$pkgver"
  
-@@ -37,6 +44,7 @@ build() {
- 
-   cd gcc
- 
-+  LDFLAGS+=" -Wl,--no-as-needed -latomic -Wl,--as-needed"
-   make -j$(nproc)
- }
- 
-@@ -52,3 +60,8 @@ package() {
-   install -Dm644 build/resources/${pkgname}.desktop "${pkgdir}/usr/share/applications/${pkgname}.desktop"
+@@ -55,3 +62,8 @@
+   install -Dm644 build/resources/${pkgname}.appdata.xml "${pkgdir}/usr/share/metainfo/${pkgname}.appdata.xml"
    install -Dm644 build/resources/${pkgname}.png "${pkgdir}/usr/share/pixmaps/${pkgname}.png"
  }
 +
 +source+=(0ad-riscv64.patch
 +         nvtt-riscv64.patch)
-+sha512sums+=('98fae7f06109b9d2cc58b7253a1a2e35c4c5b541d8d9dcae367d75ad57103f5f226a2350373c64d2c8d3c2b04e6208398caa6f2be979b9f235304722d2c475df'
-+             'b5b7e89390b7957cae8c07e342747f9fe1abef5a2eb9f0a1a6f457943679ce607dbad1fb2f2302b5041c9ed63c3c4386b337821ce67e60ca845d5d91e1e660aa')
++sha512sums+=('22b035909d112860612908e00d8a43911962ff3021c2a90aa014f0b0d8818d85d24d4977c63ff6d0561adaae805e9f6724c7ca6a2ac79a8ecd2f2adae1779ec9'
++             '9804123f21e2c100ba90e88282e821b3604c3326c9b4a6a5266abfb9bbe93798cb90b3bca37c760c0e22b435c99788ffddb0c24ca03551718d7fc817bd276f68')

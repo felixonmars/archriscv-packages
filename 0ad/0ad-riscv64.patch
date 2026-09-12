@@ -1,8 +1,6 @@
-diff --git a/build/premake/premake5.lua b/build/premake/premake5.lua
-index 9539e2a..12dcd43 100644
 --- a/build/premake/premake5.lua
 +++ b/build/premake/premake5.lua
-@@ -105,6 +105,8 @@ else
+@@ -130,6 +130,8 @@
  		arch = "e2k"
  	elseif string.find(machine, "ppc64") == 1 or string.find(machine, "powerpc64") == 1 then
  		arch = "ppc64"
@@ -11,7 +9,7 @@ index 9539e2a..12dcd43 100644
  	else
  		print("WARNING: Cannot determine architecture from GCC, assuming x86")
  	end
-@@ -896,6 +898,8 @@ function setup_all_libs ()
+@@ -1001,6 +1003,8 @@
  		table.insert(source_dirs, "lib/sysdep/arch/e2k");
  	elseif arch == "ppc64" then
  		table.insert(source_dirs, "lib/sysdep/arch/ppc64");
@@ -20,34 +18,10 @@ index 9539e2a..12dcd43 100644
  	end
  
  	-- OS-specific
-diff --git a/source/lib/sysdep/arch.h b/source/lib/sysdep/arch.h
-index 7455097..ef22403 100644
---- a/source/lib/sysdep/arch.h
-+++ b/source/lib/sysdep/arch.h
-@@ -82,9 +82,15 @@
- #else
- # define ARCH_E2K 0
- #endif
-+// .. riscv64
-+#if defined(__riscv) && (__riscv_xlen == 64)
-+# define ARCH_RISCV64 1
-+#else
-+# define ARCH_RISCV64 0
-+#endif
- 
- // ensure exactly one architecture has been detected
--#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64) != 1
-+#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64+ARCH_RISCV64) != 1
- # error "architecture not correctly detected (either none or multiple ARCH_* defined)"
- #endif
- 
-diff --git a/source/lib/sysdep/arch/riscv64/riscv64.cpp b/source/lib/sysdep/arch/riscv64/riscv64.cpp
-new file mode 100644
-index 0000000..9b72e74
---- /dev/null
+--- a/source/lib/sysdep/arch/riscv64/riscv64.cpp
 +++ b/source/lib/sysdep/arch/riscv64/riscv64.cpp
-@@ -0,0 +1,49 @@
-+/* Copyright (C) 2015 Wildfire Games.
+@@ -0,0 +1,35 @@
++/* Copyright (C) 2026 Wildfire Games.
 + *
 + * Permission is hereby granted, free of charge, to any person obtaining
 + * a copy of this software and associated documentation files (the
@@ -70,29 +44,281 @@ index 0000000..9b72e74
 + */
 +
 +/*
-+ * routines specific to riscv64
++ * routines specific to RISC-V 64
 + */
 +
 +#include "precompiled.h"
 +
 +#include "lib/sysdep/cpu.h"
 +
-+intptr_t cpu_AtomicAdd(volatile intptr_t* location, intptr_t increment)
-+{
-+	return __sync_fetch_and_add(location, increment);
-+}
-+
-+bool cpu_CAS(volatile intptr_t* location, intptr_t expected, intptr_t newValue)
-+{
-+	return __sync_bool_compare_and_swap(location, expected, newValue);
-+}
-+
-+bool cpu_CAS64(volatile i64* location, i64 expected, i64 newValue)
-+{
-+	return __sync_bool_compare_and_swap(location, expected, newValue);
-+}
-+
 +const char* cpu_IdentifierString()
 +{
-+	return "unknown"; // TODO
++	// TODO
++	return "RISC-V 64";
 +}
+--- a/source/lib/sysdep/arch.h
++++ b/source/lib/sysdep/arch.h
+@@ -82,9 +82,15 @@
+ #else
+ # define ARCH_E2K 0
+ #endif
++// .. RISC-V 64
++#if defined(__riscv) && __riscv_xlen == 64
++# define ARCH_RISCV64 1
++#else
++# define ARCH_RISCV64 0
++#endif
+ 
+ // ensure exactly one architecture has been detected
+-#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64) != 1
++#if (ARCH_IA32+ARCH_IA64+ARCH_AMD64+ARCH_ALPHA+ARCH_ARM+ARCH_AARCH64+ARCH_MIPS+ARCH_E2K+ARCH_PPC64+ARCH_RISCV64) != 1
+ # error "architecture not correctly detected (either none or multiple ARCH_* defined)"
+ #endif
+ 
+--- a/libraries/source/spidermonkey/patches/FixConfigureSingleValueCommas.diff
++++ b/libraries/source/spidermonkey/patches/FixConfigureSingleValueCommas.diff
+@@ -0,0 +1,137 @@
++--- a/python/mozbuild/mozbuild/configure/options.py
+++++ b/python/mozbuild/mozbuild/configure/options.py
++@@ -340,20 +340,27 @@
++         self.category = category or _infer_option_category(define_depth)
++ 
++     @staticmethod
++-    def split_option(option):
+++    def split_option(option, values_separator=","):
++         """Split a flag or variable into a prefix, a name and values
++ 
++         Variables come in the form NAME=values (no prefix).
++         Flags come in the form --name=values or --prefix-name=values
++         where prefix is one of 'with', 'without', 'enable' or 'disable'.
++-        The '=values' part is optional. Values are separated with commas.
+++        The '=values' part is optional. Values are separated with
+++        `values_separator`. If `values_separator` is None, there is at
+++        most one value.
++         """
++         if not isinstance(option, six.string_types):
++             raise InvalidOptionError("Option must be a string")
++ 
++-        elements = option.split("=", 1)
++-        name = elements[0]
++-        values = tuple(elements[1].split(",")) if len(elements) == 2 else ()
+++        name, eq, values = option.partition("=")
+++        if eq:
+++            if values_separator is None:
+++                values = (values,)
+++            else:
+++                values = tuple(values.split(values_separator))
+++        else:
+++            values = ()
++         if name.startswith("--"):
++             name = name[2:]
++             if not name.islower():
++@@ -429,7 +436,10 @@
++                 % (option, origin, ", ".join(self.possible_origins))
++             )
++ 
++-        prefix, name, values = self.split_option(option)
+++        kwargs = {}
+++        if self.maxargs <= 1:
+++            kwargs["values_separator"] = None
+++        prefix, name, values = self.split_option(option, **kwargs)
++         option = self._join_option(prefix, name)
++ 
++         assert name in (self.name, self.env)
++--- a/python/mozbuild/mozbuild/test/configure/test_options.py
+++++ b/python/mozbuild/mozbuild/test/configure/test_options.py
++@@ -443,21 +443,22 @@
++                     str(e.exception), "--%s takes %d values" % (name, nargs)
++                 )
++ 
++-        if nargs in (2, "*", "+") and not disabled:
+++        if nargs in (1, "?", 2, "*", "+") and not disabled:
++             value = option.get_value("--%s=foo,bar" % name, "option")
++-            self.assertEqual(value, PositiveOptionValue(("foo", "bar")))
+++            if nargs in (1, "?"):
+++                self.assertEqual(value, PositiveOptionValue(("foo,bar",)))
+++            else:
+++                self.assertEqual(value, PositiveOptionValue(("foo", "bar")))
++             self.assertEqual(value.origin, "option")
++         else:
++             with self.assertRaises(InvalidOptionError) as e:
++                 option.get_value("--%s=foo,bar" % name, "option")
++             if disabled:
++                 self.assertEqual(str(e.exception), "Cannot pass a value to --%s" % name)
++-            elif nargs == "?":
++-                self.assertEqual(str(e.exception), "--%s takes 0 or 1 values" % name)
++             else:
++                 self.assertEqual(
++                     str(e.exception),
++-                    "--%s takes %d value%s" % (name, nargs, "s" if nargs != 1 else ""),
+++                    "--%s takes %d values" % (name, nargs),
++                 )
++ 
++         option = Option("--%s" % name, env="MOZ_OPTION", nargs=nargs, default=default)
++@@ -529,20 +530,20 @@
++                 option.get_value("MOZ_OPTION=foo", "environment")
++             self.assertEqual(str(e.exception), "MOZ_OPTION takes %d values" % nargs)
++ 
++-        if nargs in (2, "*", "+"):
+++        if nargs in (1, "?", 2, "*", "+"):
++             value = option.get_value("MOZ_OPTION=foo,bar", "environment")
++-            self.assertEqual(value, PositiveOptionValue(("foo", "bar")))
+++            if nargs in (1, "?"):
+++                self.assertEqual(value, PositiveOptionValue(("foo,bar",)))
+++            else:
+++                self.assertEqual(value, PositiveOptionValue(("foo", "bar")))
++             self.assertEqual(value.origin, "environment")
++         else:
++             with self.assertRaises(InvalidOptionError) as e:
++                 option.get_value("MOZ_OPTION=foo,bar", "environment")
++-            if nargs == "?":
++-                self.assertEqual(str(e.exception), "MOZ_OPTION takes 0 or 1 values")
++-            else:
++-                self.assertEqual(
++-                    str(e.exception),
++-                    "MOZ_OPTION takes %d value%s" % (nargs, "s" if nargs != 1 else ""),
++-                )
+++            self.assertEqual(
+++                str(e.exception),
+++                "MOZ_OPTION takes %d values" % nargs,
+++            )
++ 
++         if disabled:
++             return option
++@@ -588,20 +589,20 @@
++                 env_option.get_value("MOZ_OPTION=foo", "environment")
++             self.assertEqual(str(e.exception), "MOZ_OPTION takes %d values" % nargs)
++ 
++-        if nargs in (2, "*", "+"):
+++        if nargs in (1, "?", 2, "*", "+"):
++             value = env_option.get_value("MOZ_OPTION=foo,bar", "environment")
++-            self.assertEqual(value, PositiveOptionValue(("foo", "bar")))
+++            if nargs in (1, "?"):
+++                self.assertEqual(value, PositiveOptionValue(("foo,bar",)))
+++            else:
+++                self.assertEqual(value, PositiveOptionValue(("foo", "bar")))
++             self.assertEqual(value.origin, "environment")
++         else:
++             with self.assertRaises(InvalidOptionError) as e:
++                 env_option.get_value("MOZ_OPTION=foo,bar", "environment")
++-            if nargs == "?":
++-                self.assertEqual(str(e.exception), "MOZ_OPTION takes 0 or 1 values")
++-            else:
++-                self.assertEqual(
++-                    str(e.exception),
++-                    "MOZ_OPTION takes %d value%s" % (nargs, "s" if nargs != 1 else ""),
++-                )
+++            self.assertEqual(
+++                str(e.exception),
+++                "MOZ_OPTION takes %d values" % nargs,
+++            )
++ 
++         return option
++ 
+--- a/libraries/source/spidermonkey/patches/FixRust198TargetDetection.diff
++++ b/libraries/source/spidermonkey/patches/FixRust198TargetDetection.diff
+@@ -0,0 +1,90 @@
++--- a/build/moz.configure/rust.configure
+++++ b/build/moz.configure/rust.configure
++@@ -302,6 +302,10 @@
++         elif not candidates:
++             return None
++ 
+++        # config.guess uses the "pc" vendor for x86/x86_64 where rust uses its
+++        # generic "unknown" vendor; normalize so we correlate on the right one.
+++        vendor = "unknown" if host_or_target.vendor == "pc" else host_or_target.vendor
+++
++         # We have multiple candidates. There are two cases where we can try to
++         # narrow further down using extra information from the build system.
++         # - For windows targets, correlate with the C compiler type
++@@ -369,11 +373,19 @@
++             else:
++                 suffix = ""
++             for p in prefixes:
++-                for c in candidates:
++-                    if c.rust_target.startswith(
++-                        "{}-".format(p)
++-                    ) and c.rust_target.endswith(suffix):
+++                matches = [
+++                    c
+++                    for c in candidates
+++                    if c.rust_target.startswith("{}-".format(p))
+++                    and c.rust_target.endswith(suffix)
+++                ]
+++                if not matches:
+++                    continue
+++                # As below, correlate on the (normalized) vendor.
+++                for c in matches:
+++                    if c.target.vendor == vendor:
++                         return c.rust_target
+++                return matches[0].rust_target
++ 
++         # See if we can narrow down on the exact alias.
++         # We use the sub_configure_alias to keep support mingw32 triplets as input.
++@@ -392,6 +404,15 @@
++         if len(narrowed) == 1:
++             return narrowed[0].rust_target
++         elif narrowed:
+++            candidates = narrowed
+++
+++        # Correlate on the (normalized) vendor, so vendor-specific targets (e.g.
+++        # the *-oe-linux-gnu targets added in rust 1.98) don't shadow the
+++        # generic ones for aliases whose vendor doesn't match a rust target.
+++        narrowed = [c for c in candidates if c.target.vendor == vendor]
+++        if len(narrowed) == 1:
+++            return narrowed[0].rust_target
+++        elif narrowed:
++             candidates = narrowed
++ 
++         # See if we can narrow down with the raw OS and raw CPU
++--- a/python/mozbuild/mozbuild/test/configure/test_toolchain_configure.py
+++++ b/python/mozbuild/mozbuild/test/configure/test_toolchain_configure.py
++@@ -1944,6 +1944,15 @@
++                     "aarch64-unknown-illumos",
++                     "hexagon-unknown-none-elf",
++                 ]
+++            # Additional targets from 1.98
+++            if Version(version) >= "1.98.0":
+++                rust_targets += [
+++                    "aarch64-oe-linux-gnu",
+++                    "armv7-oe-linux-gnueabihf",
+++                    "i686-oe-linux-gnu",
+++                    "riscv64-oe-linux-gnu",
+++                    "x86_64-oe-linux-gnu",
+++                ]
++ 
++             return 0, "\n".join(sorted(rust_targets)), ""
++         if (
++@@ -2035,6 +2044,7 @@
++             ("x86_64-unknown-linux-android", "x86_64-linux-android"),
++             ("x86_64-unknown-linux-android21", "x86_64-linux-android"),
++             ("x86_64-pc-linux-gnu", "x86_64-unknown-linux-gnu"),
+++            ("riscv64-unknown-linux-gnu", "riscv64gc-unknown-linux-gnu"),
++             ("sparcv9-sun-solaris2", "sparcv9-sun-solaris"),
++             (
++                 "x86_64-sun-solaris2",
++@@ -2154,5 +2164,10 @@
++     VERSION = "1.77.0"
++ 
++ 
+++# Exercises the vendor-specific *-oe-linux-* targets added in rust 1.98.
+++class Rust198Test(RustTest):
+++    VERSION = "1.98.0"
+++
+++
++ if __name__ == "__main__":
++     main()
+--- a/libraries/source/spidermonkey/patches/patch.sh
++++ b/libraries/source/spidermonkey/patches/patch.sh
+@@ -47,3 +47,11 @@
+ 
+ # Fix building with python 3.14
+ patch -p1 <"${PATCHES}"/FixPython3_14.diff
++
++# Allow linker flags containing commas in single-value configure options.
++# https://bugzilla.mozilla.org/show_bug.cgi?id=1908637
++patch -p1 <"${PATCHES}"/FixConfigureSingleValueCommas.diff
++
++# Handle the vendor-specific targets added in Rust 1.98.
++# https://bugzilla.mozilla.org/show_bug.cgi?id=2053518
++patch -p1 <"${PATCHES}"/FixRust198TargetDetection.diff
