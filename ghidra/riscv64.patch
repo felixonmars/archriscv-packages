@@ -1,7 +1,7 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -67,6 +67,12 @@ sha512sums=('c7a5fb9eae00418f2efcd03c43640e061750ee3324fc247299531670ebb54474719
-             '8ab5e9bc4feef2fac1c9044dc8a6f2d41aaf9fe2dae671de8b98c0b1a19dca2169588b87d85a8c990d808b1e76faee65984ce970eaa3282b75e107ca82cc2863')
+@@ -75,6 +75,12 @@
+             'e611f0a84023aee72016a8bb73a627e4d3b3fc28201fe2b60ccc8d6628fc2e7005b9edc24e35e489311fd6fa9ed1a35d5e230e2657a77b331dbf7cd6773ae957')
  
  prepare() {
 +  # prepare for protobuf
@@ -13,16 +13,19 @@
    cd ghidra-Ghidra_${pkgver}_build
  
    # Check dependency expectations
-@@ -98,6 +104,8 @@ prepare() {
- 
-   # Ignore lack of licensing for YAJSW zip, packed FID datasets, and the native binaries
+@@ -108,8 +114,10 @@
    sed -i '/FileTree tree/a\\t\texclude "yajsw-stable-**.zip"\n\t\texclude "src/main/fidb/**.fidb"\n\t\texclude "os/linux64/**"' gradle/support/ip.gradle
+ 
+   # z3 dependencies
+-  install -Dm 644 /usr/lib/libz3* -t dependencies/SymbolicSummaryZ3/os/linux_x86_64
++  install -Dm 644 /usr/lib/libz3* -t dependencies/SymbolicSummaryZ3/os/linux_riscv_64
+   install -Dm 644 /usr/share/java/com.microsoft.z3.jar -t dependencies/flatRepo
 +
 +  patch -Np2 -i ../add-riscv64-build.patch
  }
  
  _check_dep() {
-@@ -109,6 +117,14 @@ _check_dep() {
+@@ -121,6 +129,14 @@
  }
  
  build() {
@@ -37,7 +40,7 @@
    cd ghidra-Ghidra_${pkgver}_build
  
    export GRADLE_HOME="$(pwd)/usr/share/java/gradle/"
-@@ -124,7 +140,7 @@ build() {
+@@ -136,7 +152,7 @@
  
    # Ghidra build
    gradle yajswDevUnpack
@@ -46,7 +49,7 @@
    gradle sleighCompile
    gradle buildGhidra
  }
-@@ -150,7 +166,7 @@ package() {
+@@ -163,7 +179,7 @@
    install -d "${pkgdir}"/{opt,usr/bin}
    _appver=$(grep -oP '(?<=^application.version=).*$' Ghidra/application.properties)
    _relname=$(grep -oP '(?<=^application.release.name=).*$' Ghidra/application.properties)
@@ -55,8 +58,8 @@
  
    # Simplify some directory and binary names
    mv "${pkgdir}"/opt/ghidra{_*,}
-@@ -159,4 +175,11 @@ package() {
-   ln -s /opt/ghidra/support/analyzeHeadless "${pkgdir}"/usr/bin/ghidra-analyzeHeadless
+@@ -181,4 +197,11 @@
+   done
  }
  
 +_protobuf_ver=21.8
@@ -64,6 +67,6 @@
 +source+=(https://github.com/protocolbuffers/protobuf/releases/download/v${_protobuf_ver}/protobuf-cpp-${_protobuf_cpp}.tar.gz
 +         add-riscv64-build.patch)
 +sha512sums+=('ef4939dcd7d10a602f95cb8d6fdb5d31c53bd39f18678572f97d443be01093e05a69b6756e8431a27200ad30decf2a007274a5b90ecaecbb5d8e341008bba175'
-+             'fb028085e9d66c12df9a24e6ed3e03bb6cbde687e351a3b3136ccb5336cb6d427e0e88da2c08fd5ccd1ce9b6350b05f4f7cdd412ba4867538e22a05441bbd1b5')
++             '6beeb1e840bbb97380fd7d81ddd893d5d395e655fb2b78e3835cba8afd37198f87c1f9821f8d6dd87d2f4b94523ed3cb8db3cbcfb5f96fee298178b574e2445b')
 +
  # vim: ts=2 sw=2 et:
