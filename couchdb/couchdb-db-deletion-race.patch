@@ -1,0 +1,15 @@
+--- a/src/couch/test/eunit/couchdb_db_tests.erl
++++ b/src/couch/test/eunit/couchdb_db_tests.erl
+@@ -84,5 +84,12 @@
+         after 2000 ->
+             throw(timeout_error)
+         end,
++        ok = test_util:wait(fun() ->
++            try mem3:shards(DbName) of
++                _ -> wait
++            catch
++                error:database_does_not_exist -> ok
++            end
++        end),
+         ?assertError(database_does_not_exist, couch_db:load_validation_funs(Db))
+     end).

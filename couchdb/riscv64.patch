@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -63,6 +63,10 @@
+ 
+ prepare() {
+   cd apache-couchdb-${pkgver}
++  # Raise the TDEF_FE default and selected explicit EUnit timeouts on riscv64.
++  patch -Np1 < ../increase-eunit-timeouts.patch
++  patch -Np1 < ../${pkgname}-mango-timeouts.patch
++  patch -Np1 < ../${pkgname}-db-deletion-race.patch
+   sed -i 's|./data|/var/lib/couchdb|' configure
+   patch -Np1 < ../${pkgname}-otp29-compat.patch
+   # Vendored ibrowse fails OTP-29 build due to deprecated `catch ...` and
+@@ -103,3 +107,12 @@
+   rm -vr "${pkgdir}"/usr/lib/couchdb/etc/
+   rm -vr "${pkgdir}"/usr/lib/couchdb/lib/couch-${pkgver}/priv/couch_{ejson_compare,js}
+ }
++
++source[6]="${pkgname}-otp29-compat.patch"
++b2sums[6]='246cc3261a8e083171cad934950aa7c25fd29f2311841c97976c0dffa1007abc4d1bfe306c5318048888f35d20ad710ca798d12fb0928bd2a28aca83f7048d75'
++source+=(increase-eunit-timeouts.patch
++         "${pkgname}-mango-timeouts.patch::https://github.com/apache/couchdb/commit/434f118cbed846226dc2107d70aa3f12392fa793.patch"
++         "${pkgname}-db-deletion-race.patch")
++b2sums+=('899034fd97b5ac6f44833d6fe6139a91a85e0386751310d9bcb8ffdca036f0fd26e567095f881435184e6a7618d8504005f9ea40984677880741264c81d47f34'
++         '2ba81f8dec9468e6bb77bd9408c84f1225216707fe3d09eb370c766d9e12bb16b1fbe5f0de0eb70deee5e9b8e4212809260378cbbaed3f27494298d8bfe0e655'
++         'f8c892f3503a2bba6eebfbc70f02c7fd80557dc5f26c30e5bf45b990eabdeeaefd5aaf51a45bc2f388be988f5a19974e8b89faee8cea7a62db8c67bb23177299')
