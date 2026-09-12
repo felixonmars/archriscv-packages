@@ -1,6 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -151,10 +151,18 @@ ac_add_options --with-system-nss
+@@ -114,6 +114,10 @@
+   # Make different channels installable in parallel
+   patch -Np1 -i ../0001-Install-under-remoting-name.patch
+ 
++  # Clang 20+ exposes RVV intrinsics even when the target has no vector extension.
++  # https://github.com/ggml-org/llama.cpp/issues/22159
++  patch -Np1 -i ../llama-rvv-feature-detection.patch
++
+   # Don't let the branding override our remoting name
+   sed '/^MOZ_APP_REMOTINGNAME=/d' -i browser/branding/aurora/configure.sh
+ 
+@@ -155,10 +159,18 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -20,3 +31,11 @@
  }
  
  build() {
+@@ -293,3 +305,7 @@
+ }
+ 
+ # vim:set sw=2 sts=-1 et:
++
++source+=(llama-rvv-feature-detection.patch)
++sha256sums+=('14904102c58b82b15460ff8712d2b6317f5d2bab47cd0c0e428a8b131192c751')
++b2sums+=('e5068d28fbe860c1aeebfb00276e4e77317b27cbacc4e28ae7d206828273cd6f52e93b7f117767485e82971b0a8c8b5101ebddba23ea7af9f0829fa5ab255f38')
