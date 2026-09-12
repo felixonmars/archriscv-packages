@@ -1,0 +1,128 @@
+--- a/internal/cli/build_cpio_test.go
++++ b/internal/cli/build_cpio_test.go
+@@ -26,6 +26,7 @@
+ 	"chainguard.dev/apko/internal/cli"
+ 
+ 	"chainguard.dev/apko/pkg/build"
++	"chainguard.dev/apko/pkg/build/types"
+ )
+ 
+ func TestBuildCPIOCmd(t *testing.T) {
+@@ -34,7 +35,10 @@
+ 	t.Run("gz suffix produces gzip-compressed output", func(t *testing.T) {
+ 		dest := filepath.Join(t.TempDir(), "out.cpio.gz")
+ 
+-		err := cli.BuildCPIOCmd(ctx, dest, build.WithConfig("testdata/apko.yaml", []string{}))
++		err := cli.BuildCPIOCmd(ctx, dest,
++			build.WithConfig("testdata/apko.yaml", []string{}),
++			build.WithArch(types.ParseArchitecture("arm64")),
++		)
+ 		require.NoError(t, err)
+ 
+ 		f, err := os.Open(dest)
+@@ -49,7 +53,10 @@
+ 	t.Run("non-gz suffix produces plain cpio output", func(t *testing.T) {
+ 		dest := filepath.Join(t.TempDir(), "out.cpio")
+ 
+-		err := cli.BuildCPIOCmd(ctx, dest, build.WithConfig("testdata/apko.yaml", []string{}))
++		err := cli.BuildCPIOCmd(ctx, dest,
++			build.WithConfig("testdata/apko.yaml", []string{}),
++			build.WithArch(types.ParseArchitecture("arm64")),
++		)
+ 		require.NoError(t, err)
+ 
+ 		f, err := os.Open(dest)
+--- a/pkg/build/build_test.go
++++ b/pkg/build/build_test.go
+@@ -41,6 +41,7 @@
+ 
+ 	opts := []build.Option{
+ 		build.WithConfig("layering.yaml", []string{"testdata"}),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := build.New(ctx, fs.NewMemFS(), opts...)
+@@ -62,6 +63,7 @@
+ 	// Use the empty-layering.yaml file we created in testdata
+ 	opts := []build.Option{
+ 		build.WithConfig("empty-layering.yaml", []string{"testdata"}),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := build.New(ctx, fs.NewMemFS(), opts...)
+@@ -107,6 +109,7 @@
+ 
+ 	opts := []build.Option{
+ 		build.WithConfig("apko.yaml", []string{"testdata"}),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := build.New(ctx, fs.NewMemFS(), opts...)
+@@ -254,6 +257,7 @@
+ 
+ 	opts := []build.Option{
+ 		build.WithConfig("apko-certs.yaml", []string{"testdata"}),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	fsys := fs.NewMemFS()
+@@ -324,6 +328,7 @@
+ 	opts := []build.Option{
+ 		build.WithConfig(filepath.Join("testdata", "apko.yaml"), []string{}),
+ 		build.WithLockFile(filepath.Join("testdata", "apko.lock.json")),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := build.New(ctx, fs.NewMemFS(), opts...)
+@@ -353,6 +358,7 @@
+ 	opts := []build.Option{
+ 		build.WithConfig(filepath.Join("testdata", "apko.yaml"), []string{}),
+ 		build.WithLockFile(filepath.Join("testdata", "apko.pre-0.13.lock.json")),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := build.New(ctx, fs.NewMemFS(), opts...)
+@@ -395,6 +401,7 @@
+ 			},
+ 			Archs: types.ParseArchitectures([]string{"amd64", "arm64"}),
+ 		}),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 		build.WithAuthenticator(auth.StaticAuth(host, testUser, testPass)))
+ 	if err != nil {
+ 		t.Fatal(err)
+--- a/pkg/build/ldsocache_test.go
++++ b/pkg/build/ldsocache_test.go
+@@ -5,6 +5,7 @@
+ 	"testing"
+ 
+ 	"chainguard.dev/apko/pkg/apk/fs"
++	"chainguard.dev/apko/pkg/build/types"
+ )
+ 
+ func TestLdsoCache(t *testing.T) {
+@@ -12,6 +13,7 @@
+ 
+ 	opts := []Option{
+ 		WithConfig("apko.yaml", []string{"testdata"}),
++		WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := New(ctx, fs.NewMemFS(), opts...)
+--- a/pkg/tarfs/fs_test.go
++++ b/pkg/tarfs/fs_test.go
+@@ -28,6 +28,7 @@
+ 	"chainguard.dev/apko/pkg/apk/apk"
+ 
+ 	"chainguard.dev/apko/pkg/build"
++	"chainguard.dev/apko/pkg/build/types"
+ 	"chainguard.dev/apko/pkg/tarfs"
+ )
+ 
+@@ -37,6 +38,7 @@
+ 
+ 	opts := []build.Option{
+ 		build.WithConfig(filepath.Join("testdata", "apko.yaml"), []string{}),
++		build.WithArch(types.ParseArchitecture("arm64")),
+ 	}
+ 
+ 	bc, err := build.New(ctx, tfs, opts...)

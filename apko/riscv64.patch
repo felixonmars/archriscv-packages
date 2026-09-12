@@ -1,11 +1,17 @@
---- PKGBUILD	2026-03-02 22:51:09.734437455 +0800
-+++ PKGBUILD	2026-03-02 22:51:09.736143852 +0800
-@@ -41,7 +41,7 @@
- check() {
-   cd "${pkgname}-${pkgver}"
-   # skip TestPublish: https://github.com/chainguard-dev/apko/issues/881
--  go test ./... -skip 'TestPublish|TestBuild'
-+  go test ./... -skip 'TestPublish|TestBuild|TestLock|TestLdsoCache|TestAuth_good|TestTarFS'
- }
- 
- package() {
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,3 +18,11 @@
+-source=("https://github.com/chainguard-dev/apko/archive/v${pkgver}/apko-${pkgver}.tar.gz")
+-sha256sums=('0f9e882489b04b3a36b2c620ab4df6ae485dd84dbed3cab742d70b2b56655ef9')
+-b2sums=('160a902576fd9c2ce6795a2803691b7639eedfa49567c7b24f02b728f59fc9e24e389c2eabb0d9ce096bcc1b88673a55318ad80a9a7d3925015b95f9922202d0')
++source=("https://github.com/chainguard-dev/apko/archive/v${pkgver}/apko-${pkgver}.tar.gz"
++        'test-fixture-arch.patch')
++sha256sums=('0f9e882489b04b3a36b2c620ab4df6ae485dd84dbed3cab742d70b2b56655ef9'
++            'c3432487cc099b63eee4864c18f96d5f7d8ac99ef14339d17b18007bf8bad174')
++b2sums=('160a902576fd9c2ce6795a2803691b7639eedfa49567c7b24f02b728f59fc9e24e389c2eabb0d9ce096bcc1b88673a55318ad80a9a7d3925015b95f9922202d0'
++        'a4d95fd6520c0fdf928fb7d55bbbf231e9ef70a120a61efa002bd21793adfda2df2e2ecf763052ad9e0e7cd1815a142b953ffe2388cf7f8824848af3473804e2')
++
++prepare() {
++  cd "${pkgname}-${pkgver}"
++  patch -Np1 -i ../test-fixture-arch.patch
++}
