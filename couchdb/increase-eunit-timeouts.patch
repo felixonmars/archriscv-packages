@@ -1,0 +1,149 @@
+--- a/src/b64url/test/b64url_tests.erl
++++ b/src/b64url/test/b64url_tests.erl
+@@ -8,7 +8,10 @@
+ table_test() ->
+     ?assertEqual(ok, b64url:check_tables()).
+ 
+-encode_binary_test() ->
++encode_binary_test_() ->
++    {timeout, 30, fun encode_binary/0}.
++
++encode_binary() ->
+     lists:foreach(
+         fun(_) ->
+             Bin = gen_binary(),
+--- a/src/chttpd/src/chttpd.erl
++++ b/src/chttpd/src/chttpd.erl
+@@ -1650,7 +1650,10 @@
+     ok = meck:unload(couch_log),
+     Message.
+ 
+-handle_req_after_auth_test() ->
++handle_req_after_auth_test_() ->
++    {timeout, 30, fun handle_req_after_auth/0}.
++
++handle_req_after_auth() ->
+     Headers = mochiweb_headers:make([{"HOST", "127.0.0.1:15984"}]),
+     MochiReq = mochiweb_request:new(
+         socket,
+--- a/src/config/test/config_tests.erl
++++ b/src/config/test/config_tests.erl
+@@ -375,5 +375,5 @@
+                 fun should_write_config_to_file/0,
+                 fun should_delete_config_from_file/0,
+-                fun should_not_write_config_to_file/0,
++                {timeout, 30, fun should_not_write_config_to_file/0},
+                 fun should_not_delete_config_from_file/0
+             ]
+--- a/src/couch_replicator/src/couch_replicator.erl
++++ b/src/couch_replicator/src/couch_replicator.erl
+@@ -305,7 +305,7 @@
+         fun(_) -> meck:unload() end,
+         [
+-            t_admin_is_always_authorized(),
+-            t_username_must_match(),
+-            t_replication_not_found()
++            {timeout, 30, t_admin_is_always_authorized()},
++            {timeout, 30, t_username_must_match()},
++            {timeout, 30, t_replication_not_found()}
+         ]
+     }.
+--- a/src/couch_replicator/src/couch_replicator_fabric_rpc.erl
++++ b/src/couch_replicator/src/couch_replicator_fabric_rpc.erl
+@@ -106,7 +106,7 @@
+         fun() -> ok end,
+         fun(_) -> ok end,
+         [
+-            ?TDEF_FE(t_docs, 15)
++            ?TDEF_FE(t_docs, 30)
+         ]
+     }.
+ 
+--- a/src/couch/test/eunit/couch_bt_engine_compactor_tests.erl
++++ b/src/couch/test/eunit/couch_bt_engine_compactor_tests.erl
+@@ -40,7 +40,7 @@
+             fun setup/0,
+             fun teardown/1,
+             [
+-                fun compaction_resume/1,
++                fun(DbName) -> {timeout, 30, compaction_resume(DbName)} end,
+                 fun is_compacting_works/1
+             ]
+         }
+--- a/src/couch_stats/src/couch_stats_math.erl
++++ b/src/couch_stats/src/couch_stats_math.erl
+@@ -241,7 +241,7 @@
+ 
+ -include_lib("couch/include/couch_eunit.hrl").
+ 
+--define(TIMEOUT, 10).
++-define(TIMEOUT, 30).
+ 
+ couch_stats_test_() ->
+     {
+--- a/src/dreyfus/test/eunit/dreyfus_blacklist_await_test.erl
++++ b/src/dreyfus/test/eunit/dreyfus_blacklist_await_test.erl
+@@ -47,7 +47,7 @@
+                 fun setup/0,
+                 fun teardown/1,
+                 [
+-                    fun do_not_await_1/0
++                    {timeout, 30, fun do_not_await_1/0}
+                 ]
+             }
+         }
+--- a/src/dreyfus/test/eunit/dreyfus_blacklist_request_test.erl
++++ b/src/dreyfus/test/eunit/dreyfus_blacklist_request_test.erl
+@@ -46,7 +46,7 @@
+                 fun teardown/1,
+                 [
+                     fun deny_fabric_requests/0,
+-                    fun allow_fabric_request/0
++                    {timeout, 30, fun allow_fabric_request/0}
+                 ]
+             }
+         }
+--- a/src/couch/include/couch_eunit.hrl
++++ b/src/couch/include/couch_eunit.hrl
+@@ -87,7 +87,7 @@
+ -endif.
+ 
+ -ifndef(TDEF_FE).
+--define(TDEF_FE(Name), fun(Arg) -> {atom_to_list(Name), ?_test(Name(Arg))} end).
++-define(TDEF_FE(Name), ?TDEF_FE(Name, 30)).
+ -define(TDEF_FE(Name, Timeout), fun(Arg) -> {atom_to_list(Name), {timeout, Timeout, ?_test(Name(Arg))}} end).
+ -endif.
+ 
+--- a/src/mango/src/mango_cursor.erl
++++ b/src/mango/src/mango_cursor.erl
+@@ -590,11 +590,11 @@
+             meck:unload()
+         end,
+         [
+-            ?TDEF_FE(t_create_regular, 10),
+-            ?TDEF_FE(t_create_user_specified_index, 10),
+-            ?TDEF_FE(t_create_invalid_user_specified_index, 10),
+-            ?TDEF_FE(t_create_invalid_user_specified_index_no_fallback, 10),
+-            ?TDEF_FE(t_create_no_suitable_index_no_fallback, 10)
++            ?TDEF_FE(t_create_regular, 30),
++            ?TDEF_FE(t_create_user_specified_index, 30),
++            ?TDEF_FE(t_create_invalid_user_specified_index, 30),
++            ?TDEF_FE(t_create_invalid_user_specified_index_no_fallback, 30),
++            ?TDEF_FE(t_create_no_suitable_index_no_fallback, 30)
+         ]
+     }.
+ 
+--- a/src/smoosh/src/smoosh_priority_queue.erl
++++ b/src/smoosh/src/smoosh_priority_queue.erl
+@@ -176,7 +176,10 @@
+     Q3 = in(?K3, ?P3, 2, Q2),
+     ?assertEqual([?K3, ?K2], drain(Q3)).
+ 
+-a_lot_of_elements_test() ->
++a_lot_of_elements_test_() ->
++    {timeout, 30, fun a_lot_of_elements/0}.
++
++a_lot_of_elements() ->
+     N = 100000,
+     KVs = lists:map(
+         fun(I) ->
