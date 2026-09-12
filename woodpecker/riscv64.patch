@@ -1,0 +1,64 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,9 +15,10 @@
+ url='https://woodpecker-ci.org'
+ license=(Apache-2.0)
+ depends=(glibc)
+-makedepends=(git go pnpm libsqlite3.so)
++makedepends=(git go pnpm rust libsqlite3.so)
+ source=(
+   "$pkgbase::git+https://github.com/woodpecker-ci/woodpecker#tag=v$pkgver"
++  "tailwindcss-4.3.3.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.3.tar.gz"
+   server-systemd.service
+   server-sysusers.conf
+   server-tmpfiles.conf
+@@ -28,6 +29,7 @@
+   agent.env
+ )
+ sha512sums=('35d65aa95891885950d443666e5ed0c2d2c7ebaadb767afd94adf2e536ec2afe29eac2db5b54bced590f47d968e3581ab18247ebc470cba3b41323086864b224'
++            '0457ae7e075092ed108a6afd3dadd65374737ad55cb7f19ecf73409b2f1a404c217b6ce150c5df1e0bf3973cbb49d9e4040f1148531a115b09cef3447dda3fd7'
+             'd67dee276cd07db05194cf19a9123ff3d1c12f7563b5d4edd7f04c315e41f1ad3a92026fe96e6186f136e4cec90bbba9ace4f4ca473ab1f6ef25399151ff3093'
+             '967fe229ea7bc5148102e2e7582272e46d105df20eeee81b47bb9d1fa83c0386092ce9d76972239946b1710d443be1c2fa222cf2165f519e63daf68a9fd9531e'
+             'b50fdb8369d3120e4f1971b3279b7926dcd65f42d266d1f8aba7b952ced684ac30e55a48ea641590252ab566b72dba306724c74a93b1accef609aa10ebca4da9'
+@@ -37,6 +39,7 @@
+             'a4fb54d8f8c5bcd79e6934fff335cc06dfa7490d25418717581e1b6019a0429c9bd82509f6d4eda345a41476eefce55bc6892be4ffd0fdaa5f968aec3d59e1c1'
+             '5cb05106133fdee058c6345e7e5c6b6bd67beb51a6bca80f742a7de403ee8a03224e9c2850d5c81d61b9720a80ddc07f10f13e1f6f5ef66666b23b49b80217e0')
+ b2sums=('ce6d90c1e68727d14dcc81c4af0f9b8a8591bf18b1f04092d23aa9d1e7275e5254495d58b9ad84599ad15b55913ddebd57aa97ffe2ca0abfe314cbfa83a7d440'
++        '5dd0b32366f8619c1c56528836368fa0dc2f75687b19efcf455c0e1a4cbef3d834a9d10183a54dc3b92a4a9ba2fc8030029e524560d6647cee5de621f0441ae9'
+         '9435cd7af8128a91fc939206fedd767c719c94abd027150599d2079dbffd67f6886ef7ccb53449e09f8f3e86b0ad2bfa33b7002140c772421f5b6e936d008e6f'
+         '71544a46c43b355c215c76b94983cc67f0fbb729ea9542b188442c82459caf4e015be288c599427c9bbdb7b9162bf5c3ec7a4d22c8928d4f3de67cbc129ea2c0'
+         'd28d74767a4e36a34632308449a902abcb62c3f06260bab966825d937e04862c531f2c25273186a0ca3503274560770142154f7829fc850e980455f7c902734a'
+@@ -55,15 +58,31 @@
+   # download dependencies
+   export GOPATH="${srcdir}"
+   go mod download
++
++  cargo fetch --locked --manifest-path="$srcdir/tailwindcss-4.3.3/crates/node/Cargo.toml"
++
++  # Rolldown's WASM binding requires RVV; use Vite 7 and native esbuild.
++  cat > web/pnpm-workspace.yaml <<'EOF'
++overrides:
++  vite: 7.3.6
++  'lightningcss@1.32.0': npm:lightningcss-wasm@1.32.0
++allowBuilds:
++  esbuild: true
++EOF
+ }
+ 
+ build() {
+   cd "$pkgbase"
+ 
++  # Tailwind's threaded WASI fallback segfaults; use a native oxide binding.
++  cargo build --frozen --release --manifest-path="$srcdir/tailwindcss-4.3.3/crates/node/Cargo.toml"
++  cp "$srcdir/tailwindcss-4.3.3/target/release/libtailwind_oxide.so" \
++    "$srcdir/tailwindcss-oxide.node"
++
+   # generate web interface to embed in woodpecker-server
+   pushd web
+-  pnpm install --frozen-lockfile
+-  pnpm build
++  pnpm --pm-on-fail=ignore install --no-frozen-lockfile
++  NAPI_RS_NATIVE_LIBRARY_PATH="$srcdir/tailwindcss-oxide.node" pnpm --pm-on-fail=ignore build
+   popd
+ 
+   # set Go flags
