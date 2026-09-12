@@ -1,25 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -7,15 +7,19 @@ arch=('any')
- url="https://github.com/alexanderzobnin/grafana-zabbix"
- license=('APACHE')
- depends=('grafana')
--makedepends=(yarn libfaketime go git nodejs-lts-gallium)
-+makedepends=(yarn libfaketime go git nodejs-lts-gallium python)
- source=("$pkgname-$pkgver-retagged-1.tar.gz::https://github.com/alexanderzobnin/grafana-zabbix/archive/v$pkgver.tar.gz")
- sha256sums=('7b97156b53c4d5d5d55158a8fa57da7fc3a4105cddd55d4744c8aa6f1fd2f71c')
- 
- build() {
- 	cd "$pkgname-$pkgver"
- 	make install
--	make build
--	make dist
-+	# Work-around for webpack4
-+	export NODE_OPTIONS=--openssl-legacy-provider
-+	make build-frontend
-+	go build -o ./dist/zabbix-plugin_linux_$CARCH ./pkg
-+
-+	go build -v -ldflags="-s -w" -o ./dist/zabbix-plugin_linux_$CARCH ./pkg
- }
- 
- check() {
+@@ -19,0 +20,4 @@
++	# SWC has no riscv64 binary and its automatic WASM fallback is broken.
++	# https://github.com/swc-project/swc/pull/12064
++	npm install --package-lock-only --ignore-scripts --save-dev --save-exact \
++		@swc/core@npm:@swc/wasm@1.15.46
+@@ -27 +30,0 @@
+-	make dist-backend-linux
