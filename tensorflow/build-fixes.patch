@@ -1,0 +1,30 @@
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -62,7 +62,7 @@
+ # Initialize hermetic Python
+ load("@xla//third_party/py:python_init_rules.bzl", "python_init_rules")
+ 
+-python_init_rules()
++python_init_rules(extra_patches = ["@xla//third_party/py:rules_python_riscv.patch"])
+ 
+ load("@xla//third_party/py:python_init_repositories.bzl", "python_init_repositories")
+ 
+--- a/tensorflow/workspace2.bzl
++++ b/tensorflow/workspace2.bzl
+@@ -509,6 +509,7 @@
+ 
+     tf_http_archive(
+         name = "boringssl",
++        patch_file = ["//third_party/boringssl:memchr.patch"],
+         sha256 = "9dc53f851107eaf87b391136d13b815df97ec8f76dadb487b58b2fc45e624d2c",
+         strip_prefix = "boringssl-c00d7ca810e93780bd0c8ee4eea28f4f2ea4bcdc",
+         system_build_file = "//third_party/systemlibs:boringssl.BUILD",
+--- a/third_party/xla/third_party/py/python_init_pip.bzl
++++ b/third_party/xla/third_party/py/python_init_pip.bzl
+@@ -43,4 +43,6 @@
+             "numpy": ["numpy_headers"],
+         },
+         requirements_lock = REQUIREMENTS_WITH_LOCAL_WHEELS,
++        # RISC-V dependencies such as ml_dtypes need time to build from source.
++        timeout = 7200,
+     )

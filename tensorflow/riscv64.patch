@@ -1,0 +1,231 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -4,7 +4,7 @@
+ # Contributor: Thibault Lorrain (fredszaq) <fredszaq@gmail.com>
+ 
+ pkgbase=tensorflow
+-pkgname=(tensorflow tensorflow-opt tensorflow-cuda tensorflow-opt-cuda python-tensorflow python-tensorflow-opt python-tensorflow-cuda python-tensorflow-opt-cuda)
++pkgname=(tensorflow tensorflow-opt python-tensorflow python-tensorflow-opt)
+ pkgver=2.21.0
+ _pkgver=2.21.0
+ _bazelver=7.7.0
+@@ -21,11 +21,13 @@
+ url="https://www.tensorflow.org/"
+ license=(Apache-2.0)
+ arch=('x86_64')
+-depends=('c-ares' 'pybind11' 'openssl' 'libpng' 'curl' 'giflib' 'icu' 'libjpeg-turbo' 'intel-oneapi-openmp'
+-         'intel-oneapi-compiler-shared-runtime-libs')
+-makedepends=('bazel' 'git' 'openmp' 'tinyxxd'
+-             'python-installer' 'patchelf' 'libxcrypt-compat' 'clang20' 'lld')
++depends=('c-ares' 'pybind11' 'openssl' 'libpng' 'curl' 'giflib' 'icu' 'libjpeg-turbo')
++makedepends=('git' 'openmp' 'tinyxxd'
++             'python-installer' 'patchelf' 'libxcrypt-compat' 'clang20' 'lld'
++             'jdk21-openjdk' 'libarchive' 'protobuf' 'python' 'zip' 'unzip' 'which' 'hdf5')
+ optdepends=('tensorboard: Tensorflow visualization toolkit')
++# Source-built Python dependencies mix Clang C and GCC C++, whose LTO objects are incompatible.
++options=('!lto')
+ source=("$pkgname-$pkgver.tar.gz::https://github.com/tensorflow/tensorflow/archive/v${_pkgver}.tar.gz"
+         https://github.com/bazelbuild/bazel/releases/download/${_bazelver}/bazel_nojdk-${_bazelver}-linux-x86_64
+         tensorflow-2.19.0-tf-runtime-workspace.patch
+@@ -34,7 +36,13 @@
+         protobuf-deps.patch
+         tensorflow-2.20.0-python-3.14.patch
+         tensorflow-2.21.0-include-executor-bazel.patch
++        https://github.com/bazelbuild/bazel/releases/download/${_bazelver}/bazel-${_bazelver}-dist.zip
++        bazel7-riscv.diff
++        rules-python-riscv.patch
++        boringssl-memchr.patch
++        build-fixes.patch
+ )
++noextract=("bazel-${_bazelver}-dist.zip")
+ sha512sums=('0bf30434cf0aa72f9ceda444e51cae76bd8af9b1cc38538060b5cae9365424e5610ee95a1c7ea225c6db6e461525b800d8302839a31fd034541863603001ffcf'
+             '206d9a1c98deba75435fe69597ce47dedfe3bb73b0af145245870516d9b2a534e49a8ece765cea5fe80cec57e254bc6655cdab0b194717a89976ed67d9330cf6'
+             '27a07c1f5ab3898e049717e3f56498577c62840416b425e582a308d22112c0341b26a69d419daa0f80fac5be53cee122122b1b8200fc885ae5f7346b8e3ecb10'
+@@ -42,7 +50,12 @@
+             'e5856d277edcef6ab655e8b641f1ec8fe9823264221d687c9938bb00d5acee626a2a05b46cfd97fbad8551f270332ed09b73848bf9784137317fee47ad64c80e'
+             'f4a16944bafc4f75df745163f09612aed12d6353eb5564c734197ae33b7b4e27ace77c50610f147a7ed623612b335385176c9c3f654db2011bbeeeedc63c0203'
+             'cfb1eced1f4b4534deddf14b73d45ae4f8104264ccada1a8854e0dbf7ef2a2f28e67930348211541630a102994ad258d55804359448d225863c4bd5c8762fff1'
+-            'f8358d53ec77d73809435b2352eecf69889362c561c2c4edebd0411cbf17c3d262b28749ab7c253b93a533cfe7e95ee82d329de41bd88a612640d1590b1d1c9d')
++            'f8358d53ec77d73809435b2352eecf69889362c561c2c4edebd0411cbf17c3d262b28749ab7c253b93a533cfe7e95ee82d329de41bd88a612640d1590b1d1c9d'
++            '67d47b2066c54d10f3a1c0a13ab5e577087b40fa54a806802d67fd2391d11709374e2884cfb5910c253dbdc554e3ded65f609adf3a684e5cb1bfd62d244a6439'
++            '09132d800e306c76c46eee77cb5ee89047e1f508bd934d833e11a6047639623810a6eb4a8d3e1f69d2a5e834043ba766b2283591109c9030c13383de7eb6acfd'
++            '5b7e8fff9a6bda2f92f22166ffe54c42ba520a5e1f6660a83300dada8cd320b634492b800d6669468c6e10664f4bd0f1c54a5b3265c8d9d4a6e76a9144c0b1c7'
++            '1d731796f2adb5b17316975e2888336bd11de7ec018c965c614b656db45243de09fa95c778a97097d76571ed2d6e75e3997cf8c0ace8ce2718a9d5139a93b2ed'
++            '868f13222158313a024261399d1152d8a65c23c2c046e7e69c7c9adc66667d660b49e598d6ae327a76906e4d1c2de83e91a504ccba89c99bdc4bf5cfce8fbfe9')
+ 
+ # consolidate common dependencies to prevent mishaps
+ _common_py_depends=(python-termcolor python-astor python-gast python-numpy python-protobuf absl-py
+@@ -81,11 +94,9 @@
+ }
+ 
+ prepare() {
+-  # Since Tensorflow is currently incompatible with our version of Bazel, we're going to use
+-  # their exact version of Bazel to fix that. Stupid problems call for stupid solutions.
+-  install -Dm755 "${srcdir}"/bazel_nojdk-${_bazelver}-linux-x86_64 bazel/bazel
+-  export PATH="${srcdir}/bazel:$PATH"
+-  bazel --version
++  mkdir -p bazel-${_bazelver}
++  bsdtar -xf bazel-${_bazelver}-dist.zip -C bazel-${_bazelver}
++  patch -Np1 -i ../bazel7-riscv.diff -d bazel-${_bazelver}
+ 
+   # Custom patch for python 3.14 support
+   patch -Np1 -i ../tensorflow-2.20.0-python-3.14.patch -d tensorflow-${_pkgver}
+@@ -109,6 +120,14 @@
+   # HERMETIC_CUDA_COMPUTE_CAPABILITIES to .bazelrc for the build:cuda config but we use build:cuda_clang)
+   sed -i 's/^build:cuda_clang --repo_env=HERMETIC_CUDA_COMPUTE_CAPABILITIES/#&/' tensorflow-${_pkgver}/.bazelrc
+ 
++  # Add the wheel platform tag omitted by upstream for RISC-V
++  sed -i '/"@platforms\/\/cpu:ppc": "ppc64le",/a\        "@platforms//cpu:riscv64": "riscv64",' tensorflow-${_pkgver}/tensorflow/tools/pip_package/BUILD
++
++  # Backport RISC-V PyPI support and allow source-only dependencies to build.
++  patch -Np1 -i ../build-fixes.patch -d tensorflow-${_pkgver}
++  cp rules-python-riscv.patch tensorflow-${_pkgver}/third_party/xla/third_party/py/rules_python_riscv.patch
++  cp boringssl-memchr.patch tensorflow-${_pkgver}/third_party/boringssl/memchr.patch
++
+   # copy source for building python-tensorflow packages
+   cp -r tensorflow-${_pkgver} python-tensorflow-${_pkgver}
+   cp -r tensorflow-${_pkgver} python-tensorflow-${_pkgver}-opt
+@@ -189,62 +208,33 @@
+ }
+ 
+ build() {
++  # Clang ignores -fno-plt on riscv64, failing NumPy's Meson compiler probes.
++  CFLAGS=${CFLAGS/-fno-plt/}
++  CXXFLAGS=${CXXFLAGS/-fno-plt/}
++
++  cd "${srcdir}"/bazel-${_bazelver}
++  export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
++  BAZEL_JAVAC_OPTS="-J-Xmx2g -J-Xms200m" \
++    BAZEL_DEV_VERSION_OVERRIDE=${_bazelver} \
++    EMBED_LABEL=${_bazelver} \
++    EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk" \
++    ./compile.sh
++  install -Dm755 output/bazel "${srcdir}"/bazel/bazel
++  export PATH="${srcdir}/bazel:$PATH"
++  bazel --version
++
++  unset HERMETIC_CUDA_VERSION HERMETIC_CUDNN_VERSION \
++    HERMETIC_NVSHMEM_VERSION HERMETIC_NCCL_VERSION \
++    HERMETIC_CUDA_COMPUTE_CAPABILITIES
++
+   # Note: It's often a good idea to have a look at https://github.com/tensorflow/tensorflow/tree/master/tensorflow/tools/ci_build
+   # to see how upstream is supposedly building tensorflow.
+   # Specifically this: https://github.com/tensorflow/tensorflow/blob/master/tensorflow/tools/ci_build/builds/libtensorflow.sh
+   # Explore all bazel targets with `bazel query '//tensorflow:all'`
+ 
+-  echo "Building with Python and with cuda and without non-x86-64 optimizations"
+-  cd "${srcdir}"/python-tensorflow-${_pkgver}-cuda
+-  export CC_OPT_FLAGS="-march=x86-64"
+-  export TF_NEED_CUDA=1
+-  ./configure
+-  bazel \
+-    build --config=cuda_clang --config=cuda_wheel\
+-      ${BAZEL_ARGS[@]} \
+-      //tensorflow/tools/pip_package:wheel --repo_env=WHEEL_NAME=tensorflow
+-
+-  echo "Building without Python and with cuda and without non-x86-64 optimizations"
+-  cd "${srcdir}"/tensorflow-${_pkgver}-cuda
+-  export CC_OPT_FLAGS="-march=x86-64"
+-  export TF_NEED_CUDA=1
+-  ./configure
+-  bazel \
+-    build --config=cuda_clang --config=cuda_wheel\
+-      ${BAZEL_ARGS[@]} \
+-      //tensorflow:libtensorflow.so \
+-      //tensorflow:libtensorflow_cc.so \
+-      //tensorflow:libtensorflow_framework.so
+-#      //tensorflow:install_headers \
+-
+-
+-  echo "Building with Python and with cuda and with non-x86-64 optimizations"
+-  cd "${srcdir}"/python-tensorflow-${_pkgver}-opt-cuda
+-  export CC_OPT_FLAGS="-march=x86-64-v3 -O2"
+-  export TF_NEED_CUDA=1
+-  ./configure
+-  bazel \
+-    build --config=opt --config=avx_linux --config=cuda_clang --config=cuda_wheel\
+-      ${BAZEL_ARGS[@]} \
+-      //tensorflow/tools/pip_package:wheel --repo_env=WHEEL_NAME=tensorflow
+-
+-  echo "Building without Python and with cuda and with non-x86-64 optimizations"
+-  cd "${srcdir}"/tensorflow-${_pkgver}-opt-cuda
+-  export CC_OPT_FLAGS="-march=x86-64-v3 -O2"
+-  export TF_NEED_CUDA=1
+-  ./configure
+-  bazel \
+-    build --config=opt --config=avx_linux --config=cuda_clang --config=cuda_wheel\
+-      ${BAZEL_ARGS[@]} \
+-      //tensorflow:libtensorflow.so \
+-      //tensorflow:libtensorflow_cc.so \
+-      //tensorflow:libtensorflow_framework.so
+-#      //tensorflow:install_headers \
+-
+-
+-  echo "Building with Python and without cuda and without non-x86-64 optimizations"
++  echo "Building with Python and without cuda and without non-riscv64 optimizations"
+   cd "${srcdir}"/python-tensorflow-${_pkgver}
+-  export CC_OPT_FLAGS="-march=x86-64"
++  export CC_OPT_FLAGS="-march=rv64gc"
+   export TF_NEED_CUDA=0
+   ./configure
+   bazel \
+@@ -252,9 +242,9 @@
+       ${BAZEL_ARGS[@]} \
+       //tensorflow/tools/pip_package:wheel --repo_env=WHEEL_NAME=tensorflow_cpu
+ 
+-  echo "Building without Python and without cuda and without non-x86-64 optimizations"
++  echo "Building without Python and without cuda and without non-riscv64 optimizations"
+   cd "${srcdir}"/tensorflow-${_pkgver}
+-  export CC_OPT_FLAGS="-march=x86-64"
++  export CC_OPT_FLAGS="-march=rv64gc"
+   export TF_NEED_CUDA=0
+   ./configure
+   bazel \
+@@ -266,23 +256,23 @@
+ #      //tensorflow:install_headers \
+ 
+ 
+-  echo "Building with Python and without cuda and with non-x86-64 optimizations"
++  echo "Building with Python and without cuda and with RVV optimizations"
+   cd "${srcdir}"/python-tensorflow-${_pkgver}-opt
+-  export CC_OPT_FLAGS="-march=x86-64-v3 -O2"
++  export CC_OPT_FLAGS="-march=rv64gcv -O2"
+   export TF_NEED_CUDA=0
+   ./configure
+   bazel \
+-    build --config=opt --config=avx_linux \
++    build --config=opt --host_copt=-march=rv64gc \
+       ${BAZEL_ARGS[@]} \
+       //tensorflow/tools/pip_package:wheel --repo_env=WHEEL_NAME=tensorflow_cpu
+ 
+-  echo "Building without Python and without cuda and with non-x86-64 optimizations"
++  echo "Building without Python and without cuda and with RVV optimizations"
+   cd "${srcdir}"/tensorflow-${_pkgver}-opt
+-  export CC_OPT_FLAGS="-march=x86-64-v3 -O2"
++  export CC_OPT_FLAGS="-march=rv64gcv -O2"
+   export TF_NEED_CUDA=0
+   ./configure
+   bazel \
+-    build --config=opt --config=avx_linux \
++    build --config=opt --host_copt=-march=rv64gc \
+       ${BAZEL_ARGS[@]} \
+       //tensorflow:libtensorflow.so \
+       //tensorflow:libtensorflow_cc.so \
+@@ -347,7 +337,7 @@
+ }
+ 
+ package_tensorflow-opt() {
+-  pkgdesc="Library for computation using data flow graphs for scalable machine learning (with AVX CPU optimizations)"
++  pkgdesc="Library for computation using data flow graphs for scalable machine learning (with RVV CPU optimizations)"
+   conflicts=(tensorflow)
+   provides=(tensorflow)
+ 
+@@ -383,7 +373,7 @@
+ }
+ 
+ package_python-tensorflow-opt() {
+-  pkgdesc="Library for computation using data flow graphs for scalable machine learning (with AVX CPU optimizations)"
++  pkgdesc="Library for computation using data flow graphs for scalable machine learning (with RVV CPU optimizations)"
+   depends+=("${_common_py_depends[@]}")
+   conflicts=(python-tensorflow)
+   provides=(python-tensorflow)
