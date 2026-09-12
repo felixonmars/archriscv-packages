@@ -1,26 +1,49 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -51,6 +51,7 @@ options=(!lto)
+@@ -56,6 +56,10 @@
  prepare() {
    cd $pkgname-$pkgver
  
-+  patch -Np1 -i ../rv-cpu.diff
++  patch -Np1 -i ../4ef42fe7273fbbf025bc9b196f55f7df86b516a0.patch
++  patch -Np1 -i ../rv-runtime.diff
++  patch -Np1 -i ../rv-float16.diff
++  patch -Np1 -i ../rv-abi.diff
  # Revert test that depends on patched gmp
    patch -Rp1 -i ../c12e8515.patch
  # Don't hardcode library names
-@@ -103,6 +104,7 @@ _make() {
+@@ -111,6 +115,7 @@
  
    [[ ${CARCH} == 'aarch64' ]] && make_options+=(MARCH=armv8.2-a JULIA_CPU_TARGET="generic;armv8.2-a,crypto,fullfp16,lse,rdm")
    [[ ${CARCH} == 'x86_64' ]] &&  make_options+=(MARCH=x86-64 JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)")
-+  [[ ${CARCH} == 'riscv64' ]] &&  make_options+=(MARCH=rv64gc JULIA_CPU_TARGET="generic-rv64,+i,+m,+a,+f,+d,+zicsr,+zifencei,+c" USE_BINARYBUILDER=0)
++  [[ ${CARCH} == 'riscv64' ]] &&  make_options+=(MARCH=rv64gc JULIA_CPU_TARGET="generic-rv64,+i,+m,+a,+f,+d,+zicsr,+zifencei,+c" USE_SYSTEM_LIBUNWIND=0)
  
    make "${make_options[@]}" "$@"
  }
-@@ -153,3 +155,7 @@ package() {
+@@ -122,10 +127,13 @@
+ }
+ 
+ check() {
++  patch -d $pkgname-$pkgver/stdlib/Distributed-661112ef29b8d371b8612b94a629c0bbcf3d36f7 -Np1 -i "$srcdir"/rv-distributed-timeout.diff
++  patch -d $pkgname-$pkgver/stdlib/Statistics-22dee82f9824d6045e87aa4b97e1d64fe6f01d8d -Np1 -i "$srcdir"/rv-statistics-nan.diff
+   cd $pkgname-$pkgver/test
+   ln -s /etc/ssl/cert.pem ../usr/share/julia
+ 
+-  ../julia --check-bounds=yes --startup-file=no ./runtests.jl \
++  # Worker startup on glalie exceeded Distributed's default 60-second deadline.
++  JULIA_WORKER_TIMEOUT=600 ../julia --check-bounds=yes --startup-file=no ./runtests.jl \
+     --skip cmdlineargs \
+     --skip errorshow \
+     --skip Downloads \
+@@ -162,3 +170,12 @@
  
    install -Dm644 contrib/julia.svg -t "$pkgdir"/usr/share/pixmaps
  }
 +
-+
-+source+=(rv-cpu.diff)
-+sha256sums+=('7b893f0453a4cd269c25f25cea332f5e7bfbe35ecb6a03863a049603a63e6f92')
++source+=(rv-runtime.diff rv-float16.diff rv-abi.diff rv-statistics-nan.diff rv-distributed-timeout.diff
++         https://github.com/JuliaLang/julia/commit/4ef42fe7273fbbf025bc9b196f55f7df86b516a0.patch)
++sha256sums+=('1ee559a00f916e3f871eef053b1e6d424be4f15ad025f0f0331e4758bd5244d9'
++             'e2824f02f1adda66316656679ecd1a69fc1e65c33c8b4ffa405fff3c11eb4589'
++             'd36414c680870b654e9a298c0fc07b6596c475e841a12fa6bd09f2266cd5c5d9'
++             '0ea0c179148153ad7edc242eab924252d8346f54062ec7554a4e005ae90018da'
++             '12631625ec62f9c7d153367687bac2715786475f3277a3edc6dfefe4c80fffd9'
++             '13efb588ca1b533e0d3d3bc639da0520cef3ed74816335b414e406e3b7a975c1')

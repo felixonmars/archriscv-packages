@@ -1,0 +1,15 @@
+--- a/src/runtime_intrinsics.c
++++ b/src/runtime_intrinsics.c
+@@ -285,6 +285,12 @@
+     #define FLOAT16_RET_TYPE uint16_t
+     #define FLOAT16_ARG_TO_UINT16(x) (x)
+     #define FLOAT16_RET_FROM_UINT16(x) (x)
++#elif defined(_CPU_RISCV64_)
++    // A half returned in an FP register must be NaN-boxed, including bits 31:16.
++    #define FLOAT16_ARG_TYPE float
++    #define FLOAT16_RET_TYPE float
++    #define FLOAT16_ARG_TO_UINT16(x) ((uint16_t)*(uint32_t*)&(x))
++    #define FLOAT16_RET_FROM_UINT16(x) ({ uint32_t tmp = 0xffff0000u | (uint32_t)(x); *(float*)&tmp; })
+ #else
+     // otherwise, pass using floating-point calling conventions
+     #define FLOAT16_ARG_TYPE float

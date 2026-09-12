@@ -1,0 +1,16 @@
+Preserve the configured worker startup timeout in the isolated package-environment
+tests. Their setenv calls discard JULIA_WORKER_TIMEOUT=600, causing the logged
+"worker did not connect within 60.0 seconds" failure. Keep the isolated package
+paths and all assertions; Distributed propagates the timeout to its workers.
+https://github.com/JuliaLang/Distributed.jl/blob/661112ef29b8d371b8612b94a629c0bbcf3d36f7/test/distributed_exec.jl
+
+--- a/test/distributed_exec.jl
++++ b/test/distributed_exec.jl
+@@ -1865,6 +1865,7 @@
+         # Explicitly propagate `TMPDIR`, in the event that we're running on a
+         # CI system where `TMPDIR` is special.
+         "TMPDIR" => dirname(tmp),
++        "JULIA_WORKER_TIMEOUT" => get(ENV, "JULIA_WORKER_TIMEOUT", "60"),
+     )
+     setupcode = """
+     using Distributed, Test

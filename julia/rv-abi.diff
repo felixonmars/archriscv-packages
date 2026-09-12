@@ -1,0 +1,137 @@
+Backport the RISC-V varargs, integer-extension and vector classification fixes from:
+https://github.com/JuliaLang/julia/commit/d9fa001d31d13a6dd9f2c240675bca5ba76958e9
+
+--- a/src/abi_riscv.cpp
++++ b/src/abi_riscv.cpp
+@@ -125,6 +125,9 @@
+         }
+     }
+     else { // aggregates
++        // Vectors use the integer convention; a bare `VecElement` still flattens.
++        if (is_vector_type(dt))
++            return false;
+         while (size_t nfields = jl_datatype_nfields(dt)) {
+             size_t i;
+             size_t fieldsz;
+@@ -279,6 +282,10 @@
+     if (!jl_is_primitivetype(ty)) {
+         return get_llvm_inttype_byxlen(XLen, ctx);
+     }
++    // Keep the FP type so LLVM can apply the integer convention.
++    if (is_floattype(ty)) {
++        return get_llvm_fptype(ty, ctx);
++    }
+     return get_llvm_inttype(ty, ctx);
+ }
+ 
+@@ -301,8 +308,11 @@
+                    Type *Ty) override
+ {
+     bool onstack = false;
++    // Variadic arguments never use the hardware floating-point convention.
++    int no_fprs = 0;
+     this->cached_llvmtype =
+-        classify_arg(ty, this->avail_gprs, this->avail_fprs, onstack, ctx);
++        classify_arg(ty, this->avail_gprs, this->varargs ? no_fprs : this->avail_fprs,
++                     onstack, ctx);
+     return onstack;
+ }
+ 
+--- a/src/ccall.cpp
++++ b/src/ccall.cpp
+@@ -376,6 +376,8 @@
+ 
+ class AbiLayout {
+ public:
++    // True while classifying variadic arguments.
++    bool varargs = false;
+     virtual ~AbiLayout() {}
+     virtual bool use_sret(jl_datatype_t *ty, LLVMContext &ctx) = 0;
+     virtual bool needPassByRef(jl_datatype_t *ty, AttrBuilder&, LLVMContext &ctx, Type* llvm_t) = 0;
+@@ -401,6 +403,21 @@
+     return jl_special_vector_alignment(n, ft0) != 0;
+ }
+ 
++// Match the `VecElement` tuples lowered as LLVM vectors.
++static bool is_vector_type(jl_datatype_t *dt)
++{
++    if (!jl_is_tuple_type(dt))
++        return false;
++    uint32_t n = jl_datatype_nfields(dt);
++    if (n == 0)
++        return false;
++    jl_value_t *ft0 = jl_field_type(dt, 0);
++    for (uint32_t i = 1; i < n; ++i)
++        if (jl_field_type(dt, i) != ft0)
++            return false;
++    return jl_special_vector_alignment(n, ft0) != 0;
++}
++
+ #include "abi_llvm.cpp"
+ 
+ #include "abi_arm.cpp"
+@@ -1375,12 +1392,17 @@
+                 // see pull req #978. need to annotate signext/zeroext for
+                 // small integer arguments.
+                 jl_datatype_t *bt = (jl_datatype_t*)tti;
+-                if (jl_datatype_size(bt) < 4) {
++                size_t sz = jl_datatype_size(bt);
++                if (sz < 4) {
+                     if (jl_signed_type && jl_subtype(tti, (jl_value_t*)jl_signed_type))
+                         ab.addAttribute(Attribute::SExt);
+                     else
+                         ab.addAttribute(Attribute::ZExt);
+                 }
++                else if (sz == 4 && ctx->TargetTriple.isRISCV64()) {
++                    // RISC-V sign-extends all 32-bit arguments to XLEN.
++                    ab.addAttribute(Attribute::SExt);
++                }
+             }
+         }
+ 
+@@ -1392,6 +1414,8 @@
+ 
+         // Whether or not LLVM wants us to emit a pointer to the data
+         assert(t && "LLVM type should not be null");
++        if (nreqargs > 0 && i == nreqargs)
++            abi->varargs = true;
+         bool byRef = abi->needPassByRef((jl_datatype_t*)tti, ab, LLVMCtx, t);
+ 
+         if (jl_is_cpointer_type(tti)) {
+@@ -1413,10 +1437,16 @@
+             if (!llvmcall && cc == CallingConv::C) {
+                 if (pat->isIntegerTy() && pat->getPrimitiveSizeInBits() < sizeof(int) * 8)
+                     pat = getInt32Ty(lrt->getContext());
+-                if (pat->isFloatingPointTy() && pat->getPrimitiveSizeInBits() < sizeof(double) * 8)
++                // Default argument promotion does not widen `_Float16` or `__bf16`.
++                if (pat->isFloatTy())
+                     pat = getDoubleTy(lrt->getContext());
+                 ab.removeAttribute(Attribute::SExt);
+                 ab.removeAttribute(Attribute::ZExt);
++                if (ctx->TargetTriple.isRISCV64() && pat->isIntegerTy() &&
++                        pat->getPrimitiveSizeInBits() <= 32) {
++                    // RISC-V applies the same XLEN extension to variadic integers.
++                    ab.addAttribute(Attribute::SExt);
++                }
+             }
+         }
+ 
+@@ -1432,6 +1462,18 @@
+     // If return value is boxed it must be non-null.
+     if (retboxed)
+         RetAttrs = RetAttrs.addAttribute(LLVMCtx, Attribute::NonNull);
++    else if (ctx->TargetTriple.isRISCV64() && rt != jl_bottom_type &&
++             jl_is_primitivetype(rt) && lrt->isIntegerTy()) {
++        // RISC-V returns integers as if passed as the first named argument.
++        size_t sz = jl_datatype_size(rt);
++        if (sz < 4) {
++            bool issigned = jl_signed_type && jl_subtype(rt, (jl_value_t*)jl_signed_type);
++            RetAttrs = RetAttrs.addAttribute(LLVMCtx, issigned ? Attribute::SExt : Attribute::ZExt);
++        }
++        else if (sz == 4) {
++            RetAttrs = RetAttrs.addAttribute(LLVMCtx, Attribute::SExt);
++        }
++    }
+     if (rt == jl_bottom_type)
+         FnAttrs = FnAttrs.addAttribute(LLVMCtx, Attribute::NoReturn);
+ 
