@@ -1,0 +1,30 @@
+--- a/owl/io.scm
++++ b/owl/io.scm
+@@ -180,8 +180,10 @@
+ 
+       ;; would a read block
+       (define (readable? fd)
+-         (let ((req (tuple 'read-timeout fd 1))) ;; <- todo: check if muxer always polls before alarms ring, and if not, convert
+-            (eq? req (interact 'iomux req))))
++         (lets
++            ((result (sys-prim 43 (list (cons fd #false)) #n 0))
++             (waked reason result))
++            (and waked (eq? reason 1))))
+ 
+       ;; would a write block
+       (define (writeable? fd)
+--- a/scheme/base.scm
++++ b/scheme/base.scm
+@@ -401,11 +401,7 @@
+             ((let* . stuff) (lets . stuff))))
+ 
+       (define (char-ready? . port)
+-         (lets
+-            ((port (if (null? port) stdin (car port)))
+-             (req (tuple 'read-timeout port 1))
+-             (result (interact 'iomux req)))
+-            (eq? result req)))
++         (readable? (if (null? port) stdin (car port))))
+ 
+       (define-missing-bad write-u8)
+       (define-missing-bad write-string)
