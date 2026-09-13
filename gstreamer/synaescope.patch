@@ -1,0 +1,58 @@
+--- subprojects/gst-plugins-bad/gst/audiovisualizers/gstsynaescope.c
++++ subprojects/gst-plugins-bad/gst/audiovisualizers/gstsynaescope.c
+@@ -265,13 +265,16 @@
+     l = sqrt (ll);
+     rr = (frl - fil) * (frl - fil) + (frr + fir) * (frr + fir);
+     r = sqrt (rr);
++    /* Empty frequency bins have no star and would divide by zero below. */
++    if (ll + rr == 0.0)
++      continue;
+     /* out-of-phase'ness for this frequency component */
+     clarity = (gint) (
+         ((frl + fil) * (frl - fil) + (frr + fir) * (frr - fir)) /
+         (ll + rr) * 256);
+     fc = r + l;
+ 
+-    x = (guint) (r * w / fc);
++    x = MIN ((guint) (r * w / fc), w - 1);
+     /* the brightness scaling factor was picked by experimenting */
+     br = b * fc * 0.01;
+ 
+--- subprojects/gst-plugins-bad/tests/check/elements/audiovisualizer.c
++++ subprojects/gst-plugins-bad/tests/check/elements/audiovisualizer.c
+@@ -43,7 +43,7 @@
+ }
+ 
+ static void
+-test_element (const gchar * element)
++test_element (const gchar * element, const gchar * wave)
+ {
+   GstElement *pipeline;
+   GstBus *bus;
+@@ -53,8 +53,8 @@
+ 
+   pipe_str =
+       g_strdup_printf
+-      ("audiotestsrc num-buffers=20 ! audio/x-raw,format=" GST_AUDIO_NE (S16)
+-      ",channels=2 ! %s ! fakesink", element);
++      ("audiotestsrc num-buffers=20 wave=%s ! audio/x-raw,format=" GST_AUDIO_NE (S16)
++      ",channels=2 ! %s ! fakesink", wave, element);
+ 
+   pipeline = gst_parse_launch (pipe_str, &error);
+   fail_unless (pipeline != NULL, "Could not create pipeline: %s",
+@@ -83,10 +83,11 @@
+ {
+   /* Simple pipeline tests to see if these elements run at all.
+    * Will help catch breakages like https://gitlab.freedesktop.org/gstreamer/gstreamer/-/merge_requests/6800. */
+-  test_element ("wavescope");
+-  test_element ("spacescope");
+-  test_element ("spectrascope");
+-  test_element ("synaescope");
++  test_element ("wavescope", "sine");
++  test_element ("spacescope", "sine");
++  test_element ("spectrascope", "sine");
++  test_element ("synaescope", "sine");
++  test_element ("synaescope", "silence");
+ }
+ 
+ GST_END_TEST;

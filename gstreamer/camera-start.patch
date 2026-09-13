@@ -1,0 +1,135 @@
+--- subprojects/gst-plugins-bad/tests/check/elements/camerabin.c
++++ subprojects/gst-plugins-bad/tests/check/elements/camerabin.c
+@@ -463,6 +463,14 @@
+ static GstMessage *wait_for_element_message (GstElement * camera,
+     const gchar * name, GstClockTime timeout);
+ 
++static gboolean
++quit_main_loop (gpointer data)
++{
++  g_main_loop_quit (data);
++  /* A repeating timer can stop the next recording before it has buffers. */
++  return G_SOURCE_REMOVE;
++}
++
+ static void
+ validate_taglist_foreach (const GstTagList * list, const gchar * tag,
+     gpointer user_data)
+@@ -1143,15 +1151,14 @@
+   g_object_get (camera, "idle", &idle, NULL);
+   fail_unless (!idle);
+ 
+-  /* Record for one seconds  */
+-  g_timeout_add_seconds (VIDEO_DURATION, (GSourceFunc) g_main_loop_quit,
+-      main_loop);
++  /* Caps negotiation can outlast the recording interval on slow builders. */
++  check_preview_image (camera, video_filename, 0);
++
++  g_timeout_add_seconds (VIDEO_DURATION, quit_main_loop, main_loop);
+   g_main_loop_run (main_loop);
+ 
+   g_signal_emit_by_name (camera, "stop-capture", NULL);
+ 
+-  check_preview_image (camera, video_filename, 0);
+-
+   msg = wait_for_element_message (camera, "video-done", GST_CLOCK_TIME_NONE);
+   fail_unless (msg != NULL);
+   gst_message_unref (msg);
+@@ -1210,8 +1217,9 @@
+     g_object_get (camera, "idle", &idle, NULL);
+     fail_unless (!idle);
+ 
+-    g_timeout_add_seconds (VIDEO_DURATION, (GSourceFunc) g_main_loop_quit,
+-        main_loop);
++    check_preview_image (camera, video_filename, i);
++
++    g_timeout_add_seconds (VIDEO_DURATION, quit_main_loop, main_loop);
+     g_main_loop_run (main_loop);
+ 
+     GST_LOG ("stopping run %d", i);
+@@ -1221,9 +1229,6 @@
+     fail_unless (msg != NULL);
+     gst_message_unref (msg);
+ 
+-    GST_LOG ("video done, checking preview image");
+-    check_preview_image (camera, video_filename, i);
+-
+     GST_LOG ("waiting for idle state");
+     wait_for_idle_state ();
+     GST_LOG ("finished run %d", i);
+@@ -1280,16 +1285,14 @@
+     g_object_set (camera, "location", vid_filename, NULL);
+ 
+     g_signal_emit_by_name (camera, "start-capture", NULL);
+-    g_timeout_add_seconds (VIDEO_DURATION, (GSourceFunc) g_main_loop_quit,
+-        main_loop);
++    check_preview_image (camera, vid_filename, i);
++    g_timeout_add_seconds (VIDEO_DURATION, quit_main_loop, main_loop);
+     g_main_loop_run (main_loop);
+     g_signal_emit_by_name (camera, "stop-capture", NULL);
+ 
+     msg = wait_for_element_message (camera, "video-done", GST_CLOCK_TIME_NONE);
+     fail_unless (msg != NULL);
+     gst_message_unref (msg);
+-
+-    check_preview_image (camera, vid_filename, i);
+   }
+ 
+   wait_for_idle_state ();
+@@ -1494,7 +1497,8 @@
+ 
+     g_signal_emit_by_name (camera, "start-capture", NULL);
+ 
+-    g_timeout_add_seconds (3, (GSourceFunc) g_main_loop_quit, main_loop);
++    check_preview_image (camera, video_filename, i);
++    g_timeout_add_seconds (3, quit_main_loop, main_loop);
+     g_main_loop_run (main_loop);
+ 
+     g_signal_emit_by_name (camera, "stop-capture", NULL);
+@@ -1593,9 +1597,8 @@
+   g_object_get (camera, "idle", &idle, NULL);
+   fail_unless (!idle);
+ 
+-  /* Record for one seconds  */
+-  g_timeout_add_seconds (VIDEO_DURATION, (GSourceFunc) g_main_loop_quit,
+-      main_loop);
++  check_preview_image (camera, video_filename, 0);
++  g_timeout_add_seconds (VIDEO_DURATION, quit_main_loop, main_loop);
+   g_main_loop_run (main_loop);
+ 
+   g_signal_emit_by_name (camera, "stop-capture", NULL);
+@@ -1604,8 +1607,6 @@
+   fail_unless (msg != NULL);
+   gst_message_unref (msg);
+ 
+-  check_preview_image (camera, video_filename, 0);
+-
+   wait_for_idle_state ();
+ 
+   gst_element_set_state (GST_ELEMENT (camera), GST_STATE_NULL);
+@@ -1670,7 +1671,7 @@
+   fail_unless (camera != NULL);
+   g_signal_emit_by_name (camera, "start-capture", NULL);
+ 
+-  g_timeout_add_seconds (3, (GSourceFunc) g_main_loop_quit, main_loop);
++  g_timeout_add_seconds (3, quit_main_loop, main_loop);
+   g_main_loop_run (main_loop);
+ 
+   /* check that we got a preview image */
+@@ -1750,14 +1751,11 @@
+   fail_unless (camera != NULL);
+   g_signal_emit_by_name (camera, "start-capture", NULL);
+ 
+-  g_timeout_add_seconds (VIDEO_DURATION, (GSourceFunc) g_main_loop_quit,
+-      main_loop);
++  check_preview_image (camera, video_filename, 0);
++  g_timeout_add_seconds (VIDEO_DURATION, quit_main_loop, main_loop);
+   g_main_loop_run (main_loop);
+   g_signal_emit_by_name (camera, "stop-capture", NULL);
+ 
+-  /* check that we got a preview image */
+-  check_preview_image (camera, video_filename, 0);
+-
+   gst_element_set_state (GST_ELEMENT (camera), GST_STATE_NULL);
+   check_file_validity (video_filename, 0, NULL, 0, 0, WITH_AUDIO);
+   remove_file (video_filename, 0);

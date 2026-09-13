@@ -1,0 +1,19 @@
+--- subprojects/gst-editing-services/tests/check/nle/complex.c
++++ subprojects/gst-editing-services/tests/check/nle/complex.c
+@@ -322,7 +322,6 @@
+   /* Second source */
+ 
+   nle_composition_add (GST_BIN (comp), source2);
+-  ASSERT_OBJECT_REFCOUNT (source2, "source2", 1);
+   /* Third source */
+   nle_composition_add (GST_BIN (comp), source3);
+   commit_and_wait (comp, &ret);
+@@ -330,6 +329,8 @@
+   check_start_stop_duration (comp, 0, 5 * GST_SECOND, 5 * GST_SECOND);
+   check_start_stop_duration (defaultsrc, 0, 5 * GST_SECOND, 5 * GST_SECOND);
+ 
++  /* Queued additions can hold temporary references until the commit. */
++  ASSERT_OBJECT_REFCOUNT (source2, "source2", 1);
+   ASSERT_OBJECT_REFCOUNT (source3, "source3", 1);
+ 
+   /* Expected segments */

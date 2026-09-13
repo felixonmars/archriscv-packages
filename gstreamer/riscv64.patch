@@ -1,54 +1,95 @@
-diff --git PKGBUILD PKGBUILD
-index c3548b4..8192a0a 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -12,12 +12,10 @@ pkgname=(
-   gst-plugins-ugly
+@@ -13,12 +13,10 @@
    gst-libav
    gst-plugin-gtk
+   gst-plugin-hip
 -  gst-plugin-msdk
    gst-plugin-onnx
    gst-plugin-opencv
    gst-plugin-qml6
    gst-plugin-qmlgl
 -  gst-plugin-qsv
+   gst-plugin-svthevcenc
    gst-plugin-va
    gst-plugin-wpe
-   gst-devtools-libs
-@@ -179,7 +177,6 @@ makedepends=(
-   speex
-   srt
-   svt-av1
--  svt-hevc
-   systemd-libs
-   taglib
-   twolame
-@@ -246,9 +243,12 @@ build() {
-     -D gst-plugins-bad:isac=disabled
+@@ -238,6 +236,16 @@
+     echo "Applying patch $src..."
+     git apply -3 < "../$src"
+   done
++
++  # https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/4248
++  patch -Np0 -i "$srcdir/synaescope.patch"
++  patch -Np0 -i "$srcdir/gl-preroll.patch"
++  patch -Np0 -i "$srcdir/nle-refcount.patch"
++  patch -Np0 -i "$srcdir/report-race.patch"
++  patch -Np0 -i "$srcdir/camera-start.patch"
++  patch -Np0 -i "$srcdir/splitmux-timeout.patch"
++  patch -Np1 -i "$srcdir/6272cd80877cf3b9a49d708ade91010775df19b8.patch"
++  patch -Np0 -i "$srcdir/test-workarounds.patch"
+ }
+ 
+ build() {
+@@ -262,11 +270,13 @@
+     -D gst-plugins-bad:lcevcencoder=disabled
      -D gst-plugins-bad:magicleap=disabled
      -D gst-plugins-bad:mfx_api=oneVPL
 +    -D gst-plugins-bad:msdk=disabled
+     -D gst-plugins-bad:mpeghdec=disabled
+     -D gst-plugins-bad:nvcomp=disabled
+     -D gst-plugins-bad:nvdswrapper=disabled
      -D gst-plugins-bad:openni2=disabled
      -D gst-plugins-bad:opensles=disabled
 +    -D gst-plugins-bad:qsv=disabled
      -D gst-plugins-bad:qt6d3d11=disabled
-+    -D gst-plugins-bad:svthevcenc=disabled
-     -D gst-plugins-bad:tinyalsa=disabled
-     -D gst-plugins-bad:voaacenc=disabled
-     -D gst-plugins-bad:voamrwbenc=disabled
-@@ -758,7 +758,6 @@ package_gst-plugins-bad() {
-     spandsp
-     srt
-     svt-av1
--    svt-hevc
-     webrtc-audio-processing-1
-     wildmidi
-     x265
-@@ -822,7 +821,6 @@ package_gst-plugins-bad() {
-     usr/lib/gstreamer-1.0/libgstsrt.so
-     usr/lib/gstreamer-1.0/libgstsrtp.so
-     usr/lib/gstreamer-1.0/libgstsvtav1.so
--    usr/lib/gstreamer-1.0/libgstsvthevcenc.so
-     usr/lib/gstreamer-1.0/libgstteletext.so
-     usr/lib/gstreamer-1.0/libgsttimecode.so
-     usr/lib/gstreamer-1.0/libgstttmlsubs.so
+     -D gst-plugins-bad:svtjpegxs=disabled
+     -D gst-plugins-bad:tflite=disabled
+@@ -309,9 +319,9 @@
+   export CK_TIMEOUT_MULTIPLIER=5
+   export NO_AT_BRIDGE=1 GTK_A11Y=none
+ 
+-  # Flaky due to timeouts
++  # Concurrent media pipelines exceed deadlines and drop frames on riscv64.
+   xvfb-run -s "-nolisten local" \
+-    meson test -C build --print-errorlogs -t $CK_TIMEOUT_MULTIPLIER
++    meson test -C build --print-errorlogs -t $CK_TIMEOUT_MULTIPLIER --num-processes 1
+ )
+ 
+ _install() {
+@@ -801,12 +811,10 @@
+   optdepends=(
+     'gst-plugin-gtk: gtk plugin'
+     'gst-plugin-hip: hip plugin and library'
+-    'gst-plugin-msdk: msdk plugin'
+     'gst-plugin-onnx: onnx plugin'
+     'gst-plugin-opencv: opencv plugin and library'
+     'gst-plugin-qml6: qml6 plugin'
+     'gst-plugin-qmlgl: qmlgl plugin'
+-    'gst-plugin-qsv: qsv plugin'
+     'gst-plugin-va: va plugin'
+     'gst-plugin-wpe: wpe plugin'
+   )
+@@ -1335,4 +1343,23 @@
+   install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 COPYING LICENSE*
+ }
+ 
++source_riscv64=(
++  synaescope.patch
++  gl-preroll.patch
++  nle-refcount.patch
++  report-race.patch
++  camera-start.patch
++  splitmux-timeout.patch
++  https://gitlab.freedesktop.org/gstreamer/gstreamer/-/commit/6272cd80877cf3b9a49d708ade91010775df19b8.patch
++  test-workarounds.patch
++)
++b2sums_riscv64=('ff1e9d4b42d25fe4359bfb5e64d0083a6fab1465cd957d8019775a21ada9bb0f46351733e2323120ffa018372294c4887db639ec523e758ae99ee9dfa8e4b884'
++                '9f0ab42cd5cb3c77d3ab29c2b37bdb501e1b53b2a7eced5ef71349ff9a454e5f31513fbbe3554d1ffafc36893a49bf67336a0f5d69d6f7078a3d356d98b28734'
++                '3ae3a5dcc9dd815fb4bc8adb964f3c449cbb632b9d6a6a05bdd465022505585cac9b2bf4a80fdc08700901b8780c4fda6a4bc218d688ddcb615318cf7c1dac32'
++                'f19125bfc26cccd09b8453bd4ea3738279e6ab8eece51bbf426705b520d4fc172be56871e1e6f9c1caa3a4726a688956920e48e069e6f1724c69ee8ef180411a'
++                'c2a376eac52affbff1124b1e30d8c43cc17f393896eb51c06a8d25d6956e1b5edeb8617c28c63e501b97eb53d07af39f6a7fdfb42b3ddd1254baf0c08976bf7a'
++                '8fe5446fd2b027f64c90bc2ff33534e6d858af8a7aa81fa861c1703beb310daaf7b02f6f6654f5612d86ebd63f810ef3c631f13dc5a230301c77793306ccdcea'
++                '68b18813ea92d188766c2222b9933e43b97cf59cfed75f787a95602109f0dedcadfa62e81cf1b82b916cdb6bea4f099084222c58ecb9e2b7339741f47e1e0050'
++                '6857b7731bb48386a13b0dd42f3d59c09e2d199347a03e2c3f91e7f2dd76aba7faaad99b28b6037970e81c4c4a2851acea14252d0869b557389a27e3b3781051')
++
+ # vim:set sw=2 sts=-1 et:
