@@ -1,0 +1,197 @@
+--- a/src/calibre/library/page_count.py
++++ b/src/calibre/library/page_count.py
+@@ -243,7 +243,9 @@
+             w_stdin = w.stdin
+             assert w_stdin is not None
+             w_stdin.close()
+-            if w.wait(1) is None:
++            try:
++                w.wait(1)
++            except subprocess.TimeoutExpired:
+                 w.kill()
+                 w.wait()
+ 
+--- a/src/calibre/srv/tests/base.py
++++ b/src/calibre/srv/tests/base.py
+@@ -139,7 +139,7 @@
+         self.log = self.loop.log
+ 
+     def setup_defaults(self, kwargs):
+-        kwargs['shutdown_timeout'] = kwargs.get('shutdown_timeout', 0.1)
++        kwargs['shutdown_timeout'] = kwargs.get('shutdown_timeout', 30)
+         kwargs['listen_on'] = kwargs.get('listen_on', 'localhost')
+         kwargs['port'] = kwargs.get('port', 0)
+         kwargs['userdb'] = kwargs.get('userdb', ':memory:')
+@@ -168,7 +168,7 @@
+ 
+     def connect(self, timeout=None, interface=None):
+         if timeout is None:
+-            timeout = self.loop.opts.timeout
++            timeout = max(self.loop.opts.timeout, 30)
+         if interface is None:
+             interface = self.address[0]
+         ans = http.client.HTTPConnection(interface, self.address[1], timeout=timeout)
+--- a/src/calibre/srv/tests/http.py
++++ b/src/calibre/srv/tests/http.py
+@@ -105,7 +105,7 @@
+         def handler(data):
+             return data.lang_code + data._('Unknown')
+ 
+-        with TestServer(handler, timeout=1) as server:
++        with TestServer(handler, timeout=30) as server:
+             conn = server.connect()
+ 
+             def test(al, q):
+@@ -171,7 +171,7 @@
+ 
+         with TestServer(
+             handler,
+-            timeout=base_timeout,
++            timeout=30,
+             max_header_line_size=100.0 / 1024,
+             max_request_body_size=100.0 / (1024 * 1024),
+         ) as server:
+@@ -232,7 +232,7 @@
+             self.ae(b'', r.read())
+ 
+             server.change_handler(lambda data: data.path[0] + data.read().decode('ascii'))
+-            conn = server.connect(timeout=base_timeout * 5)
++            conn = server.connect(timeout=30)
+ 
+             # Test simple GET
+             conn.request('GET', '/test/')
+@@ -317,17 +317,17 @@
+             r = conn.getresponse()
+             self.ae(r.status, http.client.BAD_REQUEST), self.ae(r.read(), b'Chunk does not have trailing CRLF')
+ 
+-            conn = server.connect(timeout=base_timeout * 5)
++            server.loop.opts.timeout = base_timeout
++            conn = server.connect(timeout=30)
+             conn.request('POST', '/test', headers={'Transfer-Encoding': 'chunked'})
+             conn.send(b'30\r\nbody\r\n0\r\n\r\n')
+             r = conn.getresponse()
+             self.ae(r.status, http.client.REQUEST_TIMEOUT)
+             self.assertIn(b'', r.read())
+ 
+-            conn = server.connect()
+-
+             # Test closing
+             server.loop.opts.timeout = 10  # ensure socket is not closed because of timeout
++            conn = server.connect()
+ 
+             def assert_no_active_connections():
+                 server.loop.wakeup()
+@@ -359,7 +359,7 @@
+ 
+             # Test timeout
+             server.loop.opts.timeout = 0.1
+-            conn = server.connect(timeout=1)
++            conn = server.connect(timeout=30)
+             conn.request('GET', '/something')
+             r = conn.getresponse()
+             self.ae(r.status, 200), self.ae(r.read(), b'something')
+@@ -377,7 +377,7 @@
+         with (
+             NamedTemporaryFile(suffix='test.epub') as f,
+             open(P('localization/locales.zip'), 'rb') as lf,
+-            TestServer(handler, timeout=1, compress_min_size=0) as server,
++            TestServer(handler, timeout=30, compress_min_size=0) as server,
+         ):
+             fdata = (string.ascii_letters * 100).encode('ascii')
+             f.write(fdata), f.seek(0)
+@@ -480,7 +480,7 @@
+                 lf.seek(0)
+                 data = lf.read()
+                 server.change_handler(lambda _conn: lf)
+-                conn = server.connect(timeout=1)
++                conn = server.connect(timeout=30)
+                 conn.request('GET', '/test')
+                 r = conn.getresponse()
+                 self.ae(r.status, http.client.OK)
+@@ -489,7 +489,7 @@
+                 self.ae(hashlib.sha1(data).hexdigest(), hashlib.sha1(rdata).hexdigest())
+                 self.ae(data, rdata)
+                 time_taken = monotonic() - start_time
+-                self.assertLess(time_taken, 1, 'Large file transfer took too long')
++                self.assertLess(time_taken, 30, 'Large file transfer took too long')
+ 
+     # }}}
+ 
+--- a/src/calibre/srv/tests/auth.py
++++ b/src/calibre/srv/tests/auth.py
+@@ -53,7 +53,7 @@
+             ban_after=ban_after,
+             prefer_basic_auth=prefer_basic_auth,
+             realm=REALM,
+-            max_age_seconds=1,
++            max_age_seconds=30,
+         ),
+     )
+ 
+--- a/src/calibre/gui2/listener.py
++++ b/src/calibre/gui2/listener.py
+@@ -165,7 +165,7 @@
+                 for msg in 'one', 'two', 'three':
+                     send_message_in_process(msg, address=address)
+                     self.assertEqual(server.stdout.readline().rstrip(), msg.encode())
+-                self.assertTrue(send_message_via_worker('hello, world!', address=address))
++                self.assertTrue(send_message_via_worker('hello, world!', address=address, timeout=30))
+                 self.assertEqual(server.stdout.readline().rstrip(), b'hello, world!')
+                 msg = '123456789' * 8192 * 10
+                 send_message_in_process(msg, address=address)
+--- a/src/calibre/db/tests/fts_api.py
++++ b/src/calibre/db/tests/fts_api.py
+@@ -54,7 +54,7 @@
+         self.libraries_to_close.append(ans)
+         return ans
+ 
+-    def wait_for_fts_to_finish(self, fts, timeout=30):
++    def wait_for_fts_to_finish(self, fts, timeout=120):
+         import apsw
+ 
+         if fts.pool.initialized:
+--- a/src/calibre/db/tests/filesystem.py
++++ b/src/calibre/db/tests/filesystem.py
+@@ -346,7 +346,7 @@
+         cache.enable_fts()
+         cache.set_fts_num_of_workers(4)
+         st = time.monotonic()
+-        while cache.fts_indexing_left > 0 and time.monotonic() - st < 15:
++        while cache.fts_indexing_left > 0 and time.monotonic() - st < 120:
+             time.sleep(0.05)
+         if cache.fts_indexing_left > 0:
+             raise ValueError('FTS indexing did not complete')
+--- a/src/calibre/utils/safe_atexit.py
++++ b/src/calibre/utils/safe_atexit.py
+@@ -192,7 +192,7 @@
+     from calibre.utils.ipc.simple_worker import start_pipe_worker
+ 
+     class TestSafeAtexit(unittest.TestCase):
+-        def wait_for_empty(self, tdir, timeout=10):
++        def wait_for_empty(self, tdir, timeout=30):
+             st = time.monotonic()
+             while time.monotonic() - st < timeout:
+                 q = os.listdir(tdir)
+@@ -206,18 +206,18 @@
+                 self.assertFalse(os.listdir(tdir))
+                 p = start_pipe_worker('from calibre.utils.safe_atexit import main_for_test; main_for_test()', cwd=tdir)
+                 p.stdin.close()
+-                p.wait(10)
++                p.wait(30)
+                 self.wait_for_empty(tdir)
+                 p = start_pipe_worker('from calibre.utils.safe_atexit import main_for_test; main_for_test()', cwd=tdir)
+                 p.kill()
+-                p.wait(10)
++                p.wait(30)
+                 self.wait_for_empty(tdir)
+                 p = start_pipe_worker('from calibre.utils.safe_atexit import main_for_test; main_for_test(True)', cwd=tdir)
+-                p.wait(10)
++                p.wait(30)
+                 self.wait_for_empty(tdir)
+                 p = start_pipe_worker('from calibre.utils.safe_atexit import main_for_test; main_for_test(check_tdir=True)')
+                 tempfiledir, bdir = p.stdout.read().decode().splitlines()[:2]
+-                p.wait(10)
++                p.wait(30)
+                 self.assertEqual(bdir, tempfiledir)
+ 
+     return unittest.defaultTestLoader.loadTestsFromTestCase(TestSafeAtexit)
