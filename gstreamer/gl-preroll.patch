@@ -1,0 +1,28 @@
+--- subprojects/gst-plugins-base/tests/check/pipelines/gl-launch-lines.c
++++ subprojects/gst-plugins-base/tests/check/pipelines/gl-launch-lines.c
+@@ -59,7 +59,8 @@
+ 
+   fail_if (gst_element_set_state (pipe, target_state) ==
+       GST_STATE_CHANGE_FAILURE, "Could not set pipeline %s to playing", descr);
+-  ret = gst_element_get_state (pipe, NULL, NULL, 10 * GST_SECOND);
++  /* Software GL preroll can exceed ten seconds on riscv64 builders. */
++  ret = gst_element_get_state (pipe, NULL, NULL, 60 * GST_SECOND);
+   if (ret == GST_STATE_CHANGE_ASYNC) {
+     g_critical ("Pipeline '%s' failed to go to PAUSED fast enough", descr);
+     goto done;
+--- subprojects/gst-plugins-base/tests/check/libs/gstglcolorconvert.c
++++ subprojects/gst-plugins-base/tests/check/libs/gstglcolorconvert.c
+@@ -522,11 +522,11 @@
+       (GstPadProbeCallback) comp_src_pad_probe, NULL, NULL);
+   gst_object_unref (pad);
+ 
+-  /* Wait for preroll */
++  /* Allow software GL preroll on slow builders to finish. */
+   GstState state;
+   gst_element_set_state (pipeline, GST_STATE_PAUSED);
+   fail_unless_equals_int (gst_element_get_state (pipeline, &state, NULL,
+-          GST_SECOND * 10), GST_STATE_CHANGE_SUCCESS);
++          GST_SECOND * 60), GST_STATE_CHANGE_SUCCESS);
+   fail_unless (state == GST_STATE_PAUSED);
+ 
+   /* Teardown */

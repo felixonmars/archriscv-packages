@@ -1,0 +1,24 @@
+--- subprojects/gst-plugins-good/tests/check/elements/splitmuxsinktimecode.c
++++ subprojects/gst-plugins-good/tests/check/elements/splitmuxsinktimecode.c
+@@ -804,6 +804,8 @@
+       "timecodestamper", GST_VERSION_MAJOR, GST_VERSION_MINOR, 0);
+ 
+   suite_add_tcase (s, tc_chain);
++  /* Encoding and checking 5000 frames exceeds 100 seconds on riscv64. */
++  tcase_set_timeout (tc_chain, 120);
+ 
+   if (have_qtmux && have_vp8 && have_timecodestamper) {
+     tcase_add_checked_fixture (tc_chain, tempdir_setup, tempdir_cleanup);
+--- subprojects/gst-plugins-good/tests/check/meson.build
++++ subprojects/gst-plugins-good/tests/check/meson.build
+@@ -226,7 +226,9 @@
+       c_args : ['-DHAVE_CONFIG_H=1' ] + test_defines,
+       dependencies : [libm] + test_deps + extra_deps,
+     )
+-    test(test_name, exe, env: env, timeout: 3 * 60)
++    # The timecode suite has six long software-encoding cases.
++    test(test_name, exe, env: env,
++      timeout: test_name == 'elements_splitmuxsinktimecode' ? 12 * 60 : 3 * 60)
+   endif
+ endforeach
+ 

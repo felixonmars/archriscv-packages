@@ -1,0 +1,144 @@
+--- subprojects/gst-devtools/validate/gst/validate/gst-validate-reporter.c
++++ subprojects/gst-devtools/validate/gst/validate/gst-validate-reporter.c
+@@ -225,14 +225,19 @@
+     goto done;
+   }
+ 
+-  prev_report = g_hash_table_lookup (priv->reports, GINT_TO_POINTER (issue_id));
+-
+   runner = gst_validate_reporter_get_runner (reporter);
++  GST_VALIDATE_REPORTER_REPORTS_LOCK (reporter);
++  prev_report = g_hash_table_lookup (priv->reports, GINT_TO_POINTER (issue_id));
+   if (prev_report && prev_report->level != GST_VALIDATE_REPORT_LEVEL_EXPECTED) {
+-    GstValidateReportingDetails reporter_level =
+-        gst_validate_reporter_get_reporting_level (reporter);
++    GstValidateReportingDetails reporter_level;
+     GstValidateReportingDetails runner_level = GST_VALIDATE_SHOW_UNKNOWN;
+ 
++    /* Keep the report alive after releasing the table lock. */
++    gst_validate_report_ref (prev_report);
++    GST_VALIDATE_REPORTER_REPORTS_UNLOCK (reporter);
++
++    reporter_level = gst_validate_reporter_get_reporting_level (reporter);
++
+     if (runner)
+       runner_level = gst_validate_runner_get_default_reporting_level (runner);
+ 
+@@ -244,12 +249,14 @@
+       gst_validate_report_add_repeated_report (prev_report, report);
+     }
+ 
++    gst_validate_report_unref (prev_report);
+     gst_validate_report_unref (report);
+     goto done;
+   }
+ 
+-  GST_VALIDATE_REPORTER_REPORTS_LOCK (reporter);
+-  g_hash_table_insert (priv->reports, GINT_TO_POINTER (issue_id), report);
++  /* Retain our own reference until the runner has accepted the report. */
++  g_hash_table_insert (priv->reports, GINT_TO_POINTER (issue_id),
++      gst_validate_report_ref (report));
+   GST_VALIDATE_REPORTER_REPORTS_UNLOCK (reporter);
+ 
+   if (runner && int_ret == GST_VALIDATE_REPORTER_REPORT) {
+@@ -265,6 +272,8 @@
+         GST_VALIDATE_REPORT_PRINT_ARGS (report));
+   }
+ 
++  gst_validate_report_unref (report);
++
+ done:
+   if (runner)
+     gst_object_unref (runner);
+--- subprojects/gst-devtools/validate/tests/check/validate/reporting.c
++++ subprojects/gst-devtools/validate/tests/check/validate/reporting.c
+@@ -21,6 +21,81 @@
+ #include <gst/check/gstcheck.h>
+ #include "test-utils.h"
+ 
++typedef struct
++{
++  GstValidateReporter *reporter;
++  GMutex lock;
++  GCond cond;
++  guint ready;
++  gboolean start;
++} ConcurrentReportData;
++
++static gpointer
++report_concurrently (gpointer user_data)
++{
++  ConcurrentReportData *data = user_data;
++
++  g_mutex_lock (&data->lock);
++  data->ready++;
++  g_cond_broadcast (&data->cond);
++  while (!data->start)
++    g_cond_wait (&data->cond, &data->lock);
++  g_mutex_unlock (&data->lock);
++
++  GST_VALIDATE_REPORT (data->reporter, QUERY_POSITION_SUPERIOR_DURATION,
++      "Concurrent position report");
++  return NULL;
++}
++
++GST_START_TEST (test_concurrent_reports)
++{
++  GstValidateRunner *runners[32];
++  guint i;
++
++  fail_unless (g_setenv ("GST_VALIDATE_REPORTING_DETAILS", "smart", TRUE));
++  /* Validate requires every runner to be created before the first element. */
++  for (i = 0; i < G_N_ELEMENTS (runners); i++)
++    runners[i] = gst_validate_runner_new ();
++
++  for (i = 0; i < G_N_ELEMENTS (runners); i++) {
++    GstValidateRunner *runner = runners[i];
++    GstElement *pipeline = gst_pipeline_new ("report-race");
++    GstValidateMonitor *monitor =
++        gst_validate_monitor_factory_create (GST_OBJECT (pipeline), runner, NULL);
++    ConcurrentReportData data = { 0, };
++    GThread *threads[2];
++    GstValidateReport *report;
++
++    data.reporter = GST_VALIDATE_REPORTER (monitor);
++    g_mutex_init (&data.lock);
++    g_cond_init (&data.cond);
++    threads[0] = g_thread_new ("report-1", report_concurrently, &data);
++    threads[1] = g_thread_new ("report-2", report_concurrently, &data);
++    g_mutex_lock (&data.lock);
++    while (data.ready != 2)
++      g_cond_wait (&data.cond, &data.lock);
++    data.start = TRUE;
++    g_cond_broadcast (&data.cond);
++    g_mutex_unlock (&data.lock);
++    g_thread_join (threads[0]);
++    g_thread_join (threads[1]);
++
++    report = gst_validate_reporter_get_report (data.reporter,
++        QUERY_POSITION_SUPERIOR_DURATION);
++    fail_unless (report != NULL);
++    fail_unless_equals_int (GST_MINI_OBJECT_REFCOUNT_VALUE (report), 2);
++    gst_object_unref (monitor);
++    gst_object_unref (pipeline);
++    /* The runner must still own a valid report after the reporter is gone. */
++    fail_unless_equals_int (gst_validate_runner_printf (runner), 0);
++    gst_object_unref (runner);
++    g_cond_clear (&data.cond);
++    g_mutex_clear (&data.lock);
++  }
++}
++
++GST_END_TEST;
++
+ GST_START_TEST (test_report_levels_all)
+ {
+   GstValidateRunner *runner;
+@@ -281,6 +356,7 @@
+   tcase_add_checked_fixture (tc_chain, setup, teardown);
+ 
+   tcase_add_test (tc_chain, test_report_levels_all);
++  tcase_add_test (tc_chain, test_concurrent_reports);
+   tcase_add_test (tc_chain, test_report_levels_2);
+   tcase_add_test (tc_chain, test_report_levels_complex_parsing);
+   tcase_add_test (tc_chain, test_complex_reporting_details);
