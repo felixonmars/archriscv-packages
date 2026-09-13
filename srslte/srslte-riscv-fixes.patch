@@ -1,0 +1,242 @@
+--- a/lib/src/phy/channel/ch_awgn.c
++++ b/lib/src/phy/channel/ch_awgn.c
+@@ -162,8 +162,8 @@
+     }
+ 
+     float n = std_dev;
+-    n *= q->table_log[idx1];
+-    n *= q->table_cos[idx2];
++    n *= q->table_cos[idx1];
++    n *= q->table_log[idx2];
+ 
+     out[i] = in[i] + n;
+   }
+--- a/lib/src/phy/fec/convolutional/test/viterbi_test.h
++++ b/lib/src/phy/fec/convolutional/test/viterbi_test.h
+@@ -76,6 +76,8 @@
+                                               {1000, 1, 40, true, 3.0, 48},
+                                               {1000, 1, 40, true, 4.5, 0},
+ 
++                                              {1000, 1, 56, true, 4.5, 0},
++
+                                               {100, 1, 1000, true, 0.0, 8753},
+                                               {100, 1, 1000, true, 2.0, 350},
+                                               {100, 1, 1000, true, 3.0, 33},
+--- a/lib/src/phy/fec/turbo/turbodecoder.c
++++ b/lib/src/phy/fec/turbo/turbodecoder.c
+@@ -385,11 +385,12 @@
+     return 16;
+   } else
+ #endif
++#if defined(LV_HAVE_SSE) || defined(HAVE_NEON)
+       if (!(long_cb % 8) && long_cb > 400) {
+     return 8;
+-  } else {
+-    return 0;
+   }
++#endif
++  return 0;
+ }
+ 
+ static int tdec_sb_idx(uint32_t long_cb)
+@@ -414,13 +415,18 @@
+     return 32;
+   } else
+ #endif
++#ifdef LV_HAVE_SSE
+       if (!(long_cb % 16) && long_cb > 800) {
+     return 16;
+   } else if (!(long_cb % 8) && long_cb > 400) {
+     return 8;
+-  } else {
+-    return 0;
+   }
++#elif HAVE_NEON
++  if (!(long_cb % 8) && long_cb > 400) {
++    return 8;
++  }
++#endif
++  return 0;
+ }
+ 
+ static int tdec_sb_idx_8(uint32_t long_cb)
+--- a/lib/src/phy/fec/turbo/turbodecoder_gen.c
++++ b/lib/src/phy/fec/turbo/turbodecoder_gen.c
+@@ -38,6 +38,18 @@
+ 
+ #define debug_enabled 0
+ 
++static inline int16_t sat_add(int16_t x, int16_t y)
++{
++  int32_t sum = (int32_t)x + y;
++  return (int16_t)SRSRAN_MIN(SRSRAN_MAX(sum, INT16_MIN), INT16_MAX);
++}
++
++static inline int16_t sat_sub(int16_t x, int16_t y)
++{
++  int32_t diff = (int32_t)x - y;
++  return (int16_t)SRSRAN_MIN(SRSRAN_MAX(diff, INT16_MIN), INT16_MAX);
++}
++
+ #if debug_enabled
+ #define debug_state                                                                                                    \
+   printf("k=%5d, in=%5d, pa=%3d, out=%5d, alpha=", k, x, parity[k - 1], out);                                          \
+@@ -71,28 +83,28 @@
+   for (k = end - 1; k >= 0; k--) {
+     x = input[k];
+     if (app && k < long_cb) {
+-      x += app[k];
++      x = sat_add(x, app[k]);
+     }
+     y = parity[k];
+ 
+-    xy = x + y;
++    xy = sat_add(x, y);
+ 
+-    m_b[0] = old[4] + xy;
++    m_b[0] = sat_add(old[4], xy);
+     m_b[1] = old[4];
+-    m_b[2] = old[5] + y;
+-    m_b[3] = old[5] + x;
+-    m_b[4] = old[6] + x;
+-    m_b[5] = old[6] + y;
++    m_b[2] = sat_add(old[5], y);
++    m_b[3] = sat_add(old[5], x);
++    m_b[4] = sat_add(old[6], x);
++    m_b[5] = sat_add(old[6], y);
+     m_b[6] = old[7];
+-    m_b[7] = old[7] + xy;
++    m_b[7] = sat_add(old[7], xy);
+ 
+     new[0] = old[0];
+-    new[1] = old[0] + xy;
+-    new[2] = old[1] + x;
+-    new[3] = old[1] + y;
+-    new[4] = old[2] + y;
+-    new[5] = old[2] + x;
+-    new[6] = old[3] + xy;
++    new[1] = sat_add(old[0], xy);
++    new[2] = sat_add(old[1], x);
++    new[3] = sat_add(old[1], y);
++    new[4] = sat_add(old[2], y);
++    new[5] = sat_add(old[2], x);
++    new[6] = sat_add(old[3], xy);
+     new[7] = old[3];
+ 
+     for (i = 0; i < 8; i++) {
+@@ -104,7 +116,7 @@
+ 
+     if ((k % 4) == 0 && k < long_cb) {
+       for (i = 1; i < 8; i++) {
+-        old[i] -= old[0];
++        old[i] = sat_sub(old[i], old[0]);
+       }
+       old[0] = 0;
+     }
+@@ -135,37 +147,37 @@
+   for (k = 1; k < end + 1; k++) {
+     x = input[k - 1];
+     if (app) {
+-      x += app[k - 1];
++      x = sat_add(x, app[k - 1]);
+     }
+     y = parity[k - 1];
+ 
+-    xy = x + y;
++    xy = sat_add(x, y);
+ 
+ #if debug_enabled
+     memcpy(alpha, old, sizeof(int16_t) * 8);
+ #endif
+ 
+     m_b[0] = old[0];
+-    m_b[1] = old[3] + y;
+-    m_b[2] = old[4] + y;
++    m_b[1] = sat_add(old[3], y);
++    m_b[2] = sat_add(old[4], y);
+     m_b[3] = old[7];
+     m_b[4] = old[1];
+-    m_b[5] = old[2] + y;
+-    m_b[6] = old[5] + y;
++    m_b[5] = sat_add(old[2], y);
++    m_b[6] = sat_add(old[5], y);
+     m_b[7] = old[6];
+ 
+-    new[0] = old[1] + xy;
+-    new[1] = old[2] + x;
+-    new[2] = old[5] + x;
+-    new[3] = old[6] + xy;
+-    new[4] = old[0] + xy;
+-    new[5] = old[3] + x;
+-    new[6] = old[4] + x;
+-    new[7] = old[7] + xy;
++    new[0] = sat_add(old[1], xy);
++    new[1] = sat_add(old[2], x);
++    new[2] = sat_add(old[5], x);
++    new[3] = sat_add(old[6], xy);
++    new[4] = sat_add(old[0], xy);
++    new[5] = sat_add(old[3], x);
++    new[6] = sat_add(old[4], x);
++    new[7] = sat_add(old[7], xy);
+ 
+     for (i = 0; i < 8; i++) {
+-      max0[i] = m_b[i] + beta[8 * k + i];
+-      max1[i] = new[i] + beta[8 * k + i];
++      max0[i] = sat_add(m_b[i], beta[8 * k + i]);
++      max1[i] = sat_add(new[i], beta[8 * k + i]);
+     }
+ 
+     m1 = max1[0];
+@@ -185,12 +197,12 @@
+ 
+     if ((k % 4) == 0) {
+       for (i = 1; i < 8; i++) {
+-        old[i] -= old[0];
++        old[i] = sat_sub(old[i], old[0]);
+       }
+       old[0] = 0;
+     }
+ 
+-    out           = m1 - m0;
++    out           = sat_sub(m1, m0);
+     output[k - 1] = out;
+ 
+     debug_state;
+--- a/lib/src/phy/mimo/precoding.c
++++ b/lib/src/phy/mimo/precoding.c
+@@ -2268,6 +2268,8 @@
+   float    max_sinr = 0.0;
+   uint32_t i, count;
+ 
++  *pmi = 0;
++
+   for (i = 0; i < 4; i++) {
+     sinr_list[i] = 0;
+     count        = 0;
+@@ -2497,6 +2499,8 @@
+   float    max_sinr = 0.0;
+   uint32_t i, count;
+ 
++  *pmi = 0;
++
+   for (i = 0; i < 2; i++) {
+     sinr_list[i] = 0;
+     count        = 0;
+--- a/lib/src/phy/sync/ssb.c
++++ b/lib/src/phy/sync/ssb.c
+@@ -796,13 +796,13 @@
+   if (!isnormal(epre_pss) || !isnormal(rsrp_pss)) {
+     n0_pss = 1e9f;
+   } else if (epre_pss > rsrp_pss) {
+-    n0_pss = epre - rsrp_pss;
++    n0_pss = epre_pss - rsrp_pss;
+   }
+   float n0_sss = 1e-9f;
+   if (!isnormal(epre_sss) || !isnormal(rsrp_sss)) {
+     n0_sss = 1e9f;
+   } else if (epre_sss > rsrp_sss) {
+-    n0_sss = epre - rsrp_sss;
++    n0_sss = epre_sss - rsrp_sss;
+   }
+   float n0 = (n0_pss + n0_sss) / 2.0f;
+ 

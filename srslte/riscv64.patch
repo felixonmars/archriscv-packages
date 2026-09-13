@@ -7,29 +7,19 @@
 -pkgname=($pkgbase $pkgbase-avx2)
 +pkgname=srslte
  _pkgname=srsRAN_4G
- pkgver=23.11
+ pkgver=25.10
  _pkgver=release_${pkgver//./_}
-@@ -15,13 +14,17 @@ depends=('fftw' 'mbedtls' 'boost-libs' 'lksctp-tools' 'libconfig'
- makedepends=('cmake' 'boost')
- provides=('srsue' 'srsenb' 'srsepc')
- conflicts=('srsue' 'srsenb' 'srsepc')
--source=("$_pkgname-$pkgver.tar.gz::https://github.com/srsran/srsRAN/archive/$_pkgver.tar.gz")
--sha512sums=('7ae5ee93c52505d608b6634aacc31dfd44ce40bfdcffe2a3b8f0e0bbfa28b66b400bca9a48c61d208c510655465f2bdf2eb2884b2a88ed7d022ed40d856e3725')
-+source=("$_pkgname-$pkgver.tar.gz::https://github.com/srsran/srsRAN/archive/$_pkgver.tar.gz"
-+        srslte-riscv.patch::https://github.com/srsran/srsRAN_4G/pull/1333.diff)
-+sha512sums=('7ae5ee93c52505d608b6634aacc31dfd44ce40bfdcffe2a3b8f0e0bbfa28b66b400bca9a48c61d208c510655465f2bdf2eb2884b2a88ed7d022ed40d856e3725'
-+            '9f99c56fb5ccc55a66c1bdc820e94a6530f23b30ed4ed75888b0b91f8c7d9215abdd9c1018bca141829b62622ca20f0c1b48442ebf17c2f46cdf67abb9a0fc87')
- options=(!lto)
- 
+@@ -24,6 +23,9 @@
  prepare() {
    cd $_pkgname-$_pkgver
  
 +  patch -Np1 -i ../srslte-riscv.patch
++  patch -Np1 -i ../srslte-riscv-fixes.patch
 +
    # Using too old of a version to even attempt to properly fix these
    sed -e '/-Werror\"/d' -i CMakeLists.txt
    CXXFLAGS+=' -Wno-error -Wp,-U_GLIBCXX_ASSERTIONS'
-@@ -44,6 +47,8 @@ build() {
+@@ -49,6 +51,8 @@
  
    make
  
@@ -38,7 +28,7 @@
    echo 'Building srslte-avx2...'
    cd "$srcdir"/$_pkgname-avx2-$_pkgver/build
  
-@@ -54,6 +59,7 @@ build() {
+@@ -59,6 +63,7 @@
      -DHAVE_AVX2=True
  
    make
@@ -46,3 +36,24 @@
  }
  
  check() {
+@@ -67,11 +72,6 @@
+ 
+ # network_utils_test fails on build server
+   ctest $(echo $MAKEFLAGS | grep -Po '\-j[0-9][0-9]*') -E 'network_utils_test|s1ap_test|ngap_test'
+-
+-  echo 'Running tests for srslte-avx2...'
+-  cd "$srcdir"/$_pkgname-avx2-$_pkgver/build
+-
+-  ctest $(echo $MAKEFLAGS | grep -Po '\-j[0-9][0-9]*') -E 'network_utils_test|s1ap_test|ngap_test'
+ }
+ 
+ package_srslte() {
+@@ -92,3 +92,8 @@
+ 
+   make DESTDIR="$pkgdir" install
+ }
++
++source+=(srslte-riscv.patch::https://github.com/srsran/srsRAN_4G/commit/9d4bab2b6cf35ef5a47e6e443357d88793c2ff1b.diff
++         srslte-riscv-fixes.patch)
++sha512sums+=('8df4453c9f89c7088337057038eede41c7a471c5a7d34b08d337e86ffe8c5278954f2bef63219597221d51e9b3d23575beb5c988c8b2e30c47042840b86ab749'
++             '7e7dd4b6d7346448eabebe61e371230f24eceb624f5b4d38fe0b39a4652c7cfe05da36bc2d12229519d8d0a995c9b69684e438bdb706bc1353b7d34cd15b56a5')
