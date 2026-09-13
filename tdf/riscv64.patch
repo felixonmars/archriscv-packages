@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,6 +35,10 @@
+ prepare() {
+ 	_srcenv
+ 	cargo fetch --locked --target host-tuple
++	local _mupdf_rs
++	_mupdf_rs=$(find "$CARGO_HOME/git/checkouts" -path '*/mupdf-sys/make.rs' -print -quit)
++	[[ -n $_mupdf_rs ]]
++	patch -d "${_mupdf_rs%/mupdf-sys/make.rs}" -Np1 -i "$srcdir/$pkgname-mupdf-rs-riscv64.patch"
+ }
+ 
+ build() {
+@@ -52,3 +56,6 @@
+ 	install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$pkgname"
+ 	install -Dm0644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md
+ }
++
++source+=("$pkgname-mupdf-rs-riscv64.patch")
++sha256sums+=('f6a769f72d60e33f05a01bd8a6b3bddd362c25096dc99875dba5f195f85655f0')
