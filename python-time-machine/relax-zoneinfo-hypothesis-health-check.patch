@@ -1,0 +1,19 @@
+--- a/tests/test_fuzz.py
++++ b/tests/test_fuzz.py
+@@ -19,7 +19,7 @@
+     # Python < 3.14.
+     pytest.skip("Hypothesis unavailable", allow_module_level=True)
+ 
+-from hypothesis import assume, given, settings
++from hypothesis import HealthCheck, assume, given, settings
+ from hypothesis import strategies as st
+ from hypothesis.stateful import RuleBasedStateMachine, invariant, precondition, rule
+ 
+@@ -237,6 +237,7 @@
+     )
+ 
+ 
++@settings(suppress_health_check=[HealthCheck.too_slow])
+ @given(destination=naive_datetimes, tz=zoneinfos)
+ def test_extract_timestamp_tzname_zoneinfo_datetime(destination, tz):
+     aware = destination.replace(tzinfo=tz)
