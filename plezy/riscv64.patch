@@ -1,0 +1,86 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,17 +29,54 @@
+ 
+ 	# Install flutter_data to /usr/share/
+ 	patch -Np1 -i "$srcdir/set-flutter-paths.patch"
++	sed -i '/^project(/a set(SENTRY_LIBUNWIND_SYSTEM ON CACHE BOOL "")' linux/CMakeLists.txt
+ 
+ 	export FVM_CACHE_PATH="$srcdir/fvm"
+-	fvm install $_flutter_ver
++	fvm install $_flutter_ver --no-setup
++
++	local _flutter_root="$FVM_CACHE_PATH/versions/$_flutter_ver"
++	local _engine_out="$srcdir/flutter/engine/src/out/linux_release_riscv64"
++	local _engine_sdk="$_engine_out/engine-sdk"
++
++	# Flutter does not publish RISC-V engine artifacts for this revision.
++	mkdir -p "$_flutter_root/bin/cache/pkg"
++	cp -a "$srcdir/dart-sdk" "$_flutter_root/bin/cache/"
++	cp -a "$srcdir/sky_engine" "$srcdir/flutter_gpu" "$_flutter_root/bin/cache/pkg/"
++	printf '%s\n' "$_engine_rev" > "$_flutter_root/bin/cache/engine-dart-sdk.stamp"
++
++	install -Dm755 "$_engine_sdk/lib/libflutter_linux_gtk.so" "$_engine_out/libflutter_linux_gtk.so"
++	cp -a "$_engine_sdk/include/flutter_linux" "$_engine_out/"
++	install -Dm644 "$_engine_sdk/data/icudtl.dat" "$_engine_out/icudtl.dat"
++	install -Dm755 "$_engine_sdk/bin/gen_snapshot" "$_engine_out/gen_snapshot"
++	install -Dm755 "$_engine_sdk/bin/font-subset" "$_engine_out/font-subset"
++	install -Dm755 "$_engine_sdk/bin/impellerc" "$_engine_out/impellerc"
++	cp -a "$_engine_sdk/shader_lib" "$_engine_out/"
++	install -Dm755 "$_engine_sdk/lib/libtessellator.so" "$_engine_out/libtessellator.so"
++	install -Dm755 "$_engine_sdk/lib/libpath_ops.so" "$_engine_out/libpath_ops.so"
++	cp -a "$srcdir/dart-sdk" "$_engine_out/"
++	mkdir -p "$_engine_out/gen/dart-pkg"
++	bsdtar -xf "$_engine_sdk/sdk/zip_archives/linux-riscv64/font-subset.zip" \
++		-C "$_engine_out/gen" const_finder.dart.snapshot
++	cp -a "$srcdir/sky_engine" "$srcdir/flutter_gpu" "$_engine_out/gen/dart-pkg/"
++	cp -a "$_engine_sdk/sdk/flutter_patched_sdk" "$_engine_out/"
++	cp -a "$_engine_sdk/sdk/flutter_patched_sdk" "$_engine_out/flutter_patched_sdk_product"
++
+ 	fvm global $_flutter_ver
+-	fvm flutter --disable-analytics
++	fvm flutter --local-engine=linux_release_riscv64 \
++		--local-engine-host=linux_release_riscv64 \
++		--local-engine-src-path="$srcdir/flutter/engine/src" \
++		--disable-analytics
+ }
+ 
+ build() {
+ 	cd $pkgname
++	CFLAGS="${CFLAGS//-fno-plt/}"
++	CXXFLAGS="${CXXFLAGS//-fno-plt/}"
+ 	export FVM_CACHE_PATH="$srcdir/fvm"
+-	fvm flutter build linux --release --dart-define=ENABLE_UPDATE_CHECK=false
++	fvm flutter --local-engine=linux_release_riscv64 \
++		--local-engine-host=linux_release_riscv64 \
++		--local-engine-src-path="$srcdir/flutter/engine/src" \
++		build linux --release --dart-define=ENABLE_UPDATE_CHECK=false
+ }
+ 
+ package() {
+@@ -47,6 +84,8 @@
+ 
+ 	if [ "$CARCH" == "aarch64" ]; then
+ 		local flutter_arch=arm64
++	elif [ "$CARCH" == "riscv64" ]; then
++		local flutter_arch=riscv64
+ 	elif [ "$CARCH" == "x86_64" ]; then
+ 		local flutter_arch=x64
+ 	fi
+@@ -71,3 +110,16 @@
+ 	chrpath -r "/usr/lib/$pkgname" "$pkgdir/usr/bin/$pkgname"
+ 	chrpath -d "$pkgdir/usr/lib/$pkgname"/*
+ }
++
++_dart_ver=3.13.1
++_engine_rev=5d531788691ec3404cac0cee66ead4007b177363
++depends+=(libunwind)
++source+=(
++	"dart-sdk-${_dart_ver}-riscv64.zip::https://storage.googleapis.com/dart-archive/channels/stable/release/${_dart_ver}/sdk/dartsdk-linux-riscv64-release.zip"
++	"flutter-engine-${_engine_rev}-riscv64.tar.gz::https://github.com/meta-flutter/flutter-engine/releases/download/linux-engine-sdk-release-riscv64-${_engine_rev}/linux-engine-sdk-release-riscv64-${_engine_rev}.tar.gz"
++	"sky_engine-${_engine_rev}.zip::https://storage.googleapis.com/flutter_infra_release/flutter/${_engine_rev}/sky_engine.zip"
++	"flutter_gpu-${_engine_rev}.zip::https://storage.googleapis.com/flutter_infra_release/flutter/${_engine_rev}/flutter_gpu.zip")
++sha256sums+=('99242e5e64a2bd070c7fdc9cc422de35435abe1c8bc596de9f7d10dadf6a4a18'
++             '1331ad390c75eee4409560c5a8a605bb010052e338cf82df4c513bce81fa740a'
++             'cba21df7f1a5541353607c4cef3d88ac8a757f2766e81b1730a8bff5fbd10f96'
++             '4265054906350fa74b58563c792dfd4742583fe9f5d06f1aa6edeaa3b80420ef')
