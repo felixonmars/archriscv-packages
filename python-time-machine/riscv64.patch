@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,9 +31,18 @@
+   'python-pytest: for pytest plugin'
+   'python-tokenize-rt: for the migration tool'
+ )
+-source=("$pkgname::git+$url#tag=$pkgver")
+-sha512sums=('e947eb6a0eef7b6d5176ee87579e4cfe344ceb04e6f926e340dae5b4494f61bba0efce43e8d501db81bbe527f25b403b72f2bbbae8c925fb78a72a07c11a0554')
+-b2sums=('97d71b30a69b680824c76da8c641f749a8f104004d7f58a7c86d73be50e988d5d768543433895e97066e11d8ca61c9ab7e1e22a645bb94ae70621b11586a60d9')
++source=("$pkgname::git+$url#tag=$pkgver"
++        relax-zoneinfo-hypothesis-health-check.patch)
++sha512sums=('e947eb6a0eef7b6d5176ee87579e4cfe344ceb04e6f926e340dae5b4494f61bba0efce43e8d501db81bbe527f25b403b72f2bbbae8c925fb78a72a07c11a0554'
++            '7ddbea34a5d40863f7b954a295336c6a229c125534f52084897fc11911a6e380f7ba1fb2905cf90ef6e424bdbc22a4b0443b8cfc8daf6bac29d2f378d48dd3b8')
++b2sums=('97d71b30a69b680824c76da8c641f749a8f104004d7f58a7c86d73be50e988d5d768543433895e97066e11d8ca61c9ab7e1e22a645bb94ae70621b11586a60d9'
++        '7f95c5048a62cb87721faab60e01ef54ea46b593a49f23257287ff63dd1047a9375b78dd5c8d8f4aa937be392ddfe3d1ed5d449728152b9a4de1a8d9b540ea2c')
++
++prepare() {
++  cd "$pkgname"
++  # Zoneinfo input generation trips Hypothesis's timing health check on riscv64.
++  patch -Np1 -i ../relax-zoneinfo-hypothesis-health-check.patch
++}
+ 
+ build() {
+   cd "$pkgname"
