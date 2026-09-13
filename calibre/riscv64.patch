@@ -1,18 +1,30 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -104,6 +104,8 @@ prepare(){
- 	rm -f resources/$pkgname-portable.*
+@@ -121,6 +121,9 @@
  
-         patch -p1 -i ../qt-6.9.patch
+ 	# espeak-ng headers do not provide espeak_TextToPhonemesWithTerminator
+ 	patch -Np1 -i ../tts-piper-remove-withterminator.patch
 +
-+        patch -Np1 -i "$srcdir"/fix-stbsp__uintptr.patch -d src/calibre/utils
++	# Relax test deadlines that are too short for riscv64 builders.
++	patch -Np1 -i ../relax-slow-test-timeouts.patch
  }
  
  build() {
-@@ -144,3 +146,6 @@ package() {
+@@ -140,7 +143,9 @@
+ check() {
+ 	cd "$_archive"
+ 	export LANG='en_US.UTF-8'
+-	python setup.py test --under-sanitize --exclude-test-name test_piper
++	# Hunspell limits suggestions to 100 ms, which expires under parallel load.
++	python setup.py test --under-sanitize --exclude-test-name test_piper --exclude-test-name test_dictionaries
++	python setup.py test --under-sanitize --test-name test_dictionaries
+ 	python setup.py test_rs
+ }
+ 
+@@ -166,3 +171,6 @@
  		python -O -m compileall -d "${_destdir}" "${_file}"
  	done < <(find "$pkgdir/usr/lib/" -name '*.py' -print0)
  }
 +
-+source+=("fix-stbsp__uintptr.patch")
-+sha256sums+=('de1f5245c806aee957ae3dc4cb644e14a9be818e997bbc9f9f11929aa5b37ad3')
++source+=(relax-slow-test-timeouts.patch)
++sha256sums+=('be98298d01d56531bde1fe511cc16b7b2998dfc901af071bdef5ea4cc30b80d3')
