@@ -1,0 +1,72 @@
+--- a/build-aux/lua-test.sh
++++ b/build-aux/lua-test.sh
+@@ -13,6 +13,10 @@
+ 
+ geeqie_exe="$1"
+ 
++if [ -z "$DISPLAY" ]; then
++	exec xvfb-run --auto-servernum "$0" "$@"
++fi
++
+ if [ -z "$XDG_CONFIG_HOME" ]
+ then
+ 	config_home="$HOME/.config"
+@@ -44,19 +48,29 @@
+ "
+ printf  "%s" "$lua_test" > "$lua_test_file"
+ 
+-xvfb-run --auto-servernum "$geeqie_exe" &
+-
+-# Wait for remote to initialize
+-while [ ! -e "$config_home/geeqie/layouts" ] ;
++# D-Bus-activated GTK helpers must see the same display as Geeqie.
++dbus-update-activation-environment DISPLAY XAUTHORITY
++"$geeqie_exe" &
++geeqie_pid=$!
++
++# The layouts directory is created before startup finishes; wait for the remote handshake.
++attempts=0
++while ! gdbus call --session --dest org.geeqie.Geeqie \
++    --object-path /org/geeqie/Geeqie --method org.gtk.Actions.DescribeAll \
++    --timeout 1 >/dev/null 2>&1
+ do
++	attempts=$((attempts + 1))
++	if [ "$attempts" -ge 60 ]; then
++		echo "Geeqie did not become ready for remote commands" >&2
++		exit 1
++	fi
+ 	sleep 1
+ done
+ 
+-sleep 2
+-
+ base_lua=$(basename "$lua_test_file")
+-result=$(xvfb-run --auto-servernum "$geeqie_exe" --lua="$lua_test_image","$base_lua")
+-xvfb-run --auto-servernum "$geeqie_exe" --quit
++result=$("$geeqie_exe" --lua="$lua_test_image","$base_lua")
++"$geeqie_exe" --quit
++wait "$geeqie_pid"
+ 
+ ## @FIXME Running on GitHub gives additional dbind-WARNINGs. The data required is the last n lines.
+ result_tail=$(printf "%s" "$result" | tail --lines=7)
+--- a/meson.build
++++ b/meson.build
+@@ -817,7 +817,7 @@
+ # Lua test
+ if get_option('lua').allowed() and lua_dep.found() and xvfb.found()
+     lua_test_sh = find_program('lua-test.sh', dirs : buildauxdir, required : true)
+-    test('Lua test', isolate_test_sh, args: [lua_test_sh.full_path(), geeqie_exe.full_path()], timeout: 100, suite : 'analysis')
++    test('Lua test', isolate_test_sh, args: [lua_test_sh.full_path(), geeqie_exe.full_path()], timeout: 180, suite : 'analysis')
+ 
+     summary({'lua' : ['Test runs:', true]}, section : 'Testing', bool_yn : true)
+ else
+@@ -826,7 +826,8 @@
+ 
+ # Ancillary files test
+ test_ancillary_files_sh = find_program('test-ancillary-files.sh', dirs : buildauxdir, required : true)
+-test('Ancillary files', test_ancillary_files_sh, args: [meson.current_source_dir()], timeout: 100, suite : 'analysis')
++# Serial lint and validation commands need more time on riscv64 builders.
++test('Ancillary files', test_ancillary_files_sh, args: [meson.current_source_dir()], timeout: 300, suite : 'analysis')
+ 
+ summary({'Ancillary files' : ['Test runs:', true]}, section : 'Testing', bool_yn : true)
+ 
