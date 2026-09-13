@@ -1,0 +1,33 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,9 +34,7 @@
+ )
+ # NOTE: we install all available OpenCL drivers so that tests don't fail on PLATFORM_NOT_FOUND_KHR
+ checkdepends=(
+-    'intel-compute-runtime'
+     'opencl-mesa'
+-    'opencl-nvidia'
+     'python-pytest'
+     'python-six'
+     'rocm-opencl-runtime'
+@@ -44,13 +42,19 @@
+ source=(
+     "git+https://github.com/inducer/pyopencl.git?signed#tag=v${pkgver}"
+     git+https://github.com/inducer/compyte
++    "python-pyopencl-set-arg-none.patch::https://github.com/inducer/pyopencl/commit/92fa22df685c039fb17bef886b69b2fb58da4cf9.patch"
++    "python-pyopencl-nanobind-3.patch::https://github.com/inducer/pyopencl/commit/994de8a418bb6ad5e3637dfac3ac924fc6edd5e9.patch"
+ )
+ validpgpkeys=("900A958D9A0ACA58B1468F2471AA298BCA171145") # Andreas Ratchke
+ sha256sums=('43b3cdd3d5c141cecf2f5dd62f05ab3b3703f3c57f501bb9e5f44ae11f51599d'
+-            'SKIP')
++            'SKIP'
++            '78c7004feaaeff6f937fda6ef657bf9fd3847d9ec6edaa170e18e0491aef3bbb'
++            '410aebb9677d856eeb8529411f0b38e88e22ada7b4bc0a3a0891a40375e0501f')
+ 
+ prepare() {
+     cd $_name
++    patch -Np1 -i ../python-pyopencl-set-arg-none.patch
++    patch -Np1 -i ../python-pyopencl-nanobind-3.patch
+     git submodule init
+     git config submodule.pyopencl/compyte.url ../compyte
+     git -c protocol.file.allow=always submodule update
