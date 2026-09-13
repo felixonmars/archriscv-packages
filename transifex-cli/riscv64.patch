@@ -1,0 +1,33 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -12,8 +12,10 @@
+ install=transifex-cli.install
+ depends=('glibc')
+ makedepends=('go' 'git')
+-source=("git+https://github.com/transifex/cli.git#tag=v${pkgver}")
+-sha256sums=('bed54ecb65bca557db1aadc00eae87f5b200989808e0954f63a6dcf13d553c14')
++source=("git+https://github.com/transifex/cli.git#tag=v${pkgver}"
++        'handle-missing-release.patch')
++sha256sums=('bed54ecb65bca557db1aadc00eae87f5b200989808e0954f63a6dcf13d553c14'
++            '7d4ed4f93c0d5a5e355be872cf63a7983a1710a4a8c79ae5144fa2802c29605c')
+ validpgpkeys=(
+   51490B6D56A16C54FD8A38F0D051365FF68E4255
+   BC65ADA855CDB6C6F52DBB3B8B25FBA10829BD0B
+@@ -21,6 +23,7 @@
+ 
+ prepare() {
+   cd ${pkgname#*-}
++  patch -Np1 -i ../handle-missing-release.patch
+   mkdir -p dist/
+ }
+ 
+@@ -39,7 +42,8 @@
+ 
+ check() {
+   cd ${pkgname#*-}
+-  go test ./...
++  # Upstream publishes no linux-riscv64 release asset for the live update tests.
++  go test -skip '^TestUpdateCommand' ./...
+ }
+ 
+ package() {

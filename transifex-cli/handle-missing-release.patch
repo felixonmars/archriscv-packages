@@ -1,0 +1,25 @@
+--- a/internal/txlib/update.go
++++ b/internal/txlib/update.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"fmt"
+ 	"os"
++	"runtime"
+ 
+ 	"github.com/blang/semver"
+ 	"github.com/fatih/color"
+@@ -29,10 +30,13 @@
+ 		return err
+ 	}
+ 
+-	latest, _, err := selfupdate.DetectLatest("transifex/cli")
++	latest, found, err := selfupdate.DetectLatest("transifex/cli")
+ 	if err != nil {
+ 		return err
+ 	}
++	if !found {
++		return fmt.Errorf("no release found for %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
+ 	if arguments.Check {
+ 		if current.GE(latest.Version) {
+ 			fmt.Println("Congratulations, you are up to date with", version)
