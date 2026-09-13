@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,6 +14,12 @@
+ source=(https://files.pythonhosted.org/packages/source/i/${pkgname}/${pkgname}-${pkgver}.tar.gz)
+ sha256sums=('219518020f5bd242bdc46493941ea3f756f664c2e86f2454721e74353f58cd95')
+ 
++prepare() {
++    cd ${pkgname}-${pkgver}
++    # Arch ships flit_core 4, which supports img2pdf's PEP 621 metadata.
++    sed -i -e '/flit_core/s/,<4//' pyproject.toml
++}
++
+ build() {
+     cd ${pkgname}-${pkgver}
+     python -m build --wheel --no-isolation
