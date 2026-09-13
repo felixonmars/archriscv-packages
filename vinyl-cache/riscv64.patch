@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,9 @@
+ 
+   # Fix install-data-local to respect DESTDIR
+   patch -Np1 -i "${srcdir}"/${pkgname}-fix-destdir.patch
++
++  # VCL compilation can exceed vinyladm's default 5s CLI timeout on riscv64.
++  sed -i 's|vinyladm -n ${tmpdir}/v1 vcl.load|vinyladm -n ${tmpdir}/v1 -t 60 vcl.load|' bin/vinyltest/tests/u00000.vtc
+ }
+ 
+ build() {
+@@ -51,7 +54,7 @@
+   cd "$srcdir/$pkgname-$pkgver"
+ 
+   rm bin/vinyltest/tests/m00000.vtc
+-  make check
++  VARNISHTEST_DURATION=180 make check
+ }
+ 
+ package() {
