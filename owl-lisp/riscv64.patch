@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -9,13 +9,18 @@
+ license=('MIT')
+ depends=('glibc')
+ makedepends=('pandoc')
+-source=(https://gitlab.com/owl-lisp/owl/-/archive/v${pkgver}/owl-v${pkgver}.tar.gz)
+-sha256sums=('9c162490c08b4e0855eb5663c922482bb2dc4975d76bf862dc9499176b841ab1')
+-b2sums=('e3286bd1eb02def86d398eb9154208865e52dc8dbee19210f05c17413650c295a80440b374629a6b4468fd415432309a2d36f74e14d48d27504c83d2a33f0728')
++source=(https://gitlab.com/owl-lisp/owl/-/archive/v${pkgver}/owl-v${pkgver}.tar.gz
++        'fix-ready-check.patch')
++sha256sums=('9c162490c08b4e0855eb5663c922482bb2dc4975d76bf862dc9499176b841ab1'
++            '522dfdd3489db9ca5d322c9b4ab4a04e407577d833172691eaf9efc5fe1da00c')
++b2sums=('e3286bd1eb02def86d398eb9154208865e52dc8dbee19210f05c17413650c295a80440b374629a6b4468fd415432309a2d36f74e14d48d27504c83d2a33f0728'
++        'b6fff6efdb9c53d02cc7a0760374f7cb74fdb640179a762832c0dc9befe581ac95e36dbc7b9ac206e088e71ca733520795b6dd5cc7576891a0d0df8d7544a5f3')
+ 
+ prepare() {
+   cd owl-v${pkgver}
+ 
++  patch -Np1 -i ../fix-ready-check.patch
++
+   # support distro CFLAGS and CPPFLAGS
+   sed -e '/export CFLAGS/d' -e '/CFLAGS =/d' \
+       -e 's|$(CFLAGS)|$(CFLAGS) $(CPPFLAGS)|g' -i Makefile
