@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,8 +29,23 @@
+   python-scipy
+   python-statsmodels
+ )
+-source=(https://github.com/mwaskom/seaborn/archive/v$pkgver/$pkgname-$pkgver.tar.gz)
+-b2sums=('f50643890b980d55916bfc508367e4255e259ec537d02cfc1d68da29035d1e44507748f9b0f5e0a27564476f5b328af2b79f35611877e51879f8c440cccfcf01')
++source=(https://github.com/mwaskom/seaborn/archive/v$pkgver/$pkgname-$pkgver.tar.gz
++        $pkgname-pytest-9.patch::https://github.com/mwaskom/seaborn/commit/5023f2ee885a45200f5b63156a158ddf7272c29e.patch
++        $pkgname-matplotlib-3.11-errors.patch::https://github.com/mwaskom/seaborn/commit/4c72ad6b1ed11b6ee58036dc07f6a0fd17fcb46e.patch
++        $pkgname-matplotlib-3.11-log-scale.patch::https://github.com/mwaskom/seaborn/commit/50c6ede28451668b9fd08db3f797122e82e52a45.patch)
++b2sums=('f50643890b980d55916bfc508367e4255e259ec537d02cfc1d68da29035d1e44507748f9b0f5e0a27564476f5b328af2b79f35611877e51879f8c440cccfcf01'
++        'ebac5b3e3db861ddd09d688621060b504c02ad2b0ca04851dc2c7a61a514e6e5f68822dd46797f57094ef7151e3ce1f76fd6c5fee09bc8f231966a236ef714ca'
++        '6d2f7538a9e60353f145984e8d8bca08f48701a7b9cdb825341069d6e684bc23c4e475e15848bf4c9b0d98c778377ec9ce9d2e7d5264a0d0370aa33f09e130d3'
++        'e22d5ce04b2aaa16f5ce29b49813b85087815ab6f2a13ef4e6adb2a0b6a2dde457fe54e0a3b590c69af1a5b885ebf40de93a99774cc06ee68426aa08b10d23fa')
++
++prepare() {
++  cd $_name-$pkgver
++  patch -Np1 -i "$srcdir"/$pkgname-pytest-9.patch
++  patch -Np1 -i "$srcdir"/$pkgname-matplotlib-3.11-errors.patch
++  patch -Np1 -i "$srcdir"/$pkgname-matplotlib-3.11-log-scale.patch
++  # Arch ships flit_core 4, which supports seaborn's PEP 621 metadata.
++  sed -i -e '/flit_core/s/,<4//' pyproject.toml
++}
+ 
+ build() {
+   cd $_name-$pkgver
