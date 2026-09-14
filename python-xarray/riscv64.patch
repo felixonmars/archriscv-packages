@@ -1,14 +1,30 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -94,3 +94,11 @@ package() {
-   local site_packages=$(python -c "import site; print(site.getsitepackages()[0])")
-   rm -r "${pkgdir}/${site_packages}/xarray/tests"
- }
+@@ -68,6 +68,17 @@
+ source=("https://github.com/pydata/xarray/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
+ b2sums=('dd919a79a037e3bc4282dc822a808c742939974717e65b766e288acc4b586d090ef55e0913589041a57342f420e2bdd8030eab403efdf13938fadd1c02b0a1fc')
+ 
++source+=(numpy-nat.patch datetime-bounds.patch)
++b2sums+=('bd5bf6f553ef3216dc30a0dce035cf2b5c8b15055910b8cae5a4820cdf9b085c92a0395b8c07c23eac34f0c78e36fc8009e9713434cbcadb2cd93e3b4e818e7f'
++         'c23aed3371fa1cb99341f383b512ca7267025e412d00dc081f5b780914bd6192c4ff886b8f7e88176e641c88b08ca20f8518db064ac09aed6bd31a3d78785687')
 +
 +prepare() {
-+  cd ${_pkg}-${pkgver}
-+  patch -p1 < $srcdir/fix-test_roundtrip_mask_and_scale.diff
++  cd ${pkgname#python-}-$pkgver
++  # https://github.com/pydata/xarray/pull/11340
++  patch -Np1 -i "$srcdir/numpy-nat.patch"
++  patch -Np1 -i "$srcdir/datetime-bounds.patch"
 +}
 +
-+source+=('fix-test_roundtrip_mask_and_scale.diff::https://github.com/pydata/xarray/pull/9964.diff')
-+sha256sums+=('d4830feddcc93e8aba46456bbd72c11e2a4740ced98ca76a50615c1aad006b62')
+ build() {
+   cd ${pkgname#python-}-$pkgver
+   python -m build --wheel --skip-dependency-check --no-isolation
+@@ -80,6 +91,9 @@
+     -n=auto
+     -W=ignore::pytest.PytestDeprecationWarning
+ 
++    # pandas < 3 triggers this NumPy 2.5 warning when creating timedeltas.
++    -W="default:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning"
++
+     # Segfaults with python-h5py installed
+     --deselect=xarray/tests/test_backends.py::TestDask::test_save_mfdataset_compute_false_roundtrip
+ 
