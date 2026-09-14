@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -89,6 +89,13 @@
+         'a29664104e1ee73ca0aee1d633e9095d92a57c92787f8d8740bdb7211ba3205782ed8677f539bdb8cae3dd75a3694be3132e185fa3fc4b3f401e1f88eb776101')
+ validpgpkeys=('541EA0448453394FF77A0ECC9D9B2BA061D0A67C') # Abhilash Raj <raj.abhilash1@gmail.com>
+ 
++source+=("$pkgname-django-5.2.patch::$url/-/commit/e815be11752ac6a3e839b155f0c43808619c56b0.patch"
++         "$pkgname-mistune-3.3.patch::$url/-/commit/7e8aa0150d8dcaef66039db3a0205dfd4160a265.patch")
++sha512sums+=('4a78a90a1ea3a8890d212f147aa0f71ccfb9d1d7b71bb184a31bcfb41a75cd58fd7c5ce4652f16129371c1903f41c0a92d1e946941b8b60eacc38bbe5891a4cc'
++             'bcb1869a694592a3c0b4f82f8f9fe997f0d3ab160d5068248a1f67cc1d5b688f03b908d3fb7a804ff0406cc44ad56dd9497111c04a1818c43b720b8664746280')
++b2sums+=('55d90232d30e95c56076872452013d68b21a28eb5b03a28d776d3d6507bc44de12e996d04ff1b8dbf70be8e2f3525dd28839f00679837a8a9b679ec039ae110e'
++         '26dae584a6d3ecbb66d01551e0405a2b805cab9921de7480c6d764aeb239882eb4cbd00d76601f9f6ad47d4ebc11cd6189fb13d52019698331c78a4ac0ecfd72')
++
+ pkgver() {
+   cd $pkgname
+   git describe | sed 's/\([^-]*-g\)/r\1/;s/v//g;s/-/./g'
+@@ -103,6 +110,10 @@
+   # Can be dropped at next upstream release
+   patch -d $pkgname -p1 -i ../fix_compatibility_with_mistune_3.1.x.patch
+ 
++  patch -d $pkgname -p1 -i ../$pkgname-django-5.2.patch
++  # 1.3.12 has no mistune upper bound to remove from pyproject.toml.
++  git -C $pkgname apply --exclude=pyproject.toml ../$pkgname-mistune-3.3.patch
++
+   touch $pkgname/settings_local.py
+ }
+ 
