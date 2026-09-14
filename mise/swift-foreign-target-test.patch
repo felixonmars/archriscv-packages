@@ -1,28 +1,33 @@
 --- a/src/plugins/core/swift.rs
 +++ b/src/plugins/core/swift.rs
-@@ -572,17 +572,21 @@
+@@ -1480,12 +1480,16 @@
          let _guard = pin_platform(None);
          let backend = SwiftPlugin::new();
          let tv = tool_version(&backend, "6.3.1");
 -        // riscv64 is never the platform the test suite runs on
 -        let foreign = target("linux-riscv64");
-+        let (foreign_platform, archive_suffix) = if target("linux-x64").is_current() {
-+            ("linux-arm64", "-ubuntu24.04-aarch64.tar.gz")
++        let (foreign_platform, arch_suffix) = if target("linux-x64").is_current() {
++            ("linux-arm64", "-aarch64")
 +        } else {
-+            ("linux-x64", "-ubuntu24.04.tar.gz")
++            ("linux-x64", "")
 +        };
 +        let foreign = target(foreign_platform);
          assert!(!foreign.is_current());
-
+ 
          assert_eq!(
 -            options(&backend, &tv, "linux-riscv64"),
 +            options(&backend, &tv, foreign_platform),
              BTreeMap::from([(
                  "swift_platform".to_string(),
                  format!("ubuntu{DEFAULT_UBUNTU_VERSION}")
-             )])
+@@ -1493,7 +1497,9 @@
          );
--        assert!(url(&tv, &foreign).ends_with("-ubuntu24.04-riscv64.tar.gz"));
-+        assert!(url(&tv, &foreign).ends_with(archive_suffix));
+         assert_eq!(
+             url(&tv, &foreign, "ubuntu24.04"),
+-            "https://download.swift.org/swift-6.3.1-release/ubuntu2404-riscv64/swift-6.3.1-RELEASE/swift-6.3.1-RELEASE-ubuntu24.04-riscv64.tar.gz"
++            format!(
++                "https://download.swift.org/swift-6.3.1-release/ubuntu2404{arch_suffix}/swift-6.3.1-RELEASE/swift-6.3.1-RELEASE-ubuntu24.04{arch_suffix}.tar.gz"
++            )
+         );
      }
- }
+ 
