@@ -1,12 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -32,6 +32,9 @@ build() {
-   export CGO_LDFLAGS="${LDFLAGS}"
-   export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
-   cd "${srcdir}/${pkgname}-${pkgver}"
-+  go mod edit -replace github.com/prometheus/client_golang=github.com/prometheus/client_golang@efe7aa7
-+  go mod download github.com/prometheus/client_golang
-+  go get github.com/prometheus/client_golang/prometheus
-   go generate
-   cd cmd/traefik
-   go build -ldflags="-linkmode=external"
+@@ -22,15 +22,19 @@
+   "traefik.service"
+   "traefik.sysusers"
+   "traefik.tmpfiles"
++  "influxdb2-test-flush.patch"
+ )
+ b2sums=('8cf3e66dc9fa19fddb539b739137432d5079451106b9d302ab55747f38c5d72af6def5b5b6baebd890e31f6eeab8eb5dbadacae40633b314f879a173eeeb606b'
+         'fa35c17d120dc343773395f062504f6ce5bd11015724824907dff3b17812543456662203757a30ed7ac86f34c1e8ec7c60ed667e4e7b811c67dcf9e59d2f831b'
+         '583ba4ed75f19d5af8c53aefc88b535b2b538414c6da6f670bd142500f70d753bc5222ef1d39f0ceb43e0e37831e467e442c307b1e90b3f902c1a2d74f304570'
+-        'cadeab754be6819d2d15bd3e5c380d3edb68d7cb08db676315968733f912cb5f54e0de6b10bff74e0d0b5e9782d707c7afd92ffa5ba20698be70046088406c14')
++        'cadeab754be6819d2d15bd3e5c380d3edb68d7cb08db676315968733f912cb5f54e0de6b10bff74e0d0b5e9782d707c7afd92ffa5ba20698be70046088406c14'
++        '180f08ed7bd7238ade0ead4118a3f209c898d7804a18a25fc2f83fb43f6977bf7d5935e444a0fb854d3b3ea88c2fabd64bd5862e38fe730c9768567a75f12355')
+ 
+ prepare() {
+   cd $pkgname-$pkgver
+ 
++  patch -Np1 -i "$srcdir/influxdb2-test-flush.patch"
++
+   npm --prefix webui install --legacy-peer-deps quasar
+ 
+   GOFLAGS="-mod=readonly" go mod vendor -v
