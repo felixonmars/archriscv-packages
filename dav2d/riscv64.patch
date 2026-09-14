@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,6 +20,18 @@
+ source=("$pkgname::git+$url.git#tag=$pkgver")
+ b2sums=('dd6ed7208703f7eb10287d66a902bdc049b381e89c0fcb916edd72e6dd96624713858f98ce618a261f95fc1eba75fd06c4ce91a9ff876701b654c197b9ea88a5')
+ 
++source+=("$url/-/commit/a170fb4401f6e57e0649fe82d17d2ac8880dd7e1.patch"
++         "$url/-/commit/7af29847ba296c1fde1b3ca92c31819a3462b7a9.patch")
++b2sums+=('72863903053cbc2c59285769748feab9912b274b986b7f80e8b4cadd793f0608b2a55fcc0313dad7238a60af341c94db4982a6ce8b25ab276ba3add186e1512f'
++         'd6bcb37dd392057930ba172e6f7f285deeec999791f1a0db6c0a535a7c8029fff2e01407062d9faefa297fa40d7e97d6e54acfa7b80b78a8f1d91f57f4c05404')
++
++prepare() {
++  # Disable legacy intra-prediction assembly incompatible with dav2d.
++  patch -d "$pkgname" -p1 -i "$srcdir/a170fb4401f6e57e0649fe82d17d2ac8880dd7e1.patch"
++  # Remove obsolete OBMC assembly referencing the deleted dav2d_obmc_masks table.
++  patch -d "$pkgname" -p1 -i "$srcdir/7af29847ba296c1fde1b3ca92c31819a3462b7a9.patch"
++}
++
+ build() {
+   local meson_options=(
+     -Denable_docs=false
