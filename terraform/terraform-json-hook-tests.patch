@@ -1,0 +1,123 @@
+--- a/internal/command/views/hook_json_test.go
++++ b/internal/command/views/hook_json_test.go
+@@ -6,7 +6,6 @@
+ import (
+ 	"errors"
+ 	"fmt"
+-	"sync"
+ 	"testing"
+ 	"testing/synctest"
+ 	"time"
+@@ -52,80 +51,43 @@
+ 
+ // Test a sequence of hooks associated with creating a resource
+ func TestJSONHook_create(t *testing.T) {
+-	streams, done := terminal.StreamsForTesting(t)
+-	hook := newJSONHook(NewJSONView(NewView(streams)))
++	syncTest, streams, done := streamableSyncTest(t)
++	syncTest(t, func(t *testing.T) {
++		hook := newJSONHook(NewJSONView(NewView(streams)))
++
++		addr := addrs.Resource{
++			Mode: addrs.ManagedResourceMode,
++			Type: "test_instance",
++			Name: "boop",
++		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
++		priorState := cty.NullVal(cty.Object(map[string]cty.Type{
++			"id":  cty.String,
++			"bar": cty.List(cty.String),
++		}))
++		plannedNewState := cty.ObjectVal(map[string]cty.Value{
++			"id": cty.StringVal("test"),
++			"bar": cty.ListVal([]cty.Value{
++				cty.StringVal("baz"),
++			}),
++		})
++
++		action, err := hook.PreApply(testJSONHookResourceID(addr), addrs.NotDeposed, plans.Create, priorState, plannedNewState)
++		testHookReturnValues(t, action, err)
++
++		action, err = hook.PreProvisionInstanceStep(testJSONHookResourceID(addr), "local-exec")
++		testHookReturnValues(t, action, err)
++
++		hook.ProvisionOutput(testJSONHookResourceID(addr), "local-exec", `Executing: ["/bin/sh" "-c" "touch /etc/motd"]`)
+ 
+-	var nowMu sync.Mutex
+-	now := time.Now()
+-	hook.timeNow = func() time.Time {
+-		nowMu.Lock()
+-		defer nowMu.Unlock()
+-		return now
+-	}
++		action, err = hook.PostProvisionInstanceStep(testJSONHookResourceID(addr), "local-exec", nil)
++		testHookReturnValues(t, action, err)
+ 
+-	after := make(chan time.Time, 1)
+-	hook.timeAfter = func(time.Duration) <-chan time.Time { return after }
++		time.Sleep(22 * time.Second)
+ 
+-	addr := addrs.Resource{
+-		Mode: addrs.ManagedResourceMode,
+-		Type: "test_instance",
+-		Name: "boop",
+-	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+-	priorState := cty.NullVal(cty.Object(map[string]cty.Type{
+-		"id":  cty.String,
+-		"bar": cty.List(cty.String),
+-	}))
+-	plannedNewState := cty.ObjectVal(map[string]cty.Value{
+-		"id": cty.StringVal("test"),
+-		"bar": cty.ListVal([]cty.Value{
+-			cty.StringVal("baz"),
+-		}),
++		action, err = hook.PostApply(testJSONHookResourceID(addr), addrs.NotDeposed, plannedNewState, nil)
++		testHookReturnValues(t, action, err)
+ 	})
+ 
+-	action, err := hook.PreApply(testJSONHookResourceID(addr), addrs.NotDeposed, plans.Create, priorState, plannedNewState)
+-	testHookReturnValues(t, action, err)
+-
+-	action, err = hook.PreProvisionInstanceStep(testJSONHookResourceID(addr), "local-exec")
+-	testHookReturnValues(t, action, err)
+-
+-	hook.ProvisionOutput(testJSONHookResourceID(addr), "local-exec", `Executing: ["/bin/sh" "-c" "touch /etc/motd"]`)
+-
+-	action, err = hook.PostProvisionInstanceStep(testJSONHookResourceID(addr), "local-exec", nil)
+-	testHookReturnValues(t, action, err)
+-
+-	// Travel 10s into the future, notify the progress goroutine, and sleep
+-	// briefly to allow it to execute
+-	nowMu.Lock()
+-	now = now.Add(10 * time.Second)
+-	after <- now
+-	nowMu.Unlock()
+-	time.Sleep(10 * time.Millisecond)
+-
+-	// Travel 10s into the future, notify the progress goroutine, and sleep
+-	// briefly to allow it to execute
+-	nowMu.Lock()
+-	now = now.Add(10 * time.Second)
+-	after <- now
+-	nowMu.Unlock()
+-	time.Sleep(10 * time.Millisecond)
+-
+-	// Travel 2s into the future. We have arrived!
+-	nowMu.Lock()
+-	now = now.Add(2 * time.Second)
+-	nowMu.Unlock()
+-
+-	action, err = hook.PostApply(testJSONHookResourceID(addr), addrs.NotDeposed, plannedNewState, nil)
+-	testHookReturnValues(t, action, err)
+-
+-	// Shut down the progress goroutine if still active
+-	hook.resourceProgressMu.Lock()
+-	for key, progress := range hook.resourceProgress {
+-		close(progress.done)
+-		<-progress.heartbeatDone
+-		delete(hook.resourceProgress, key)
+-	}
+-	hook.resourceProgressMu.Unlock()
+-
+ 	wantResource := map[string]interface{}{
+ 		"addr":             string("test_instance.boop"),
+ 		"implied_provider": string("test"),
