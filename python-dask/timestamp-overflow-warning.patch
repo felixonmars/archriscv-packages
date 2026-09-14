@@ -1,0 +1,13 @@
+--- a/dask/dataframe/io/tests/test_parquet.py
++++ b/dask/dataframe/io/tests/test_parquet.py
+@@ -2494,7 +2494,9 @@
+     info = np.iinfo(np.dtype("int64"))
+     # In `numpy=1.24.0` NumPy warns when an overflow is encountered when casting from float to int
+     # https://numpy.org/doc/stable/release/1.24.0-notes.html#numpy-now-gives-floating-point-errors-in-casts
+-    with pytest.warns(RuntimeWarning, match="invalid value encountered in cast"):
++    # RISC-V may also warn in linspace's floor before the overflowing cast.
++    # https://github.com/numpy/numpy/issues/32461
++    with pytest.warns(RuntimeWarning, match="invalid value encountered in (cast|floor)"):
+         arr_numeric = np.linspace(
+             start=info.min + 2, stop=info.max, num=1024, dtype="int64"
+         )

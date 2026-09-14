@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -84,8 +84,12 @@
+ )
+ b2sums=('80c25b616365cfafc09bd34d16a76aff4159c720b3806cf201c2572d20152088cc5427c0a188d70d0cc6b4877b0a05494dc259f12f0accc3524185c50e18f539')
+ 
++source+=(timestamp-overflow-warning.patch)
++b2sums+=('d5902fcc757c5a22e6ff2db5a471d5a25c63bf2bab86dd347409d0c038bea3910d24722b8845c72e113fe821eed5d726c9ecfb182a6b4b6e416a3b3afbcb5646')
++
+ prepare() {
+   cd $_name-$pkgver
++  patch -Np1 -i "$srcdir/timestamp-overflow-warning.patch"
+   # workaround for failing tests since Python 3.14 (dask.expr objects are not picklable)
+   # https://github.com/dask/dask/issues/12043
+   sed -i 's|except AttributeError:|except (AttributeError, pickle.PicklingError):|' dask/dataframe/dask_expr/tests/_util.py
