@@ -1,8 +1,6 @@
-Index: libreoffice-24.8.3.2/bridges/Library_cpp_uno.mk
-===================================================================
---- libreoffice-24.8.3.2.orig/bridges/Library_cpp_uno.mk
-+++ libreoffice-24.8.3.2/bridges/Library_cpp_uno.mk
-@@ -134,6 +134,15 @@ bridge_noopt_objects := abi cpp2uno uno2
+--- a/bridges/Library_cpp_uno.mk
++++ b/bridges/Library_cpp_uno.mk
+@@ -137,6 +137,15 @@
  bridge_exception_objects := except
  endif
  
@@ -18,15 +16,10 @@ Index: libreoffice-24.8.3.2/bridges/Library_cpp_uno.mk
  else ifeq ($(CPUNAME),POWERPC)
  
  ifneq ($(filter DRAGONFLY FREEBSD LINUX NETBSD OPENBSD,$(OS)),)
-Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
-===================================================================
---- /dev/null
-+++ libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
-@@ -0,0 +1,168 @@
-+diff --git a/builds/posix/prefix.linux_riscv64 b/builds/posix/prefix.linux_riscv64
-+new file mode 100644
-+index 0000000..17e67e8
-+--- /dev/null
+--- a/external/firebird/firebird-riscv64-support.patch.1
++++ b/external/firebird/firebird-riscv64-support.patch.1
+@@ -0,0 +1,155 @@
++--- a/builds/posix/prefix.linux_riscv64
 ++++ b/builds/posix/prefix.linux_riscv64
 +@@ -0,0 +1,28 @@
 ++# The contents of this file are subject to the Interbase Public
@@ -57,14 +50,17 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 ++
 ++PROD_FLAGS=-O3 -DLINUX -DRISCV64 -pipe -p -MMD -fPIC -fsigned-char -fmessage-length=0 -std=gnu++03 -fno-delete-null-pointer-checks
 ++DEV_FLAGS=-ggdb -DLINUX -DRISCV64 -pipe -p -MMD -fPIC -Wall -fsigned-char -fmessage-length=0 -Wno-non-virtual-dtor
-+diff --git a/configure b/configure
-+index 34e0676..a287e4b 100755
 +--- a/configure
 ++++ b/configure
-+@@ -3071,6 +3071,20 @@ $as_echo "#define LINUX 1" >>confdefs.h
-+     INSTALL_PREFIX=linux
-+     PLATFORM=LINUX
++@@ -3198,6 +3198,20 @@
++     libdir=/usr/lib64
++     ;;
 + 
+++  riscv64*-*-linux*)
+++    MAKEFILE_PREFIX=linux_riscv64
+++    INSTALL_PREFIX=linux
+++    PLATFORM=LINUX
+++
 ++$as_echo "#define LINUX 1" >>confdefs.h
 ++
 ++    EDITLINE_FLG=Y
@@ -74,19 +70,12 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 ++    libdir=/usr/lib64
 ++    ;;
 ++
-++  riscv64*-*-linux*)
-++    MAKEFILE_PREFIX=linux_riscv64
-++    INSTALL_PREFIX=linux
-++    PLATFORM=LINUX
-++
-+ $as_echo "#define LINUX 1" >>confdefs.h
-+ 
-+     EDITLINE_FLG=Y
-+diff --git a/configure.ac b/configure.ac
-+index 9412b10..ed50d32 100644
++   powerpc64le-*-linux*)
++     MAKEFILE_PREFIX=linux_powerpc64el
++     INSTALL_PREFIX=linux
 +--- a/configure.ac
 ++++ b/configure.ac
-+@@ -251,6 +251,18 @@ dnl CPU_TYPE=ppc64
++@@ -264,6 +264,18 @@
 +     libdir=/usr/lib64
 +     ;;
 + 
@@ -102,14 +91,12 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 ++    libdir=/usr/lib64
 ++    ;;
 ++
-+   powerpc64le-*-linux*)                           
++   powerpc64le-*-linux*)
 +     MAKEFILE_PREFIX=linux_powerpc64el
 +     INSTALL_PREFIX=linux
-+diff --git a/src/common/classes/DbImplementation.cpp b/src/common/classes/DbImplementation.cpp
-+index 0c2db79..112da37 100644
 +--- a/src/common/classes/DbImplementation.cpp
 ++++ b/src/common/classes/DbImplementation.cpp
-+@@ -49,6 +49,7 @@ static const UCHAR CpuAlpha = 14;
++@@ -49,6 +49,7 @@
 + static const UCHAR CpuArm64 = 15;
 + static const UCHAR CpuPowerPc64el = 16;
 + static const UCHAR CpuM68k = 17;
@@ -117,7 +104,7 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 + 
 + static const UCHAR OsWindows = 0;
 + static const UCHAR OsLinux = 1;
-+@@ -89,7 +90,8 @@ const char* hardware[] = {
++@@ -89,7 +90,8 @@
 + 	"Alpha",
 + 	"ARM64",
 + 	"PowerPC64el",
@@ -127,7 +114,7 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 + };
 + 
 + const char* operatingSystem[] = {
-+@@ -116,22 +118,23 @@ const char* compiler[] = {
++@@ -116,22 +118,23 @@
 + // This table lists pre-fb3 implementation codes
 + const UCHAR backwardTable[FB_NELEM(hardware) * FB_NELEM(operatingSystem)] =
 + {
@@ -163,11 +150,9 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 + };
 + 
 + } // anonymous namespace
-+diff --git a/src/common/common.h b/src/common/common.h
-+index 58abaaf..365b97e 100644
 +--- a/src/common/common.h
 ++++ b/src/common/common.h
-+@@ -135,6 +135,10 @@
++@@ -80,6 +80,10 @@
 + #define FB_CPU CpuArm64
 + #endif /* ARM64 */
 + 
@@ -175,14 +160,12 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 ++#define FB_CPU CpuRiscV64
 ++#endif /* RISCV64 */
 ++
-+ #ifdef sparc
-+ #define FB_CPU CpuUltraSparc
-+ #define RISC_ALIGNMENT
-+diff --git a/src/jrd/inf_pub.h b/src/jrd/inf_pub.h
-+index 3cc0128..76469c1 100644
++ 
++ /*****************************************************
++ * Linux platforms
 +--- a/src/jrd/inf_pub.h
 ++++ b/src/jrd/inf_pub.h
-+@@ -245,7 +245,7 @@ enum  info_db_implementations
++@@ -247,7 +247,7 @@
 + 	isc_info_db_impl_linux_ppc64el = 85,
 + 	isc_info_db_impl_linux_ppc64 = 86,
 + 	isc_info_db_impl_linux_m68k = 87,
@@ -191,12 +174,10 @@ Index: libreoffice-24.8.3.2/external/firebird/firebird-riscv64-support.patch.1
 + 
 + 	isc_info_db_impl_last_value   // Leave this LAST!
 + };
-Index: libreoffice-24.8.3.2/external/firebird/UnpackedTarball_firebird.mk
-===================================================================
---- libreoffice-24.8.3.2.orig/external/firebird/UnpackedTarball_firebird.mk
-+++ libreoffice-24.8.3.2/external/firebird/UnpackedTarball_firebird.mk
-@@ -53,6 +53,7 @@ $(eval $(call gb_UnpackedTarball_add_pat
-     external/firebird/Wincompatible-function-pointer-types.patch \
+--- a/external/firebird/UnpackedTarball_firebird.mk
++++ b/external/firebird/UnpackedTarball_firebird.mk
+@@ -54,6 +54,7 @@
+ 	external/firebird/mold.patch \
      external/firebird/c++26.patch \
      external/firebird/c++20.patch \
 +    external/firebird/firebird-riscv64-support.patch.1 \
