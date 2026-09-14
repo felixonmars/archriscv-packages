@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -52,6 +52,9 @@
+ 
+   patch -Np1 -i "$srcdir"/gcc15-missing-include.patch
+   patch -Np1 -i "$srcdir"/165.patch
++
++  # The Go shim calls CPU APIs unavailable with ESMI disabled.
++  sed -i '/^add_subdirectory(goamdsmi_shim)$/d' CMakeLists.txt
+ }
+ 
+ build() {
+@@ -62,6 +65,7 @@
+     -D CMAKE_INSTALL_PREFIX=/opt/rocm
+     -D CMAKE_BUILD_TYPE=None
+     -D BUILD_TESTS=OFF
++    -D ENABLE_ESMI_LIB=OFF
+   )
+   cmake "${cmake_args[@]}"
+   cmake --build build
