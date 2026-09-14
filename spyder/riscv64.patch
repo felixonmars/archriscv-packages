@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -120,6 +120,14 @@
+ )
+ b2sums=('989c336d42ca4c3d5411220d614fff3022e2b46dc5517bc3b0f945e7c66b31a8e40b74103d86d9eaa3f6ba8ae8bec700ba211380450c6cd9e06e5af154b874d8')
+ 
++source+=(tests-riscv64.patch)
++b2sums+=('2b6c99e521d238107b715d124f59041c3f9fd5c6f15a12e392881ad899a98ed8a9ce4d068e547d6ea350bc0a43ca8cea69efee5e4b96cbaf5c4c8abc9bc0fa06')
++
++prepare() {
++  cd $pkgname
++  patch -Np0 -i "$srcdir/tests-riscv64.patch"
++}
++
+ build() {
+   cd $pkgname
+   python -m build --wheel --no-isolation
+@@ -185,7 +193,8 @@
+   )
+   export PYTEST_QT_API="pyqt6"
+   export CI=true
+-  xvfb-run pytest "${pytest_args[@]}" -vv
++  # Chromium's sandbox aborts the renderer: Current process is not mono-threaded!
++  QTWEBENGINE_DISABLE_SANDBOX=1 xvfb-run pytest "${pytest_args[@]}" -vv
+ }
+ 
+ package() {
