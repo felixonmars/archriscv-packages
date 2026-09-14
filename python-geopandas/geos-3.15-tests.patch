@@ -1,0 +1,33 @@
+--- a/geopandas/tests/test_geom_methods.py
++++ b/geopandas/tests/test_geom_methods.py
+@@ -1097,7 +1097,8 @@
+             (
+                 "linework",
+                 True,
+-                MultiLineString([[(0, 0), (1, 1)], [(1, 1), (1, 2)]]),
++                # GEOS 3.15 merges contiguous overlay linework.
++                LineString([(0, 0), (1, 1), (1, 2)]),
+             ),
+             (
+                 "structure",
+@@ -2455,7 +2456,10 @@
+             crs=4326,
+             name="polygons",
+         )
+-        assert_geoseries_equal(noded, s2.build_area(node=True), check_less_precise=True)
++        # GEOS 3.15 changes the starting vertex of overlay rings.
++        assert_geoseries_equal(
++            noded, s2.build_area(node=True), check_less_precise=True, normalize=True
++        )
+ 
+         non_noded = GeoSeries.from_wkt(
+             [
+@@ -2466,7 +2470,7 @@
+             name="polygons",
+         )
+         assert_geoseries_equal(
+-            non_noded, s2.build_area(node=False), check_less_precise=True
++            non_noded, s2.build_area(node=False), check_less_precise=True, normalize=True
+         )
+ 
+     @pytest.mark.skipif(
