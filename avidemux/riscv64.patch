@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -56,10 +56,16 @@
+             'bbae5b4a549113b12e728c4c0ac8c1c92a0b7500be8dcecc791c16c9a913406feaa9f7bc477985970a920d2df391cc9392457512d84b9c4b829981cc072f2b2e'
+             '243553763c688f7d7c3d662061659fc650e2460c98128426a8e279c78dad412279a45340042b6db9a230564fe5c8e18915331077f9792fada936564835ca7d8f')
+ 
++# Backport https://github.com/mean00/avidemux2/commit/dd201bf0cd9828b15162401c9afd577fe7fce155
++source+=(cpu-detection.patch)
++sha256sums+=('764270cb65abad28fe4dae44a3d9d4635e40da683c7bf8ecf0e443da577e8d3b')
++sha512sums+=('7f663614a2d12a3051f3c571bde971da70c2a23761b365e3bfcf73251aa5d1c98fc5553c0d5a531d3802dd7162f1ecfaa44a0ec1f5ceb73230d0c4885a838219')
++
+ prepare() {
+   cd ${pkgbase}_${pkgver}
+   patch -Np1 -i ../log.diff  # don't hide the build output
+   patch -Np1 -i ../c16d32a67cdb012db093472ad3776713939a30d1.patch # Fix build with x265 4.1
++  patch -Np1 -i ../cpu-detection.patch # Keep CPU probes from being discarded by LTO
+   sed -i 's|../avidemux/qt4|../avidemux/qt4 -DLRELEASE_EXECUTABLE=/usr/bin/lrelease-qt5|' bootStrap.bash
+   sed -e 's|0.19|1.0|' -i avidemux_plugins/ADM_videoFilters6/ass/CMakeLists.txt
+   mv "$srcdir"/effadce6.patch avidemux_core/ffmpeg_package/patches/upstream # Fix build with binutils 2.41
