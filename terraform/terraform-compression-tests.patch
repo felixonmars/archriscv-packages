@@ -1,0 +1,153 @@
+--- a/internal/command/init_test.go
++++ b/internal/command/init_test.go
+@@ -2722,9 +2722,18 @@
+ }
+ 
+ func TestInit_providerLockFileReadonly(t *testing.T) {
+-	// The hash in here is for the fake package that newMockProviderSource produces
+-	// (so it'll change if newMockProviderSource starts producing different contents)
+-	inputLockFile := strings.TrimSpace(`
++	// Hash the generated package so changes in ZIP compression do not invalidate the fixture.
++	providerSource, close := newMockProviderSource(t, map[string][]string{"test": {"1.2.3"}})
++	defer close()
++	meta, err := providerSource.PackageMeta(context.Background(), addrs.NewDefaultProvider("test"), getproviders.MustParseVersion("1.2.3"), getproviders.CurrentPlatform)
++	if err != nil {
++		t.Fatal(err)
++	}
++	zipHash, err := getproviders.PackageHashLegacyZipSHA(meta.Location.(getproviders.PackageLocalArchive))
++	if err != nil {
++		t.Fatal(err)
++	}
++	inputLockFile := strings.TrimSpace(fmt.Sprintf(`
+ # This file is maintained automatically by "terraform init".
+ # Manual edits may be lost in future updates.
+ 
+@@ -2732,10 +2741,10 @@
+   version     = "1.2.3"
+   constraints = "1.2.3"
+   hashes = [
+-    "zh:e919b507a91e23a00da5c2c4d0b64bcc7900b68d43b3951ac0f6e5d80387fbdc",
++    "%s",
+   ]
+ }
+-`)
++`, zipHash))
+ 
+ 	badLockFile := strings.TrimSpace(`
+ # This file is maintained automatically by "terraform init".
+@@ -2750,7 +2759,7 @@
+ }
+ `)
+ 
+-	updatedLockFile := strings.TrimSpace(`
++	updatedLockFile := strings.TrimSpace(fmt.Sprintf(`
+ # This file is maintained automatically by "terraform init".
+ # Manual edits may be lost in future updates.
+ 
+@@ -2759,10 +2768,10 @@
+   constraints = "1.2.3"
+   hashes = [
+     "h1:wlbEC2mChQZ2hhgUhl6SeVLPP7fMqOFUZAQhQ9GIIno=",
+-    "zh:e919b507a91e23a00da5c2c4d0b64bcc7900b68d43b3951ac0f6e5d80387fbdc",
++    "%s",
+   ]
+ }
+-`)
++`, zipHash))
+ 
+ 	emptyUpdatedLockFile := strings.TrimSpace(`
+ # This file is maintained automatically by "terraform init".
+--- a/internal/lang/funcs/encoding_test.go
++++ b/internal/lang/funcs/encoding_test.go
+@@ -4,7 +4,11 @@
+ package funcs
+ 
+ import (
++	"bytes"
++	"compress/gzip"
++	"encoding/base64"
+ 	"fmt"
++	"io"
+ 	"testing"
+ 
+ 	"github.com/hashicorp/terraform/internal/lang/marks"
+@@ -140,7 +144,7 @@
+ 	}{
+ 		{
+ 			cty.StringVal("test"),
+-			cty.StringVal("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA"),
++			cty.StringVal("test"),
+ 			false,
+ 		},
+ 	}
+@@ -158,6 +162,20 @@
+ 				t.Fatalf("unexpected error: %s", err)
+ 			}
+ 
++			compressed, err := base64.StdEncoding.DecodeString(got.AsString())
++			if err != nil {
++				t.Fatalf("invalid base64 result: %s", err)
++			}
++			gzipReader, err := gzip.NewReader(bytes.NewReader(compressed))
++			if err != nil {
++				t.Fatalf("invalid gzip result: %s", err)
++			}
++			defer gzipReader.Close()
++			uncompressed, err := io.ReadAll(gzipReader)
++			if err != nil {
++				t.Fatalf("failed to decompress result: %s", err)
++			}
++			got = cty.StringVal(string(uncompressed))
+ 			if !got.RawEquals(test.Want) {
+ 				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
+ 			}
+--- a/internal/lang/functions_test.go
++++ b/internal/lang/functions_test.go
+@@ -15,6 +15,7 @@
+ 	"github.com/hashicorp/hcl/v2/hclsyntax"
+ 	"github.com/hashicorp/terraform/internal/addrs"
+ 	"github.com/hashicorp/terraform/internal/experiments"
++	"github.com/hashicorp/terraform/internal/lang/funcs"
+ 	"github.com/hashicorp/terraform/internal/lang/marks"
+ 	homedir "github.com/mitchellh/go-homedir"
+ 	"github.com/zclconf/go-cty/cty"
+@@ -50,6 +51,11 @@
+ 		t.Fatalf("Error getting home directory: %v", err)
+ 	}
+ 
++	gzipResult, err := funcs.Base64Gzip(cty.StringVal("test"))
++	if err != nil {
++		t.Fatalf("Error encoding gzip fixture: %v", err)
++	}
++
+ 	tests := map[string][]struct {
+ 		src  string
+ 		want cty.Value
+@@ -108,7 +114,7 @@
+ 		"base64gzip": {
+ 			{
+ 				`base64gzip("test")`,
+-				cty.StringVal("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA"),
++				gzipResult,
+ 			},
+ 		},
+ 
+--- a/internal/providercache/installer_test.go
++++ b/internal/providercache/installer_test.go
+@@ -6,6 +6,7 @@
+ import (
+ 	"bytes"
+ 	"context"
++	"crypto/sha256"
+ 	"encoding/json"
+ 	"fmt"
+ 	"log"
+@@ -65,7 +66,7 @@
+ 	invalidSemverProvider := addrs.MustParseProviderSourceString("example.com/awesomesauce/invalidsemver")
+ 	invalidSemverProviderDir := getproviders.PackageHTTPURL(fmt.Sprintf("%s/pkg/awesomesauce/invalidsemver_1.2.0.zip", baseDir))
+ 	h1Hash := getproviders.HashScheme1.New("z+Ic+uNhBTO9zbYfr9tAfhYw4R+rxOq8n7ivKlCOgPI=")
+-	zipHash := getproviders.HashSchemeZip.New("d595832bf433c79cd90b447872d250be213d443080120899e965ab2b2cce0d4b")
++	zipHash := getproviders.HashLegacyZipSHAFromSHA(sha256.Sum256(signedProviderPkg.zipContent))
+ 
+ 	tests := map[string]Test{
+ 		// The registry returns a mix of valid and invalid semver,
