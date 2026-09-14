@@ -1,0 +1,90 @@
+--- a/pkg/observability/metrics/influxdb2_test.go
++++ b/pkg/observability/metrics/influxdb2_test.go
+@@ -15,7 +15,7 @@
+ )
+ 
+ func TestInfluxDB2(t *testing.T) {
+-	c := make(chan *string)
++	c := make(chan *string, 1)
+ 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		body, err := io.ReadAll(r.Body)
+ 		require.NoError(t, err)
+@@ -29,7 +29,7 @@
+ 		&otypes.InfluxDB2{
+ 			Address:              ts.URL,
+ 			Token:                "test-token",
+-			PushInterval:         ptypes.Duration(10 * time.Millisecond),
++			PushInterval:         ptypes.Duration(time.Hour),
+ 			Org:                  "test-org",
+ 			Bucket:               "test-bucket",
+ 			AddEntryPointsLabels: true,
+@@ -37,6 +37,15 @@
+ 			AddServicesLabels:    true,
+ 		})
+ 
++	// Flush complete batches explicitly so a timer cannot split metric updates.
++	influxDB2Ticker.Stop()
++	flush := func() *string {
++		t.Helper()
++		writer := influxDB2Writer{wc: influxDB2Client.WriteAPIBlocking("test-org", "test-bucket")}
++		require.NoError(t, influxDB2Store.WriteTo(writer))
++		return <-c
++	}
++
+ 	t.Cleanup(func() {
+ 		StopInfluxDB2()
+ 		ts.Close()
+@@ -55,7 +64,7 @@
+ 	influxDB2Registry.ConfigReloadsCounter().Add(1)
+ 	influxDB2Registry.LastConfigReloadSuccessGauge().Set(1)
+ 	influxDB2Registry.OpenConnectionsGauge().With("entrypoint", "test", "protocol", "TCP").Set(1)
+-	msgServer := <-c
++	msgServer := flush()
+ 
+ 	assertMessage(t, *msgServer, expectedServer)
+ 
+@@ -64,7 +73,7 @@
+ 	}
+ 
+ 	influxDB2Registry.TLSCertsNotAfterTimestampGauge().With("key", "value").Set(1)
+-	msgTLS := <-c
++	msgTLS := flush()
+ 
+ 	assertMessage(t, *msgTLS, expectedTLS)
+ 
+@@ -81,7 +90,7 @@
+ 	influxDB2Registry.EntryPointReqDurationHistogram().With("entrypoint", "test").Observe(10000)
+ 	influxDB2Registry.EntryPointReqsBytesCounter().With("entrypoint", "test", "code", strconv.Itoa(http.StatusOK), "method", http.MethodGet).Add(1)
+ 	influxDB2Registry.EntryPointRespsBytesCounter().With("entrypoint", "test", "code", strconv.Itoa(http.StatusOK), "method", http.MethodGet).Add(1)
+-	msgEntrypoint := <-c
++	msgEntrypoint := flush()
+ 
+ 	assertMessage(t, *msgEntrypoint, expectedEntrypoint)
+ 
+@@ -100,7 +109,7 @@
+ 	influxDB2Registry.RouterReqDurationHistogram().With("router", "demo", "service", "test", "code", strconv.Itoa(http.StatusOK)).Observe(10000)
+ 	influxDB2Registry.RouterReqsBytesCounter().With("router", "demo", "service", "test", "code", strconv.Itoa(http.StatusOK), "method", http.MethodGet).Add(1)
+ 	influxDB2Registry.RouterRespsBytesCounter().With("router", "demo", "service", "test", "code", strconv.Itoa(http.StatusOK), "method", http.MethodGet).Add(1)
+-	msgRouter := <-c
++	msgRouter := flush()
+ 
+ 	assertMessage(t, *msgRouter, expectedRouter)
+ 
+@@ -121,7 +130,7 @@
+ 	influxDB2Registry.ServiceServerUpGauge().With("service", "test", "url", "http://127.0.0.1").Set(1)
+ 	influxDB2Registry.ServiceReqsBytesCounter().With("service", "test", "code", strconv.Itoa(http.StatusOK), "method", http.MethodGet).Add(1)
+ 	influxDB2Registry.ServiceRespsBytesCounter().With("service", "test", "code", strconv.Itoa(http.StatusOK), "method", http.MethodGet).Add(1)
+-	msgService := <-c
++	msgService := flush()
+ 
+ 	assertMessage(t, *msgService, expectedService)
+ 
+@@ -134,7 +143,7 @@
+ 	influxDB2Registry.ServiceRetriesCounter().With("service", "test").Add(1)
+ 	influxDB2Registry.ServiceRetriesCounter().With("service", "foobar").Add(1)
+ 
+-	msgServiceRetries := <-c
++	msgServiceRetries := flush()
+ 
+ 	assertMessage(t, *msgServiceRetries, expectedServiceRetries)
+ }
