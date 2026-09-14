@@ -1,0 +1,34 @@
+--- spyder/plugins/pylint/tests/test_pylint.py
++++ spyder/plugins/pylint/tests/test_pylint.py
+@@ -244,9 +244,10 @@
+ 
+     pylint_widget = pylint_plugin.get_widget()
+     pylint_plugin.start_code_analysis(filename=pylint_test_script)
++    # Allow slow builders the same time as test_pylint_widget_noproject.
+     qtbot.waitUntil(
+         lambda: pylint_widget.get_data(pylint_test_script)[1] is not None,
+-        timeout=5000)
++        timeout=10000)
+     pylint_data = pylint_widget.get_data(filename=pylint_test_script)
+ 
+     print(pylint_data)
+--- spyder/plugins/updatemanager/tests/test_update_manager.py
++++ spyder/plugins/updatemanager/tests/test_update_manager.py
+@@ -95,6 +95,8 @@
+     qtbot, mocker, version, stable_only, release, expected
+ ):
+     """Test we offer unstable updates."""
++    # The pinned releases only provide installers for supported architectures.
++    mocker.patch.object(workers.platform, "machine", return_value="x86_64")
+     mocker.patch.object(workers, "CURRENT_VERSION", new=parse(version))
+ 
+     worker = WorkerUpdate(stable_only)
+@@ -139,6 +141,8 @@
+     ]
+ )
+ def test_get_asset_info(qtbot, mocker, app, version, release, update_type):
++    # Test asset selection independently of the build machine's architecture.
++    mocker.patch.object(workers.platform, "machine", return_value="x86_64")
+     mocker.patch.object(workers, "CURRENT_VERSION", new=parse(version))
+     mocker.patch.object(workers, "is_conda_based_app", return_value=app)
+ 
