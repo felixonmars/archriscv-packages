@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -102,6 +102,8 @@
+ prepare() {
+   cd matplotlib
+ 
++  patch -Np1 -i ../riscv64-tests.patch
++
+   # Allow to use new setuptools-scm
+   sed -i 's|"setuptools_scm>=7,<10"|"setuptools_scm"|' pyproject.toml
+ }
+@@ -132,13 +134,14 @@
+       -vv
+       # ignore failures due to warnings
+       -W ignore::DeprecationWarning
+-      # distribute tests across multiple CPUs
+-      -n auto
++      # Avoid subprocess starvation with 128 workers on RISC-V builders.
++      -n 8
+       # run tests from the following python packages
+       --pyargs matplotlib mpl_toolkits.{axes_grid1,axisartist,mplot3d}
+       # test_ipynb: https://github.com/matplotlib/matplotlib/issues/21654 fixed but `ModuleNotFoundError: No module named 'matplotlib'`
+       # test_rcupdate, test_anchored_direction_arrows, test_anchored_direction_arrows_many_args, test_stem3d: ImageComparisonFailure: Error: Image files did not match. (version 3.11.0)
+-      -k 'not test_ipynb and not test_rcupdate and not test_anchored_direction_arrows and not test_anchored_direction_arrows_many_args and not test_stem3d'
++      # GTK3Cairo timers hang under Xvfb, as in upstream remote CI (test_interactive_timers).
++      -k 'not test_ipynb and not test_rcupdate and not test_anchored_direction_arrows and not test_anchored_direction_arrows_many_args and not test_stem3d and not (test_interactive_timers and gtk3cairo)'
+   )
+   # Prevent Xvfb reset races between interactive test subprocesses.
+   XDG_RUNTIME_DIR=/tmp/runtime-build \
+@@ -156,3 +159,6 @@
+   # Remove tests
+   rm -r "${pkgdir}"$(python -c "import site; print(site.getsitepackages()[0])")/{matplotlib,mpl_toolkits/*}/tests/
+ }
++
++source+=(riscv64-tests.patch)
++b2sums+=('2984d01d000e45a99f239664b46f03e90be5195b2756db61abf8f0ae3d9888a82582f8b3c09365493047c975eb81e9b9609681109332b61592e14b04c31e4d5c')
