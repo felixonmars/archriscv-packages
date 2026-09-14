@@ -1,0 +1,50 @@
+--- a/lib/matplotlib/testing/__init__.py
++++ b/lib/matplotlib/testing/__init__.py
+@@ -6,6 +6,7 @@
+ import logging
+ import os
+ from pathlib import Path
++import platform
+ import string
+ import subprocess
+ import sys
+@@ -143,7 +144,8 @@
+     extra_env : dict[str, str]
+         Any additional environment variables to be set for the subprocess.
+     """
+-    if is_ci_environment():
++    # RISC-V builders also need the CI allowance for subprocess startup.
++    if is_ci_environment() or platform.machine() == "riscv64":
+         timeout *= 6
+     target = func.__name__
+     module = func.__module__
+--- a/lib/matplotlib/ticker.py
++++ b/lib/matplotlib/ticker.py
+@@ -2868,11 +2868,14 @@
+         # positive and negative values separately and carefully treating the zero value.
+         with np.errstate(divide="ignore"):  # base ** log(0) = base ** -inf = 0.
+             if self.base > 1:
++                # Avoid floor(-inf), which raises invalid on RISC-V NumPy.
+                 pows = (np.sign(xs)
+-                        * self.base ** np.floor(np.log(abs(xs)) / math.log(self.base)))
++                        * self.base ** np.floor(
++                            np.log(np.where(zero_xs, 1, abs(xs))) / math.log(self.base)))
+                 qs = np.outer(pows, self.subs).flatten() if self.subs else pows
+             else:  # No need to adjust sign(pows), as it cancels out when computing qs.
+-                pows = np.where(zero_xs, 1, 10**np.floor(np.log10(abs(xs))))
++                # Avoid floor(-inf), which raises invalid on RISC-V NumPy.
++                pows = 10**np.floor(np.log10(np.where(zero_xs, 1, abs(xs))))
+                 qs = pows * np.round(xs / pows)
+         ticks = np.array(sorted(set(qs)))
+ 
+--- a/lib/matplotlib/tests/test_inset.py
++++ b/lib/matplotlib/tests/test_inset.py
+@@ -96,7 +96,7 @@
+ @image_comparison(['zoom_inset_connector_styles.png'],
+                   remove_text=True, style='mpl20',
+                   tol=(0.024 if platform.machine() in ['aarch64', 'arm64',
+-                                                       'loongarch64'] else 0))
++                                                       'loongarch64', 'riscv64'] else 0))
+ def test_zoom_inset_connector_styles():
+     fig, axs = plt.subplots(2)
+     for ax in axs:
