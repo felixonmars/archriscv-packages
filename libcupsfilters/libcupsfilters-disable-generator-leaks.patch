@@ -1,0 +1,27 @@
+--- a/cupsfilters/test-pclm-overflow.sh
++++ b/cupsfilters/test-pclm-overflow.sh
+@@ -6,6 +6,7 @@
+ LIBTOOL="${BUILD_ROOT}/libtool"
+ CC="${CC:-cc}"
+ SAN_FLAGS="${SAN_FLAGS:--fsanitize=address -fno-omit-frame-pointer}"
++ASAN_OPTS="${ASAN_OPTIONS:-detect_leaks=0,abort_on_error=0}"
+ 
+ # AddressSanitizer is what makes this test meaningful.  When libasan is not
+ # installed the compiler still accepts -fsanitize=address but the link fails
+@@ -133,7 +134,7 @@
+ EOF
+ 
+ "${CC}" -std=c11 -O0 ${SAN_FLAGS} -o "${PWG_BIN}" "${PWG_SRC}" -lcups
+-"${PWG_BIN}" 1024 8000 "${INPUT_PWG}" >/dev/null
++ASAN_OPTIONS="${ASAN_OPTS}" "${PWG_BIN}" 1024 8000 "${INPUT_PWG}" >/dev/null
+ 
+ cat > "${HARNESS_SRC}" <<'EOF'
+ #define _GNU_SOURCE
+@@ -223,7 +224,6 @@
+   "${BUILD_ROOT}/libcupsfilters.la" -lcups -o "${HARNESS_BIN}" >/dev/null
+ 
+ : > "${RUN_LOG}"
+-ASAN_OPTS="${ASAN_OPTIONS:-detect_leaks=0,abort_on_error=0}"
+ 
+ set +e
+ "${LIBTOOL}" --mode=execute env ASAN_OPTIONS="${ASAN_OPTS}" \
