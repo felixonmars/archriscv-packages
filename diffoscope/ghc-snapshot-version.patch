@@ -1,0 +1,66 @@
+--- a/diffoscope/comparators/haskell.py
++++ b/diffoscope/comparators/haskell.py
+@@ -86,10 +86,11 @@
+                 HiFile.hi_version = None
+                 logger.debug("Unable to read GHC version")
+             else:
+-                major, minor, patch = [
+-                    int(x) for x in output.decode("utf-8").strip().split(".")
+-                ]
+-                HiFile.hi_version = "%d%02d%d" % (major, minor, patch)
++                major, minor, patch = output.decode("utf-8").strip().split(".", 2)
++                # GHC includes snapshot dates in the interface patch level.
++                HiFile.hi_version = "%d%02d%s" % (
++                    int(major), int(minor), patch.replace(".", "")
++                )
+                 logger.debug("Found .hi version %s", HiFile.hi_version)
+ 
+         if HiFile.hi_version is None:
+@@ -112,7 +113,7 @@
+ 
+             if buf != b"\x00":
+                 # Support Haskell 9.x
+-                version_found = fp.read(4).decode("utf-8")
++                version_found = fp.read(buf[0]).decode("utf-8")
+             else:
+                 # Skip some old descriptor thingy that has varying size. We
+                 # only skip one less than we should as we just peeked at a byte
+--- a/tests/comparators/test_haskell.py
++++ b/tests/comparators/test_haskell.py
+@@ -19,7 +19,7 @@
+ import pytest
+ 
+ from diffoscope.comparators.binary import FilesystemFile
+-from diffoscope.comparators.haskell import HiFile
++from diffoscope.comparators.haskell import HI_MAGIC, HiFile
+ 
+ from ..utils.data import get_data, load_fixture, assert_diff
+ from ..utils.tools import skip_unless_tools_exist
+@@ -28,6 +28,27 @@
+ haskell2 = load_fixture("test2.hi")
+ 
+ 
++@pytest.mark.parametrize(
++    "version, interface_version",
++    [("9.0.2", "9002"), ("9.10.1", "9101"), ("9.6.7.20250817", "906720250817")],
++)
++def test_snapshot_version(version, interface_version, monkeypatch, tmp_path):
++    monkeypatch.delattr(HiFile, "hi_version", raising=False)
++    monkeypatch.setattr(
++        "diffoscope.comparators.haskell.our_check_output",
++        lambda cmd: (version + "\n").encode(),
++    )
++    path = tmp_path / "snapshot.hi"
++    path.write_bytes(
++        HI_MAGIC + bytes([len(interface_version)]) + interface_version.encode()
++    )
++    try:
++        assert HiFile.recognizes(FilesystemFile(str(path)))
++        assert HiFile.hi_version == interface_version
++    finally:
++        del HiFile.hi_version
++
++
+ @skip_unless_tools_exist("ghc")
+ def test_identification(haskell1):
+     if not isinstance(haskell1, HiFile):
