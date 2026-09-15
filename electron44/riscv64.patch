@@ -1,0 +1,89 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -60,7 +60,7 @@
+             'trash-cli: file deletion support (trash-put)'
+             'xdg-utils: open URLs with desktop’s default (xdg-email, xdg-open)')
+ options=('!lto') # Electron adds its own flags for ThinLTO
+-source=("git+https://github.com/electron/electron.git#tag=v$pkgver"
++source=("git+https://github.com/riscv-forks/electron.git#branch=v$pkgver-riscv"
+         https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
+         # Chromium
+         chromium-138-nodejs-version-check.patch
+@@ -500,8 +500,7 @@
+     -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
+   src/build/util/lastchange.py \
+     -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
+-  src/tools/update_pgo_profiles.py --target=linux update \
+-    --gs-url-base=chromium-optimization-profiles/pgo_profiles
++  # PGO is disabled below; no profile download is needed.
+ 
+   # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
+   src/third_party/node/update_npm_deps
+@@ -514,7 +513,8 @@
+ 
+   pushd src
+   pushd electron
+-  yarn install --frozen-lockfile
++  # sentry-cli is only used for upstream release-symbol uploads.
++  SENTRYCLI_SKIP_DOWNLOAD=1 yarn install --frozen-lockfile
+   popd
+ 
+   echo "Applying local patches..."
+@@ -580,23 +580,23 @@
+   # some thin archive members ("/43/"); the helper chokes on it.
+   patch -Np1 -i ../chromium-152-fix-resource-allowlist-parse.patch
+ 
++  # Recognize riscv64 when Dawn selects the Go toolchain.
++  patch -Np1 -i "$srcdir/dawn-cipd-riscv64.patch" -d third_party/dawn
++
+   # Link to system tools required by the build
+   mkdir -p third_party/node/linux/node-linux-x64/bin \
+            third_party/rust-toolchain/bin \
+            third_party/jdk/current/bin \
+            third_party/gperf/cipd/bin \
+-           third_party/dawn/tools/golang/linux-amd64/bin
++           third_party/dawn/tools/golang/linux-riscv64/bin
+ 
+   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
+   ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
+   ln -s /usr/bin/java third_party/jdk/current/bin/
+   ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
+-  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
++  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-riscv64/bin/
+ 
+   # Electron specific fixes
+-  #  fix: use GTK UI theme for Linux message boxes #52238
+-  git -C electron cherry-pick -n 5b8ae0abd177198e1936c669e5de90cebaa345d7
+-
+   patch -Np1 -i "${srcdir}/jinja-python-3.10.patch" -d "third_party/electron_node/tools/inspector_protocol/jinja2"
+   patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
+ 
+@@ -656,6 +656,7 @@
+     'use_system_libffi=true'
+     'enable_hangout_services_extension=true'
+     'enable_widevine=false'
++    "override_electron_version=\"$pkgver\""
+     'use_qt5=false'
+     'use_qt6=true'
+     'moc_qt6_path="/usr/lib/qt6"'
+@@ -714,9 +715,9 @@
+   # https://crbug.com/957519#c122
+   CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
+ 
+-  if [[ $CARCH == aarch64 ]]; then
+-    # On aarch64, certain files (e.g. in libvpx and libyuv) needs to be compiled
+-    # with additional arch features (e.g. dotprod, sve, sme)
++  if [[ $CARCH == aarch64 || $CARCH == riscv64 ]]; then
++    # Some files need additional arch features (e.g. dotprod, sve, sme in
++    # libvpx/libyuv on aarch64, or RVV in XNNPACK on riscv64).
+     # Having an arch setting in the C(XX)FLAGS overrides those
+     # and causes compilation failure
+     CFLAGS="${CFLAGS/-march=*([^ ]) }"
+@@ -747,3 +748,7 @@
+   install -Dm644 src/electron/default_app/icon.png \
+           "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
+ }
++
++sha256sums[0]=SKIP
++source+=("dawn-cipd-riscv64.patch::https://github.com/google/dawn/commit/f469154421dd8fe8beeccd29489ceafcad0622f7.patch")
++sha256sums+=('59840f2e2eb995c242d4a1b505815470e6e5b01563985e444c5f5b68c2680576')
