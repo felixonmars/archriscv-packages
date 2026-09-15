@@ -8,7 +8,7 @@
  options=('!lto')
  source=(
    "git+$url.git#tag=bun-v$pkgver"
-@@ -68,6 +69,11 @@
+@@ -77,6 +78,11 @@
    # See also https://bun.sh/docs/project/contributing#building-webkit-locally-+-debug-mode-of-jsc
    mkdir -p vendor
    cp -r "$srcdir/$pkgname-WebKit" vendor/WebKit
@@ -20,7 +20,7 @@
  }
 
  build() {
-@@ -78,12 +84,15 @@
+@@ -87,7 +93,9 @@
      x86_64)  _bundir="bun-linux-x64" ;;
      aarch64) _bundir="bun-linux-aarch64" ;;
    esac
@@ -29,17 +29,19 @@
 +    export PATH="$srcdir/$_bundir:$PATH"
 +  fi
 
--  bun scripts/build.ts \
+   local bun_options=(
+     --profile=release-local
+@@ -100,7 +108,8 @@
+     bun_options+=(--baseline=on)
+   fi
+
+-  bun scripts/build.ts "${bun_options[@]}"
 +  # Bootstrap Bun makes Ninja's inherited log pipe nonblocking, losing output.
-+  node --experimental-strip-types scripts/build.ts \
-     --profile=release-local \
-     --canary=0 \
--    --baseline=on \
-+    --baseline=off \
-     --build-dir=build/release \
-     --cache-dir="$srcdir/build-cache"
++  node --experimental-strip-types scripts/build.ts "${bun_options[@]}"
  }
-@@ -106,3 +115,10 @@
+
+ check() {
+@@ -121,3 +130,10 @@
    install -vDm644 completions/bun.fish "$pkgdir/usr/share/fish/vendor_completions.d/bun.fish"
    install -vDm644 completions/bun.zsh "$pkgdir/usr/share/zsh/site-functions/_bun"
  }
@@ -48,5 +50,5 @@
 +  "$pkgname-riscv64.patch"
 +  "$pkgname-webkit-riscv64.patch"
 +)
-+b2sums_riscv64=('e5f4a9b33fc70bfd608cb4c10d0284b042b5909dfb88357c1396f8c287fe10feef33d64c43b62d9f13169dca6ba1f25cc9ee9458383502c528e0d176c4fa84e6'
-+                'f0ad15d3d59a6254fb138ce0f3f90cba93d6d24bd275edf4e10bc164bb9ab67f01fce613e3cbc74bceb65f15e1eaa51be671b7ec812cd18a4fc87b691ebcf4c9')
++b2sums_riscv64=('501fe4bd2cbed85c5101cf758b6d78eb6497e4cfb1853efeb7b46c9993545caaf0c61e142a055c80e68ea1aa890870ee41f1442791dcee4b9284afc90ce23285'
++                'dde363ba22befbfbe69ed9e0c5aa22fd178cce3b948396c8d52898040896c10bea4c1c169eb937e4d7b83f50a22cb23b0633c13fba10ec23baa283ad596e2653')

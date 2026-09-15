@@ -61,7 +61,10 @@
  namespace JSC {
 --- a/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
 +++ b/Source/JavaScriptCore/llint/InPlaceInterpreter.asm
-@@ -151 +151,6 @@
+@@ -148,7 +148,12 @@
+ const WasmToJSCallableFunctionSlot = constexpr Wasm::WasmToJSCallableFunctionSlot
+ const WasmToJSIPIntReturnPCSlot = constexpr Wasm::WasmToJSIPIntReturnPCSlot
+
 -const IPIntCalleeSaveSpaceAsVirtualRegisters = constexpr Wasm::numberOfIPIntCalleeSaveRegisters + constexpr Wasm::numberOfIPIntInternalRegisters
 +if RISCV64
 +    # sc2/sc3 overlap LLInt callee-save registers and must survive JS-to-Wasm calls.
@@ -69,7 +72,10 @@
 +else
 +    const IPIntCalleeSaveSpaceAsVirtualRegisters = constexpr Wasm::numberOfIPIntCalleeSaveRegisters + constexpr Wasm::numberOfIPIntInternalRegisters
 +end
-@@ -336,8 +336,8 @@
+ const IPIntCalleeSaveSpaceStackAligned = (IPIntCalleeSaveSpaceAsVirtualRegisters * SlotSize + StackAlignment - 1) & ~StackAlignmentMask
+
+ # Offset from CFR to local[0]: local[i] = CFR - IPIntLocalsBaseOffset - i * LocalSize
+@@ -336,8 +341,8 @@
  .checkStack:
      operationCallMayThrowPreservingVolatileRegisters(macro()
          move scratch, a1
@@ -80,7 +86,7 @@
          loadp UnboxedWasmCalleeStackSlot[cfr], a2
  else
          move callee, a2
-@@ -383,14 +383,19 @@
+@@ -383,14 +388,19 @@
  macro ipintAtomicOp(name, impl)
      atomicInstructionLabel(name)
 
@@ -107,7 +113,7 @@
  end
 
  macro reservedAtomicOpcode(opcode)
-@@ -407,7 +412,7 @@
+@@ -407,7 +417,7 @@
  macro ipintReloadMemory(scratch)
      if ARM64 or ARM64E
          loadpairq constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase, boundsCheckingSize
@@ -116,7 +122,7 @@
          loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase
          loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0) + 8)[wasmInstance], boundsCheckingSize
      end
-@@ -417,7 +422,8 @@
+@@ -417,7 +427,8 @@
  # Call site tracking
 
  macro saveCallSiteIndex()
@@ -126,7 +132,7 @@
      loadp UnboxedWasmCalleeStackSlot[cfr], ws0
  end
      loadp Wasm::IPIntCallee::m_bytecode[ws0], t0
-@@ -465,7 +471,7 @@
+@@ -465,7 +476,7 @@
          move sp, a2
          operationCall(macro() cCall3(_ipint_extern_handle_debugger_trap_if_needed) end)
          addp sizeOfExtraRegistersPreserved + (4 * MachineRegisterSize), sp
@@ -135,7 +141,7 @@
          addp sizeOfExtraRegistersPreserved + (2 * MachineRegisterSize), sp
      end
      jmp _wasm_throw_from_slow_path_trampoline
-@@ -788,7 +794,7 @@
+@@ -788,7 +799,7 @@
          if ARM64 or ARM64E
              storepairq memoryBase, boundsCheckingSize, -2 * SlotSize[cfr]
              storep wasmInstance, -3 * SlotSize[cfr]
@@ -144,7 +150,7 @@
              # These must match the wasmToJS thunk, since the unwinder won't be able to tell who made this frame.
              storep boundsCheckingSize, -1 * SlotSize[cfr]
              storep memoryBase, -2 * SlotSize[cfr]
-@@ -802,7 +808,7 @@
+@@ -802,7 +813,7 @@
          if ARM64 or ARM64E
              loadpairq -2 * SlotSize[cfr], memoryBase, boundsCheckingSize
              loadp -3 * SlotSize[cfr], wasmInstance
@@ -153,7 +159,7 @@
              loadp -1 * SlotSize[cfr], boundsCheckingSize
              loadp -2 * SlotSize[cfr], memoryBase
              loadp -3 * SlotSize[cfr], wasmInstance
-@@ -877,7 +883,7 @@
+@@ -877,7 +888,7 @@
      # Memory
      if ARM64 or ARM64E
          loadpairq constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase, boundsCheckingSize
@@ -162,7 +168,7 @@
          loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase
          loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0) + 8)[wasmInstance], boundsCheckingSize
      end
-@@ -1012,7 +1018,7 @@
+@@ -1012,7 +1023,7 @@
      # Memory
      if ARM64 or ARM64E
          loadpairq constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase, boundsCheckingSize
@@ -171,7 +177,7 @@
          loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0))[wasmInstance], memoryBase
          loadp constexpr (JSWebAssemblyInstance::offsetOfCachedMemoryBaseSizePair(0) + 8)[wasmInstance], boundsCheckingSize
      end
-@@ -1225,7 +1231,7 @@
+@@ -1225,7 +1236,7 @@
  end)
 
  op(ipint_entry, macro()
@@ -180,7 +186,7 @@
      preserveCallerPCAndCFR()
      saveIPIntRegisters()
      storep wasmInstance, CodeBlock[cfr]
-@@ -1239,13 +1245,20 @@
+@@ -1239,13 +1250,20 @@
  end
  end)
 
@@ -202,7 +208,7 @@
 
  .ipint_entry_finish_zero:
      argumINTFinish()
-@@ -1313,13 +1326,13 @@
+@@ -1313,13 +1331,13 @@
      move t0, sp
  end
 
@@ -218,7 +224,7 @@
      ipintCatchCommon()
 
      move cfr, a1
-@@ -1335,7 +1348,7 @@
+@@ -1335,7 +1353,7 @@
  end)
 
  op(ipint_catch_all_entry, macro()
@@ -227,7 +233,7 @@
      ipintCatchCommon()
 
      move cfr, a1
-@@ -1351,7 +1364,7 @@
+@@ -1351,7 +1369,7 @@
  end)
 
  op(ipint_table_catch_entry, macro()
@@ -236,7 +242,7 @@
      ipintCatchCommon()
 
      # push arguments but no ref: sp in a2, call normal operation
-@@ -1369,7 +1382,7 @@
+@@ -1369,7 +1387,7 @@
  end)
 
  op(ipint_table_catch_ref_entry, macro()
@@ -245,7 +251,7 @@
      ipintCatchCommon()
 
      # push both arguments and ref
-@@ -1387,7 +1400,7 @@
+@@ -1387,7 +1405,7 @@
  end)
 
  op(ipint_table_catch_all_entry, macro()
@@ -254,7 +260,7 @@
      ipintCatchCommon()
 
      # do nothing: 0 in sp for no arguments, call normal operation
-@@ -1405,7 +1418,7 @@
+@@ -1405,7 +1423,7 @@
  end)
 
  op(ipint_table_catch_allref_entry, macro()
@@ -263,7 +269,7 @@
      ipintCatchCommon()
 
      # push only the ref
-@@ -1954,7 +1967,7 @@
+@@ -1954,7 +1972,7 @@
  # 5. Instruction implementation #
  #################################
 
@@ -312,25 +318,38 @@
  FOR_EACH_IPINT_CONVERSION_OPCODE(IPINT_VALIDATE_DEFINE_FUNCTION);
 --- a/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
 +++ b/Source/JavaScriptCore/llint/InPlaceInterpreter64.asm
-@@ -33 +33 @@
+@@ -30,9 +30,14 @@
+     subp IPIntCalleeSaveSpaceStackAligned, sp
+     if ARM64 or ARM64E
+         storepairq MC, PC, -2 * SlotSize[cfr]
 -    elsif X86_64 or RISCV64
 +    elsif X86_64
-@@ -35,0 +36,5 @@
-+    elsif RISCV64
 +        storep PC, -1 * SlotSize[cfr]
 +        storep MC, -2 * SlotSize[cfr]
++    elsif RISCV64
+         storep PC, -1 * SlotSize[cfr]
+         storep MC, -2 * SlotSize[cfr]
 +        storep sc2, -4 * SlotSize[cfr]
 +        storep sc3, -5 * SlotSize[cfr]
-@@ -45 +50,4 @@
+     end
+ end
+
+@@ -42,16 +47,21 @@
+     # to be observable within the same Wasm module.
+     if ARM64 or ARM64E
+         loadpairq -2 * SlotSize[cfr], MC, PC
 -    elsif X86_64 or RISCV64
 +    elsif X86_64
+         loadp -1 * SlotSize[cfr], PC
+         loadp -2 * SlotSize[cfr], MC
++    elsif RISCV64
 +        loadp -1 * SlotSize[cfr], PC
 +        loadp -2 * SlotSize[cfr], MC
-+    elsif RISCV64
-@@ -47,0 +56,2 @@
 +        loadp -4 * SlotSize[cfr], sc2
 +        loadp -5 * SlotSize[cfr], sc3
-@@ -51,7 +51,7 @@
+     end
+     addp IPIntCalleeSaveSpaceStackAligned, sp
+ end
 
  # Dispatch target bases
 
@@ -339,7 +358,7 @@
  const ipint_dispatch_base = _ipint_unreachable
  end
 
-@@ -71,7 +71,7 @@
+@@ -71,7 +81,7 @@
      pcrtoaddr ipint_dispatch_base, t7
      addlshiftp t7, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
      jmp t0
@@ -348,7 +367,7 @@
      pcrtoaddr ipint_dispatch_base, t1
      lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
      addq t1, t0
-@@ -87,7 +87,7 @@
+@@ -87,7 +97,7 @@
  macro pushQuad(reg)
      if ARM64 or ARM64E
          push reg, reg
@@ -357,7 +376,7 @@
          push reg, reg
      else
          break
-@@ -102,7 +102,7 @@
+@@ -102,7 +112,7 @@
      # FIXME: emit post-increment in offlineasm
      if ARM64 or ARM64E
          loadqinc [sp], reg, V128ISize
@@ -366,7 +385,7 @@
          loadq [sp], reg
          addq V128ISize, sp
      else
-@@ -208,7 +208,7 @@
+@@ -208,7 +218,7 @@
      addp 1, MC
      bbgteq argumINTTmp, (constexpr IPInt::ArgumINTBytecode::NumOpcodes), _ipint_argument_dispatch_err
      lshiftp (constexpr (WTF::fastLog2(JSC::IPInt::alignArgumInt))), argumINTTmp
@@ -375,7 +394,7 @@
      pcrtoaddr _argumINT_begin, argumINTDsp
      addp argumINTTmp, argumINTDsp
      jmp argumINTDsp
-@@ -227,7 +227,7 @@
+@@ -227,7 +237,7 @@
  if ARM64 or ARM64E
      # offlineasm doesn't have xzr so emit it
      emit "stp x19, xzr, [x9]"
@@ -384,7 +403,7 @@
      storep argumINTTmp, [argumINTDst]
      storep 0, 8[argumINTDst]
  end
-@@ -396,7 +396,7 @@
+@@ -396,7 +406,7 @@
 
  ipintOp(_end, macro()
      validateOpcodeConfig(t1)
@@ -393,7 +412,7 @@
      loadp UnboxedWasmCalleeStackSlot[cfr], ws0
  end
      loadp Wasm::IPIntCallee::m_bytecodeEnd[ws0], t1
-@@ -408,7 +408,7 @@
+@@ -408,7 +418,7 @@
  # This implementation is specially defined out of ipintOp scope to make end implementation tight.
  .ipint_end_ret:
      ipintEpilogueOSR(10)
@@ -402,7 +421,7 @@
      loadp UnboxedWasmCalleeStackSlot[cfr], ws0
  end
      # uINT buffer lives on the signature RTT. The stack-return FP offset is
-@@ -499,7 +499,7 @@
+@@ -499,7 +509,7 @@
      validateOpcodeConfig(MC)
      # ret
 
@@ -411,7 +430,7 @@
      loadp UnboxedWasmCalleeStackSlot[cfr], ws0
  end
 
-@@ -511,7 +511,7 @@
+@@ -511,7 +521,7 @@
  if ARM64 or ARM64E
      const IPIntCallCallee = sc1
      const IPIntCallFunctionSlot = sc0
@@ -420,7 +439,7 @@
      const IPIntCallCallee = t7
      const IPIntCallFunctionSlot = t6
  end
-@@ -3083,7 +3083,7 @@
+@@ -3108,7 +3118,7 @@
      if ARM64 or ARM64E
          addlshiftp t1, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
          jmp t0
@@ -429,7 +448,7 @@
          lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
          addq t1, t0
          jmp t0
-@@ -3103,7 +3103,7 @@
+@@ -3128,7 +3138,7 @@
      if ARM64 or ARM64E
          addlshiftp t1, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
          jmp t0
@@ -438,7 +457,7 @@
          lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignIPInt))), t0
          addq t1, t0
          jmp t0
-@@ -3143,7 +3143,7 @@
+@@ -3168,7 +3178,7 @@
      if ARM64 or ARM64E
          addlshiftp t1, t0, (constexpr (WTF::fastLog2(JSC::IPInt::alignAtomicIPInt))), t0
          jmp t0
@@ -447,7 +466,7 @@
          lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignAtomicIPInt))), t0
          addq t1, t0
          jmp t0
-@@ -11333,6 +11333,8 @@
+@@ -11350,6 +11360,8 @@
  # t7 = new value for CAS (must be push/popped around loadStoreMakePointerSlow).
  # After loadStoreMakePointerSlow, t4 points past the memarg.
 
@@ -456,7 +475,7 @@
  .ipint_i32_atomic_load_slow_path:
      loadStoreMakePointerSlow(t4, t0, 4, t1, t2, t5, t6)
      doI32AtomicLoad(t0, t2)
-@@ -11766,6 +11768,7 @@
+@@ -11783,6 +11795,7 @@
      pushInt64(t0)
      move t4, PC
      nextIPIntInstruction()
@@ -464,7 +483,7 @@
 
  ##################################
  ## "Out of line" logic for call ##
-@@ -11788,7 +11791,7 @@
+@@ -11805,7 +11818,7 @@
      addq 1, MC
      bigteq sc0, (constexpr IPInt::CallArgumentBytecode::NumOpcodes), _ipint_mint_arg_dispatch_err
      lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignMInt))), sc0
@@ -473,7 +492,7 @@
      pcrtoaddr _mint_begin, csr4
      addq sc0, csr4
      jmp csr4
-@@ -11804,7 +11807,7 @@
+@@ -11821,7 +11834,7 @@
      addq 1, MC
      bigteq sc0, (constexpr IPInt::CallResultBytecode::NumOpcodes), _ipint_mint_ret_dispatch_err
      lshiftq (constexpr (WTF::fastLog2(JSC::IPInt::alignMInt))), sc0
@@ -482,7 +501,7 @@
      pcrtoaddr _mint_begin_return, csr4
      addq sc0, csr4
      jmp csr4
-@@ -11976,7 +11979,7 @@
+@@ -11993,7 +12006,7 @@
      # t2 is safe here because r1==t1 on ARM64 (t2 is x2, a distinct register).
      loadpairq [t4], t2, t5
      storepairq t2, t5, -RestoreFrameSize[t4]
@@ -491,7 +510,7 @@
      loadp [t4], t5
      storep t5, -RestoreFrameSize[t4]
      loadp 8[t4], t5
-@@ -12132,7 +12135,7 @@
+@@ -12149,7 +12162,7 @@
      mintArgDispatch()
 
  mintAlign(_a2)
@@ -500,7 +519,7 @@
      mintPop(a2)
      mintArgDispatch()
  else
-@@ -12140,7 +12143,7 @@
+@@ -12157,7 +12170,7 @@
  end
 
  mintAlign(_a3)
@@ -509,7 +528,7 @@
      mintPop(a3)
      mintArgDispatch()
  else
-@@ -12148,7 +12151,7 @@
+@@ -12165,7 +12178,7 @@
  end
 
  mintAlign(_a4)
@@ -518,7 +537,7 @@
      mintPop(a4)
      mintArgDispatch()
  else
-@@ -12156,7 +12159,7 @@
+@@ -12173,7 +12186,7 @@
  end
 
  mintAlign(_a5)
@@ -527,7 +546,7 @@
      mintPop(a5)
      mintArgDispatch()
  else
-@@ -12164,7 +12167,7 @@
+@@ -12181,7 +12194,7 @@
  end
 
  mintAlign(_a6)
@@ -536,7 +555,7 @@
      mintPop(a6)
      mintArgDispatch()
  else
-@@ -12172,7 +12175,7 @@
+@@ -12189,7 +12202,7 @@
  end
 
  mintAlign(_a7)
@@ -545,7 +564,7 @@
      mintPop(a7)
      mintArgDispatch()
  else
-@@ -12343,7 +12346,7 @@
+@@ -12360,7 +12373,7 @@
      leap [sp, mintRetSrc], mintRetSrc
 
      # load (first_non_arg_addr - cfr) from the stack and make it absolute
@@ -554,7 +573,7 @@
      loadp (2 * SlotSize)[sc3], mintRetDst
  elsif X86_64
      loadp (3 * SlotSize)[sc3], mintRetDst
-@@ -12366,7 +12369,7 @@
+@@ -12383,7 +12396,7 @@
      mintRetDispatch()
 
  mintAlign(_r2)
@@ -563,7 +582,7 @@
      subp StackValueSize, mintRetDst
      storeq wa2, [mintRetDst]
      mintRetDispatch()
-@@ -12375,7 +12378,7 @@
+@@ -12392,7 +12405,7 @@
  end
 
  mintAlign(_r3)
@@ -572,7 +591,7 @@
      subp StackValueSize, mintRetDst
      storeq wa3, [mintRetDst]
      mintRetDispatch()
-@@ -12384,7 +12387,7 @@
+@@ -12401,7 +12414,7 @@
  end
 
  mintAlign(_r4)
@@ -581,7 +600,7 @@
      subp StackValueSize, mintRetDst
      storeq wa4, [mintRetDst]
      mintRetDispatch()
-@@ -12393,7 +12396,7 @@
+@@ -12410,7 +12423,7 @@
  end
 
  mintAlign(_r5)
@@ -590,7 +609,7 @@
      subp StackValueSize, mintRetDst
      storeq wa5, [mintRetDst]
      mintRetDispatch()
-@@ -12402,7 +12405,7 @@
+@@ -12419,7 +12432,7 @@
  end
 
  mintAlign(_r6)
@@ -599,7 +618,7 @@
      subp StackValueSize, mintRetDst
      storeq wa6, [mintRetDst]
      mintRetDispatch()
-@@ -12411,7 +12414,7 @@
+@@ -12428,7 +12441,7 @@
  end
 
  mintAlign(_r7)
@@ -608,7 +627,7 @@
      subp StackValueSize, mintRetDst
      storeq wa7, [mintRetDst]
      mintRetDispatch()
-@@ -12495,6 +12498,10 @@
+@@ -12512,6 +12525,10 @@
 
  if ARM64 or ARM64E
      loadpairq [sc3], MC, wasmInstance
@@ -619,7 +638,7 @@
  elsif X86_64
      loadq [sc3], wasmInstance
      loadq 8[sc3], MC
-@@ -12710,7 +12717,7 @@
+@@ -12727,7 +12744,7 @@
      uintDispatch()
 
  uintAlign(_r6)
@@ -628,7 +647,7 @@
      popQuad(wa6)
      uintDispatch()
  else
-@@ -12718,7 +12725,7 @@
+@@ -12735,7 +12752,7 @@
  end
 
  uintAlign(_r7)
@@ -637,7 +656,7 @@
      popQuad(wa7)
      uintDispatch()
  else
-@@ -12799,7 +12806,7 @@
+@@ -12816,7 +12833,7 @@
      argumINTDispatch()
 
  argumINTAlign(_a2)
@@ -646,7 +665,7 @@
      storeq wa2, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12809,7 +12816,7 @@
+@@ -12826,7 +12843,7 @@
 
 
  argumINTAlign(_a3)
@@ -655,7 +674,7 @@
      storeq wa3, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12818,7 +12825,7 @@
+@@ -12835,7 +12852,7 @@
  end
 
  argumINTAlign(_a4)
@@ -664,7 +683,7 @@
      storeq wa4, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12827,7 +12834,7 @@
+@@ -12844,7 +12861,7 @@
  end
 
  argumINTAlign(_a5)
@@ -673,7 +692,7 @@
      storeq wa5, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12836,7 +12843,7 @@
+@@ -12853,7 +12870,7 @@
  end
 
  argumINTAlign(_a6)
@@ -682,7 +701,7 @@
      storeq wa6, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12845,7 +12852,7 @@
+@@ -12862,7 +12879,7 @@
  end
 
  argumINTAlign(_a7)
@@ -691,7 +710,7 @@
      storeq wa7, [argumINTDst]
      subp LocalSize, argumINTDst
      argumINTDispatch()
-@@ -12910,7 +12917,12 @@
+@@ -12927,7 +12944,12 @@
      argumINTDispatch()
 
  argumINTAlign(_end)
@@ -706,7 +725,7 @@
      global _wasmTailCallTrampoline
 --- a/Source/JavaScriptCore/llint/LowLevelInterpreter.asm
 +++ b/Source/JavaScriptCore/llint/LowLevelInterpreter.asm
-@@ -813,8 +813,11 @@
+@@ -815,8 +815,11 @@
      end
  end
 
@@ -978,7 +997,7 @@
              $asm.puts "#{rvop(opcode)}"
 --- a/Source/JavaScriptCore/runtime/Options.cpp
 +++ b/Source/JavaScriptCore/runtime/Options.cpp
-@@ -828,7 +828,11 @@
+@@ -840,7 +840,11 @@
      Options::useConcurrentGC() = false;
      Options::forceUnlinkedDFG() = false;
      Options::useWasmSIMD() = false;
@@ -992,7 +1011,7 @@
 
 --- a/Source/JavaScriptCore/runtime/Options.h
 +++ b/Source/JavaScriptCore/runtime/Options.h
-@@ -174,7 +174,7 @@
+@@ -175,7 +175,7 @@
      static unsigned computeNumberOfWorkerThreads(int maxNumberOfWorkerThreads, int minimum = 1);
      static int32_t computePriorityDeltaOfWorkerThreads(int32_t twoCorePriorityDelta, int32_t multiCorePriorityDelta);
      static constexpr bool jitEnabledByDefault() { return isAddress64Bit(); }
@@ -1001,23 +1020,3 @@
      static double defaultQuickDFGTierUpThresholdFactor()
      {
  #if PLATFORM(MAC)
---- a/Source/JavaScriptCore/wasm/WasmAddressType.cpp
-+++ b/Source/JavaScriptCore/wasm/WasmAddressType.cpp
-@@ -48,7 +48,7 @@
-     }
- }
-
--#if !PLATFORM(PLAYSTATION)
-+#if !PLATFORM(PLAYSTATION) && ENABLE(JIT)
- AddressType::AddressType(B3::Type type)
- {
-     switch (type.kind()) {
-@@ -88,7 +88,7 @@
-     RELEASE_ASSERT_NOT_REACHED(invalidAddressTypeConversion);
- }
-
--#if !PLATFORM(PLAYSTATION)
-+#if !PLATFORM(PLAYSTATION) && ENABLE(JIT)
- B3::TypeKind AddressType::asB3TypeKind() const
- {
-     switch (m_type) {
