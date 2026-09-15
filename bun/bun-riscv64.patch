@@ -32,7 +32,7 @@
  export type Abi = "gnu" | "musl" | "android";
  export type BuildType = "Debug" | "Release" | "RelWithDebInfo" | "MinSizeRel";
  export type BuildMode = "full" | "cpp-only" | "rust-only" | "link-only" | "rust-and-link" | "archive-link";
-@@ -86,6 +86,7 @@
+@@ -80,6 +80,7 @@
    unix: boolean;
    x64: boolean;
    arm64: boolean;
@@ -40,7 +40,7 @@
 
    /**
     * What's running the build. Differs from os/arch/windows (target) in
-@@ -514,9 +515,11 @@
+@@ -510,9 +511,11 @@
        ? "x64"
        : a === "arm64"
          ? "aarch64"
@@ -53,9 +53,9 @@
 +              throw new BuildError(`Unsupported host architecture: ${a}`, { hint: "Bun builds on x64, arm64, or riscv64" });
 +            })();
 
-   // rustTriple is stamped later from Toolchain.rustHostTriple in resolveConfig
-   // (the rustc probe is authoritative — distinguishes glibc/musl host etc.).
-@@ -740,6 +743,7 @@
+   return { os, arch, exeSuffix: os === "windows" ? ".exe" : "" };
+ }
+@@ -733,6 +736,7 @@
    const unix = linux || darwin || freebsd;
    const x64 = arch === "x64";
    const arm64 = arch === "aarch64";
@@ -63,7 +63,7 @@
    // Darwin target on a non-darwin host (Linux CI box building macOS
    // binaries). Same host-clang + --target/-isysroot model as Android/FreeBSD,
    // with ld64.lld doing the Mach-O link. See the cross block further down.
-@@ -896,8 +900,8 @@
+@@ -889,8 +893,8 @@
    const staticLibatomic = partial.staticLibatomic ?? true;
 
    // TinyCC: off on Android (no upstream bionic support; FFI cc() falls back
@@ -74,7 +74,7 @@
 
    const valgrind = partial.valgrind ?? false;
    const fuzzilli = partial.fuzzilli ?? false;
-@@ -1020,7 +1024,7 @@
+@@ -1013,7 +1017,7 @@
    // and the libstdc++ ABI matches the WebKit prebuilt. musl uses an
    // alpine-derived sysroot. Local dev without a sysroot builds native.
    if (linux && abi !== "android" && crossTarget === undefined) {
@@ -83,7 +83,7 @@
      const hostAbi = host.os === "linux" ? detectLinuxAbi() : undefined;
      const isCross = arch !== host.arch || abi !== hostAbi;
      if (abi === "musl") {
-@@ -1182,6 +1186,7 @@
+@@ -1181,6 +1185,7 @@
      unix,
      x64,
      arm64,
@@ -107,17 +107,19 @@
      return {
 --- a/scripts/build/deps/mimalloc.ts
 +++ b/scripts/build/deps/mimalloc.ts
-@@ -25,4 +25,6 @@
+@@ -24,6 +24,8 @@
+     commit: MIMALLOC_COMMIT,
    }),
 
 +  patches: ["patches/mimalloc/atomic-pause.patch"],
 +
    build: cfg => {
      // ─── Override behavior (global malloc replacement) ───
+     //   ASAN:    OFF — ASAN interceptors must see the real malloc.
 --- a/scripts/build/deps/webkit.ts
 +++ b/scripts/build/deps/webkit.ts
-@@ -340,6 +340,19 @@
-       ...(cfg.asan ? { ENABLE_SANITIZERS: "address" } : {}),
+@@ -345,6 +345,19 @@
+       ...(cfg.assertions && cfg.release ? { ENABLE_ASSERTS: "ON" } : {}),
      };
 
 +    if (cfg.riscv64) {
@@ -164,7 +166,7 @@
      flag: "-mcpu=apple-m1",
      when: c => c.darwin && c.arm64,
      desc: "Target Apple M1 (works on all Apple Silicon)",
-@@ -826,6 +831,11 @@
+@@ -827,6 +832,11 @@
  // ═══════════════════════════════════════════════════════════════════════════
 
  export const linkerFlags: Flag[] = [
@@ -176,7 +178,7 @@
    // ─── Sanitizers ───
    {
      flag: "-fsanitize=address",
-@@ -1225,7 +1235,7 @@
+@@ -1226,7 +1236,7 @@
        "_dl_find_object",
        "posix_spawn_file_actions_addchdir_np",
      ].map(s => `-Wl,--wrap=${s}`),
@@ -187,7 +189,7 @@
    {
 --- a/scripts/build/rust.ts
 +++ b/scripts/build/rust.ts
-@@ -52,7 +52,7 @@
+@@ -51,7 +51,7 @@
 
  /** `rustTarget()` on the bare target platform; `abi` is linux-only. */
  export function rustTriple(os: OS, arch: Arch, abi: Abi | undefined): string {
@@ -196,7 +198,7 @@
    if (os === "darwin") return `${rustArch}-apple-darwin`;
    if (os === "windows") return `${rustArch}-pc-windows-msvc`;
    if (os === "freebsd") return `${rustArch}-unknown-freebsd`;
-@@ -143,6 +143,7 @@
+@@ -142,6 +142,7 @@
   * clang-cl (windows) spells the same flags `/clang:-march=...`.
   */
  function rustCpuTargetFlags(cfg: Config): string[] {
@@ -239,7 +241,7 @@
  }
 --- a/src/bun_core/Global.rs
 +++ b/src/bun_core/Global.rs
-@@ -577,6 +577,8 @@
+@@ -588,6 +588,8 @@
      "x86"
  } else if cfg!(target_arch = "aarch64") {
      "arm64"
@@ -305,7 +307,7 @@
  };
 --- a/src/bun_core/lib.rs
 +++ b/src/bun_core/lib.rs
-@@ -2946,7 +2946,13 @@
+@@ -2947,7 +2947,13 @@
          // return-address slot at `[fp + PC_OFFSET]` is always mapped.
          unsafe { *((fp + debug::PC_OFFSET) as *const usize) }
      }
@@ -365,7 +367,7 @@
          let mut is_first = true;
 --- a/src/crash_handler/lib.rs
 +++ b/src/crash_handler/lib.rs
-@@ -1498,6 +1498,8 @@
+@@ -1473,6 +1473,8 @@
          } else {
              "arm64"
          }
@@ -374,7 +376,7 @@
      } else {
          "x64"
      };
-@@ -1538,6 +1540,12 @@
+@@ -1513,6 +1515,12 @@
              let mc = &(*uc).uc_mcontext;
              Some((mc.pc as usize, mc.regs[29] as usize))
          }
@@ -387,7 +389,7 @@
          #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
          // SAFETY: the kernel passes a valid ucontext_t as the handler's 3rd arg.
          unsafe {
-@@ -1559,6 +1567,7 @@
+@@ -1534,6 +1542,7 @@
          #[cfg(not(any(
              all(target_os = "linux", target_arch = "x86_64"),
              all(target_os = "linux", target_arch = "aarch64"),
@@ -395,7 +397,7 @@
              all(target_os = "macos", target_arch = "x86_64"),
              all(target_os = "macos", target_arch = "aarch64"),
          )))]
-@@ -2370,6 +2379,10 @@
+@@ -2356,6 +2365,10 @@
              {
                  b'm'
              }
@@ -408,7 +410,7 @@
                  b'M'
 --- a/src/install_types/resolver_hooks.rs
 +++ b/src/install_types/resolver_hooks.rs
-@@ -913,6 +913,7 @@
+@@ -904,6 +904,7 @@
      pub(crate) const S390X: u16 = 1 << 9;
      pub(crate) const X32: u16 = 1 << 10;
      pub(crate) const X64: u16 = 1 << 11;
@@ -416,7 +418,7 @@
 
      pub const ALL_VALUE: u16 = Self::ARM
          | Self::ARM64
-@@ -924,12 +925,15 @@
+@@ -915,12 +916,15 @@
          | Self::S390
          | Self::S390X
          | Self::X32
@@ -433,7 +435,7 @@
 
      #[inline]
      pub const fn none() -> Self {
-@@ -957,6 +961,7 @@
+@@ -948,6 +952,7 @@
      b"arm" => ARM, b"ppc" => PPC, b"x32" => X32, b"x64" => X64,
      b"ia32" => IA32, b"mips" => MIPS, b"s390" => S390,
      b"arm64" => ARM64, b"ppc64" => PPC64, b"s390x" => S390X, b"mipsel" => MIPSEL,
@@ -465,7 +467,7 @@
      get EOL() {
 --- a/src/jsc/bindings/BunProcess.cpp
 +++ b/src/jsc/bindings/BunProcess.cpp
-@@ -195,6 +195,8 @@
+@@ -202,6 +202,8 @@
      return JSC::jsString(vm, makeAtomString("x64"_s));
  #elif CPU(ARM64)
      return JSC::jsString(vm, makeAtomString("arm64"_s));
@@ -474,13 +476,13 @@
  #else
  #error "Unknown architecture"
  #endif
-@@ -2836,6 +2838,9 @@
+@@ -2914,6 +2916,9 @@
  #elif CPU(ARM64)
-     variables->putDirect(vm, JSC::Identifier::fromString(vm, "host_arch"_s), JSC::jsString(vm, String("arm64"_s)), 0);
-     variables->putDirect(vm, JSC::Identifier::fromString(vm, "target_arch"_s), JSC::jsString(vm, String("arm64"_s)), 0);
+     putDirectNamed(vm, variables, "host_arch"_s, JSC::jsString(vm, String("arm64"_s)));
+     putDirectNamed(vm, variables, "target_arch"_s, JSC::jsString(vm, String("arm64"_s)));
 +#elif CPU(RISCV64)
-+    variables->putDirect(vm, JSC::Identifier::fromString(vm, "host_arch"_s), JSC::jsString(vm, String("riscv64"_s)), 0);
-+    variables->putDirect(vm, JSC::Identifier::fromString(vm, "target_arch"_s), JSC::jsString(vm, String("riscv64"_s)), 0);
++    putDirectNamed(vm, variables, "host_arch"_s, JSC::jsString(vm, String("riscv64"_s)));
++    putDirectNamed(vm, variables, "target_arch"_s, JSC::jsString(vm, String("riscv64"_s)));
  #else
  #error "Unsupported architecture"
  #endif
@@ -501,8 +503,8 @@
 +
  #if CPU(X86_64)
 
- #if OS(WINDOWS)
-@@ -130,12 +139,46 @@
+ #include <cpuid.h>
+@@ -129,12 +138,46 @@
 
  #endif
 
@@ -559,7 +561,7 @@
 
  #include "NodeVMScriptFetcher.h"
  #include "../vm/NodeVMRunTermination.h"
-@@ -191,6 +192,7 @@
+@@ -192,6 +193,7 @@
                  codeBlock = JSC::ProgramCodeBlock::create(vm, executable, unlinkedBlock, jsScope);
                  RETURN_IF_EXCEPTION(scope, {});
              }
@@ -567,7 +569,7 @@
              JSC::CompilationResult compilationResult = JIT::compileSync(vm, codeBlock, JITCompilationEffort::JITCompilationCanFail);
              if (compilationResult != JSC::CompilationResult::CompilationFailed) {
                  executable->installCode(codeBlock);
-@@ -198,6 +200,9 @@
+@@ -199,6 +201,9 @@
              } else {
                  script->cachedDataRejected(TriState::True);
              }
@@ -575,30 +577,11 @@
 +            script->cachedDataRejected(TriState::True);
 +#endif
          }
-     } else if (script->options().produceCachedData) {
+     } else if (script->options().produceCachedData)
          script->cacheBytecode();
---- a/src/jsc/bindings/NodeVMSourceTextModule.cpp
-+++ b/src/jsc/bindings/NodeVMSourceTextModule.cpp
-@@ -143,12 +143,16 @@
-             RETURN_IF_EXCEPTION(scope, nullptr);
-         }
-         if (codeBlock) {
-+#if ENABLE(JIT)
-             CompilationResult compilationResult = JIT::compileSync(vm, codeBlock, JITCompilationEffort::JITCompilationCanFail);
-             RETURN_IF_EXCEPTION(scope, nullptr);
-             if (compilationResult != CompilationResult::CompilationFailed) {
-                 executable->installCode(codeBlock);
-                 return ptr;
-             }
-+#else
-+            UNUSED_PARAM(codeBlock);
-+#endif
-         }
-     }
-
 --- a/src/jsc/bindings/webcore/SerializedScriptValue.cpp
 +++ b/src/jsc/bindings/webcore/SerializedScriptValue.cpp
-@@ -2580,12 +2580,13 @@
+@@ -2591,12 +2591,13 @@
          ptr += length * sizeof(char16_t);
  #else
          std::span<char16_t> characters;
@@ -627,7 +610,7 @@
  #define _GNU_SOURCE
 --- a/src/jsc/modules/BunJSCModule.h
 +++ b/src/jsc/modules/BunJSCModule.h
-@@ -596,7 +596,11 @@
+@@ -607,7 +607,11 @@
  JSC_DEFINE_HOST_FUNCTION(functionTotalCompileTime,
      (JSGlobalObject*, CallFrame*))
  {
@@ -641,7 +624,7 @@
  JSC_DECLARE_HOST_FUNCTION(functionGetProtectedObjects);
 --- a/src/options_types/compile_target.rs
 +++ b/src/options_types/compile_target.rs
-@@ -428,6 +428,7 @@
+@@ -434,6 +434,7 @@
          let arch: &'static [u8] = match self.arch {
              Architecture::X64 => b"\"x64\"",
              Architecture::Arm64 => b"\"arm64\"",
@@ -693,7 +676,7 @@
      };
 --- a/src/runtime/ffi/ffi_body.rs
 +++ b/src/runtime/ffi/ffi_body.rs
-@@ -591,6 +591,27 @@
+@@ -588,6 +588,27 @@
                          .set(bun_core::ZBox::from_vec_with_nul(b"/usr/lib64".to_vec()));
                  }
              }
@@ -723,7 +706,7 @@
 
 --- a/src/runtime/server/server_body.rs
 +++ b/src/runtime/server/server_body.rs
-@@ -465,6 +465,7 @@
+@@ -516,6 +516,7 @@
          match arch {
              Architecture::X64 => b"x64",
              Architecture::Arm64 => b"arm",
@@ -733,7 +716,7 @@
      }
 --- a/src/windows_sys/externs.rs
 +++ b/src/windows_sys/externs.rs
-@@ -1665,6 +1665,7 @@
+@@ -1663,6 +1663,7 @@
  /// reservation is the OS thread-block pointer — is guaranteed by the Windows
  /// ABI for every thread, so there is no caller-side obligation. The deref
  /// obligation lives with the caller of the returned `*mut TEB`.
@@ -741,7 +724,7 @@
  #[inline(always)]
  pub fn teb() -> *mut TEB {
      #[cfg(target_arch = "x86_64")]
-@@ -1691,6 +1692,7 @@
+@@ -1689,6 +1690,7 @@
  /// by the OS/CRT behind Rust's back (`SetStdHandle`, debugger toggling
  /// `BeingDebugged`, …). Materializing a `&'static` to it would be UB under
  /// Rust's aliasing rules. Callers must read fields through raw-pointer deref.
