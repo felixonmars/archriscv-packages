@@ -1,0 +1,13 @@
+--- a/packages/native/build.zig
++++ b/packages/native/build.zig
+@@ -410,6 +410,10 @@
+         .target = target,
+         .optimize = optimize,
+     });
++    // Zig 0.16's Aro omits the RISC-V float ABI macro required by glibc setjmp.h.
++    if (target.result.cpu.arch == .riscv64 and target.result.cpu.has(.riscv, .d)) {
++        miniaudio_translate.defineCMacro("__riscv_float_abi_double", "1");
++    }
+     miniaudio_translate.addIncludePath(b.path("src"));
+     module.addImport("miniaudio", miniaudio_translate.createModule());
+ 
