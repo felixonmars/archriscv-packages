@@ -1,6 +1,6 @@
---- a/packages/opencode/script/build.ts
-+++ b/packages/opencode/script/build.ts
-@@ -52,12 +52,16 @@
+--- a/packages/cli/script/build.ts
++++ b/packages/cli/script/build.ts
+@@ -32,10 +32,11 @@
  
  const allTargets: {
    os: string
@@ -9,36 +9,33 @@
    abi?: "musl"
    avx2?: false
  }[] = [
-   {
-     os: "linux",
-+    arch: "riscv64",
-+  },
-+  {
-+    os: "linux",
-     arch: "arm64",
-   },
-   {
++  { os: "linux", arch: "riscv64" },
+   { os: "linux", arch: "arm64" },
+   { os: "linux", arch: "x64" },
+   { os: "linux", arch: "x64", avx2: false },
+@@ -107,7 +108,10 @@
+       )
+     },
+   }
+-  const parcelWatcherPackage = `@parcel/watcher-${item.os}-${item.arch}${item.os === "linux" ? `-${item.abi ?? "glibc"}` : ""}`
++  const parcelWatcherPackage =
++    item.arch === "riscv64"
++      ? "@parcel/watcher/build/Release/watcher.node"
++      : `@parcel/watcher-${item.os}-${item.arch}${item.os === "linux" ? `-${item.abi ?? "glibc"}` : ""}`
+   const parcelWatcherPlugin: BunPlugin = {
+     name: "parcel-watcher-binding",
+     setup(build) {
 --- a/packages/core/package.json
 +++ b/packages/core/package.json
-@@ -34,9 +34,9 @@
-       "default": "./src/pty/pty.bun.ts"
+@@ -50,9 +50,9 @@
      },
      "#fff": {
+       "workerd": "./src/filesystem/fff.workerd.ts",
 -      "bun": "./src/filesystem/fff.bun.ts",
-+      "bun": "./src/filesystem/fff.node.ts",
++      "bun": "./src/filesystem/fff.workerd.ts",
        "node": "./src/filesystem/fff.node.ts",
 -      "default": "./src/filesystem/fff.bun.ts"
-+      "default": "./src/filesystem/fff.node.ts"
-     }
-   },
-   "devDependencies": {
---- a/package.json
-+++ b/package.json
-@@ -146,6 +146,7 @@
-     "@types/node": "catalog:"
-   },
-   "patchedDependencies": {
-+    "@opentui/core@0.4.5": "patches/opentui-riscv64.patch",
-     "@tailwindcss/oxide-wasm32-wasi@4.1.11": "patches/fix-oxide-worker-exit.patch",
-     "@dnd-kit/dom@0.5.0": "patches/@dnd-kit%2Fdom@0.5.0.patch",
-     "@npmcli/agent@4.0.2": "patches/@npmcli%2Fagent@4.0.2.patch",
++      "default": "./src/filesystem/fff.workerd.ts"
+     },
+     "#photon-wasm": {
+       "workerd": "./src/image/photon-wasm.workerd.ts",

@@ -9,20 +9,21 @@
    'ripgrep'
    'tar'
  )
-@@ -20,7 +22,9 @@
+@@ -20,7 +22,10 @@
  #)
  makedepends=(
    'bun'
 +  'cmake'
    'git'
++  'node-gyp'
 +  'nodejs'
  )
  optdepends=(
    'wl-clipboard: clipboard support on Wayland'
-@@ -35,11 +39,30 @@
- 
+@@ -36,11 +41,39 @@
  prepare() {
    cd $pkgname
+   sed -i 's|"packageManager": "bun@1.4.2"|"packageManager": "bun@1.4.0"|' package.json
 -  bun install --frozen-lockfile --ignore-scripts
 +  patch -Np1 -i ../wasm-css.patch
 +  patch -Np1 -i ../riscv64-target.patch
@@ -32,53 +33,63 @@
 +  # Install Oxide's threaded WASM fallback on the host architecture.
 +  sed -i '/"@tailwindcss\/oxide-wasm32-wasi":/s/"cpu": "none"/"cpu": "riscv64"/' bun.lock
 +  bun install --ignore-scripts
++
++  cd "$srcdir/opentui-0.5.10"
++  patch -Np1 -i ../opentui-translate-c.patch
++  cd packages/native
++  bash scripts/prepare-zig-deps.sh
  }
  
  build() {
--  cd $pkgname/packages/opencode
+-  cd $pkgname/packages/cli
++  # Parcel does not publish a RISC-V watcher addon; retain native inotify support.
++  cd "$srcdir/$pkgname/packages/core/node_modules/@parcel/watcher"
++  node-gyp rebuild --nodedir=/usr
++
 +  # Koffi's prebuilt RISC-V addon requires RVV and crashes on baseline CPUs.
 +  cd "$srcdir/package"
 +  node ./cnoke.cjs -P . -D src/koffi --release \
 +    -d "CMAKE_C_FLAGS=$CFLAGS -march=rv64gc -mabi=lp64d" \
 +    -d "CMAKE_CXX_FLAGS=$CXXFLAGS -march=rv64gc -mabi=lp64d" \
 +    -d 'CMAKE_ASM_FLAGS=-march=rv64gc -mabi=lp64d'
-+  cp build/koffi/linux_riscv64d/koffi.node "$srcdir/$pkgname/packages/opencode/node_modules/@opentui/core/"
++  cp build/koffi/linux_riscv64d/koffi.node "$srcdir/$pkgname/packages/cli/node_modules/@opentui/core/"
 +
-+  # OpenTUI 0.4.5 needs Zig 0.15.2 and does not publish a RISC-V renderer.
-+  cd "$srcdir/opentui-0.4.5/packages/core/src/zig"
-+  "$srcdir/zig-riscv64-linux-0.15.2/zig" build -Doptimize=ReleaseFast -Dtarget=riscv64-linux-gnu.2.27
++  # OpenTUI 0.5.10 needs Zig 0.16.0 and does not publish a RISC-V renderer.
++  cd "$srcdir/opentui-0.5.10/packages/native"
++  "$srcdir/zig-riscv64-linux-0.16.0/zig" build -Doptimize=ReleaseFast -Dlibrary-target=riscv64-linux-gnu.2.27
 +
-+  cd "$srcdir/$pkgname/packages/opencode"
++  cd "$srcdir/$pkgname/packages/cli"
    OPENCODE_VERSION=$pkgver bun run ./script/build.ts --single --baseline --skip-install
  }
  
-@@ -60,9 +83,12 @@
+@@ -61,9 +94,12 @@
    cd $pkgname
    case $CARCH in
-   aarch64) dir=opencode-linux-arm64 ;;
-+  riscv64) dir=opencode-linux-riscv64 ;;
-   x86_64) dir=opencode-linux-x64-baseline ;;
+   aarch64) dir=cli-linux-arm64 ;;
++  riscv64) dir=cli-linux-riscv64 ;;
+   x86_64) dir=cli-linux-x64-baseline ;;
    esac
-   install -vDm755 -t "$pkgdir/usr/bin" "packages/opencode/dist/$dir/bin/opencode"
+   install -vDm755 -t "$pkgdir/usr/bin" "packages/cli/dist/$dir/bin/opencode"
 +  install -vDm755 -t "$pkgdir/usr/lib/opencode" \
-+    "$srcdir/opentui-0.4.5/packages/core/src/zig/lib/riscv64-linux-gnu.2.27/libopentui.so"
++    "$srcdir/opentui-0.5.10/packages/native/lib/riscv64-linux-gnu.2.27/libopentui.so"
  
    install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
  
-@@ -71,3 +97,16 @@
-   SHELL=/bin/zsh "$pkgdir/usr/bin/opencode" completion \
+@@ -72,3 +108,17 @@
+   "$pkgdir/usr/bin/opencode" --completions zsh \
      | install -vDm644 /dev/stdin "$pkgdir/usr/share/zsh/site-functions/_opencode"
  }
 +
 +source+=(wasm-css.patch fix-oxide-worker-exit.patch riscv64-target.patch
-+         opentui-riscv64.patch
-+         'opentui-0.4.5.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.4.5.tar.gz'
-+         'https://ziglang.org/download/0.15.2/zig-riscv64-linux-0.15.2.tar.xz'
++         opentui-riscv64.patch opentui-translate-c.patch
++         'opentui-0.5.10.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.5.10.tar.gz'
++         'https://ziglang.org/download/0.16.0/zig-riscv64-linux-0.16.0.tar.xz'
 +         'https://registry.npmjs.org/koffi/-/koffi-3.2.1.tgz')
-+b2sums+=('b4fab5bac8f8f6c57c5ddbc404df67687abe8210773fac182cce0d5ee0b7e97a589701c32a150e61406f3c46a3690bbf133ac3fd5dbe645bbdc9b247f853b7a6'
++b2sums+=('d0dee3bd8bcd3c60623e9be467edfca50b613a3c12e90fdbca4cc8a2be259039ab796a70489ecf242546999cc146979c953f61a396bae14538541eea3768a0a2'
 +         '8ccefc948e86b53c43f77cc3f3ef3de557cd4c104a444fb0eb8b2626cfc607ae20825370ffa29eab66604514c5c76eeaa0c86d45a3b65776ac15edae374278b1'
-+         'f997385f7b1f6c68b2f6e958b68f9a8f76aa8cfcddd17d34a81e50243ef65b4b0d18a5928afed71ecee787b8e9f1526276f9203f760a081366ec670a8497964c'
-+         'f8cf829d4278196af59c3529945cf54ecaf2585e7d9afb69f9897a7bbda31e5485488d5fff6134fafe920d4676d6560cefa06f6ccaa971b326cc3c1aad8d527a'
-+         '98dfcd07b756eb9f25e3b9066f32d2fce20ed668e9fa9989ee229d1b16dcf5e0635cbae28f9c803d731c45b3b18b5a14e2d3cfd80f5c766891f8771118dac4be'
-+         'e5f6ef23373ed163d5064f78e0973dda93b5848b98ecda41bb4bc706804ab18fab9938192d7299bb0449bf9c44e8902270a4efbe3577f23e54f00b718d195b50'
++         'f7f8d4194c246d07306a10c4a649d26a40c41ed5be8b7eb8bb2cbe70ac4ae6fd90509a9db557c291f539b8244c88251448fcda5015766d054dc0bbdc80a2e757'
++         '6a6795fc36b341fabcbc183a9aca2c6569530fa2adb4e41531866db46187cfd87945263d98bb967681ade6e63f60bdfccdbc4d2641a26078ed8765f6146e70c5'
++         '5f5a71df1b208ad4de7568569198de5e7ccb473e0f024406cdeed88d4831936fc0df2aba6c13379a84f814cb4ad1764339305e481d9fc4ea684ce39b75280b41'
++         '0a4bc734cf317a88d77a82a1cdbd5e9acf4bea4eea8a009a0959a63c1bf3553f08f5d193081510f4c1874480ae684ef39c70896892977d78680d54827e0e99f2'
++         '09d68e6b192cc95f129f071e9083d91c921752b8f3abfc52335e5515ec628b29110433059e535abd5ab027b2f50564af15d2b002c5f2151b6d956f3f3a2df2d3'
 +         'c521ab108a3d52606ab8514cd532fe7d989d50f2d6f60bca40d20858a64403e5588b0cbdf9f3727dcd298c6fcd6413b19a054d4d836c3494b6a6485929c3148b')
