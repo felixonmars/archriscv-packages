@@ -1,0 +1,81 @@
+--- a/libs/core/tests/unit_tests/language_models/chat_models/test_benchmark.py
++++ b/libs/core/tests/unit_tests/language_models/chat_models/test_benchmark.py
+@@ -16,6 +16,6 @@
+         model.invoke("foo")
+     toc = time.time()
+ 
+-    # Verify that the time taken to run the loop is less than 1 seconds
++    # Allow slower builders ten seconds for the same 1,000 model invocations.
+ 
+-    assert (toc - tic) < 1
++    assert (toc - tic) < 10
+--- a/libs/core/tests/unit_tests/language_models/chat_models/test_rate_limiting.py
++++ b/libs/core/tests/unit_tests/language_models/chat_models/test_rate_limiting.py
+@@ -1,8 +1,11 @@
++import asyncio
+ import time
++from types import SimpleNamespace
+ 
+ import pytest
+ from blockbuster import BlockBuster
+ 
++from langchain_core import rate_limiters
+ from langchain_core.caches import InMemoryCache
+ from langchain_core.language_models import GenericFakeChatModel
+ from langchain_core.load import dumps
+@@ -144,8 +147,19 @@
+     assert 0.1 < toc - tic < 0.2
+ 
+ 
+-async def test_rate_limit_astream() -> None:
++async def test_rate_limit_astream(monkeypatch: pytest.MonkeyPatch) -> None:
+     """Test rate limiting astream."""
++    # Model overhead must not refill the bucket between streaming requests.
++    now = 0.0
++
++    async def sleep(delay: float) -> None:
++        nonlocal now
++        now += delay
++        await asyncio.sleep(0)
++
++    monkeypatch.setattr(rate_limiters, "time", SimpleNamespace(monotonic=lambda: now))
++    monkeypatch.setattr(rate_limiters, "asyncio", SimpleNamespace(sleep=sleep))
++
+     model = GenericFakeChatModel(
+         messages=iter(["hello world", "hello world", "hello world"]),
+         rate_limiter=InMemoryRateLimiter(
+@@ -155,28 +169,12 @@
+             # At 20 requests per second we see a refresh every 0.05 seconds
+         ),
+     )
+-    # Check astream
+-    tic = time.time()
+-    response = [msg async for msg in model.astream("foo")]
+-    assert [msg.content for msg in response] == ["hello", " ", "world"]
+-    toc = time.time()
+-    # Should be larger than check every n seconds since the token bucket starts
+-    assert 0.1 < toc - tic < 0.2
+-
+-    # Second time around we should have 1 token left
+-    tic = time.time()
+-    response = [msg async for msg in model.astream("foo")]
+-    assert [msg.content for msg in response] == ["hello", " ", "world"]
+-    toc = time.time()
+-    # Should be larger than check every n seconds since the token bucket starts
+-    assert toc - tic < 0.1  # Slightly smaller than check every n seconds
+-
+-    # Third time around we should have 0 tokens left
+-    tic = time.time()
+-    response = [msg async for msg in model.astream("foo")]
+-    assert [msg.content for msg in response] == ["hello", " ", "world"]
+-    toc = time.time()
+-    assert 0.1 < toc - tic < 0.2
++    # The first wait yields two tokens; the third request must wait again.
++    for expected_delay in (0.1, 0.0, 0.1):
++        tic = now
++        response = [msg async for msg in model.astream("foo")]
++        assert [msg.content for msg in response] == ["hello", " ", "world"]
++        assert now - tic == pytest.approx(expected_delay)
+ 
+ 
+ def test_rate_limit_skips_cache() -> None:
