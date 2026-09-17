@@ -1,67 +1,48 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -25,7 +25,12 @@ sha512sums=('ab7936e1f1e8fe2d56a2f174aac682e296dde9ff7e30f55f4ac1469be0849e1c070
-             'fdc047aadc1cb947209d7ae999d8a7f5f10ae46bf71687080bc13bc3082cc5166bbbe88c8f506b78adb5d772f5366ec671b04a2f761e7d7f249ebe5726681e30')
- 
- prepare() {
-+	patch -Np1 -d bitwarden < bitwarden-napi-riscv64.patch
- 	cd bitwarden/apps/desktop
-+	pushd desktop_native
-+	cargo fetch --target "$(rustc -vV | sed -n 's/host: //p')" # no --locked becuase upstream Cargo.toml doesn't match lock file
-+	popd
-+	
- 
- 	export npm_config_build_from_source=true
- 	export npm_config_cache="$srcdir/npm_cache"
-@@ -38,7 +43,7 @@ prepare() {
- 	patch --strip=1 src/main/native-messaging.main.ts "$srcdir/native-messaging.main.ts.patch"
+@@ -38,7 +38,7 @@
+ 	sed -i '/"postinstall":/d' package.json
  
  	# Patch build to make it work with system electron
 -	export SYSTEM_ELECTRON_VERSION=$(electron$_electronversion -v | sed 's/v//g')
 +	export SYSTEM_ELECTRON_VERSION=$(< "/usr/lib/electron$_electronversion/version")
  	export ELECTRONVERSION=$_electronversion
  	sed -i "s|@electronversion@|${ELECTRONVERSION}|" "$srcdir/bitwarden.sh"
- 	cd ../../
-@@ -47,31 +52,44 @@ prepare() {
- 	   > package.json.patched
- 	mv package.json.patched package.json
- 	patch --strip=1 apps/desktop/desktop_native/napi/index.js "$srcdir/nativelib.patch"
--	npm install
-+	jq '.devDependencies."electron-builder"="npm:@riscv-forks/electron-builder@24.13.3"
-+	|  .overrides."app-builder-lib"="npm:@riscv-forks/app-builder-lib@24.13.3"
-+	|  .overrides."builder-util"="npm:@riscv-forks/builder-util@24.13.1"' package.json > package.json.new
-+	mv package.json{.new,}
-+	# Ugly workaround for https://github.com/npm/cli/issues/5443 https://github.com/npm/cli/issues/7660
-+	rm -f package-lock.json
-+	npm i
-+	local _builder_bin=node_modules/app-builder-bin/linux/riscv64
-+	mkdir "$_builder_bin"
-+	go build -C ../app-builder
-+	cp ../app-builder/app-builder "$_builder_bin"
-+	mkdir -p  node_modules/7zip-bin/linux/riscv64
-+	ln -s /usr/bin/7za node_modules/7zip-bin/linux/riscv64/7za
- }
  
+@@ -52,7 +52,16 @@
+ 	# patches from opensuse
+ 	patch -p1 -i "$srcdir/no-sourcemaps.patch"
+ 	patch -p1 -i "$srcdir/remove-unnecessary-deps.patch"
+-	npm ci
++	# Defer install hooks to disable electron-winstaller's Windows-only 7-Zip setup.
++	# https://github.com/electron/windows-installer/pull/614
++	npm ci --allow-git=all --ignore-scripts
++	npm pkg delete scripts.install --prefix node_modules/electron-winstaller
++	# npm 12 disables install scripts required by this lockfile.
++	npm rebuild --allow-git=all --dangerously-allow-all-scripts
++	# RISC-V support from electron-builder PR #8143, reverted upstream in #8427.
++	patch -Np1 -i "$srcdir/bitwarden-electron-builder-riscv64.patch"
++	mkdir -p node_modules/7zip-bin/linux/riscv64
++	ln -s /usr/bin/7za node_modules/7zip-bin/linux/riscv64/7za
+ 	pushd apps/desktop/desktop_native
+ 	cargo fetch --locked --target "$(rustc --print host-tuple)"
+ 	popd
+@@ -61,7 +70,7 @@
  build() {
  	cd bitwarden/apps/desktop
  	electronDist=/usr/lib/electron$_electronversion
 -	electronVer=$(electron$_electronversion --version | tail -c +2)
 +	electronVer=$(< "$electronDist/version")
- 	export npm_config_build_from_source=true
  	export npm_config_cache="$srcdir/npm_cache"
  	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-     export CXXFLAGS="$CXXFLAGS -Wno-error"
- 	pushd desktop_native/napi
--	npm run build
-+	cargo build --locked --release
-+	mv ../target/release/libdesktop_napi.so desktop_napi.linux-riscv64-gnu.node
+ 	export CXXFLAGS="$CXXFLAGS -Wno-error"
+@@ -120,17 +129,17 @@
+ 	# Remove empty directories
+ 	find . -type d -empty -print -delete
  	popd
- 	npm run build
- 	npm run clean:dist
 -	npm exec -c "electron-builder --linux --x64 --dir -c.electronDist=$electronDist \
--	             -c.electronVersion=$electronVer"
 +	npm exec -c "electron-builder --linux --dir -c.electronDist=$electronDist \
-+	             -c.electronVersion=$electronVer"
+ 	             -c.electronVersion=$electronVer"
  }
  
  package(){
@@ -69,18 +50,18 @@
 -	install -vDm644 dist/linux-unpacked/resources/app.asar -t "${pkgdir}/usr/lib/${pkgname}"
 +	install -vDm644 dist/linux-riscv64-unpacked/resources/app.asar -t "${pkgdir}/usr/lib/${pkgname}"
  	install -vDm644 build/package.json -t "${pkgdir}/usr/lib/${pkgname}"
+ 	install -vDm755 build/desktop_proxy -t "${pkgdir}/usr/lib/${pkgname}"
+ 	install -vDm755 desktop_native/target/release/libprocess_isolation.so -t "${pkgdir}/usr/lib/${pkgname}"
 -	cp -vr dist/linux-unpacked/resources/app.asar.unpacked -t "${pkgdir}/usr/lib/${pkgname}"
 +	cp -vr dist/linux-riscv64-unpacked/resources/app.asar.unpacked -t "${pkgdir}/usr/lib/${pkgname}"
  
  	for i in 16 32 64 128 256 512 1024; do
  		install -vDm644 resources/icons/${i}x${i}.png "${pkgdir}/usr/share/icons/hicolor/${i}x${i}/apps/${pkgname}.png"
-@@ -81,3 +99,9 @@ package(){
+@@ -140,3 +149,7 @@
  	install -vDm755 "${srcdir}/${pkgname}.sh" "${pkgdir}/usr/bin/bitwarden-desktop"
  	install -vDm644 "${srcdir}"/${pkgname}.desktop -t "${pkgdir}"/usr/share/applications
  }
 +
-+makedepends+=('go' 'p7zip')
-+source+=(bitwarden-napi-riscv64.patch
-+         git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
-+sha512sums+=('75db9299149971ae02f8c9204b478975a0cee2e52889a33f22634126cd004bdc62fa1009f776588acaf8c622b46db45a4d8bd7632b1098499c8c72dece295bef'
-+             '404f0e85748365fa97fdf79c400fbd2af1ff4d8f35cc172abc5055ae7c34aeb11aa2a3766b75d38041cafa92e58c3e1b4a26cd07a5492136c362332d102b2aa3')
++makedepends+=('p7zip')
++source+=(bitwarden-electron-builder-riscv64.patch)
++sha512sums+=('ea7403e25b475703724e6873612a2364ee9d73f2f3d849cadd7ee7f46e7835283636a018e2e029fd6f8a21d532f85e32432a718aa782d763e9614ddee7cf8d0f')
