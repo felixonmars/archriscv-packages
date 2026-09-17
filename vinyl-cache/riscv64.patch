@@ -1,16 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -32,6 +32,9 @@
+@@ -25,6 +25,13 @@
+ sha512sums=('5e8f715fb03dc47d3ce8fff2369f6f1625a63834661a6101057a7838a9a9e7baec93ddaa010d1fed76a90a52376c6cf25d1b7f845cc2fac034bcac823eabeafd'
+             'a23bcfdd097ba422f4960468dcc424eb5a7895cfc10ae194f0c22081b34b1d37e5a109ca26b36b74c8354b5a63cf9f24ac439b8a7b9af044a328712f7f3643d4')
  
-   # Fix install-data-local to respect DESTDIR
-   patch -Np1 -i "${srcdir}"/${pkgname}-fix-destdir.patch
++prepare() {
++  cd "$srcdir/$pkgname-$pkgver"
 +
 +  # VCL compilation can exceed vinyladm's default 5s CLI timeout on riscv64.
 +  sed -i 's|vinyladm -n ${tmpdir}/v1 vcl.load|vinyladm -n ${tmpdir}/v1 -t 60 vcl.load|' bin/vinyltest/tests/u00000.vtc
- }
- 
++}
++
  build() {
-@@ -51,7 +54,7 @@
+   cd "$srcdir/$pkgname-$pkgver"
+ 
+@@ -42,7 +49,7 @@
    cd "$srcdir/$pkgname-$pkgver"
  
    rm bin/vinyltest/tests/m00000.vtc
