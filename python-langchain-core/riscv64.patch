@@ -1,12 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -48,6 +48,9 @@
+@@ -48,6 +48,15 @@
  
    # makepkg's git fragment parser treats "=" inside tag values as separators.
    git checkout -q "langchain-core==$pkgver"
++  patch -Np1 -i "$srcdir/timing.patch"
 +
-+  # Allow slower builders two seconds for the model benchmark.
-+  sed -i -e 's/less than 1 seconds/less than 2 seconds/' -e 's/(toc - tic) < 1/(toc - tic) < 2/' libs/core/tests/unit_tests/language_models/chat_models/test_benchmark.py
++  # uuid-utils 1.0 replaces timestamp/nanos with a single nanoseconds argument.
++  # https://github.com/aminalaee/uuid-utils/pull/194
++  sed -i \
++    -e '/seconds, nanos = _to_timestamp_and_nanos(nanoseconds)/d' \
++    -e 's/_uuid_utils_uuid7(timestamp=seconds, nanos=nanos)/_uuid_utils_uuid7(nanoseconds=nanoseconds)/' \
++    libs/core/langchain_core/utils/uuid.py
++  sed -i 's/uuid-utils>=0.12.0,<1.0/uuid-utils>=1.0.0,<2.0/' libs/core/pyproject.toml
  }
  
  build() {
+@@ -65,3 +74,6 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=(timing.patch)
++sha512sums+=('d1368ec25c74d7bacf6719f89bad356b2711582fe39127211675976691a89e225fa79f841669708b9358990dc664c362dc67bff1961cc3af17ce99f4e1cbf044')
