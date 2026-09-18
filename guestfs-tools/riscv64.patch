@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -34,7 +34,8 @@
+   xz
+ )
+ checkdepends=(
+-  linux
++  iproute2
++  linux-lts  # match the working libguestfs appliance test environment
+   lvm2
+   mdadm
+   ntfs-3g
+@@ -42,6 +43,7 @@
+   perl-libguestfs
+   procps-ng
+   rpm-tools
++  systemd-sysvcompat
+   xfsprogs
+ )
+ backup=(
+@@ -61,6 +63,7 @@
+ 
+ prepare() {
+   cd $pkgname-$pkgver
++  patch -Np1 -i "$srcdir/increase-virt-tail-timeout.patch"
+   autoreconf -fiv
+ }
+ 
+@@ -93,3 +96,7 @@
+ 
+   make DESTDIR="$pkgdir/" install -C $pkgname-$pkgver
+ }
++
++source+=(increase-virt-tail-timeout.patch)
++sha512sums+=('ed37a0ef97a75c291e017f588c917f2ced93850f6f7afe3ac9b3c0485959e467a63717ed5d705ac1008c166a01d9be19f5f7f9a0792383640eb7eaa7df16c7d4')
++b2sums+=('c8fed7037d0ed0e052935335ba0a8726f7e1873430ac8d2906d25fe182c8bfa2ce6466372910355a1b824052eb529c5581a3fdbac3f758c5e2ca5641e8b3e3ce')

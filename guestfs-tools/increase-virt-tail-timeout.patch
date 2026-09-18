@@ -1,0 +1,34 @@
+--- a/tail/test-virt-tail.sh
++++ b/tail/test-virt-tail.sh
+@@ -73,12 +73,12 @@
+ tailpid=$!
+ 
+ # Wait for the first line of the tailed file to appear.
+-# Note we can wait up to 10 minutes here to deal with slow machines.
+-for retry in `seq 0 60`; do
++# Note we can wait up to 20 minutes here to deal with slow machines.
++for retry in `seq 0 120`; do
+     if grep -sq "line 1" $out; then break; fi
+     sleep 10;
+ done
+-if [ "$retry" -ge 60 ]; then
++if [ "$retry" -ge 120 ]; then
+     echo "$0: error: initial line of output did not appear"
+     exit 1
+ fi
+@@ -89,12 +89,12 @@
+ '
+ guestfish --remote sync
+ 
+-# Wait for new content to appear.
+-for retry in `seq 0 60`; do
++# Wait for new content to appear after virt-tail boots a new appliance.
++for retry in `seq 0 120`; do
+     if grep -sq "line 3" $out; then break; fi
+     sleep 10;
+ done
+-if [ "$retry" -ge 60 ]; then
++if [ "$retry" -ge 120 ]; then
+     echo "$0: error: continued output did not appear"
+     exit 1
+ fi
