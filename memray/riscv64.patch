@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -10,11 +10,18 @@
+ depends=('python' 'libunwind' 'python-rich' 'python-jinja' 'lz4' 'ipython' 'python-textual' 'libelf')
+ makedepends=('git' 'cmake' 'ninja' 'python-scikit-build-core' 'python-build' 'python-installer' 'python-wheel' 'cython' 'npm' 'python-pkgconfig')
+ checkdepends=('npm' 'python-pytest' 'python-pytest-textual-snapshot')
+-source=("git+$url.git#tag=v${pkgver}?signed")
+-sha512sums=('b36a6eb32d2e6141b2e717109639cae8bdc472acaa5589676fecaa16b1ba24422e08fe973fcc9352821d73e9e0350aff9df1477a9fb7d3471a5e8cf68d6eff8f')
++source=("git+$url.git#tag=v${pkgver}?signed"
++        riscv64-tests.patch)
++sha512sums=('b36a6eb32d2e6141b2e717109639cae8bdc472acaa5589676fecaa16b1ba24422e08fe973fcc9352821d73e9e0350aff9df1477a9fb7d3471a5e8cf68d6eff8f'
++            'ce5971c33734381ef310a576918ef4b7ce3b9e34014932cf9ff056b52f6f43992ed1b6b3353422c0acb4bd3ffa76e9f61358c2a5e9cd4f203b3d7006f9fba00a')
+ validpgpkeys=('A035C8C19219BA821ECEA86B64E628F8D684696D'   # Pablo Galindo Salgado <pablogsal@gmail.com>
+               'F8C887A85001AA63AAE944BC8AB9921EA97C9108')  # Matt Wozniski <godlygeek@gmail.com>
+ 
++prepare() {
++  cd "${pkgname}"
++  patch -p1 -i ../riscv64-tests.patch
++}
++
+ build() {
+   cd "${pkgname}"
+ 
+@@ -23,7 +30,7 @@
+   export CFLAGS+=" -ffat-lto-objects"
+   export CXXFLAGS+=" -ffat-lto-objects"
+ 
+-  make build-js build-vendor
++  make -j1 build-js build-vendor
+   python -m build --wheel --no-isolation
+ }
+ 
