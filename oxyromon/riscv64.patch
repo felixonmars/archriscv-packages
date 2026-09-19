@@ -1,59 +1,75 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -24,7 +24,6 @@
-   qt6-base
-   rust
-   wit
--  yarn
- )
- optdepends=(
-   'bchunk: BIN to ISO support'
-@@ -43,8 +42,20 @@
-
+@@ -41,9 +41,16 @@
+ options=(!lto)
+ 
  prepare() {
-   cd oxyromon
--  yarn install \
--    --frozen-lockfile
+-  cd oxyromon
+   rustup install stable
+   rustup target add wasm32-unknown-unknown
++  cp wasm-bindgen-0.2.126-Cargo.lock wasm-bindgen-0.2.126/Cargo.lock
++  cargo fetch \
++    --locked \
++    --manifest-path wasm-bindgen-0.2.126/crates/cli/Cargo.toml \
++    --target "$(rustc --print host-tuple)"
++  cd oxyromon
 +  # Use the packaged maxcso instead of the bundled x86_64 test binary.
 +  rm tests/maxcso
-+  # Use upstream WASM bindings where native riscv64 bindings are unavailable.
-+  cat > pnpm-workspace.yaml <<'EOF'
-+overrides:
-+  lightningcss: npm:lightningcss-wasm@1.30.2
-+supportedArchitectures:
-+  cpu: [current, wasm32]
-+allowBuilds:
-+  esbuild: true
-+  svelte-preprocess: false # Only prints an optional-dependency reminder.
-+EOF
-+  pnpm install \
-+    --no-frozen-lockfile
    cargo fetch \
      --locked
+   cd frontend
+@@ -52,14 +59,22 @@
  }
-@@ -53,7 +64,8 @@
+ 
+ build() {
++  unset RUSTFLAGS
++  cargo build \
++    --bin wasm-bindgen \
++    --frozen \
++    --release \
++    --manifest-path wasm-bindgen-0.2.126/crates/cli/Cargo.toml
    cd oxyromon
    export CARGO_PROFILE_RELEASE_LTO=true
    export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
--  yarn build
-+  export SKIP_PNPM=true
-+  pnpm build
+-  unset RUSTFLAGS
+   pushd frontend
+-  CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS= \
++  PATH="${srcdir}/wasm-bindgen-0.2.126/target/release:${PATH}" \
++    CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS= \
+     trunk build --release
+   popd
++  # The frontend is already built; do not rebuild it in build.rs.
++  export SKIP_TRUNK=true
    cargo build \
      --features server \
      --release \
-@@ -61,6 +73,7 @@
- }
-
+@@ -68,6 +83,7 @@
+ 
  check() {
-+  export SKIP_PNPM=true
+   unset RUSTFLAGS
++  export SKIP_TRUNK=true
    cargo test \
      --features server \
      --release \
-@@ -69,6 +82,7 @@
- }
-
+@@ -77,6 +93,7 @@
+ 
  package() {
-+  export SKIP_PNPM=true
+   unset RUSTFLAGS
++  export SKIP_TRUNK=true
    cargo install \
      --features server \
      --frozen \
+@@ -85,3 +102,13 @@
+     --path oxyromon \
+     --root "${pkgdir}/usr"
+ }
++
++makedepends+=(binaryen)
++source+=(
++  'wasm-bindgen-0.2.126.tar.gz::https://github.com/wasm-bindgen/wasm-bindgen/archive/0.2.126.tar.gz'
++  'wasm-bindgen-0.2.126-Cargo.lock::https://gitlab.archlinux.org/archlinux/packaging/packages/wasm-bindgen/-/raw/0.2.126-1/Cargo.lock'
++)
++b2sums+=(
++  'f6928b268bbea5f06b211a34f7ce87573743f2fff0f5ac0249ff590945df3e2e1cf0f3282a4eba973888878dcf4d14e8669fba083144b77c914e38782cbda59e'
++  'b2092a3d19a72880f228736f27efa6f1f20db1965fdda7e9aa889ac3bbec29cb75f0c4f0fc9af35af2f26de8503df3dadfe80fec174ad6c691aa0417e44acddb'
++)
