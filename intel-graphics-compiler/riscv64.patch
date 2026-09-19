@@ -1,23 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -50,6 +50,8 @@
-             'b47ada280614670a467f80e9f8c67542050983f238f2f4b3fa17682855faf9bf'
-             '698707f39531b2655624158e456bfa698891f6a765bf207399c4438cc4cf9cd5')
- 
-+source+=('intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch::https://github.com/intel/intel-graphics-compiler/commit/0228c3cac90e35f094e6409ecdbb2787240f0b1b.diff')
-+sha256sums+=('075de70c8f654ef750c4b191fc44ef268c04b3a3eb678b95800ae84fa4806e73')
- prepare() {
-     # rename to prevent SPIRV-LLVM-Translator from being included
-     # twice by the build process, which causes the build to fail
-@@ -60,6 +62,7 @@
+@@ -60,6 +60,7 @@
      ln -s "${srcdir}/opencl-clang" "${srcdir}/llvm-project/llvm/projects/opencl-clang"
- 
+     
      patch -d "intel-graphics-compiler-${pkgver}" -Np1 -i "${srcdir}/010-intel-graphics-compiler-disable-werror.patch"
 +    patch -d "intel-graphics-compiler-${pkgver}" -Np1 -i "${srcdir}/intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch"
  }
  
  build() {
-@@ -73,6 +76,20 @@
+@@ -73,6 +74,20 @@
      export CFLAGS="${CFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
      export CXXFLAGS="${CXXFLAGS/-Wp,-D_FORTIFY_SOURCE=?/}"
  
@@ -37,12 +28,19 @@
 +
      export GIT_COMMITTER_NAME='builduser'
      export GIT_COMMITTER_EMAIL='builduser@archlinux.org'
- 
-@@ -86,6 +103,7 @@
+     
+@@ -83,6 +98,7 @@
+         -DCMAKE_INSTALL_LIBDIR=lib \
          -DCMAKE_INSTALL_PREFIX=/usr \
-         -DCMAKE_POLICY_VERSION_MINIMUM=3.5.0 \
          -DCMAKE_SKIP_RPATH=YES \
 +        -DIGC_OPTION__ARCHITECTURE_TARGET=LinuxRISCV \
          -DIGC_OPTION__CLANG_MODE=Source \
          -DIGC_OPTION__LINK_KHRONOS_SPIRV_TRANSLATOR=ON \
          -DIGC_OPTION__LLD_MODE=Source \
+@@ -106,3 +122,6 @@
+     install -D -m644 opencl-clang/LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE-opencl-clang"
+     ln -s "libopencl-clang.so.${_llvmver%.*}" "${pkgdir}/usr/lib/libopencl-clang.so"
+ }
++
++source+=('intel-graphics-compiler-fix-igc_arch_normalize-arch-regex.patch::https://github.com/intel/intel-graphics-compiler/commit/0228c3cac90e35f094e6409ecdbb2787240f0b1b.diff')
++sha256sums+=('c7031d81fdcc838f6d8c139e65750da244efd0e004b2d583529fd10d8914d9b5')
