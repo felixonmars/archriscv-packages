@@ -1,10 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -18,6 +18,16 @@ sha512sums=('89743e8a6e24344a49e99f7fdfd9fc75f7931210816f2292e113d5dbcc8410e0972
- prepare() {
+@@ -18,6 +18,19 @@
    cd v2ray-core
    sed -i 's|/usr/local/bin|/usr/bin|;s|/usr/local/etc|/etc|' release/config/systemd/system/*.service
-+
+ 
 +  # wait enough time for v2ray to start
 +  patch -Np1 -i $srcdir/$pkgname-InitializeServerConfig-sleep.patch
 +
@@ -14,10 +13,14 @@
 +  # reported to upstream as https://github.com/v2fly/v2ray-core/issues/2720
 +  patch -Np1 -i $srcdir/$pkgname-testVMessKCP.patch
 +  patch -Np1 -i $srcdir/$pkgname-kcpTest.patch
++
++  # v5.52.0 RRPIT DTLS scenarios stall for 30 seconds before failing on riscv64
++  patch -Np1 -i $srcdir/$pkgname-rrpit-riscv64.patch
++
+   export GOPATH="${srcdir}"
+   go mod download -modcacherw -x
  }
- 
- build() {
-@@ -42,3 +52,12 @@ package() {
+@@ -46,3 +59,14 @@
    install -Dm644 release/config/*.json -t "$pkgdir"/etc/v2ray/
    install -Dm755 v2ray -t "$pkgdir"/usr/bin/
  }
@@ -25,8 +28,10 @@
 +source+=("$pkgname-InitializeServerConfig-sleep.patch"
 +         "$pkgname-testTCPConn2-timeout.patch"
 +         "$pkgname-testVMessKCP.patch"
-+         "$pkgname-kcpTest.patch")
++         "$pkgname-kcpTest.patch"
++         "$pkgname-rrpit-riscv64.patch")
 +sha512sums+=('659fd7822200346ccb935b8c1decbcb64acfff2e5cf65c8e95b525f982caab9f8e169970b78a077379d9ff23409550fcbd6bf7387b302d60e242b62fcc20a044'
 +             'd681916026c2a224097c715cf21bfa53b0d61f496de828a38c94170d1a115081917e42cf3848f94ca76bdd5491be97c56f84cb6996584f204561f8f10796ce78'
 +             '247d22813eddccca5585efa0be3f6b3a4b00e5ca31f0ace3f8ad71015b688a4b41b7b65d639ca1632bb788849ff3e7c26cf6469fa39ffd0e728f23244d2714d6'
-+             '1949b4082a7a710619b8d46c50b19f002f9dc68a77d1ccde368a7e8bac872292f14fb60d34088776fdfeef5eea800ca68a0f86e0a0454f096c1df9e73f67b76c')
++             '1949b4082a7a710619b8d46c50b19f002f9dc68a77d1ccde368a7e8bac872292f14fb60d34088776fdfeef5eea800ca68a0f86e0a0454f096c1df9e73f67b76c'
++             '87ad99d7539e2af15e08781be48658c6db8aa87077c9dfe9b81a43449ffe58bf84da51feace09ff2c702b632ebddd1c12aac8699c967cba3687d3a9bee925626')
