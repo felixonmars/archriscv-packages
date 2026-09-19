@@ -1,0 +1,22 @@
+--- a/testing/scenarios/rrpit_test.go
++++ b/testing/scenarios/rrpit_test.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"context"
+ 	"os"
++	"runtime"
+ 	"testing"
+ 	"time"
+ 
+@@ -31,6 +32,11 @@
+ 
+ func runRRPITScenario(t *testing.T, clientConfigPath string, serverConfigPath string, socksPort v2net.Port) {
+ 	t.Helper()
++	if runtime.GOARCH == "riscv64" {
++		// v5.52.0 stalls until DTLS closes at 30 seconds. Session recovery was
++		// rewritten after this release: https://github.com/v2fly/v2ray-core/commit/fefb1be644d14b70ec47b0da2b98c4573ed7ab25
++		t.Skip("RRPIT DTLS scenarios stall on riscv64")
++	}
+ 
+ 	tcpServer := tcp.Server{
+ 		MsgProcessor: xor,
