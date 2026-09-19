@@ -1,0 +1,115 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+
+pkgname=esos-spacemit-k3
+pkgver=1.0.0
+_tag=k3-br-v${pkgver}
+pkgrel=1
+pkgdesc='ESOS firmware for SpacemiT K3 platforms'
+arch=('riscv64')
+url='https://github.com/spacemit-com/esos'
+license=('Apache-2.0')
+install=esos-spacemit.install
+depends=(
+  'bash'
+)
+makedepends=(
+  'dtc'
+  'git'
+  'newlib'
+  'lzop'
+  'python'
+  'scons'
+  'uboot-tools'
+)
+optdepends=(
+  'dracut: initramfs integration'
+  'mkinitcpio: initramfs integration'
+)
+options=('!strip' '!debug')
+source=(
+  "git+https://github.com/spacemit-com/esos.git#tag=${_tag}"
+  "git+https://github.com/spacemit-com/esos-lite.git#tag=${_tag}"
+  'pinctrl-single-include-strings-for-fls.patch::https://github.com/spacemit-com/esos/pull/1.patch'
+  'esos-install'
+  'esos-spacemit-flash'
+  'module-setup.sh'
+)
+sha512sums=('SKIP'
+            'SKIP'
+            '077162c196b66ff9d2ea0aea8f499a497a9cb94b3eede4a5b517d8a72f726b6c7e19b9eb6f54d22bbbf9060703ece27a62360a88eba750d85a2517a86001c2d3'
+            'ffa46804aff6da2ef87c5e38563a76ee9a9b41b0825df465699e422defec7c4162a7aeced5d69920d971058f457f73c524542570caf3de8fe91c7b7c448a7a87'
+            '5774e9608903c08cce46a1a28aaf83a00b6ca944019f432e2290bc91d3269dcc7a74d856d6e9e5795966ee1b3d81958d95500931f70bb3759efebd7938118d39'
+            '5a465d12b1c548bd582d064e46751ace8eaad01318ac06d610e5daf881918dd99d110b3f90c5367ad42b6ccd8621dc257faa8d57e9682dad8084abda3eac4052')
+
+prepare() {
+  cd esos
+
+  install -d components
+  rm -rf components/esos-lite
+  cp -a "$srcdir"/esos-lite components/esos-lite
+
+  echo 'export TOP_TARGET_CHIP=rt24' > bsp/spacemit/.esos_top.config
+  touch bsp/spacemit/rtconfig.h
+
+  local _rtconfigs=(
+    bsp/spacemit/rtconfig.py
+    components/esos-lite/rt-thread/bsp/spacemit/rtconfig.py
+  )
+  local _sconstructs=(
+    bsp/spacemit/SConstruct
+    components/esos-lite/rt-thread/bsp/spacemit/SConstruct
+  )
+
+  # https://github.com/spacemit-com/esos/pull/1
+  patch -Np1 -i "$srcdir"/pinctrl-single-include-strings-for-fls.patch
+
+  sed -i "s|PREFIX  = 'riscv64-unknown-elf-'|PREFIX  = ''|" "${_rtconfigs[@]}"
+  sed -i 's|-ffreestanding -flax-vector-conversions|-ffreestanding -fno-pie -fno-stack-protector -U__linux__ -U__gnu_linux__ -U__unix__ -Ulinux -Uunix -I/usr/riscv64-unknown-elf/include -flax-vector-conversions|' \
+    "${_rtconfigs[@]}"
+  sed -i "/LFLAGS.*-nostartfiles/s|-nostartfiles|-nostdlib -static -no-pie|" \
+    "${_rtconfigs[@]}"
+  sed -i 's|-Wl,--start-group $_LIBFLAGS -Wl,--end-group|-L/usr/riscv64-unknown-elf/lib -Wl,--start-group $_LIBFLAGS -lc -lnosys -lgcc -Wl,--end-group|' \
+    "${_sconstructs[@]}"
+  sed -i 's|/usr/include/newlib|/usr/riscv64-unknown-elf/include|' \
+    bsp/spacemit/platform/SConscript
+
+  # Build with the native toolchain instead of unpacking upstream's bundled -elf toolchain.
+  sed -i 's|if \[ ! -d "${TOP_DIR}/tools/toolchain/spacemit-toolchain-elf-newlib-x86_64-v1.0.9" \]; then|if false; then|' \
+    build_top.sh
+  sed -i 's|if \[ ! -d "${TOP_LITE_DIR}/../../../tools/toolchain/spacemit-toolchain-elf-newlib-x86_64-v1.0.9" \]; then|if false; then|' \
+    components/esos-lite/rt-thread/build_top.sh
+}
+
+build() {
+  cd esos
+
+  export TOP_DIR="$PWD"
+  export TOP_BSP_DIR="$TOP_DIR/bsp/spacemit"
+  export TOP_ESOS_BASE_DEFCONF="$TOP_BSP_DIR/.esos_top.config"
+  export TOP_OUTPUT_DIR="$TOP_DIR/output/esos"
+  export RTT_EXEC_PATH=/usr/bin
+
+  ./build_top.sh
+}
+
+package() {
+  cd esos
+
+  install -Dm644 output/esos/esos.itb "$pkgdir"/usr/lib/esos/esos.itb
+  install -Dm644 output/esos/rt24_os0_rcpu.elf "$pkgdir"/usr/lib/esos/rt24_os0_rcpu.elf
+  install -Dm644 output/esos/rt24_os1_rcpu.elf "$pkgdir"/usr/lib/esos/rt24_os1_rcpu.elf
+
+  install -dm755 "$pkgdir"/usr/lib/firmware
+  ln -s ../esos/rt24_os0_rcpu.elf "$pkgdir"/usr/lib/firmware/rt24_os0_rcpu.elf
+  ln -s ../esos/rt24_os1_rcpu.elf "$pkgdir"/usr/lib/firmware/rt24_os1_rcpu.elf
+
+  install -Dm755 "$srcdir"/esos-spacemit-flash "$pkgdir"/usr/bin/esos-spacemit-flash
+  install -Dm644 "$srcdir"/esos-install "$pkgdir"/usr/lib/initcpio/install/esos
+  install -Dm755 "$srcdir"/module-setup.sh \
+    "$pkgdir"/usr/lib/dracut/modules.d/99esos/module-setup.sh
+
+  install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/esos.LICENSE
+  install -Dm644 debian/copyright "$pkgdir"/usr/share/licenses/$pkgname/esos.debian.copyright
+  install -Dm644 components/esos-lite/LICENSE \
+    "$pkgdir"/usr/share/licenses/$pkgname/esos-lite.LICENSE
+}
