@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,6 +28,10 @@
+ prepare() {
+   cd ${pkgbase}-${pkgver}
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
++  local _tree_sitter_haskell
++  _tree_sitter_haskell=$(find "${CARGO_HOME:-$HOME/.cargo}"/registry/src -path '*/tree-sitter-haskell-0.23.1/src/tree_sitter/array.h' -print -quit)
++  [[ -n $_tree_sitter_haskell ]]
++  patch -d "${_tree_sitter_haskell%/src/tree_sitter/array.h}" -Np1 -i "$srcdir/tree-sitter-haskell-strict-aliasing.patch"
+ }
+ 
+ build() {
+@@ -77,3 +81,7 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=("tree-sitter-haskell-strict-aliasing.patch::https://github.com/tree-sitter/tree-sitter-haskell/commit/6247f81e55392377ef96c58ae7eff037c995dfb9.patch?full_index=1")
++sha512sums+=('c9b37bd1b6a64ddb685e99fe81c2ccebe640ac94cbbacbdb6e5f9c59e7ce7cf60152f9bab364dee554252b2e01cd5033feba2e1fe5b036e8be05ad6cfb0c180d')
++b2sums+=('584fc2aa3c063680cb2f2e6d87e982f4367b7d8ba9217915e4ae482145ac7cf0c1d4ae93a064323f1238526fb52dc4b14172425351f45cdffd3284e3f078ae63')
