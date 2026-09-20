@@ -1,0 +1,65 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -3,6 +3,7 @@
+ pkgbase=python-tensorflow-serving-api
+ pkgname=("${pkgbase}" "${pkgbase}"-gpu)
+ _pkgname=tensorflow_serving_api
++_tensorflow_commit=72fbba3d20f4616d7312b5e2b7f79daf6e82f2fa
+ pkgver=2.20.0
+ pkgrel=1
+ pkgdesc="Serving system for machine learning models, designed for production environments"
+@@ -10,30 +11,38 @@
+ url="https://www.tensorflow.org/serving/"
+ license=('Apache-2.0')
+ depends=('python' 'python-grpcio' 'python-tensorflow' 'python-protobuf')
+-makedepends=('bazel' 'git' 'python-build' 'python-installer' 'python-wheel' 'python-setuptools')
++makedepends=('git' 'protobuf' 'python-build' 'python-installer' 'python-wheel' 'python-setuptools')
+ source=("$pkgname-$pkgver.tar.gz::https://github.com/tensorflow/serving/archive/${pkgver}.tar.gz"
+-        https://github.com/bazelbuild/bazel/releases/download/7.4.1/bazel_nojdk-7.4.1-linux-x86_64
++        "tensorflow-${_tensorflow_commit}.tar.gz::https://github.com/tensorflow/tensorflow/archive/${_tensorflow_commit}.tar.gz"
+   )
+ b2sums=('974d943f9cc0b0766e03ad16155ebe60fac24cc6252fc4479344d2ae1abd946c1142eb346b4f823859f70527e8f0c60a779fa495ef92bd82bece3b143cbfa809'
+-        '9308abbc484943d0f28b76ef00a8d22f3e59d6aa21330f21449069b71371c452f109963afaf783a9dccafc4cf2fc1ef91b634aebbda06f418fb7293c5b1eefcb')
+-
+-prepare() {
+-  # Since tensorboard is currently imcompatible with Bazel 9, we're going to use
+-  # a local Bazel 7 to fix that. Stupid problems call for stupid solutions.
+-  install -Dm755 "${srcdir}"/bazel_nojdk-7.4.1-linux-x86_64 bazel/bazel
+-  export PATH="${srcdir}/bazel:$PATH"
+-  bazel --version
+-}
++        '8cd7c2561babd60a3d5cf19c002fc9b709b558a77f5e4d9eb5a16aedec96cb06192fd2a9963d674dee135225be9ba4ef8cb0d58900f9050ec50372285237504e')
+ 
+ build() {
+   cd "${srcdir}/serving-${pkgver}"
+ 
+-  bazel build -c opt tensorflow_serving/tools/pip_package:build_pip_package
+-  sed -i "s|bazel-genfiles/|bazel-out/k8-opt/bin/|g" tensorflow_serving/tools/pip_package/build_pip_package.sh
++  # Bazel's release binary is x86_64-only, so generate the Python API natively.
++  local _protos=(
++    tensorflow_serving/apis/{classification,get_model_metadata,get_model_status,inference,input,logging,model,model_management,prediction_log,predict,regression,session_service,status}.proto
++    tensorflow_serving/config/{file_system_storage_path_source,log_collector_config,logging_config,model_server_config,platform_config}.proto
++  )
++  local _wheel_dir="${srcdir}/wheel"
++
++  mkdir -p "${srcdir}/dist" "${_wheel_dir}"
++  protoc -I . -I /usr/include -I "${srcdir}/tensorflow-${_tensorflow_commit}" \
++    -I "${srcdir}/tensorflow-${_tensorflow_commit}/third_party/xla" \
++    --python_out="${_wheel_dir}" "${_protos[@]}"
++
++  cp tensorflow_serving/apis/{model_service,prediction_service}_pb2{,_grpc}.py \
++    "${_wheel_dir}/tensorflow_serving/apis"
++  cp tensorflow_serving/tools/pip_package/setup.py "${_wheel_dir}"
++  touch "${_wheel_dir}/tensorflow_serving"/{,apis/,config/}__init__.py
+ 
+-  mkdir "${srcdir}/dist"
+-  bazel-bin/tensorflow_serving/tools/pip_package/build_pip_package "${srcdir}/dist"
+-  ls -lah "${srcdir}/dist"
++  cd "${_wheel_dir}"
++  python setup.py bdist_wheel --universal --dist-dir "${srcdir}/dist" \
++    --project_name tensorflow-serving-api
++  python setup.py bdist_wheel --universal --dist-dir "${srcdir}/dist" \
++    --project_name tensorflow-serving-api-gpu
+ }
+ 
+ package_python-tensorflow-serving-api() {
