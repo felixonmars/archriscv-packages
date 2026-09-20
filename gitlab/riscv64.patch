@@ -1,37 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,6 +37,7 @@
-              node-gyp
-              nodejs
-              postgresql
-+             protobuf
-              # ruby-rake
-              rust
-              yarn)
-@@ -85,7 +86,22 @@
+@@ -85,7 +85,15 @@
  _datadir=/var/lib/gitlab # directory with gitlab data and it also $HOME for 'gitlab' user
  _logdir=/var/log/gitlab
  
-+_rbtrace_version=0.5.3
-+_glaz_revision=e1100ed8d93b3db58627229b7c4e16e29905a3d0
-+source+=("git+https://github.com/tmm1/rbtrace.git#tag=v${_rbtrace_version}"
-+         "git+https://gitlab.com/gitlab-org/auth/glaz.git#commit=${_glaz_revision}"
-+         "glaz-proto-honor-protoc.patch")
-+sha256sums+=('3b303a9d85b190c96e84c7b05a9ab0b39b95a201f3bc96ced9c36c6f13c3ab4d'
-+            '9b6e48ea2327b383d4282cff52a0980cb94434c758a8e5a8e6559127285d79f0'
-+            '722e7f0e10f6c35c4dfb6fa9fbdb5efc3c0a6499f7f081702460067fa83773b7')
++_rbtrace_version=0.5.5
++_glaz_revision=af9019a186fbb42cede0ad5ba7496aff2f88cb41
 +
  prepare() {
 +	# Refresh rbtrace's bundled msgpack config.guess and config.sub for riscv64.
 +	sed -Ei '/^([[:space:]]*)Dir.chdir\(dir\) do/a\      sys("autoreconf -fi")' rbtrace/ext/extconf.rb
-+	patch -d glaz -p0 -i "$srcdir/glaz-proto-honor-protoc.patch"
 +	mkdir -p .cargo
 +	printf 'paths = ["%s"]\n' "$srcdir/glaz/crates/glaz-proto" > .cargo/config.toml
 +
  	cd gitlab-foss
  
  	# GitLab tries to read its revision information from a file.
-@@ -116,6 +132,12 @@
+@@ -116,6 +124,12 @@
  }
  
  build() {
@@ -44,11 +29,12 @@
  	cd gitlab-foss
  
  	# https://github.com/nodejs/node/issues/48444
-@@ -139,13 +161,23 @@
+@@ -139,13 +153,24 @@
  	bundle config --local force_ruby_platform true # some native gems are not available for newer ruby
  	bundle config --local deployment true
  	bundle config --local without 'development test aws kerberos'
 +	bundle config --local build.nokogiri "--use-system-libraries --enable-shared --disable-static --with-cflags='-O2'"
++	bundle config --local build.ruby-magic --use-system-libraries
 +
 +	# Replace rbtrace with the copy patched above.
 +	export GEM_HOME=$HOME/.gem
@@ -69,3 +55,14 @@
  
  	export CGO_CPPFLAGS="${CPPFLAGS}"
  	export CGO_CFLAGS="${CFLAGS}"
+@@ -256,3 +281,10 @@
+ 
+ 	find "$pkgdir$_appdir" -name man -type d -print0 | xargs -0 -I {} rm -rf {}
+ }
++
++depends+=(file)
++makedepends+=(protobuf)
++source+=("git+https://github.com/tmm1/rbtrace.git#tag=v${_rbtrace_version}"
++         "git+https://gitlab.com/gitlab-org/auth/glaz.git#commit=${_glaz_revision}")
++sha256sums+=('a46a61f3c12ee54ed73a2d326009fc4de05eb69fd262008b44c9008cc492719a'
++             '69f6f1f87c5c559189ddb30c49b5dea03297a9ea5d71beeac90e38320707fc9c')
