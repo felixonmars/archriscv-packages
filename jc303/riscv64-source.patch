@@ -1,0 +1,132 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -7,6 +7,11 @@
+ 
+ project(JC303 VERSION 0.12.3)
+ 
++if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++    add_compile_definitions(CHOWDSP_NO_XSIMD=1)
++    add_compile_definitions(CHOWDSP_USE_LIBSAMPLERATE=1)
++endif()
++
+ 
+ ### Dependency versions ###
+ 
+@@ -62,13 +67,25 @@
+     GIT_TAG        ${LIB_CLAP_TAG}
+     GIT_CONFIG     advice.detachedHead=false)
+ 
+-FetchContent_Declare(chowdsp_utils
+-    GIT_REPOSITORY https://github.com/Chowdhury-DSP/chowdsp_utils.git
+-    GIT_TAG        ${LIB_CHOWDSP_UTILS_TAG}
+-    GIT_CONFIG     advice.detachedHead=false)
++if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++    FetchContent_Declare(chowdsp_utils
++        GIT_REPOSITORY https://github.com/Chowdhury-DSP/chowdsp_utils.git
++        GIT_TAG        ${LIB_CHOWDSP_UTILS_TAG}
++        GIT_CONFIG     advice.detachedHead=false
++        PATCH_COMMAND patch -p1 -F0 -i "${PROJECT_SOURCE_DIR}/../riscv64-chowdsp.patch")
++else()
++    FetchContent_Declare(chowdsp_utils
++        GIT_REPOSITORY https://github.com/Chowdhury-DSP/chowdsp_utils.git
++        GIT_TAG        ${LIB_CHOWDSP_UTILS_TAG}
++        GIT_CONFIG     advice.detachedHead=false)
++endif()
+ 
+ FetchContent_MakeAvailable(juce juce-clap-extensions chowdsp_utils)
+ 
++if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++    find_library(SAMPLERATE_LIBRARY samplerate REQUIRED)
++endif()
++
+ # gui resources BinaryData via CMakeLists.txt
+ add_subdirectory(src/gui/${GUI})
+ 
+@@ -193,6 +210,10 @@
+ # add dsp source code for overdrive based on guitarml from BYOD
+ add_subdirectory(src/dsp/guitarml-byod)
+ 
++if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++    target_link_libraries("${PROJECT_NAME}" PRIVATE ${SAMPLERATE_LIBRARY})
++endif()
++
+ ### IDE Generator post-config ###
+ 
+ # IDEs:  Place source groups for project targets into a "Targets" folder (to reduce visual clutter).
+--- a/src/dsp/guitarml-byod/CMakeLists.txt
++++ b/src/dsp/guitarml-byod/CMakeLists.txt
+@@ -30,7 +30,11 @@
+     GIT_REPOSITORY https://github.com/jatinchowdhury18/RTNeural.git
+     GIT_TAG        ${LIB_RTNEURAL_TAG}
+     GIT_CONFIG     advice.detachedHead=false)
+-set(RTNEURAL_XSIMD ON CACHE BOOL "Use RTNeural with XSIMD backend" FORCE)
++if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++    set(RTNEURAL_STL ON CACHE BOOL "Use RTNeural with STL backend" FORCE)
++else()
++    set(RTNEURAL_XSIMD ON CACHE BOOL "Use RTNeural with XSIMD backend" FORCE)
++endif()
+ 
+ # chowdsp math_approx fetch
+ FetchContent_Declare(math_approx
+@@ -79,9 +83,11 @@
+     )
+     target_compile_definitions(${target}
+         PRIVATE
+-            RTNEURAL_USE_XSIMD=1
+             _USE_MATH_DEFINES=1
+     )
++    if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
++        target_compile_definitions(${target} PRIVATE RTNEURAL_USE_XSIMD=1)
++    endif()
+     set_target_properties(${target} PROPERTIES
+         POSITION_INDEPENDENT_CODE TRUE
+         VISIBILITY_INLINES_HIDDEN TRUE
+@@ -167,4 +173,4 @@
+ 
+ # precompiled pch and set some compiler directives to force compilation to use cxx instead of c
+ #target_precompile_headers("${PROJECT_NAME}" PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pch.h>")
+-#target_include_directories("${PROJECT_NAME}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+\ No newline at end of file
++#target_include_directories("${PROJECT_NAME}" PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+--- a/src/dsp/guitarml-byod/processors/drive/neural_utils/RNNAccelerated.cpp
++++ b/src/dsp/guitarml-byod/processors/drive/neural_utils/RNNAccelerated.cpp
+@@ -116,7 +116,11 @@
+ template <int inputSize, int hiddenSize, int RecurrentLayerType, int SRCMode>
+ void RNNAccelerated<inputSize, hiddenSize, RecurrentLayerType, SRCMode>::process_conditioned (std::span<float> buffer, std::span<const float> condition, bool useResiduals) noexcept
+ {
++#if RTNEURAL_USE_XSIMD
+     alignas (alignment) float input_vec[xsimd::batch<float>::size] {};
++#else
++    alignas (alignment) float input_vec[2] {};
++#endif
+     if (useResiduals)
+     {
+         for (size_t n = 0; n < buffer.size(); ++n)
+--- a/src/dsp/guitarml-byod/processors/drive/neural_utils/ResampledRNN.h
++++ b/src/dsp/guitarml-byod/processors/drive/neural_utils/ResampledRNN.h
+@@ -54,7 +54,11 @@
+     using DenseLayerType = RTNeural::DenseT<float, hiddenSize, 1>;
+     RTNeural::ModelT<float, 1, 1, RecurrentLayerTypeComplete, DenseLayerType> model;
+ 
++#if CHOWDSP_NO_XSIMD
++    using ResamplerType = chowdsp::ResamplingTypes::SRCResampler<SRC_SINC_BEST_QUALITY>;
++#else
+     using ResamplerType = chowdsp::ResamplingTypes::LanczosResampler<8192, 8>;
++#endif
+     chowdsp::ResampledProcess<ResamplerType> resampler;
+     bool needsResampling = true;
+     double targetSampleRate = 48000.0;
+--- a/src/dsp/guitarml-byod/processors/drive/neural_utils/ResampledRNNAccelerated.h
++++ b/src/dsp/guitarml-byod/processors/drive/neural_utils/ResampledRNNAccelerated.h
+@@ -69,7 +69,11 @@
+                 >
+         model_variant;
+ 
++#if CHOWDSP_NO_XSIMD
++    using ResamplerType = chowdsp::ResamplingTypes::SRCResampler<SRC_SINC_BEST_QUALITY>;
++#else
+     using ResamplerType = chowdsp::ResamplingTypes::LanczosResampler<8192, 8>;
++#endif
+     chowdsp::ResampledProcess<ResamplerType> resampler;
+     bool needsResampling = true;
+     double targetSampleRate = 48000.0;
