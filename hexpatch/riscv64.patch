@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,6 +20,12 @@
+ prepare() {
+   cd "${_pkgname}-${pkgver}"
+   cargo fetch --target "$(rustc --print host-tuple)" --locked
++  local _keystone
++  _keystone=$(find "${CARGO_HOME:-$HOME/.cargo}"/registry/src \
++    -path '*/hexpatch-keystone-sys-0.9.4/keystone' -type d -print -quit)
++  [[ -n $_keystone ]]
++  patch -d "$_keystone" -Np1 -i "$srcdir/llvm-config-guess-riscv.patch"
++  patch -d "$_keystone" -Np1 -i "$srcdir/llvm-native-riscv.patch"
+ }
+ 
+ build() {
+@@ -40,3 +46,6 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=('llvm-config-guess-riscv.patch::https://github.com/llvm/llvm-project/commit/de1c2877a9ff12899ef50e179ade748fba8ab0c0.patch' 'llvm-native-riscv.patch')
++sha512sums+=('632a5b46558a5ffe783da91147d85f8f02e1f4b0a1c228a0e8e341aea5ab00771c10ef8a6661847b70fd34d68a51d1fb343a5bd56d1275737430b5258ae92a42' '6efb69020032ac4dfaddf122362b06a7f509c86e7eed340db4e575e0de46635cd8b2cb4af5cb815144d9201fd52c107eb92517d6a08f8c8fa13dc3875c91a669')
