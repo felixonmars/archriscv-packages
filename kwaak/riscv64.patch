@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,10 @@
+ prepare() {
+   cd "$pkgname-$pkgver"
+   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
++  local _swiftide_integrations
++  _swiftide_integrations=$(find "${CARGO_HOME:-$HOME/.cargo}"/registry/src -path '*/swiftide-integrations-0.30.0/src/duckdb/persist.rs' -print -quit)
++  [[ -n $_swiftide_integrations ]]
++  patch -d "${_swiftide_integrations%/src/duckdb/persist.rs}" -Np1 -i "$srcdir/swiftide-integrations-riscv64.patch"
+ }
+ 
+ build() {
+@@ -38,3 +42,6 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=('swiftide-integrations-riscv64.patch')
++sha512sums+=('SKIP')

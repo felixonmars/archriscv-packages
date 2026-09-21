@@ -1,0 +1,113 @@
+diff -urN a/src/duckdb/hybrid_query.sql b/src/duckdb/hybrid_query.sql
+--- a/src/duckdb/hybrid_query.sql	2026-09-21 05:16:27.386780376 +0000
++++ b/src/duckdb/hybrid_query.sql	2026-09-21 05:16:27.408186328 +0000
+@@ -1,52 +1,10 @@
+-with fts as (
+-    select 
+-        uuid, 
+-        chunk, 
+-        path,
+-        fts_main_{{table_name}}.match_bm25(
+-            uuid,
+-            {{query}},
+-            fields := chunk
+-        ) as score
+-    from {{table_name}}
+-    limit {{top_n}}
+-),
+-embd as (
+-    select 
+-        uuid, 
+-        chunk, 
+-        path,
+-        array_cosine_similarity({{embedding_name}}, cast([{{embedding}}] as float[{{embedding_size}}])) as score
+-    from {{table_name}}
+-    limit {{top_n}}
+-),
+-normalized_scores as (
+-    select 
+-        fts.uuid, 
+-        fts.chunk, 
+-        fts.path,
+-        fts.score as raw_fts_score, 
+-        embd.score as raw_embd_score,
+-        (fts.score / (select max(score) from fts)) as norm_fts_score,
+-        ((embd.score + 1) / (select max(score) + 1 from embd)) as norm_embd_score
+-    from 
+-        fts
+-    inner join
+-        embd 
+-    on fts.uuid = embd.uuid
+-)
+ select 
+     uuid,
+     chunk,
+-    path,
+-    raw_fts_score, 
+-    raw_embd_score, 
+-    norm_fts_score, 
+-    norm_embd_score, 
+-    -- (alpha * norm_embd_score + (1-alpha) * norm_fts_score)
+-    (0.8*norm_embd_score + 0.2*norm_fts_score) AS score_cc
+-from 
+-    normalized_scores
+-order by 
+-    score_cc desc
++    path
++from {{table_name}}
++order by array_cosine_similarity(
++    {{embedding_name}},
++    cast([{{embedding}}] as float[{{embedding_size}}])
++) desc
+ limit {{top_k}};
+diff -urN a/src/duckdb/persist.rs b/src/duckdb/persist.rs
+--- a/src/duckdb/persist.rs	2026-09-21 05:16:27.370428230 +0000
++++ b/src/duckdb/persist.rs	2026-09-21 05:16:27.392768939 +0000
+@@ -99,31 +99,12 @@
+                 return Ok(());
+             }
+ 
+-            // Install the extensions separately from the schema to avoid duckdb issues with random
+-            // 'extension exists' errors
+-            let _ = conn.execute_batch(include_str!("extensions.sql"));
+-
+             conn.execute_batch(&self.schema)
+                 .context("Failed to create indexing table")?;
+ 
+             tracing::debug!(schema = &self.schema, "Indexing table created");
+         }
+ 
+-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+-
+-        {
+-            let conn = self.connection.lock().unwrap();
+-            // We need to run this separately to ensure the table is created before we create the
+-            // index
+-            conn.execute_batch(&format!(
+-                "PRAGMA create_fts_index('{}', 'uuid', 'chunk', stemmer = 'porter',
+-                 stopwords = 'english', ignore = '(\\.|[^a-z])+',
+-                 strip_accents = 1, lower = 1, overwrite = 0);
+-",
+-                self.table_name
+-            ))?;
+-        }
+-
+         tracing::info!("Setup completed");
+ 
+         Ok(())
+diff -urN a/src/duckdb/schema.sql b/src/duckdb/schema.sql
+--- a/src/duckdb/schema.sql	2026-09-21 05:16:27.380386231 +0000
++++ b/src/duckdb/schema.sql	2026-09-21 05:16:27.400727452 +0000
+@@ -1,7 +1,3 @@
+-LOAD vss;
+-LOAD fts;
+-
+-
+ CREATE TABLE IF NOT EXISTS {{table_name}} (
+   uuid TEXT PRIMARY KEY,
+   chunk TEXT NOT NULL,
+@@ -11,4 +7,3 @@
+     {{vector}} FLOAT[{{size}}],
+   {% endfor %}
+ );
+-
