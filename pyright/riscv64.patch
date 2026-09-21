@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,7 +18,14 @@
+ 
+ prepare() {
+   cd $pkgname
+-  npm install
++  patch -Np1 -i "$srcdir/riscv64-fixes.patch"
++  # Lerna's Nx WASM fallback has no FileLock on riscv64.
++  SKIP_LERNA_BOOTSTRAP=yes npm install
++  # Rspack 2.0.5 has no riscv64 binding; 2.1.0 ships one.
++  for package in pyright pyright-internal; do
++    cd "$srcdir/$pkgname/packages/$package"
++    npm install --save-dev --save-exact @rspack/cli@2.1.0 @rspack/core@2.1.0
++  done
+ }
+ 
+ build() {
+@@ -47,3 +54,6 @@
+   cd packages/$pkgname
+   cp -r dist {,langserver.}index.js package.json "$pkgdir"/$mod_dir
+ }
++
++source+=(riscv64-fixes.patch)
++b2sums+=('f4139658f6c007f1f307813a69f9dc4f2eaeb37e772e52ea5af1baf98709bf808fc34b3f538ec8b079ed54c1074de8d6a6e257a837575a827897e99939cf4937')
