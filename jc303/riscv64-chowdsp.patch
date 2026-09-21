@@ -1,0 +1,20 @@
+--- a/modules/dsp/chowdsp_buffers/chowdsp_buffers.h
++++ b/modules/dsp/chowdsp_buffers/chowdsp_buffers.h
+@@ -30,7 +30,17 @@
+ JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wimplicit-const-int-float-conversion")
+ #include <juce_dsp/juce_dsp.h>
+ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
++#if ! CHOWDSP_NO_XSIMD
+ #include "Buffers/chowdsp_SIMDAudioBlock.h"
++#else
++namespace chowdsp
++{
++template <typename T>
++using AudioBlock = juce::dsp::AudioBlock<T>;
++template <typename T>
++using ProcessContextReplacing = juce::dsp::ProcessContextReplacing<T>;
++}
++#endif
+ #endif
+ 
+ /** The max number of channels that can fit in a chowdsp::Buffer or chowdsp::BufferView */
