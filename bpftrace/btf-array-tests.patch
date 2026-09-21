@@ -1,0 +1,73 @@
+--- a/tests/clang_parser.cpp
++++ b/tests/clang_parser.cpp
+@@ -748,8 +748,7 @@
+   ASSERT_TRUE(defs.enum_defs.contains("FooEnum"));
+ }
+ 
+-// Disabled because BTF flattens multi-dimensional arrays #3082.
+-TEST_F(clang_parser_btf, DISABLED_btf_arrays_multi_dim)
++TEST_F(clang_parser_btf, btf_arrays_multi_dim)
+ {
+   auto bpftrace = get_mock_bpftrace();
+   parse("struct Foo { struct Arrays a; };", *bpftrace);
+@@ -759,7 +758,7 @@
+ 
+   ASSERT_TRUE(arrs->HasField("multi_dim"));
+   EXPECT_TRUE(arrs->GetField("multi_dim").type.IsArrayTy());
+-  EXPECT_EQ(arrs->GetField("multi_dim").offset, 40);
++  EXPECT_EQ(arrs->GetField("multi_dim").offset, 56);
+   EXPECT_EQ(arrs->GetField("multi_dim").type.GetSize(), 24U);
+   EXPECT_EQ(arrs->GetField("multi_dim").type.GetNumElements(), 3);
+ 
+--- a/tests/field_analyser.cpp
++++ b/tests/field_analyser.cpp
+@@ -165,12 +165,13 @@
+   EXPECT_EQ(arrs->GetField("ptr_arr").type.GetSize(), 2 * sizeof(uintptr_t));
+   EXPECT_EQ(arrs->GetField("ptr_arr").offset, 40);
+ 
+-  // BTF flattens multi-dimensional arrays, so this test doesn't
+-  // check the correct number of elements. The correct values are
+-  // below in 'field_analyser_btf.btf_arrays_multi_dim'.
+   EXPECT_TRUE(arrs->GetField("multi_dim").type.IsArrayTy());
+-  EXPECT_EQ(arrs->GetField("multi_dim").type.GetNumElements(), 6);
+-  EXPECT_TRUE(arrs->GetField("multi_dim").type.GetElementTy().IsIntTy());
++  EXPECT_EQ(arrs->GetField("multi_dim").type.GetNumElements(), 3);
++  EXPECT_TRUE(arrs->GetField("multi_dim").type.GetElementTy().IsArrayTy());
++  EXPECT_EQ(arrs->GetField("multi_dim").type.GetElementTy().GetNumElements(),
++            2);
++  EXPECT_TRUE(
++      arrs->GetField("multi_dim").type.GetElementTy().GetElementTy().IsIntTy());
+   EXPECT_EQ(arrs->GetField("multi_dim").type.GetSize(), 24U);
+   EXPECT_EQ(arrs->GetField("multi_dim").offset, 56);
+ 
+@@ -187,8 +188,7 @@
+   EXPECT_EQ(arrs->GetField("flexible").offset, 80);
+ }
+ 
+-// Disabled because BTF flattens multi-dimensional arrays #3082.
+-TEST_F(field_analyser_btf, DISABLED_btf_arrays_multi_dim)
++TEST_F(field_analyser_btf, btf_arrays_multi_dim)
+ {
+   auto bpftrace = get_mock_bpftrace();
+   test(*bpftrace,
+@@ -202,7 +202,7 @@
+ 
+   ASSERT_TRUE(arrs->HasField("multi_dim"));
+   EXPECT_TRUE(arrs->GetField("multi_dim").type.IsArrayTy());
+-  EXPECT_EQ(arrs->GetField("multi_dim").offset, 40);
++  EXPECT_EQ(arrs->GetField("multi_dim").offset, 56);
+   EXPECT_EQ(arrs->GetField("multi_dim").type.GetSize(), 24U);
+   EXPECT_EQ(arrs->GetField("multi_dim").type.GetNumElements(), 3);
+ 
+--- a/tests/type_system.cpp
++++ b/tests/type_system.cpp
+@@ -62,7 +62,8 @@
+     "char[16]",
+     "void*[2]",
+     "void*",
+-    "int[6]",
++    "int[2]",
++    "int[2][3]",
+     "int[0]",
+     "struct ArrayWithCompoundData",
+     "struct Foo3*[2]",
