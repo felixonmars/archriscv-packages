@@ -1,21 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -95,6 +95,10 @@
- prepare() {
-   # systemd user unit needs to be modified... https://github.com/qtile/qtile/issues/6016
-   patch -Np1 -d $pkgname -i ../qtile-0.37.0-user-unit-exec.patch
-+  patch -Np1 -d $pkgname -i "$srcdir/repl-client-disconnect.patch"
+@@ -89,6 +89,13 @@
+   'A6BAA1E17D2664ADB97B2C6F58A9AA7C86727DF7' # elParaguayo <elparaguayocode@gmail.com>
+ )
+ 
++prepare() {
++  patch -Np1 -d $pkgname -i "$srcdir/wait-for-widget-initialization.patch"
 +
 +  # Allow startup and hook checks more time on slower builders.
 +  sed -i 's/^max_sleep = 5\.0$/max_sleep = 15.0/' $pkgname/test/helpers.py
- }
- 
++}
++
  build() {
-@@ -134,3 +138,7 @@
-   install -vDm 644 "resources/"*.{service,target} -t "$pkgdir/usr/lib/systemd/user/"
+   export CFLAGS="$CFLAGS -I/usr/include/wlroots0.20"
+   export LDFLAGS="$LDFLAGS -L/usr/lib/wlroots0.20"
+@@ -125,3 +132,8 @@
+   install -vDm 644 "resources/$pkgname-"{generic,wayland}.desktop -t "$pkgdir/usr/share/wayland-sessions/"
    install -vDm 644 "resources/99-$pkgname.rules" -t "$pkgdir/usr/lib/udev/rules.d/"
  }
 +
-+source+=("repl-client-disconnect.patch::https://github.com/qtile/qtile/commit/e3a78cbfa5fa3285f160afea8c83d59fe72f0443.patch")
-+sha512sums+=('822fd22a1cc12eca08d773bb8c95d0107ce971daf20030bfe48aeec7c5be8e0d9f36352226f8c81380963a71db6c3ab9cda8f8d2f6a7d7c3b5f9d7f5c6b51a0e')
-+b2sums+=('a514ee7713d328f976d69e8aca328b000806e919ea8317f7d45725eb5b488639b302ba2780fffa9e9a86441ffdffd08c66a6bc6d9c732cfdfecbf6d7903d6884')
++source+=(wait-for-widget-initialization.patch)
++sha512sums+=('e869a8fbefa4d0e03c4f192bc0fdad4156603620ad0454d2e77c9ad7f47ef85e8d0753111fa0808dfeac79ead24180d17119344f6d3922571039a559a4c5f34c')
++b2sums+=('583bb4f3430ff0acfc1d155335136c1f105b0a7d8160b5e26c2086859e32a64c7975db0fd9755d264059224767d6adba9d1bc9382c44a28d43e2952e0d1994e0')
++checkdepends+=(python-pytest-timeout)

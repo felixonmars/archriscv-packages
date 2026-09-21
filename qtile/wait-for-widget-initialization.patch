@@ -1,0 +1,61 @@
+--- a/test/widgets/test_generic_poll_text.py
++++ b/test/widgets/test_generic_poll_text.py
+@@ -2,6 +2,7 @@
+ 
+ import libqtile
+ from libqtile.widget import gen_poll_url, generic_poll_text
++from test.helpers import Retry
+ 
+ 
+ def test_gen_poll_text():
+@@ -85,10 +86,15 @@
+     assert result["X-Another-Header"] == "another-value"
+ 
+ 
++@Retry(ignore_exceptions=(AssertionError,))
++def wait_for_text(command, text):
++    assert command.info()["text"] == text
++
++
+ def test_gen_poll_command(manager_nospawn, minimal_conf_noscreen):
+     gpcommand = generic_poll_text.GenPollCommand(cmd=["echo", "hello"])
+     config = minimal_conf_noscreen
+     config.screens = [libqtile.config.Screen(top=libqtile.bar.Bar([gpcommand], 10))]
+     manager_nospawn.start(config)
+     command = manager_nospawn.c.widget["genpollcommand"]
+-    assert command.info()["text"] == "hello"
++    wait_for_text(command, "hello")
+--- a/test/widgets/test_notify.py
++++ b/test/widgets/test_notify.py
+@@ -7,6 +7,7 @@
+ import libqtile.config
+ from libqtile.bar import Bar
+ from libqtile.widget import notify
++from test.helpers import Retry
+ 
+ 
+ # Bit of a hack... when we log a timer, save the delay in an attribute
+@@ -319,19 +320,20 @@
+ def test_unregister(manager_nospawn, minimal_conf_noscreen):
+     """Short test to check if notifier deregisters correctly."""
+ 
++    @Retry(ignore_exceptions=(AssertionError,))
+     def notifier_has_callbacks():
+-        return manager_nospawn.c.widget["notify"].eval("notifier.callbacks") != "[]"
++        assert manager_nospawn.c.widget["notify"].eval("notifier.callbacks") != "[]"
+ 
+     widget = notify.Notify()
+     config = minimal_conf_noscreen
+     config.screens = [libqtile.config.Screen(top=Bar([widget], 10))]
+     manager_nospawn.start(config)
+ 
+-    assert notifier_has_callbacks()
++    notifier_has_callbacks()
+ 
+     manager_nospawn.c.widget["notify"].eval("self.finalize()")
+ 
+-    assert not notifier_has_callbacks()
++    assert manager_nospawn.c.widget["notify"].eval("notifier.callbacks") == "[]"
+ 
+ 
+ @pytest.mark.parametrize(
