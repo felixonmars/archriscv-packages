@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -37,7 +37,18 @@
+   cd zeroclaw
+   cargo fetch --locked
+   cd web
++  node -e '
++    const fs = require("node:fs");
++    const lock = JSON.parse(fs.readFileSync("package-lock.json"));
++    for (const name of ["@rolldown/binding-wasm32-wasi", "@tailwindcss/oxide-wasm32-wasi"]) {
++      lock.packages[`node_modules/${name}`].cpu = ["riscv64"];
++    }
++    fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\n");
++  '
+   npm ci
++  # Vite's Lightning CSS dependency has no riscv64 native binding.
++  bsdtar -xzf "${srcdir}/lightningcss-wasm-1.32.0.tgz" \
++    -C node_modules/lightningcss --strip-components=1
+ }
+ 
+ build() {
+@@ -65,3 +76,6 @@
+   install -Dm 755 zeroclaw/target/release/zerocode -t "${pkgdir}"/usr/bin/
+   install -Dm 644 zeroclaw/LICENSE-MIT -t "${pkgdir}"/usr/share/licenses/${pkgname}/
+ }
++
++source+=('https://registry.npmjs.org/lightningcss-wasm/-/lightningcss-wasm-1.32.0.tgz')
++b2sums+=('5d7ad2c469f6151be5ac1ebe3f2fc834f4fca1009b3026390239e1759f0a41c41407f51556fbf80c3f87bf72b548391dead091879b5f42170e7eb1221abbc831')
