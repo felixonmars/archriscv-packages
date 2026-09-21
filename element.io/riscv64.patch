@@ -1,66 +1,79 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -55,14 +55,36 @@ prepare() {
+@@ -50,27 +50,56 @@
    # Specify electron version in launcher
    sed -i "s|@ELECTRON@|${_electron}|" element-desktop.sh
  
++  # Nx's WASI fallback does not provide the WorkspaceContext API.
++  cargo build --release --locked --manifest-path "${srcdir}/nx-23.1.0/packages/nx/Cargo.toml"
++  # Rolldown does not publish its riscv64 N-API binding.
++  cargo build --release --locked --manifest-path "${srcdir}/rolldown-1.1.5/crates/rolldown_binding/Cargo.toml"
++  # Lightning CSS does not publish its riscv64 N-API binding.
++  cargo build --release --locked --manifest-path "${srcdir}/lightningcss-1.32.0/node/Cargo.toml"
 +  export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-+  export SENTRYCLI_USE_LOCAL=1 SENTRYCLI_SKIP_DOWNLOAD=1
 +  export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 +
-   cd element-web-${pkgver}
-   yarn install --no-fund
+   cd element-web
+   patch -p1 < "${srcdir}/autolaunch.patch"
++  cd apps/desktop
++  patch -p0 < "${srcdir}/element-desktop-riscv64-support.patch"
++  cd ../..
+   sed -e 's|"error"|"warn"|' -i package.json
+-  pnpm install
++  # Patch builder-util before the postinstall hook probes the host architecture.
++  pnpm install --ignore-scripts
  
-   cd ../element-desktop-${pkgver}
-   patch -p1 < ../autolaunch.patch
--  sed -i 's|"target": "deb"|"target": "dir"|' package.json
-+  patch -Np0 -i ../element-desktop-riscv64-support.patch
-+  jq '.build.linux.target=["dir"]
-+    | .resolutions."electron-builder"="npm:@riscv-forks/electron-builder@25.1.8"
-+    | .resolutions."app-builder-lib"="npm:@riscv-forks/app-builder-lib@25.1.8"
-+    | .resolutions."builder-util"="npm:@riscv-forks/builder-util@25.1.7"' package.json > package.json.new
-+  mv package.json.new package.json
+   cd apps/desktop
+   sed -i 's/target: \["tar.gz", "deb"\]/target: ["dir"]/' electron-builder.ts
++  sed -i '/    npmRebuild: true,/c\    npmRebuild: false,\n    electronDist: "/usr/lib/'"${_electron}"'",' electron-builder.ts
    sed -i 's|"https://packages.element.io/desktop/update/"|null|' element.io/release/config.json
-   yarn install --no-fund
+-  pnpm install
++  pnpm install --ignore-scripts
 +
-+  yarn run hak fetch matrix-seshat
++  cp "${srcdir}/nx-23.1.0/target/release/libnx.so" ../../node_modules/.pnpm/nx@23.1.0/node_modules/nx/dist/src/native/nx.linux-riscv64-gnu.node
++  cp "${srcdir}/rolldown-1.1.5/target/release/librolldown_binding.so" ../../node_modules/.pnpm/rolldown@1.1.5/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
++  cp "${srcdir}/lightningcss-1.32.0/target/release/liblightningcss_node.so" ../../node_modules/.pnpm/lightningcss@1.32.0/node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  patch -d ../../node_modules/.pnpm/builder-util@26.15.3/node_modules/builder-util -p0 < "${srcdir}/builder-util-riscv64.patch"
++  cd ../..
++  pnpm rebuild
++  pnpm run postinstall
++  cd apps/desktop
++
++  pnpm run hak fetch matrix-seshat
 +  pushd .hak/matrix-seshat/riscv64gc-unknown-linux-gnu/build/
 +  echo -e "[patch.crates-io]\nnix = { git = 'https://github.com/kxxt/nix.git', branch = 'archrv-element-fix' }" >> Cargo.toml
 +  cargo update -p nix
 +  popd
-+
-+  mkdir -p  node_modules/7zip-bin/linux/riscv64
-+  ln -s /usr/bin/7za node_modules/7zip-bin/linux/riscv64/7za
-+
-+  local _electron_ver=$(jq -r .version node_modules/electron/package.json)
-+  local _electron_zip="electron-v$_electron_ver-linux-riscv64.zip"
-+  cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./
  }
  
  build() {
-@@ -74,7 +96,7 @@ build() {
+   export NODE_OPTIONS=--openssl-legacy-provider
+   cd element-web/apps/web
+-  VERSION=${pkgver} pnpm run build
++  NX_DAEMON=false VERSION=${pkgver} pnpm run build
+ 
+   cd ../desktop
    export SQLCIPHER_BUNDLED=1
    export CFLAGS+=" -ffat-lto-objects"
-   yarn run build:native
--  yarn run build
-+  ELECTRON_CACHE=/tmp yarn run build
+   pnpm run build:native
+-  pnpm run build --publish never
++  NX_DAEMON=false pnpm run build --publish never
  }
  
  package_element-web() {
-@@ -102,7 +124,7 @@ package_element-desktop() {
-   install -d "${pkgdir}"{/usr/lib/element/,/etc/webapps/element}
- 
-   # Install the app content, replace the webapp with a symlink to the system package
--  cp -r dist/linux-unpacked/resources/* "${pkgdir}"/usr/lib/element/
-+  cp -r dist/linux-riscv64-unpacked/resources/* "${pkgdir}"/usr/lib/element/
-   ln -s /usr/share/webapps/element "${pkgdir}"/usr/lib/element/webapp
- 
-   # Config file
-@@ -119,3 +141,7 @@ package_element-desktop() {
-     install -Dm644 build/icons/${i}x${i}.png "${pkgdir}"/usr/share/icons/hicolor/${i}x${i}/apps/io.element.Element.png
-   done
+@@ -113,3 +142,15 @@
+   install -Dm644 ../web/res/themes/element/img/logos/element-logo.svg "${pkgdir}"/usr/share/icons/hicolor/scalable/apps/io.element.Element.svg
+   install -Dm644 build/icon.png "${pkgdir}"/usr/share/icons/hicolor/512x512/apps/io.element.Element.png
  }
 +
-+makedepends+=(sentry-cli jq zip p7zip)
-+source+=(element-desktop-riscv64-support.patch)
-+sha256sums+=('362020117ec482dc165b276046705468106316a769e39bfa408586ea72fefe45')
++makedepends+=(cmake)
++source+=(nx-23.1.0.tar.gz::https://github.com/nrwl/nx/archive/refs/tags/23.1.0.tar.gz
++         rolldown-1.1.5.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.1.5.tar.gz
++         lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz
++         element-desktop-riscv64-support.patch
++         builder-util-riscv64.patch)
++sha256sums+=('de6f71a8f8e527bd3216082baa0f05ba746260a3da2fb54f900a2d99d730e94c'
++             '2042204fda63956408dc102dd5cf5577368077ed70f9bce68474ed983c779879'
++             'ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9'
++             '0571ad5b12dfe06eeb030808a5d43dc0e036d2b2a64b3ad1e0e8162a0cb5af21'
++             '428622d8397382ea086e6c9d6a20e8831add738e91765b6fbc8af1c362eeaedf')
