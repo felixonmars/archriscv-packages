@@ -1,0 +1,196 @@
+--- a/tests/test_general.py
++++ b/tests/test_general.py
+@@ -3,6 +3,7 @@
+ '''
+ from contextlib import contextmanager
+ from functools import partial
++import socket
+ 
+ import gevent
+ from gevent.pywsgi import WSGIServer
+@@ -18,6 +19,16 @@
+ test_server = "https://httpbingo.org" #httpbin.org, httpbingo.org, postman-echo.com
+ 
+ @contextmanager
++def run_stall_response_server():
++	server = socket.create_server(("127.0.0.1", 0))
++	try:
++		host, port = server.getsockname()
++		yield f"http://{host}:{port}"
++	finally:
++		server.close()
++
++
++@contextmanager
+ def run_stall_stream_server():
+ 	def app(environ, start_response):
+ 		if environ.get("PATH_INFO", "/") != "/stall-stream":
+@@ -60,25 +71,25 @@
+ 
+ class TestFunctions:
+ 
+-	def test_gzip(self, curl_adapter):
++	def test_gzip(self, curl_adapter, httpbin):
+ 
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter(use_curl_content_decoding=True))
+ 			s.mount("https://", curl_adapter(use_curl_content_decoding=True))
+-			r = s.get(f"{test_server}/gzip", timeout=10)
++			r = s.get(f"{httpbin.url}/gzip", timeout=10)
+ 			assert r.status_code == 200
+ 			assert r.json()["gzipped"]
+ 
+-	def test_gzip_python(self, curl_adapter):
++	def test_gzip_python(self, curl_adapter, httpbin):
+ 
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter(use_curl_content_decoding=False))
+ 			s.mount("https://", curl_adapter(use_curl_content_decoding=False))
+-			r = s.get(f"{test_server}/gzip", timeout=10)
++			r = s.get(f"{httpbin.url}/gzip", timeout=10)
+ 			assert r.status_code == 200
+ 			assert r.json()["gzipped"]
+ 
+-	def test_brotli(self, curl_adapter):
++	def test_brotli(self, curl_adapter, httpbin):
+ 		
+ 		if curl_adapter is PyCurlAdapter or hasattr(curl_adapter, "binded_adapter") and curl_adapter.binded_adapter is PyCurlAdapter:
+ 			# pytest.skip("PyCurl because PyCurl doesn't support brotli decoding by itself.")
+@@ -89,55 +100,55 @@
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter(use_curl_content_decoding=True))
+ 			s.mount("https://", curl_adapter(use_curl_content_decoding=True))
+-			r = s.get(f"{test_server}/get", headers={
++			r = s.get(f"{httpbin.url}/get", headers={
+ 				"Accept-Encoding": "br"
+ 			}, timeout=10)
+ 			assert r.status_code == 200
+ 			assert "headers" in r.json()
+ 
+-	def test_brotli_python(self, curl_adapter):
++	def test_brotli_python(self, curl_adapter, httpbin):
+ 		'''
+ 			Note, the 'brotli' package must be installed.
+ 		'''
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter(use_curl_content_decoding=False))
+ 			s.mount("https://", curl_adapter(use_curl_content_decoding=False))
+-			r = s.get(f"{test_server}/get", headers={
++			r = s.get(f"{httpbin.url}/get", headers={
+ 				"Accept-Encoding": "br"
+ 			}, timeout=10)
+ 			assert r.status_code == 200
+ 			assert "headers" in r.json()
+ 
+-	def test_raw_response(self, curl_adapter):
++	def test_raw_response(self, curl_adapter, httpbin):
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter(use_curl_content_decoding=True))
+ 			s.mount("https://", curl_adapter(use_curl_content_decoding=True))
+ 
+-			r  = s.get(f"{test_server}/gzip", timeout=10)
++			r  = s.get(f"{httpbin.url}/gzip", timeout=10)
+ 
+ 			size1 = r.raw.tell()
+ 
+ 			s.mount("http://", curl_adapter(use_curl_content_decoding=False))
+ 			s.mount("https://", curl_adapter(use_curl_content_decoding=False))
+ 
+-			r  = s.get(f"{test_server}/gzip", timeout=10)
++			r  = s.get(f"{httpbin.url}/gzip", timeout=10)
+ 
+ 			size2 = r.raw.tell()
+ 
+ 			assert size1 > size2
+ 
+-	def test_redirects(self, curl_adapter):
++	def test_redirects(self, curl_adapter, httpbin):
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter())
+ 			s.mount("https://", curl_adapter())
+-			r = s.get(f"{test_server}/absolute-redirect/3", timeout=10)
++			r = s.get(f"{httpbin.url}/absolute-redirect/3", timeout=10)
+ 			assert r.status_code == 200
+ 
+-	def test_relative_redirects(self, curl_adapter):
++	def test_relative_redirects(self, curl_adapter, httpbin):
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter())
+ 			s.mount("https://", curl_adapter())
+-			r = s.get(f"{test_server}/relative-redirect/3", timeout=10)
++			r = s.get(f"{httpbin.url}/relative-redirect/3", timeout=10)
+ 			assert r.status_code == 200
+ 
+ 	def test_fingerprints(self, curl_adapter):
+@@ -153,14 +164,14 @@
+ 
+ 			assert curl_request.json()["ja3n_digest"] != normal_request.json()["ja3n_digest"]
+ 
+-	def test_cookies(self, curl_adapter):
++	def test_cookies(self, curl_adapter, httpbin):
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter())
+ 			s.mount("https://", curl_adapter())
+ 
+-			s.get(f"{test_server}/cookies/set?cookie1=one", allow_redirects=False, timeout=10)
+-			s.get(f"{test_server}/cookies/set?cookie2=two", allow_redirects=False, timeout=10)
+-			res = s.get(f"{test_server}/cookies/set?cookie3=three", timeout=10)
++			s.get(f"{httpbin.url}/cookies/set?cookie1=one", allow_redirects=False, timeout=10)
++			s.get(f"{httpbin.url}/cookies/set?cookie2=two", allow_redirects=False, timeout=10)
++			res = s.get(f"{httpbin.url}/cookies/set?cookie3=three", timeout=10)
+ 
+ 			res_cookies = res.json()["cookies"] if "cookies" in res.json() else res.json()
+ 
+@@ -172,28 +183,28 @@
+ 			assert s.cookies.get("cookie2") == "two"
+ 			assert s.cookies.get("cookie3") == "three"
+ 
+-	def test_post(self, curl_adapter):
++	def test_post(self, curl_adapter, httpbin):
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter())
+ 			s.mount("https://", curl_adapter())
+ 
+-			res = s.post(f"{test_server}/post", data={
++			res = s.post(f"{httpbin.url}/post", data={
+ 				"postkey": "postvalue"
+ 			}, allow_redirects=False, timeout=10)
+ 
+-			assert res.json()["form"]["postkey"][0] == "postvalue"
++			assert res.json()["form"]["postkey"] == "postvalue"
+ 
+-			res_json = s.post(f"{test_server}/post", json={
++			res_json = s.post(f"{httpbin.url}/post", json={
+ 				"postkey": "postvalue"
+ 			}, allow_redirects=False, timeout=10)
+ 
+ 			assert res_json.json()["json"]["postkey"] == "postvalue"
+ 
+-	def test_curl_info(self, curl_adapter):
++	def test_curl_info(self, curl_adapter, httpbin):
+ 		with requests.Session() as s:
+ 			s.mount("http://", curl_adapter())
+ 			s.mount("https://", curl_adapter())
+-			r = s.post(f"{test_server}/post", data={
++			r = s.post(f"{httpbin.url}/post", data={
+ 				"test": "data"
+ 			}, timeout=10)
+ 			r.wait_for_body()
+@@ -203,11 +214,12 @@
+ 			assert int(curl_info["request_body_size"]) == 9
+ 
+ 	def test_timeout(self, curl_adapter):
+-		with pytest.raises(requests.exceptions.ReadTimeout) as err:
+-			with requests.Session() as s:
+-				s.mount("http://", curl_adapter())
+-				s.mount("https://", curl_adapter())
+-				s.get(f"{test_server}/delay/10", timeout=2)
++		with run_stall_response_server() as local_server:
++			with pytest.raises(requests.exceptions.ReadTimeout) as err:
++				with requests.Session() as s:
++					s.mount("http://", curl_adapter())
++					s.mount("https://", curl_adapter())
++					s.get(local_server, timeout=2)
+ 		assert "Operation too slow." in str(err.value)
+ 
+ 	def test_ssl_verify(self, curl_adapter):
