@@ -1,0 +1,41 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -40,20 +40,28 @@
+     npm pkg set devDependencies.electron=${_elver}
+     export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+     export ELECTRON_OVERRIDE_DIST_PATH="/usr/lib/${_electron}"
++    # Neither Lightning CSS nor Rolldown/Tailwind publish native riscv64 bindings.
++    sed -i \
++      -e '/^overrides:/a\  lightningcss: npm:lightningcss-wasm@1.32.0' \
++      -e '/^nodeLinker:/i\supportedArchitectures:\n  cpu:\n    - current\n    - wasm32' \
++      pnpm-workspace.yaml
+     pnpm install --ignore-scripts --no-frozen-lockfile
++    # Prime dlmalloc before workers start; raw WASI preallocation bypasses its heap.
++    patch -Np1 -i "$srcdir/rolldown-wasi-memory.patch"
++    patch -Np1 -i "$srcdir/electron-builder-riscv64.patch"
+ }
+ 
+ build(){
+     cd "${srcdir}/podman-desktop-$pkgver"
+     node_modules/.bin/cross-env MODE=production pnpm run build
+-    node_modules/.bin/electron-builder build --linux --x64 --dir -c.electronDist="/usr/lib/${_electron}" -c.electronVersion="${_elver}" --config .electron-builder.config.cjs 
++    node_modules/.bin/electron-builder build --linux --dir -c.electronDist="/usr/lib/${_electron}" -c.electronVersion="${_elver}" --config .electron-builder.config.cjs 
+ 
+ }
+ 
+ package(){
+     cd "${srcdir}/podman-desktop-$pkgver"
+     mkdir -p "${pkgdir}"/usr/{lib/${pkgname},bin}
+-    cp -r --reflink=auto dist/linux-unpacked/resources "${pkgdir}/usr/lib/${pkgname}/resources"
++    cp -r --reflink=auto dist/linux-riscv64-unpacked/resources "${pkgdir}/usr/lib/${pkgname}/resources"
+     install -Dm644 ./.flatpak-appdata.xml \
+         "${pkgdir}/usr/share/metainfo/io.podman_desktop.PodmanDesktop.metainfo.xml"
+     install -Dm644 ./.flatpak.desktop \
+@@ -67,3 +75,7 @@
+     sed "s/@ELECTRON@/${_electron}/" "${srcdir}"/run.sh.in > "${pkgdir}/usr/bin/${pkgname}"
+     chmod 755 "${pkgdir}/usr/bin/${pkgname}"
+ }
++
++source+=(electron-builder-riscv64.patch rolldown-wasi-memory.patch)
++b2sums+=('e599e12b48bc526ebe5fa4f246387e36d771bc68ae5373f38f0a253f34641295987ba7a6b98490a95413c27f37bd17163d8c8287893adad3c34a454d0231c8db'
++         '00a48f1ea06ecb7f9090838cce5a6947ca20d21fc1378b03ac4d65a512aef5d355db05a9e21fe2c3e16e00743befcff9cdb2a7d53fe4b094b13e4d2e010dac65')

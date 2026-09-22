@@ -1,0 +1,25 @@
+--- a/node_modules/@rolldown/binding-wasm32-wasi/rolldown-binding.wasi.cjs
++++ b/node_modules/@rolldown/binding-wasm32-wasi/rolldown-binding.wasi.cjs
+@@ -28,7 +28,7 @@
+ 
+ const __sharedMemory = new WebAssembly.Memory({
+   initial: 16384,
+-  maximum: 65536,
++  maximum: 65535,
+   shared: true,
+ })
+ 
+@@ -100,6 +100,13 @@
+     return importObject
+   },
+   beforeInit({ instance }) {
++    const allocations = []
++    for (let allocation; (allocation = instance.exports.malloc(65536 - 256));) {
++      allocations.push(allocation)
++    }
++    for (const allocation of allocations) {
++      instance.exports.free(allocation)
++    }
+     for (const name of Object.keys(instance.exports)) {
+       if (name.startsWith('__napi_register__')) {
+         instance.exports[name]()
