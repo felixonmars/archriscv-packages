@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -29,6 +29,11 @@
+ source=(git+https://github.com/el1s7/curl-adapter.git#tag=v${pkgver})
+ b2sums=('3ad7aa044ff43d86897b59a6074f2af64344f11655fd02e27f4c7b62c6e940b61302afbc863144c91e5ac84a7eb3acf913b399648949764fe4481ef5ab28915c')
+ 
++prepare() {
++  cd curl-adapter
++  patch -Np1 < ../local-httpbin.patch
++}
++
+ build() {
+   cd curl-adapter
+   python -m build --wheel --no-isolation
+@@ -45,3 +50,7 @@
+   python -m installer --destdir="${pkgdir}" curl-adapter/dist/*.whl
+   install -Dm 644 curl-adapter/LICENSE -t "${pkgdir}/usr/share/licenses/${pkgname}/"
+ }
++
++checkdepends+=(python-pytest-httpbin)
++source+=(local-httpbin.patch)
++b2sums+=('92e62ddb458b040845e3ca4aa413339a14bd6afb5396bf7e6fc54df1f34a3611fb2dab1c1adf503afd98b65ae2c501bd65430f9bd756686d0fcec8210652652f')
