@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,8 @@
+ 
+ prepare() {
+   cd node-v${pkgver}
++  patch -Np1 -i ../openssl-tests.patch
++  patch -Np1 -i ../http-keep-alive-empty-line.patch
+   # Update ICU tests https://github.com/nodejs/node/pull/60523
+   patch -Np1 -i ../update-icu-tests.patch
+ }
+@@ -80,7 +82,8 @@
+ 
+   rm test/parallel/test-http-client-close-with-default-agent.js
+ 
+-  make test-only
++  # Limit subprocess contention and raise the runner timeout on riscv64.
++  make test-only JOBS=2 TEST_CI_ARGS=--timeout=480
+ 
+ }
+ 
+@@ -90,3 +93,8 @@
+   make DESTDIR="${pkgdir}" install
+   install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
+ }
++
++source+=(openssl-tests.patch
++         http-keep-alive-empty-line.patch::https://github.com/nodejs/node/commit/cc0cdb1ed1086ff9a1ec5bfffab7e4a85ae39acb.patch)
++sha256sums+=('a92faa9325c5d688b8577e0a0df60ce61dd1897e059b98e8c07986531b8a44db'
++             'a77a4322487f6fcea47c4737f83db255f5d3b1ea0321d0efcd03ef9c319c40e8')
