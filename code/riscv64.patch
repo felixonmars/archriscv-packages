@@ -1,12 +1,53 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -74,6 +74,9 @@ prepare() {
-   # See https://github.com/Microsoft/vscode/issues/31168 for details.
-   patch -p0 -i ../product_json.diff
+@@ -97,6 +97,23 @@
+   # OpenVSX signature verification
+   patch -p1 -i ../0009-openvsx-extension-signature.patch
  
-+  # Add missing riscv definition
-+  sed -i "/BUILD_TARGETS = \[/a { platform: 'linux', arch: 'riscv64' }," build/gulpfile.vscode.js
++  # Add missing riscv64 definition
++  sed -i "/{ platform: 'linux', arch: 'arm64' },/a\\\t{ platform: 'linux', arch: 'riscv64' }," build/gulpfile.vscode.ts
++
++  # @vscode/vsce-sign has no riscv64 binary.
++  sed -i 's/"@vscode\/vsce-sign@2.1.0": true/"@vscode\/vsce-sign@2.1.0": false/' build/package.json
++
++  # Copilot has no riscv64 CLI package.
++  rm -rf extensions/copilot
++  sed -i "/'extensions\/copilot',/d" build/npm/dirs.ts
++  sed -i "/const builtInCopilotExtensionDir =/a\\
++\t\tif (!fs.existsSync(builtInCopilotExtensionDir)) {\\
++\t\t\treturn;\\
++\t\t}" build/gulpfile.vscode.ts
++
++  # @vscode/os-proxy-resolver has no riscv64 binary.
++  sed -i "s|getOSProxyResolverPlatformFiles(platform, arch)|getOSProxyResolverPlatformFiles(platform, arch).concat('node_modules/@vscode/os-proxy-resolver-riscv64/**')|" build/gulpfile.vscode.ts
 +
    # Set the commit and build date
-   sed -e "s/@COMMIT@/$(git rev-parse HEAD)/" -e "s/@DATE@/$(date -u -Is | sed 's/\+00:00/Z/')/" -i product.json
+   local _commit _date
+   _commit=$(git rev-parse HEAD)
+@@ -132,6 +149,16 @@
  
+   patch -p1 -i "$srcdir/clipath.patch"
+ 
++  # Electron does not publish riscv64 release archives, and it is not bundled.
++  local _electron_version _electron_url _electron_zip _cache_dir
++  _electron_version=$(awk -F\" '/^target=/ { print $2 }' .npmrc)
++  _electron_url="https://github.com/electron/electron/releases/download/v$_electron_version"
++  _electron_zip="electron-v$_electron_version-linux-$_electron_arch.zip"
++  _cache_dir="$srcdir/electron/$(printf %s "$_electron_url" | sha256sum | cut -d ' ' -f 1)"
++  mkdir -p "$_cache_dir"
++  zip -q "$_cache_dir/$_electron_zip" . -i .
++  echo "$(sha256sum "$_cache_dir/$_electron_zip" | cut -d ' ' -f 1) *$_electron_zip" >> build/checksums/electron.txt
++
+   # disable electron checksum verification as we are not bundling electron
+   sed -i 's|validateChecksum: false,|validateChecksum: true,|' build/lib/electron.ts
+ 
+@@ -146,6 +173,9 @@
+   export XDG_CACHE_HOME="$srcdir"
+   npm install --cpu=$_vscode_arch
+   npm add -S "node-ovsx-sign@~1.2.0"
++  sed -i '/token: opts.token,/a\
++    checksums: Object.fromEntries(fs.readFileSync(opts.checksumFile, "utf8").trim().split("\\n").map(line => line.split(" *").reverse())),' \
++    node_modules/@vscode/gulp-electron/src/download.js
+   npm run gulp \
+        vscode-linux-${_vscode_arch}-min
+ }
