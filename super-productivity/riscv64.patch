@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -51,6 +51,13 @@
+     export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+ 
+     NODE_ENV=development npm ci
++    patch -Np1 -i "${srcdir}/builder-util-riscv64.patch"
++    NODE_ENV=development npm ci --prefix packages/plugin-dev/ai-productivity-prompts
++    # Vite 8 uses Rolldown, whose WASM fallback requires RVV on riscv64.
++    rm -rf packages/plugin-dev/ai-productivity-prompts/node_modules/vite
++    ln -s ../../../../node_modules/vite packages/plugin-dev/ai-productivity-prompts/node_modules/vite
++    # Preserve the prepared dependencies during the parallel plugin build.
++    sed -i "/name: 'ai-productivity-prompts'/,/^  },$/ s/needsInstall: true/needsInstall: false/" packages/plugin-dev/scripts/build-all.js
+ 
+     pushd electron/wayland-idle-helper
+     cargo fetch --locked --target host-tuple
+@@ -108,3 +115,6 @@
+ 
+     install -Dm644 LICENSE -t "${pkgdir}/usr/share/licenses/${pkgname}"
+ }
++
++source+=(builder-util-riscv64.patch)
++sha256sums+=('5b8561aba9d0daa235f502f52783de4daf91cfc3fad77610bd8933d3491015e0')
