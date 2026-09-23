@@ -1,0 +1,51 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -59,14 +59,33 @@
+   # download rust dependencies
+   cd src-tauri
+   cargo fetch --locked --target host-tuple
++  mv "$srcdir/lightningcss-6993d9f1d3cd69030c5976cd8860361b7679f68d" "$srcdir/lightningcss-1.31.1"
++  for version in 1.30.2 1.31.1; do
++    cargo fetch --locked --manifest-path="$srcdir/lightningcss-$version/node/Cargo.toml"
++  done
++  cargo fetch --locked --manifest-path="$srcdir/tailwindcss-4.1.18/crates/node/Cargo.toml"
+ }
+ build() {
+   cd "$pkgname"
+ 
++  # Build native bindings to avoid the RISC-V V8 crash in Lightning CSS WASM.
++  for version in 1.30.2 1.31.1; do
++    cargo build --frozen --release --manifest-path="$srcdir/lightningcss-$version/node/Cargo.toml"
++    cp "$srcdir/lightningcss-$version/target/release/liblightningcss_node.so" \
++      "node_modules/.deno/lightningcss@$version/node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node"
++  done
++
++  # Tailwind does not publish native riscv64 Oxide bindings.
++  cargo build --frozen --release --manifest-path="$srcdir/tailwindcss-4.1.18/crates/node/Cargo.toml"
++  cp "$srcdir/tailwindcss-4.1.18/target/release/libtailwind_oxide.so" \
++    "$srcdir/tailwindcss-oxide.node"
++  NAPI_RS_NATIVE_LIBRARY_PATH="$srcdir/tailwindcss-oxide.node" \
++    deno run -A node_modules/vite/bin/vite.js build
++
+   # disable update check
+   export OPENDECK_DISABLE_UPDATE_CHECK=1
+ 
+-  deno task tauri build --bundles deb -- --frozen
++  deno task tauri build --bundles deb --config '{"build":{"beforeBuildCommand":null}}' -- --frozen
+ }
+ 
+ package() {
+@@ -74,3 +93,13 @@
+ 
+   cp -a src-tauri/target/release/bundle/deb/opendeck_*/data/* "$pkgdir"
+ }
++
++source+=('lightningcss-1.30.2.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.30.2.tar.gz'
++         'lightningcss-1.31.1.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/6993d9f1d3cd69030c5976cd8860361b7679f68d.tar.gz'
++         'tailwindcss-4.1.18.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.1.18.tar.gz')
++sha512sums+=('9a6fa165fe6aeaee11fd47bf5055d9d6bcffdd9d0508cdc30d78e0d4f7596ef0f744710f5aa3839fb0626d800442514caafd2ba7ac32ce298e6ecbd41863956a'
++             'd54c76615fc89ea08aaaa11a78eeaa4a909a7858bb5b50621fdb0af55dc1d4421278e248e3241e740e6f9eacecd62bb048402131271772019d4d4aa04f9f40d5'
++             '7000edb024c715d22689085dae00de3fe6d52b3c3c0442aad824c2be7fef9e0473559c87c69be69b3977365512028449cbbc8c674feb02d838d8345c1f58b1a9')
++b2sums+=('af6dcc15ca9fff133edefe7203d6b779a945779198803c7023af3925f984352b86c03f8bf8a3ff971fc946ccadb30d97412c6fc3cdf2cd9aa76b58551303e2ef'
++         '2738e67acf9cf4878f8514600e529e75249c3281b3674bb6798da049eea88647808c17490bba7b6e8ee2d33bfc92ef5eda15c00f02e12d0f05a51a25700afa68'
++         'eaaa3022e7e4b6a6bd43e21a44f4412fa760983debca6517fec21d4aa5de9b7866331117786db4c36b92b8d7b5a587754ad4ee534da106e8c7febcabbfda8e47')
