@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -64,6 +64,9 @@
+ 
+   # this really is completely unnecessary
+   patch -p1 -i "$srcdir/no-llm-crap.patch"
++
++  # The activation harness starts many Python processes and is slower on riscv64.
++  sed -i 's/communicate(timeout=60)/communicate(timeout=300)/' tests/unit/activation/conftest.py
+ }
+ 
+ build() {
+@@ -83,6 +86,8 @@
+ check() {
+   local pytest_options=(
+     -vv
++    # Wheel installation tests need more time on slower builders.
++    --timeout=300
+     # tests try to find python2
+     --deselect tests/unit/create/test_creator.py::test_py_pyc_missing[True-False]
+     --deselect tests/unit/create/test_creator.py::test_py_pyc_missing[False-False]
