@@ -1,7 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -44,3 +44,18 @@
+@@ -46,7 +46,22 @@
  prepare() {
+   patch -d codex-rust-v$pkgver -Np1 \
+     -i "$srcdir/fix-chatgpt-recursion-limit.patch"
 +  install -dm755 "v8-$_v8ver/third_party/icu/common"
 +  base64 -d "$srcdir/v8-icu-icudtl.dat.base64" \
 +    > "v8-$_v8ver/third_party/icu/common/icudtl.dat"
@@ -19,12 +21,17 @@
 +  cargo update -p v8
 +
    cargo fetch --target "$(rustc --print host-tuple)"
-@@ -52,4 +67,2 @@
+ }
+ 
+@@ -54,12 +69,35 @@
+   cd codex-rust-v$pkgver/codex-rs
+   # Used for dynamic linking
    export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
 -  export RUSTY_V8_ARCHIVE="$srcdir/librusty_v8-$_v8ver.a.gz"
 -  export RUSTY_V8_SRC_BINDING_PATH="$srcdir/src_binding-$_v8ver.rs"
    export RUSTONIG_DYNAMIC_LIBONIG=1
-@@ -58,2 +71,27 @@
+   export ZSTD_SYS_USE_PKG_CONFIG=1
+   # Reduces build time by about 10 minutes
    export CARGO_PROFILE_RELEASE_LTO=thin
 +  local _clang_version=$(clang -dumpversion | cut -d . -f 1)
 +  local _rustc_version=$(rustc --version)
@@ -52,12 +59,16 @@
 +  export EXTRA_GN_ARGS="${_extra_gn_args[*]}"
 +
    cargo build --frozen --release \
-@@ -81 +119,24 @@
+               --bin codex \
+               --bin codex-code-mode-host \
+@@ -83,3 +121,26 @@
+ }
+ 
  # vim:set ts=2 sw=2 et:
 +
 +makedepends+=(clang gn libffi lld ninja protobuf python rust-bindgen)
 +_v8_icu_commit=ee5f27adc28bd3f15b2c293f726d14d2e336cbd5
-+source=("${source[0]}"
++source=("${source[0]}" "${source[@]:3}"
 +  "v8-$_v8ver.tar.gz::https://static.crates.io/crates/v8/v8-$_v8ver.crate"
 +  "v8-icu-icudtl.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtl.dat?format=TEXT"
 +  "v8-icu-icudtb.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtb.dat?format=TEXT"
@@ -68,7 +79,7 @@
 +  codex-landlock-riscv64-seccomp.patch
 +)
 +noextract=()
-+b2sums=("${b2sums[0]}"
++b2sums=("${b2sums[0]}" "${b2sums[@]:3}"
 +        'ee216ec48e21b6af358741e21d000bf72f991e9ef48f2877ecfe0e84adf9afd985ef3b9f011b040236cbf707e9b03033bae48ab5ff050fa30532f92576c6fcda'
 +        'a9bfd3930f95972ff329e81614ff1e3cc8db8504c720256ddc25925f023f06fa5bdd4dea5a958b8481d3d19785d61ba56f3cbaac607ae81cc01e19ba0d3e565e'
 +        'dd45cc773db031f47817cf50f6a5026f25c48dc0a5231b7e5eaee4c5904d1d0a691f31d7e17da283ae2334189d804ab69bfdaff4c9a85ce76f11d338d0ec2807'
