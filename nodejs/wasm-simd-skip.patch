@@ -1,0 +1,26 @@
+--- a/test/wpt/test-wasm-jsapi.mjs
++++ b/test/wpt/test-wasm-jsapi.mjs
+@@ -1,5 +1,6 @@
+ // Flags: --experimental-wasm-modules
+ import * as fixtures from '../common/fixtures.mjs';
++import { skip } from '../common/index.mjs';
+ import { ok } from 'node:assert';
+ import { WPTRunner } from '../common/wpt.js';
+ 
+@@ -14,9 +15,11 @@
+   ok(e.message.includes('SIMD unsupported'));
+ }
+ 
+-if (supportsSimd) {
+-  const runner = new WPTRunner('wasm/jsapi');
+-  runner.setFlags(['--experimental-wasm-modules']);
+-
+-  runner.runJsTests();
++if (!supportsSimd) {
++  skip('WebAssembly SIMD is not supported');
+ }
++
++const runner = new WPTRunner('wasm/jsapi');
++runner.setFlags(['--experimental-wasm-modules']);
++
++runner.runJsTests();
