@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -139,6 +139,7 @@
+@@ -141,6 +141,7 @@
  
  # Link with libsodium from system
  export SODIUM_USE_PKG_CONFIG=1
@@ -8,7 +8,7 @@
  
  # Use debug
  export CARGO_PROFILE_RELEASE_DEBUG=2 CARGO_PROFILE_RELEASE_STRIP=false
-@@ -147,7 +148,16 @@
+@@ -149,8 +150,17 @@
  export CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
  
  prepare() {
@@ -17,15 +17,16 @@
 +  patch -Np1 -d va_list-0.1.4 -i "$srcdir/va_list-riscv64.patch"
 +  # C char is unsigned on RISC-V; infer the array initializer type.
 +  patch -Np2 -d csound-sys-0.1.2 -i "$srcdir/csound-sys-multiarch.patch"
-+  patch -Np1 -d skia-bindings-0.99.0 -i "$srcdir/skia-bindings-riscv64.patch"
++  patch -Np1 -d skia-bindings-0.153.3 -i "$srcdir/skia-bindings-riscv64.patch"
 +
    cd $pkgbase
-+  echo -e "\n[patch.crates-io]\nva_list = { path = '../va_list-0.1.4' }\ncsound-sys = { path = '../csound-sys-0.1.2' }\nskia-bindings = { path = '../skia-bindings-0.99.0' }" >> Cargo.toml
-+  cargo update -p va_list -p csound-sys -p skia-bindings
-   cargo fetch --locked --target host-tuple
+   git apply -3 ../0001-Update-lockfile.patch
++  echo -e "\n[patch.crates-io]\nva_list = { path = '../va_list-0.1.4' }\ncsound-sys = { path = '../csound-sys-0.1.2' }\nskia-bindings = { path = '../skia-bindings-0.153.3' }" >> Cargo.toml
++  CARGO_HOME="$srcdir" cargo update -p va_list -p csound-sys -p skia-bindings
+   CARGO_HOME="$srcdir" cargo fetch --locked --target host-tuple
  }
  
-@@ -715,3 +725,17 @@
+@@ -718,3 +728,17 @@
  }
  
  # vim:set sw=2 sts=-1 et:
@@ -35,11 +36,11 @@
 +         va_list-riscv64.patch
 +         "csound-sys-0.1.2.tar.gz::https://static.crates.io/crates/csound-sys/csound-sys-0.1.2.crate"
 +         "csound-sys-multiarch.patch::https://github.com/neithanmo/csound-rs/commit/f27d343437b668016f129fba279dd810744edf5f.patch"
-+         "skia-bindings-0.99.0.tar.gz::https://static.crates.io/crates/skia-bindings/skia-bindings-0.99.0.crate"
++         "skia-bindings-0.153.3.tar.gz::https://static.crates.io/crates/skia-bindings/skia-bindings-0.153.3.crate"
 +         skia-bindings-riscv64.patch)
 +b2sums+=('3680f21cde9784b80edc9590ad6d4bdc87d29b190269bced34d77e6602b3f805b038ff467236d83e0551bddd82df26ba11f536b645028135364b27d592d2557f'
 +         '9ec616fba4f5a60b93af9f0dabf7b37b8b215fea348cff1a1f5e197bb29d06fd888f27088b0633f039af97bab77f43fb49782ba598fa95f3fe6166bf21c410e4'
 +         'a737924ad8465a0e28c1b8b20da4b9cc42c7e176c73a5864cf2f5c84da2a4fd3787f009e1251188ab56f040fcd984e7fd346fce62e27ea36c293aff2055c6080'
 +         'b8138f5d425c7037daf58969700164f876734bd00582b327210f1cd2e9eab114ee6ccd8a356c6a57105995c0bce4b5c1685eead9155ae443b2a988f528b7e429'
-+         'c6453c714fc37557e323c1a113097256d0b6f3f595a4367f6d17ae54ffb2f0a3399bd18bdac47d31be5f80ba9e5f7bf1eeb88ac88ef4fd57b8402dcdafa8502a'
-+         '94a224681618a65b356354f81232c4dabd168102dde175aaf89017996c3df1867395a2b1d48310315e167eeb3830008e5bd68edc46177be1537a6faedcd13be6')
++         '97e02346585c31af23eecad7c98c4f2a9b0b5d499c9933aed49715252bb8a326ae7c82f83b355eced8fcd0238b75b508808959fd0878397618ca3ed6d615fac4'
++         '921e70b8bb2cc7ae35ad54ba2d7db02a278b9f5771650a69035dbd50885bbbf95b3898e0350590c232a68093ef4b31b62a104ed93a7481920313d71321672dd4')
