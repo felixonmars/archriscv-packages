@@ -1,9 +1,7 @@
-diff --git a/Source/CMakeLists.txt b/Source/CMakeLists.txt
-index df3903bf..b1ca66a7 100644
 --- a/Source/CMakeLists.txt
 +++ b/Source/CMakeLists.txt
-@@ -34,7 +34,7 @@ if(TARGET_PLATFORM_ANDROID OR TARGET_PLATFORM_IOS OR TARGET_PLATFORM_JS OR BUILD
- 	list(APPEND DEFINITIONS_LIST DISABLE_LOGGING=1)
+@@ -31,7 +31,7 @@
+ 	list(APPEND DEFINITIONS_LIST AOT_BUILD_CACHE=1)
  endif()
  
 -if(TARGET_PLATFORM_UNIX AND NOT TARGET_PLATFORM_UNIX_ARM AND NOT TARGET_PLATFORM_UNIX_AARCH64)
@@ -11,11 +9,9 @@ index df3903bf..b1ca66a7 100644
  	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse2 -mssse3")
  endif()
  
-diff --git a/Source/gs/GSH_OpenGL/CMakeLists.txt b/Source/gs/GSH_OpenGL/CMakeLists.txt
-index ab40170d..a2da9da5 100644
 --- a/Source/gs/GSH_OpenGL/CMakeLists.txt
 +++ b/Source/gs/GSH_OpenGL/CMakeLists.txt
-@@ -21,7 +21,7 @@ if(TARGET_PLATFORM_UNIX_ARM)
+@@ -22,7 +22,7 @@
  	list(APPEND GSH_OPENGL_COMPILE_OPTIONS "-mfpu=neon")
  endif()
  
@@ -24,11 +20,9 @@ index ab40170d..a2da9da5 100644
  	list(APPEND GSH_OPENGL_COMPILE_OPTIONS -msse -msse2 -mssse3)
  endif()
  
-diff --git a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
-index 01a12176..44c3bc7a 100644
 --- a/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
 +++ b/Source/gs/GSH_OpenGL/GSH_OpenGL_Texture.cpp
-@@ -547,13 +547,127 @@ inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int co
+@@ -547,13 +547,127 @@
  }
  
  #else
@@ -95,7 +89,7 @@ index 01a12176..44c3bc7a 100644
 +}
 +
 +inline void convertColumn8(uint8* dest, const int destStride, uint8* src, int colNum)
-+{
+ {
 +	simde__m128i* mSrc = (simde__m128i*)src;
 +
 +	simde__m128i a = mSrc[0];
@@ -106,7 +100,7 @@ index 01a12176..44c3bc7a 100644
 +}
 +
 +inline void convertColumn4(uint8* dest, const int destStride, uint8* src, int colNum)
- {
++{
 +	simde__m128i* mSrc = (simde__m128i*)src;
 +
 +	simde__m128i a = mSrc[0];
@@ -118,7 +112,7 @@ index 01a12176..44c3bc7a 100644
 +	// The 4pp are expanded to 8bpp.
 +	// so 01 23 45 67 89 ab cd ef gh ij kl mn op qr st uv expands to
 +	// 00 01 02 03 08 09 0a 0b 0g 0h 0i 0j 0o 0p 0q 0r as the first row on the left hand block.
-+
+ 
 +	simde__m128i perm = simde_mm_setr_epi8(0, 1, 4, 5, 8, 9, 0x0c, 0x0d, 2, 3, 6, 7, 0x0a, 0x0b, 0x0e, 0x0f);
 +	a = simde_mm_shuffle_epi8(a, perm);
 +	b = simde_mm_shuffle_epi8(b, perm);
@@ -143,7 +137,7 @@ index 01a12176..44c3bc7a 100644
 +	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(c, shiftCount), mask);
 +	c = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
 +	simde__m128i c2 = simde_mm_unpackhi_epi8(lowNybbles, highNybbles);
- 
++
 +	lowNybbles = simde_mm_and_si128(d, mask);
 +	highNybbles = simde_mm_and_si128(simde_mm_srl_epi32(d, shiftCount), mask);
 +	d = simde_mm_unpacklo_epi8(lowNybbles, highNybbles);
@@ -160,8 +154,6 @@ index 01a12176..44c3bc7a 100644
  #endif
  
  void CGSH_OpenGL::TexUpdater_Psm8(uint32 bufPtr, uint32 bufWidth, unsigned int texX, unsigned int texY, unsigned int texWidth, unsigned int texHeight)
-diff --git a/Source/hdd/ApaReader.cpp b/Source/hdd/ApaReader.cpp
-index bf9b5861..78ab8df9 100644
 --- a/Source/hdd/ApaReader.cpp
 +++ b/Source/hdd/ApaReader.cpp
 @@ -1,5 +1,6 @@
@@ -171,8 +163,6 @@ index bf9b5861..78ab8df9 100644
  #include <cstring>
  #include "HddDefs.h"
  
-diff --git a/Source/hdd/PfsDefs.h b/Source/hdd/PfsDefs.h
-index 5557e2d5..810adcb7 100644
 --- a/Source/hdd/PfsDefs.h
 +++ b/Source/hdd/PfsDefs.h
 @@ -1,5 +1,7 @@
@@ -183,8 +173,6 @@ index 5557e2d5..810adcb7 100644
  namespace Hdd
  {
  	enum
-diff --git a/Source/hdd/PfsReader.cpp b/Source/hdd/PfsReader.cpp
-index 3db9fdcc..2ab7be6f 100644
 --- a/Source/hdd/PfsReader.cpp
 +++ b/Source/hdd/PfsReader.cpp
 @@ -1,5 +1,6 @@
@@ -194,23 +182,17 @@ index 3db9fdcc..2ab7be6f 100644
  #include <cstring>
  #include "HddDefs.h"
  #include "StringUtils.h"
-Submodule deps/CodeGen contains modified content
-diff --git a/deps/CodeGen/src/Jitter_CodeGenFactory.cpp b/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
-index 7813790..132d539 100644
 --- a/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
 +++ b/deps/CodeGen/src/Jitter_CodeGenFactory.cpp
 @@ -1,4 +1,5 @@
  #include "Jitter_CodeGenFactory.h"
 +#include <stdexcept>
  
- #ifdef _WIN32
+ // clang-format off
  
-Submodule deps/Dependencies contains modified content
-diff --git a/deps/Dependencies/cmake-modules/Header.cmake b/deps/Dependencies/cmake-modules/Header.cmake
-index d2a9d04..1253ce7 100644
 --- a/deps/Dependencies/cmake-modules/Header.cmake
 +++ b/deps/Dependencies/cmake-modules/Header.cmake
-@@ -35,6 +35,9 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL "${CMAKE_SOURCE_DIR}")
+@@ -36,6 +36,9 @@
  		elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm")
  			message("-- Arch: arm --")
  			set(TARGET_PLATFORM_UNIX_ARM TRUE)
@@ -220,13 +202,10 @@ index d2a9d04..1253ce7 100644
  		endif()
  	endif()
  	
-Submodule deps/Framework contains modified content
-diff --git a/deps/Framework/include/SimdDefs.h b/deps/Framework/include/SimdDefs.h
-index be7e2e1..88f0622 100644
 --- a/deps/Framework/include/SimdDefs.h
 +++ b/deps/Framework/include/SimdDefs.h
 @@ -19,6 +19,6 @@
- 	#define FRAMEWORK_SIMD_USE_NEON
+ 	#endif
  #endif
  
 -#if !defined(FRAMEWORK_SIMD_USE_SSE) && !defined(FRAMEWORK_SIMD_USE_NEON)
