@@ -1,0 +1,104 @@
+--- a/skiko/buildSrc/src/main/kotlin/BuildLocalSkiaTask.kt
++++ b/skiko/buildSrc/src/main/kotlin/BuildLocalSkiaTask.kt
+@@ -61,6 +61,7 @@
+         // Determine host architecture
+         val hostArch = when (System.getProperty("os.arch")) {
+             "aarch64", "arm64" -> Arch.Arm64
++            "riscv64" -> Arch.Riscv64
+             else -> Arch.X64
+         }
+ 
+--- a/skiko/buildSrc/src/main/kotlin/SkiaTarget.kt
++++ b/skiko/buildSrc/src/main/kotlin/SkiaTarget.kt
+@@ -13,6 +13,7 @@
+         get() = when (this) {
+             Arch.X64 -> "x64"
+             Arch.Arm64 -> "arm64"
++            Arch.Riscv64 -> "riscv64"
+             Arch.Wasm -> "wasm"
+         }
+ 
+@@ -20,6 +21,7 @@
+         get() = when (this) {
+             Arch.X64 -> "X64"
+             Arch.Arm64 -> "Arm64"
++            Arch.Riscv64 -> "Riscv64"
+             Arch.Wasm -> "Wasm"
+         }
+ 
+--- a/skiko/buildSrc/src/main/kotlin/properties.kt
++++ b/skiko/buildSrc/src/main/kotlin/properties.kt
+@@ -45,6 +45,7 @@
+         OS.Linux -> when (arch) {
+             Arch.X64 -> "g++"
+             Arch.Arm64 -> if (hostArch == Arch.Arm64) "g++" else "aarch64-linux-gnu-g++"
++            Arch.Riscv64 -> if (hostArch == Arch.Riscv64) "g++" else "riscv64-linux-gnu-g++"
+             Arch.Wasm -> "Unexpected combination: $os & $arch"
+         }
+         OS.Android -> "clang++"
+@@ -68,6 +69,7 @@
+ enum class Arch(val id: String) {
+     X64("x64"),
+     Arm64("arm64"),
++    Riscv64("riscv64"),
+     Wasm("wasm");
+ 
+     companion object {
+@@ -114,6 +116,7 @@
+     when (osArch) {
+         "x86_64", "amd64" -> Arch.X64
+         "aarch64" -> Arch.Arm64
++        "riscv64" -> Arch.Riscv64
+         else -> throw Error("Unknown arch $osArch")
+     }
+ }
+--- a/skiko/buildSrc/src/main/kotlin/publishing.kt
++++ b/skiko/buildSrc/src/main/kotlin/publishing.kt
+@@ -20,7 +20,7 @@
+ 
+ private val awtRuntimeTargets = listOf(
+     OS.MacOS to Arch.X64, OS.MacOS to Arch.Arm64,
+-    OS.Linux to Arch.X64, OS.Linux to Arch.Arm64,
++    OS.Linux to Arch.X64, OS.Linux to Arch.Arm64, OS.Linux to Arch.Riscv64,
+     OS.Windows to Arch.X64, OS.Windows to Arch.Arm64
+ )
+ 
+@@ -226,6 +226,7 @@
+                     when (arch) {
+                         Arch.X64 -> MachineArchitecture.X86_64
+                         Arch.Arm64 -> MachineArchitecture.ARM64
++                        Arch.Riscv64 -> "riscv64"
+                         else -> error("Unsupported arch for awtRuntimeElements: $arch")
+                     }
+                 )
+--- a/skiko/buildSrc/src/main/kotlin/tasks/configuration/JvmTasksConfiguration.kt
++++ b/skiko/buildSrc/src/main/kotlin/tasks/configuration/JvmTasksConfiguration.kt
+@@ -491,6 +491,8 @@
+         when (targetArch) {
+             Arch.X64 -> sealer.set(toolsDir.file("sealer-x64"))
+             Arch.Arm64 -> sealer.set(toolsDir.file("sealer-arm64"))
++            // No RISC-V sealer is bundled; Linux uses shared libstdc++.
++            Arch.Riscv64 -> Unit
+             else -> error("Unexpected combination of '$targetArch' and '$targetOs'")
+         }
+     }
+--- a/skiko/src/commonMain/kotlin/org/jetbrains/skiko/OsArch.kt
++++ b/skiko/src/commonMain/kotlin/org/jetbrains/skiko/OsArch.kt
+@@ -23,6 +23,7 @@
+ enum class Arch(val id: String) {
+     X64("x64"),
+     Arm64("arm64"),
++    Riscv64("riscv64"),
+     Unknown("unknown"),
+     ;
+ }
+--- a/skiko/src/jvmMain/kotlin/org/jetbrains/skiko/OsArch.jvm.kt
++++ b/skiko/src/jvmMain/kotlin/org/jetbrains/skiko/OsArch.jvm.kt
+@@ -16,6 +16,7 @@
+     when (osArch) {
+         "x86_64", "amd64" -> Arch.X64
+         "aarch64" -> Arch.Arm64
++        "riscv64" -> Arch.Riscv64
+         else -> throw Error("Unknown arch $osArch")
+     }
+ }

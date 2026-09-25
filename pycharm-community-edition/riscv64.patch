@@ -1,69 +1,110 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -6,9 +6,10 @@
- 
+@@ -8,8 +8,10 @@
  pkgname=pycharm-community-edition
- pkgver=2024.3.5
-+_tag=${pkgver}+0
- _build=243.26053.29
--_jrever=17
--_jdkver=17
-+_jrever=21
-+_jdkver=21
+ pkgver=2026.2.3
+ _build=262.10968.92
+-_jrever=21
++_jrever=25
+ _jdkver=21
++_skikover=0.150.1
++_skiaver=m150-1f14f1166a
  pkgrel=1
  pkgdesc='Python IDE for Professional Developers'
  arch=(x86_64)
-@@ -32,42 +33,36 @@ makedepends=(
-   git
-   "java-environment-openjdk=${_jdkver}"
-   python-setuptools
-+  gcc
-+  cargo
-+  go
- )
- source=(
--  "git+https://github.com/JetBrains/intellij-community.git#tag=pycharm/${_build}"
--  idea-android::"git+https://github.com/JetBrains/android.git#tag=pycharm/${_build}"
-+  "git+https://github.com/Glavo/JetBrains-IDE-Multiarch.git#tag=idea/${_tag}"
-   pycharm.desktop
-   pycharm.sh
-   # enable-no-jdr.patch
- )
--sha256sums=('94453379e88e9b500f36a6d3c0a8b1522fc1c47978df39ae8ea96096bc691a75'
--            'c5e830ac2e33598b96d3bde85f49e48663b5ff2452b9efafbe3e349d10141650'
-+sha256sums=('4daf71eae6c901a500402c629bff5117b0d1582921702dbe48217f216f76f28d'
-             '70ae8df10243db2dbc454c0d8e273235707ecb1821a9e8a2e70669a1739fc1af'
-             '447714bf41a215b38f8c31418e09bf65145bb3d9427d6966772c9b2b8ae16f1d')
+@@ -44,26 +46,46 @@
+             '0dbec010e5c5412ba1f1fd8fc07fcfe373ad174cd54537d125643ef5ef51c8f7')
  
  prepare() {
 -  cd intellij-community
-+  cd JetBrains-IDE-Multiarch
- 
+-
 -  sed -e "s/buildNumber = null/buildNumber = \"${_build}\"/" \
 -      -i "python/build/src/PyCharmCommunityInstallersBuildTarget.kt"
 -  mv "${srcdir}"/idea-android android
 -
 -  sed -e 's/System.getProperty(TARGET_OS_PROPERTY, OS_ALL)/OS_LINUX/' \
 -      -i "platform/build-scripts/src/org/jetbrains/intellij/build/BuildOptions.kt"
--  # Disabled until we package JBR outselves
--  #patch -Np1 < "${srcdir}/enable-no-jdr.patch"
-+  # Disable fetch prebuild natives
-+  sed -i 's/^natives\.linux\.riscv64\.url.*$//g' config/natives.properties
++  patch -d JetBrains-IDE-Multiarch -Np1 < multiarch-riscv64.patch
++  patch -d skiko -Np1 < skiko-riscv64.patch
++  patch -d skia-${_skiaver} -Np1 < skia-riscv64.patch
++
++  cd JetBrains-IDE-Multiarch
++
++  sed -i '/^natives\.linux\.riscv64\.url=/d' config/natives.properties
++  sed -i "s/^pc.version=.*/pc.version=${pkgver}/" config/product.properties
++  mkdir -p build/download/ide
++  ln -sf "${srcdir}/pycharm-${pkgver}-aarch64.tar.gz" \
++    "build/download/ide/pycharm-community-${pkgver}-aarch64.tar.gz"
  }
  
  build() {
 -  cd intellij-community
-+  cd JetBrains-IDE-Multiarch
- 
+-
    export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
    export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
 -  export MAVEN_REPOSITORY=/build/.m2/repository
  
--  ./python/installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux -Dbuild.number="${_build}"
-+  ./gradlew transformPC-riscv64
- 
+-  ./python/installers.cmd -Dintellij.build.use.compiled.classes=false -Dintellij.build.target.os=linux -Dintellij.build.target.arch=x64 -Dbuild.number="${_build}"
+-
 -  tar -xf out/pycharm-ce/artifacts/pycharmPC-${_build}.tar.gz -C "${srcdir}"
-+  tar -xf build/target/pycharm-community-${_tag}-riscv64.tar.gz -C "${srcdir}"
++  cd skia-${_skiaver}
++  GIT_SYNC_DEPS_SKIP_EMSDK=1 python tools/skia_release/build.py \
++    --skia-dir . --target linux --machine riscv64 --gpu-as-extension
++
++  cd "${srcdir}/skiko"
++  ./gradlew -p skiko awtJar skikoJvmRuntimeJarLinuxRiscv64 \
++    -Pskia.dir="${srcdir}/skia-${_skiaver}" \
++    -Pdeploy.version="${_skikover}" -Pdeploy.release=true
++
++  cd "${srcdir}/JetBrains-IDE-Multiarch"
++  ./gradlew transformPC-riscv64 -x downloadPC -Pjdk.linux.riscv64.url=
++  tar -xf build/target/pycharm-community-${pkgver}+0-riscv64.tar.gz -C "${srcdir}"
++
++  mkdir -p "${srcdir}/skiko-classes"
++  cd "${srcdir}/skiko-classes"
++  bsdtar -xf "${srcdir}/skiko/skiko/build/libs/skiko-awt-${_skikover}.jar" \
++    'org/jetbrains/skiko/Arch*.class' 'org/jetbrains/skiko/OsArch_jvmKt*.class'
++  jar uf "${srcdir}/pycharm-oss/lib/intellij.libraries.skiko.jar" org
++
++  cd "${srcdir}/pycharm-oss/lib/skiko-awt-runtime-all"
++  rm libskiko-linux-arm64.so
++  bsdtar -xf "${srcdir}/skiko/skiko/build/libs/skiko-${_skikover}-linux-riscv64.jar" \
++    libskiko-linux-riscv64.so
  }
  
  package() {
+@@ -73,7 +95,8 @@
+   sed -i 's/lcd/on/' bin/*.vmoptions
+ 
+   install -dm 755 "${pkgdir}"/usr/share/{licenses,pycharm,icons/hicolor/{128x128,scalable}/apps}
+-  cp -dr --no-preserve='ownership' bin lib plugins jbr "${pkgdir}"/usr/share/pycharm/
++  cp -dr --no-preserve='ownership' bin lib plugins modules "${pkgdir}"/usr/share/pycharm/
++  ln -s /usr/lib/jvm/java-${_jrever}-openjdk "${pkgdir}"/usr/share/pycharm/jbr
+   cp -dr --no-preserve='ownership' license "${pkgdir}"/usr/share/licenses/pycharm/
+   ln -s /usr/share/pycharm/bin/pycharm.png "${pkgdir}"/usr/share/icons/hicolor/128x128/apps/
+   ln -s /usr/share/pycharm/bin/pycharm.svg "${pkgdir}"/usr/share/icons/hicolor/scalable/apps/
+@@ -82,4 +105,24 @@
+   install -Dm 644 product-info.json -t "${pkgdir}"/usr/share/pycharm
+ }
+ 
++depends+=(dbus gcc-libs "jre${_jrever}-openjdk" libgl libx11 libxrandr)
++makedepends+=(cargo gcc gn ninja)
++source=("git+https://github.com/Glavo/JetBrains-IDE-Multiarch.git#commit=b71ca08f1cca08f4250028d16606b5bcf388f19e"
++        "${source[@]:2}")
++sha256sums=('2a5a4dab8311e8feb9466c86c999bfe926beccd42664556eddd4f98267598a43'
++            "${sha256sums[@]:2}")
++source+=("https://github.com/JetBrains/intellij-community/releases/download/pycharm/${pkgver}/pycharm-${pkgver}-aarch64.tar.gz"
++         "git+https://github.com/JetBrains/skiko.git#tag=v${_skikover}"
++         "skia-${_skiaver}.tar.gz::https://github.com/JetBrains/skia/archive/refs/tags/${_skiaver}.tar.gz"
++         multiarch-riscv64.patch
++         skiko-riscv64.patch
++         skia-riscv64.patch)
++sha256sums+=('c43206f32b5a39e9bc9926cd55182f5340e121ac45c52f4554f7933f61e05a35'
++             'c2c14b83ecbcb908d99bbb1b8c8a5d11e982ca0409fd0f3fb45a803af605144c'
++             'c471f677d7658254b77499eea3289e9a6ac29c40d51ba03cd81e9fb5ed35c3ce'
++             '312299227e96d444846cffae5c3c83ce5ffc471dc27419e75f62285f924e9eda'
++             'feeda114b9df2e0bb27340560b9c1e2c7df88cd828642f825e07226e89798737'
++             'c07edf65084d762c65efe5b4dfc0901e3b5090f0d598c5508827d558fa24f1a5')
++noextract+=("pycharm-${pkgver}-aarch64.tar.gz")
++
+ # vim: ts=2 sw=2 et:

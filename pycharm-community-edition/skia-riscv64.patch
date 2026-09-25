@@ -1,0 +1,80 @@
+--- a/tools/git-sync-deps
++++ b/tools/git-sync-deps
+@@ -31,6 +31,7 @@
+ 
+ 
+ import os
++import platform
+ import subprocess
+ import sys
+ import threading
+@@ -282,9 +283,10 @@
+     return 1
+ 
+   git_sync_deps(deps_file_path, argv, shallow, verbose)
+-  subprocess.check_call(
+-      [sys.executable,
+-       os.path.join(os.path.dirname(deps_file_path), 'bin', 'fetch-gn')])
++  if platform.machine() != 'riscv64':
++    subprocess.check_call(
++        [sys.executable,
++         os.path.join(os.path.dirname(deps_file_path), 'bin', 'fetch-gn')])
+   if not skip_emsdk:
+     subprocess.check_call(
+         [sys.executable,
+--- a/tools/skia_release/build.py
++++ b/tools/skia_release/build.py
+@@ -54,14 +54,17 @@
+   print("> Running tools/git-sync-deps")
+   git_sync_with_retries(skia_dir)
+ 
+-  print("> Fetching ninja")
+-  subprocess.check_call([sys.executable, "bin/fetch-ninja"], cwd=skia_dir)
++  if common.machine() != 'riscv64':
++    print("> Fetching ninja")
++    subprocess.check_call([sys.executable, "bin/fetch-ninja"], cwd=skia_dir)
+ 
+   if common.host() == 'windows':
+     patch_windows_toolchain(skia_dir)
+ 
+ 
+ def ninja_path(host):
++  if host == 'linux' and common.machine() == 'riscv64':
++    return 'ninja'
+   return os.path.join('third_party', 'ninja', 'ninja.exe' if host == 'windows' else 'ninja')
+ 
+ 
+@@ -135,7 +138,13 @@
+       args += ['extra_cflags+=["-stdlib=libc++", "-mmacosx-version-min=10.13"]']
+   elif target == 'linux':
+     args += ['skia_use_vulkan=true']
+-    if machine == 'arm64':
++    if machine == 'riscv64':
++      args += [
++          'extra_cflags_cc+=["-fno-exceptions", "-fno-rtti", "-D_GLIBCXX_USE_CXX11_ABI=0"]',
++          'cc="gcc"',
++          'cxx="g++"',
++      ]
++    elif machine == 'arm64':
+       args += [
+           'skia_gl_standard="gles"',
+           'skia_use_egl=true',
+@@ -218,6 +227,8 @@
+   out = os.path.join('out', build_type + '-' + target + '-' + machine)
+   gn = 'gn.exe' if host == 'windows' else 'gn'
+   gn_cmd = [os.path.join('bin', gn), 'gen', out, '--args=' + ' '.join(args)]
++  if host == 'linux' and machine == 'riscv64':
++    gn_cmd[0] = 'gn'
+   subprocess.check_call(gn_cmd)
+   ninja_targets = ['skia', 'modules']
+   if gpu_as_extension:
+--- a/tools/skia_release/common.py
++++ b/tools/skia_release/common.py
+@@ -59,6 +59,7 @@
+       'x86_64': 'x64',
+       'arm64': 'arm64',
+       'aarch64': 'arm64',
++      'riscv64': 'riscv64',
+   }[platform.machine()]
+ 
+ 
