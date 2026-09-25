@@ -1,9 +1,26 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -19,0 +20,4 @@
+@@ -15,8 +15,13 @@
+ 
+ prepare() {
+ 	cd "${pkgname}-${pkgver}"
+-	# Fix tests not working without git clone
+-	sed -i 's/jest --watch --onlyChanged/jest/' package.json
++	# Run all tests without a git clone and allow slow RISC-V component renders.
++	sed -i 's/jest --watch --onlyChanged/jest --runInBand --testTimeout=30000/' package.json
++	printf '\nrequire("@testing-library/dom").configure({ asyncUtilTimeout: 10000 });\n' >> jest-setup.js
 +	# SWC has no riscv64 binary and its automatic WASM fallback is broken.
 +	# https://github.com/swc-project/swc/pull/12064
 +	npm install --package-lock-only --ignore-scripts --save-dev --save-exact \
 +		@swc/core@npm:@swc/wasm@1.15.46
-@@ -27 +30,0 @@
+ }
+ 
+ build() {
+@@ -24,7 +29,6 @@
+ 	make install
+ 	make build
+ 	make dist-frontend
 -	make dist-backend-linux
+ }
+ 
+ check() {
