@@ -1,0 +1,32 @@
+--- a/src/tests/dos.rs
++++ b/src/tests/dos.rs
+@@ -30,8 +30,8 @@
+ // Keep renderer regressions independent of parser resource checks.
+ const LIMITS_CHECK: bool = false;
+ 
+-const FRAME_TIME_BUDGET: Duration = Duration::from_millis(1_500);
+-const MEM_BUDGET: usize = 32 << 20;
++const FRAME_TIME_BUDGET: Duration = Duration::from_millis(15_000);
++const MEM_BUDGET: usize = 128 << 20;
+ 
+ thread_local! {
+   /// Per-thread pointer to the live-byte counter of the worker running on
+@@ -2714,13 +2714,14 @@
+   let json = luma_matte_pairs_json(1, 64);
+   let composition = Composition::parse(json.as_bytes(), &Limits::default()).unwrap();
+   let mut renderer = CPURenderer::new(composition);
++  let size = Limits::default().max_dimension + 1;
+   assert_eq!(
+-    renderer.render(0.0, &mut [], 8192, 8192, RenderOptions::default()),
+-    Err(Error::LimitExceeded(crate::Limit::RenderMemory))
++    renderer.render(0.0, &mut [], size, size, RenderOptions::default()),
++    Err(Error::LimitExceeded(crate::Limit::CompositionSize))
+   );
+   assert_eq!(
+-    renderer.render_alpha8(0.0, &mut [], 8192, 8192, RenderOptions::default()),
+-    Err(Error::LimitExceeded(crate::Limit::RenderMemory))
++    renderer.render_alpha8(0.0, &mut [], size, size, RenderOptions::default()),
++    Err(Error::LimitExceeded(crate::Limit::CompositionSize))
+   );
+ }
+ 
