@@ -1,57 +1,43 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -49,23 +49,51 @@ prepare() {
- 			--arg electronVersion "$_electronVersion" \
- 			package.json |
- 		sponge package.json
-+	jq '	.devDependencies."electron-builder"="npm:@riscv-forks/electron-builder@24.13.3" |
-+		.overrides."app-builder-lib"="npm:@riscv-forks/app-builder-lib@24.13.3" |
-+		.overrides."builder-util"="npm:@riscv-forks/builder-util@24.13.1"' package.json |
-+		sponge package.json
- 	sed -i 's/ && cross-env CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ electron-builder --linux tar.gz --arm64 --publish=never//g' package.json
-+	sed -i 's/ --x64//g' package.json
-+	# Ugly workaround for https://github.com/npm/cli/issues/5443 https://github.com/npm/cli/issues/7660
-+	rm -f package-lock.json
-+	# Remove unused postinstall script (electron-rebuild)
-+	sed -i '/"postinstall":/d' package.json
+@@ -60,14 +60,26 @@
+ 	npm pkg set desktopName="$pkgname"
+ 	# Set path for autostart
+ 	sed -i "/new AutoLaunch({/a\            path: '/usr/bin/mattermost-desktop'," src/main/AutoLauncher.ts
+-	npm $_npmargs install
++	npm pkg delete config.target config.runtime
 +	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
- 	npm $_npmargs install
-+
-+	local _builder_bin=node_modules/app-builder-bin/linux/riscv64
-+	mkdir "$_builder_bin"
-+	go build -C ../app-builder
-+	cp ../app-builder/app-builder "$_builder_bin"
-+
-+	for _pkg in electron-builder app-builder-lib builder-util; do
-+		mkdir -p node_modules/$_pkg/node_modules/7zip-bin/linux/riscv64
-+		ln -s /usr/bin/7za node_modules/$_pkg/node_modules/7zip-bin/linux/riscv64/7za
-+	done
++	npm $_npmargs install --allow-git=all --ignore-scripts
++	patch -Np1 -i "$srcdir/electron-builder-riscv64.patch"
++	patch -Np1 -i "$srcdir/electron-winstaller-riscv64.patch"
++	patch -Np2 -d node_modules/electron -i "$srcdir/electron-extract-zip-lazy.patch"
++	mkdir -p node_modules/builder-util/node_modules/7zip-bin/linux/riscv64
++	ln -s /usr/bin/7za node_modules/builder-util/node_modules/7zip-bin/linux/riscv64/7za
++	npm $_npmargs rebuild --dangerously-allow-all-scripts
  }
  
  build() {
  	cd "$_archive"
  	export NODE_ENV=production
 +	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
- 	npm $_npmargs --offline run build
--	npm $_npmargs --offline run package:linux-tar
+ 	npm $_npmargs --offline run build-prod
+-	npx electron-builder --linux dir --publish=never
 +	electronDist=/usr/lib/$_electron
 +	electronVer=$(< "$electronDist/version")
-+	npm $_npmargs exec -c "electron-builder --linux tar.gz --publish=never \
++	npm $_npmargs exec -c "electron-builder --linux dir --publish=never \
 +		-c.electronDist=$electronDist -c.electronVersion=$electronVer"
  }
  
  package() {
- 	cd "$_archive"
--	install -Dm0644 -t "$pkgdir/usr/lib/$pkgname/" release/linux-unpacked/resources/app.asar
--	cp -a release/linux-unpacked/resources/app.asar.unpacked "$pkgdir/usr/lib/$pkgname/"
-+	install -Dm0644 -t "$pkgdir/usr/lib/$pkgname/" release/linux-riscv64-unpacked/resources/app.asar
-+	cp -a release/linux-riscv64-unpacked/resources/app.asar.unpacked "$pkgdir/usr/lib/$pkgname/"
- 	install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE.txt
- 	install -Dm0644 src/assets/linux/app_icon.png "$pkgdir/usr/share/icons/$pkgname.png"
+@@ -80,3 +92,11 @@
  	install -Dm0755 "$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
  	install -Dm0644 -t "$pkgdir/usr/share/applications/" "$srcdir/$pkgname.desktop"
  }
 +
-+makedepends+=(go 7zip)
-+source+=(git+https://github.com/develar/app-builder.git#commit=c92c3a2899b5887662321878a0a8681d122742bb)
-+sha256sums+=('cb099d499b91b466917e20f962db7badbfd7e3b1b185b67d82cfbaab8ec54ebd')
++makedepends+=(7zip)
++source+=(electron-builder-riscv64.patch
++         electron-winstaller-riscv64.patch
++         electron-extract-zip-lazy.patch::https://github.com/electron/electron/commit/51e0d451e3afac62c1478d1b01e296b121a5dc1a.patch)
++sha256sums+=('5b8561aba9d0daa235f502f52783de4daf91cfc3fad77610bd8933d3491015e0'
++             'b84d5b6dae0b81cb2d41438abb1d04f6acaf039565785c99f42363bb50e99ad3'
++             '7759b4f7b28038aca692ecaaa5546e05e1bbf8bc81f423c6c3be5ff7d9dccba9')
