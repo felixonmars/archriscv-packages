@@ -1,16 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,12 +11,16 @@
- license=('Apache-2.0')
- makedepends=('cargo' 'patchelf' 'clang')
- depends=('glibc' 'libgcc' 'zstd' 'bzip2' 'libkrunfw' 'libpipewire' 'virglrenderer')
--source=("https://github.com/containers/libkrun/archive/refs/tags/v$pkgver/$pkgname-$pkgver.tar.gz")
--sha256sums=('e8775fab2b460972a67ca6cd936296bb79cdb078d852d712a283cb290dd0b284')
-+source=("https://github.com/containers/libkrun/archive/refs/tags/v$pkgver/$pkgname-$pkgver.tar.gz"
-+        "fix-riscv64-non-tee-memory-region-setup.patch")
-+sha256sums=('e8775fab2b460972a67ca6cd936296bb79cdb078d852d712a283cb290dd0b284'
-+            '6a3bde92bd2ae6d518907a68b1c659126db309badec4e945aceb31bfa242a752')
- 
+@@ -17,6 +17,8 @@
  prepare() {
    cd "$pkgname-$pkgver"
  
@@ -19,3 +9,10 @@
    cargo fetch --locked --target "$(rustc --print host-tuple)"
  }
  
+@@ -34,3 +36,6 @@
+ 
+   install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+ }
++
++source+=("fix-riscv64-non-tee-memory-region-setup.patch")
++sha256sums+=('6a3bde92bd2ae6d518907a68b1c659126db309badec4e945aceb31bfa242a752')
