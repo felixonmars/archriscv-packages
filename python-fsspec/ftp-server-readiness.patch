@@ -1,0 +1,26 @@
+--- a/fsspec/conftest.py
++++ b/fsspec/conftest.py
+@@ -1,5 +1,6 @@
+ import os
+ import shutil
++import socket
+ import subprocess
+ import sys
+ import time
+@@ -114,7 +115,15 @@
+         [sys.executable, "-m", "pyftpdlib", "-d", d, "-u", "user", "-P", "pass", "-w"]
+     )
+     try:
+-        time.sleep(1)
++        deadline = time.monotonic() + 30
++        while True:
++            try:
++                with socket.create_connection(("localhost", 2121), timeout=1):
++                    break
++            except OSError:
++                if P.poll() is not None or time.monotonic() >= deadline:
++                    raise
++                time.sleep(0.1)
+         yield "localhost", 2121, "user", "pass"
+     finally:
+         P.terminate()
