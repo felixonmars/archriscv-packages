@@ -1,0 +1,18 @@
+https://github.com/electron/windows-installer/commit/eb6157ba9d507ba54977505b0f0ce7060d75620d
+
+--- a/node_modules/electron-winstaller/script/select-7z-arch.js
++++ b/node_modules/electron-winstaller/script/select-7z-arch.js
+@@ -5,7 +5,12 @@
+  * Even if we're cross-compiling for a different arch like arm64,
+  * we still need to use the 7-Zip executable for the host arch
+  */
+-const arch = os.arch;
++const arch = os.arch();
++
++if (arch !== 'x64' && arch !== 'arm64') {
++    console.warn('electron-winstaller: 32-bit build machines are not supported; installer creation will fail on this machine.');
++    process.exit(0);
++}
+ 
+ console.log('Selecting 7-Zip for arch ' + arch);
+ 
