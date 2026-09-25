@@ -1,12 +1,35 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -27,7 +27,8 @@
- check() {
-   cd "$pkgname"
+@@ -14,6 +14,7 @@
+ prepare() {
+   cd "$pkgname-$pkgver"
  
--  cargo test --frozen --features c-api
-+  # The DoS tests enforce a 1.5-second per-frame wall-clock budget.
-+  cargo test --release --frozen --features c-api -- --test-threads=1
++  patch -Np1 -i "$srcdir/dos-tests.patch"
+   cargo fetch --locked --target host-tuple
  }
  
+@@ -23,11 +24,12 @@
+   cargo build --release --frozen --features c-api
+ }
+ 
+-# check() {
+-#   cd "$pkgname-$pkgver"
+-#
+-#   cargo test --frozen --features c-api
+-# }
++check() {
++  cd "$pkgname-$pkgver"
++
++  # Keep the DoS tests optimized and serial on RISC-V.
++  cargo test --release --frozen --features c-api -- --test-threads=1
++}
+ 
  package() {
+   cd "$pkgname-$pkgver"
+@@ -36,3 +38,6 @@
+   install -Dm644 -t "$pkgdir/usr/include" include/tlottie.h
+   install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++source+=('dos-tests.patch')
++sha512sums+=('c30feb593a1fffb6a6cef77a6dee4ba82343482c5a3a9732e7945f66778b13e81ebc667a2dcebf968f80ecb08083875190b5eecb9d18c65d7ebc7b4d28436358')
