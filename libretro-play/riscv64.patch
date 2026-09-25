@@ -1,55 +1,20 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,6 +22,7 @@ makedepends=(
-   cmake
-   git
-   libglvnd
-+  simde
- )
- _commit=ca98a3ca28a863469861400da2b220aa45cb1243
- source=(
-@@ -35,19 +36,21 @@ source=(
-   git+https://github.com/SDWebImage/SDWebImage.git
-   git+https://github.com/Cyan4973/xxHash.git
-   git+https://github.com/facebook/zstd.git
-+  add-riscv64-build.patch
-+  add-missing-header.patch::https://github.com/jpd002/Play-/pull/1389.diff
- )
--b2sums=(
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--  SKIP
--)
-+b2sums=('a8a835b4d8fc94143f5c3c6869f96effc0c1fe1790aa719dbcb5456778bd70f6285cee573b3ea0226459236adb9c81a718c1ba381129e05ecc56b5c7c5ca06fc'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'SKIP'
-+        'a91b12ffb03ae5297de7a900edd98fd96e1bb545c69e5f320970791ef02da96c7e65cf6a4f6fc375f4fd544c5f5e36526240190bfc419ee5c8faffd36ec65335'
-+        '048d283259fedf05e3c4bc8587173e7ba740b6bd7346038f1b2e71c02208679d033a16bb1f6944b31f141a6bb792d5000f8fa8d22b7c73e671b89ef390ff2809')
- 
- pkgver() {
-   cd libretro-play
-@@ -72,6 +75,10 @@ prepare() {
+@@ -63,6 +63,9 @@
    git submodule init zstd
    git config submodule.zstd.url ../../../zstd
-   git submodule update
+   git -c protocol.file.allow=always submodule update
 +
 +  cd ../..
 +  patch -Np1 -i ../add-riscv64-build.patch
-+  patch -Np1 -i ../add-missing-header.patch
  }
  
  build() {
+@@ -83,3 +86,7 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++makedepends+=(simde)
++source+=(add-riscv64-build.patch)
++b2sums+=('6f79fddf5a412f8ee6b7f68b0b3c1e499a841c56052d3f486fc1010e19794e65b4a312451889f1a3e153f2bec8289f80f7808eacae5331de4c086b4b4cad7b1c')
