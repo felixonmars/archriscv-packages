@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -44,6 +44,11 @@
+ source=("$_url/releases/download/$pkgver/$_archive.tar.xz")
+ sha256sums=('6a0899ac753f50d0779751828c62fa6220024213ebd2179b6f64a3a9bff51f96')
+ 
++prepare() {
++	cd "$_archive"
++	patch -Np1 -i "$srcdir/vala-0.56.19.patch"
++}
++
+ build() {
+ 	local meson_opts=(
+ 		nautilus=true
+@@ -56,3 +61,6 @@
+ package() {
+ 	meson install -C build --destdir "$pkgdir"
+ }
++
++source+=("vala-0.56.19.patch::$_url/commit/e2ad529a88929bbc76906ac78260dacf4d8c8c6b.patch")
++sha256sums+=('64d8a83fde10e76f59c492a2ec2472cfb5f553ee9a4b697881f58d6e639c7a7c')
