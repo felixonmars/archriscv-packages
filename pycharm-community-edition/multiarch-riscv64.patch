@@ -1,0 +1,24 @@
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -113,7 +113,7 @@
+         inputs.properties(productProperties)
+ 
+         src(product.getDownloadLink(productVersion, productBaseArch))
+-        dest(downloadDir.dir("ide"))
++        dest(downloadDir.dir("ide").file(product.getFileNameBase(productVersion, productBaseArch) + ".tar.gz"))
+         overwrite(false)
+     }
+ 
+--- a/buildSrc/src/main/java/org/glavo/build/Product.java
++++ b/buildSrc/src/main/java/org/glavo/build/Product.java
+@@ -70,6 +70,10 @@
+     }
+ 
+     public String getDownloadLink(String version, Arch arch) {
++        if (this == PYCHARM_COMMUNITY) {
++            return "https://github.com/JetBrains/intellij-community/releases/download/pycharm%%2F%1$s/pycharm-%1$s-%2$s.tar.gz"
++                    .formatted(version, arch.normalize());
++        }
+         String downloadLinkPrefix = switch (this) {
+             case IDEA_IC, IDEA_IU -> "idea";
+             case PYCHARM, PYCHARM_COMMUNITY -> "python";
