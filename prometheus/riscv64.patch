@@ -1,11 +1,55 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -72,7 +72,7 @@
+@@ -29,12 +29,23 @@
+ prepare() {
+   cd prometheus-$pkgver
+ 
++  patch -Np1 -i "$srcdir/discovery-test.patch"
++
+   # https://github.com/prometheus/prometheus/issues/18471
+   rm util/runtime/statfs_unix_test.go
++
++  printf '\noverrides:\n  lightningcss: npm:lightningcss-wasm@1.33.0\n' >> web/ui/pnpm-workspace.yaml
++  pnpm --dir web/ui install --no-frozen-lockfile
++
++  cd "$srcdir/rolldown-1.2.7"
++  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
+ }
+ 
+ build() {
+-  cd prometheus-$pkgver
++  cd "$srcdir/rolldown-1.2.7"
++  cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/prometheus-$pkgver"
+ 
+   LDFLAGS="-extldflags '$LDFLAGS' \
+     -X github.com/prometheus/common/version.Version=$pkgver \
+@@ -49,6 +60,8 @@
+   cd $srcdir/prometheus-$pkgver
+   # Build the react app
+   make ui-install # run install first as otherwise the makefile has a race condition......
++  install -m755 "$srcdir/rolldown-1.2.7/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so" \
++    web/ui/node_modules/.pnpm/rolldown@1.2.7/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
+   make assets
+   make assets-compress
+ 
+@@ -72,7 +85,7 @@
    cd prometheus-$pkgver
  
    # TestHeadCompactionWhileScraping: https://github.com/prometheus/prometheus/issues/17956
--  GODEBUG=x509sha1=1 go test -short -skip TestHeadCompactionWhileScraping ./...
-+  go test -short -skip TestHeadCompactionWhileScraping ./...
+-  go test -short -skip TestHeadCompactionWhileScraping ./...
++  go test -short -p 1 -parallel 1 -timeout 2h -skip TestHeadCompactionWhileScraping ./...
  }
  
  package() {
+@@ -93,3 +106,9 @@
+   # Examples
+   install -Dm644 -t "$pkgdir"/usr/share/doc/prometheus/examples documentation/examples/prometheus*.yml
+ }
++
++makedepends+=('rust' 'cmake')
++source+=('rolldown-1.2.7.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.7.tar.gz'
++         'discovery-test.patch')
++sha256sums+=('19ce95560df3d53b109fc6bba38e354061d009afb7177bd7cba1d7dd0f09eee4'
++             '5bd312aaf96299593a6946b8fcf545c12caec90321245a031069614f161c1bb1')

@@ -1,0 +1,91 @@
+--- a/discovery/manager_test.go
++++ b/discovery/manager_test.go
+@@ -1058,46 +1058,50 @@
+ 
+ func TestTargetSetRecreatesTargetGroupsOnConfigChange(t *testing.T) {
+ 	t.Parallel()
+-	ctx := t.Context()
++	synctest.Test(t, func(test *testing.T) {
++		ctx := test.Context()
+ 
+-	reg := prometheus.NewRegistry()
+-	sdMetrics := NewTestMetrics(t, reg)
++		reg := prometheus.NewRegistry()
++		sdMetrics := NewTestMetrics(test, reg)
+ 
+-	discoveryManager := NewManager(ctx, promslog.NewNopLogger(), reg, sdMetrics)
+-	require.NotNil(t, discoveryManager)
+-	discoveryManager.updatert = 100 * time.Millisecond
+-	go discoveryManager.Run()
+-
+-	c := map[string]Configs{
+-		"prometheus": {
+-			staticConfig("foo:9090", "bar:9090"),
+-		},
+-	}
+-	discoveryManager.ApplyConfig(c)
+-
+-	syncedTargets := <-discoveryManager.SyncCh()
+-	p := pk("static", "prometheus", 0)
+-	verifyPresence(t, discoveryManager.targets, p, "{__address__=\"foo:9090\"}", true)
+-	verifyPresence(t, discoveryManager.targets, p, "{__address__=\"bar:9090\"}", true)
+-	require.Len(t, discoveryManager.targets, 1)
+-	require.Len(t, syncedTargets, 1)
+-	verifySyncedPresence(t, syncedTargets, "prometheus", "{__address__=\"foo:9090\"}", true)
+-	verifySyncedPresence(t, syncedTargets, "prometheus", "{__address__=\"bar:9090\"}", true)
+-	require.Len(t, syncedTargets["prometheus"], 2)
+-
+-	c["prometheus"] = Configs{
+-		staticConfig("foo:9090"),
+-	}
+-	discoveryManager.ApplyConfig(c)
+-	syncedTargets = <-discoveryManager.SyncCh()
+-	require.Len(t, discoveryManager.targets, 1)
+-	p = pk("static", "prometheus", 1)
+-	verifyPresence(t, discoveryManager.targets, p, "{__address__=\"foo:9090\"}", true)
+-	verifyPresence(t, discoveryManager.targets, p, "{__address__=\"bar:9090\"}", false)
+-	require.Len(t, discoveryManager.targets, 1)
+-	require.Len(t, syncedTargets, 1)
+-	verifySyncedPresence(t, syncedTargets, "prometheus", "{__address__=\"foo:9090\"}", true)
+-	require.Len(t, syncedTargets["prometheus"], 1)
++		discoveryManager := NewManager(ctx, promslog.NewNopLogger(), reg, sdMetrics)
++		require.NotNil(test, discoveryManager)
++		discoveryManager.updatert = 100 * time.Millisecond
++		go discoveryManager.Run()
++
++		c := map[string]Configs{
++			"prometheus": {
++				staticConfig("foo:9090", "bar:9090"),
++			},
++		}
++		discoveryManager.ApplyConfig(c)
++		synctest.Wait()
++
++		syncedTargets := <-discoveryManager.SyncCh()
++		p := pk("static", "prometheus", 0)
++		verifyPresence(test, discoveryManager.targets, p, "{__address__=\"foo:9090\"}", true)
++		verifyPresence(test, discoveryManager.targets, p, "{__address__=\"bar:9090\"}", true)
++		require.Len(test, discoveryManager.targets, 1)
++		require.Len(test, syncedTargets, 1)
++		verifySyncedPresence(test, syncedTargets, "prometheus", "{__address__=\"foo:9090\"}", true)
++		verifySyncedPresence(test, syncedTargets, "prometheus", "{__address__=\"bar:9090\"}", true)
++		require.Len(test, syncedTargets["prometheus"], 2)
++
++		c["prometheus"] = Configs{
++			staticConfig("foo:9090"),
++		}
++		discoveryManager.ApplyConfig(c)
++		synctest.Wait()
++		syncedTargets = <-discoveryManager.SyncCh()
++		require.Len(test, discoveryManager.targets, 1)
++		p = pk("static", "prometheus", 1)
++		verifyPresence(test, discoveryManager.targets, p, "{__address__=\"foo:9090\"}", true)
++		verifyPresence(test, discoveryManager.targets, p, "{__address__=\"bar:9090\"}", false)
++		require.Len(test, discoveryManager.targets, 1)
++		require.Len(test, syncedTargets, 1)
++		verifySyncedPresence(test, syncedTargets, "prometheus", "{__address__=\"foo:9090\"}", true)
++		require.Len(test, syncedTargets["prometheus"], 1)
++	})
+ }
+ 
+ func TestDiscovererConfigs(t *testing.T) {
