@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -46,6 +46,9 @@
+     -D OVERRIDE_GIT_DESCRIBE="v$pkgver"
+     -D ENABLE_EXTENSION_AUTOLOADING=1
+     -D ENABLE_EXTENSION_AUTOINSTALL=1
++    -D DUCKDB_EXPLICIT_PLATFORM=linux_riscv64
++    -D BUILD_EXTENSIONS=httpfs
++    -D FETCHCONTENT_SOURCE_DIR_HTTPFS_EXTENSION_FC="$srcdir/duckdb-httpfs"
+   )
+   cmake "${cmake_options[@]}"
+ 
+@@ -55,6 +58,9 @@
+   uv build \
+     --wheel \
+     --directory='python-duckdb' \
++    --config-setting=cmake.define.DUCKDB_EXPLICIT_PLATFORM=linux_riscv64 \
++    --config-setting='cmake.define.BUILD_EXTENSIONS=core_functions;json;parquet;icu;httpfs' \
++    --config-setting=cmake.define.FETCHCONTENT_SOURCE_DIR_HTTPFS_EXTENSION_FC="$srcdir/duckdb-httpfs" \
+     --no-build-isolation
+ }
+ 
+@@ -87,3 +93,9 @@
+   # license
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++# Build httpfs locally: upstream does not publish riscv64 extension binaries.
++depends+=(curl openssl)
++source+=("duckdb-httpfs::git+https://github.com/duckdb/duckdb-httpfs#commit=827222fb45a043a7a852d1f7aae46901492a3cda")
++sha512sums+=('SKIP')
++b2sums+=('SKIP')
