@@ -1,0 +1,148 @@
+--- a/build/ninja_gen/src/archives.rs
++++ b/build/ninja_gen/src/archives.rs
+@@ -23,6 +23,7 @@
+ pub enum Platform {
+     LinuxX64,
+     LinuxArm,
++    LinuxRiscv64,
+     MacX64,
+     MacArm,
+     WindowsX64,
+@@ -36,6 +37,7 @@
+         match (os, arch) {
+             ("linux", "x86_64") => Self::LinuxX64,
+             ("linux", "aarch64") => Self::LinuxArm,
++            ("linux", "riscv64") => Self::LinuxRiscv64,
+             ("macos", "x86_64") => Self::MacX64,
+             ("macos", "aarch64") => Self::MacArm,
+             ("windows", "x86_64") => Self::WindowsX64,
+@@ -49,7 +51,7 @@
+             // On Linux, wheels are not allowed to link to OpenSSL, and linking setup
+             // caused pain for AnkiDroid in the past. On other platforms, we stick to
+             // native libraries, for smaller binaries.
+-            Platform::LinuxX64 | Platform::LinuxArm => "rustls",
++            Platform::LinuxX64 | Platform::LinuxArm | Platform::LinuxRiscv64 => "rustls",
+             _ => "native-tls",
+         }
+     }
+@@ -58,6 +60,7 @@
+         match self {
+             Platform::LinuxX64 => "x86_64-unknown-linux-gnu",
+             Platform::LinuxArm => "aarch64-unknown-linux-gnu",
++            Platform::LinuxRiscv64 => "riscv64gc-unknown-linux-gnu",
+             Platform::MacX64 => "x86_64-apple-darwin",
+             Platform::MacArm => "aarch64-apple-darwin",
+             Platform::WindowsX64 => "x86_64-pc-windows-msvc",
+--- a/build/ninja_gen/src/node.rs
++++ b/build/ninja_gen/src/node.rs
+@@ -18,6 +18,7 @@
+ 
+ pub fn node_archive(platform: Platform) -> OnlineArchive {
+     match platform {
++        Platform::LinuxRiscv64 => panic!("NODE_BINARY must be set on riscv64"),
+         Platform::LinuxX64 => OnlineArchive {
+             url: "https://nodejs.org/dist/v22.17.0/node-v22.17.0-linux-x64.tar.xz",
+             sha256: "325c0f1261e0c61bcae369a1274028e9cfb7ab7949c05512c5b1e630f7e80e12",
+@@ -108,7 +109,6 @@
+ 
+ pub fn setup_node(
+     build: &mut Build,
+-    archive: OnlineArchive,
+     binary_exports: &[&'static str],
+     mut data_exports: HashMap<&str, Vec<Cow<str>>>,
+ ) -> Result<()> {
+@@ -124,7 +124,7 @@
+             download_and_extract(
+                 build,
+                 "node",
+-                archive,
++                node_archive(build.host_platform),
+                 hashmap! {
+                     "bin" => vec![if cfg!(windows) { "node.exe" } else { "bin/node" }],
+                     "npm" => vec![if cfg!(windows) { "npm.cmd " } else { "bin/npm" }]
+--- a/build/ninja_gen/src/protobuf.rs
++++ b/build/ninja_gen/src/protobuf.rs
+@@ -19,6 +19,7 @@
+ 
+ pub fn protoc_archive(platform: Platform) -> OnlineArchive {
+     match platform {
++        Platform::LinuxRiscv64 => panic!("PROTOC_BINARY must be set on riscv64"),
+         Platform::LinuxX64 => {
+             OnlineArchive {
+                 url: "https://github.com/protocolbuffers/protobuf/releases/download/v31.1/protoc-31.1-linux-x86_64.zip",
+@@ -48,6 +49,7 @@
+ 
+ fn clang_format_archive(platform: Platform) -> OnlineArchive {
+     match platform {
++        Platform::LinuxRiscv64 => panic!("use system clang-format on riscv64"),
+         Platform::LinuxX64 => {
+             OnlineArchive {
+                 url: "https://github.com/ankitects/clang-format-binaries/releases/download/anki-2021-01-09/clang-format_linux_x86_64.zip",
+@@ -97,15 +99,20 @@
+         build.add_output_stamp(format!("tests/clang-format.{mode}.{hash}"));
+     }
+     fn on_first_instance(&self, build: &mut crate::Build) -> anyhow::Result<()> {
+-        let binary = with_exe("clang-format");
+-        download_and_extract(
+-            build,
+-            "clang-format",
+-            clang_format_archive(build.host_platform),
+-            hashmap! {
+-                "bin" => [binary]
+-            },
+-        )
++        if build.host_platform == Platform::LinuxRiscv64 {
++            build.add_dependency("extract:clang-format:bin", inputs!["/usr/bin/clang-format"]);
++            Ok(())
++        } else {
++            let binary = with_exe("clang-format");
++            download_and_extract(
++                build,
++                "clang-format",
++                clang_format_archive(build.host_platform),
++                hashmap! {
++                    "bin" => [binary]
++                },
++            )
++        }
+     }
+ }
+ 
+--- a/build/ninja_gen/src/python.rs
++++ b/build/ninja_gen/src/python.rs
+@@ -25,6 +25,7 @@
+ // too.
+ pub fn uv_archive(platform: Platform) -> OnlineArchive {
+     match platform {
++        Platform::LinuxRiscv64 => panic!("UV_BINARY must be set on riscv64"),
+         Platform::LinuxX64 => {
+             OnlineArchive {
+                 url: "https://github.com/astral-sh/uv/releases/download/0.11.8/uv-x86_64-unknown-linux-gnu.tar.gz",
+--- a/build/configure/src/python.rs
++++ b/build/configure/src/python.rs
+@@ -155,6 +155,7 @@
+             let platform_tag = match platform {
+                 Platform::LinuxX64 => "manylinux_2_35_x86_64",
+                 Platform::LinuxArm => "manylinux_2_35_aarch64",
++                Platform::LinuxRiscv64 => "linux_riscv64",
+                 Platform::MacX64 => "macosx_12_0_x86_64",
+                 Platform::MacArm => "macosx_12_0_arm64",
+                 Platform::WindowsX64 => "win_amd64",
+--- a/build/configure/src/web.rs
++++ b/build/configure/src/web.rs
+@@ -8,7 +8,6 @@
+ use ninja_gen::hashmap;
+ use ninja_gen::input::BuildInput;
+ use ninja_gen::inputs;
+-use ninja_gen::node::node_archive;
+ use ninja_gen::node::CompileSass;
+ use ninja_gen::node::DPrint;
+ use ninja_gen::node::EsbuildScript;
+@@ -54,7 +53,6 @@
+ fn setup_node(build: &mut Build) -> Result<()> {
+     ninja_gen::node::setup_node(
+         build,
+-        node_archive(build.host_platform),
+         &[
+             "dprint",
+             "svelte-check",

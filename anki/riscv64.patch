@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -83,6 +83,9 @@
+   patch -Np1 < ../strip-type-checking-deps.patch
+   patch -Np1 < ../no-corepack.patch
+   patch -Np1 < ../reproducible-sveltekit.patch
++  patch -Np1 < ../riscv64-platform.patch
++
++  sed -i 's|vite build|node --max-old-space-size=8192 ../node_modules/vite/bin/vite.js build|' package.json
+ 
+   git submodule init
+   git config submodule.ftl/core-repo.url ../anki-core-i18n
+@@ -134,3 +137,7 @@
+   install -vDm644 -t "$pkgdir/usr/share/man/man1" "qt/installer/linux-template/{{ cookiecutter.format }}/{{ cookiecutter.app_name }}/anki.1"
+   install -vDm644 -t "$pkgdir/usr/share/mime/packages" "qt/installer/linux-template/{{ cookiecutter.format }}/{{ cookiecutter.app_name }}/anki.xml"
+ }
++
++makedepends+=('clang')
++source+=("riscv64-platform.patch")
++b2sums+=('SKIP')
