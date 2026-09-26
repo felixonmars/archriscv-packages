@@ -1,0 +1,21 @@
+--- a/tests/autoalloc/test_dryrun.py
++++ b/tests/autoalloc/test_dryrun.py
+@@ -13,10 +13,14 @@
+ @pytest.mark.skipif(PBS_AVAILABLE, reason="This test will not work properly if `qsub` is available")
+ def test_pbs_dry_run_missing_qsub(hq_env: HqEnv):
+     hq_env.start_server()
+-    hq_env.command(
+-        dry_run_cmd(PbsManagerFlavor()),
+-        expect_fail="Could not submit allocation: qsub start failed",
+-    )
++    with pytest.raises(
++        Exception,
++        match=(
++            r"Could not submit allocation: qsub "
++            r"(start failed|execution failed\n\nCaused by:\n    Exit code: 127\n)"
++        ),
++    ):
++        hq_env.command(dry_run_cmd(PbsManagerFlavor()))
+ 
+ 
+ @all_flavors

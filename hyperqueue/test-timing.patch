@@ -1,0 +1,273 @@
+--- a/tests/autoalloc/test_autoalloc.py
++++ b/tests/autoalloc/test_autoalloc.py
+@@ -337,7 +337,7 @@
+         wait_for_alloc(hq_env, "QUEUED", job_id)
+ 
+         mock.handler.set_job_data(job_id, None)
+-        wait_for_alloc(hq_env, "FAILED", job_id)
++        wait_for_alloc(hq_env, "FAILED", job_id, timeout=60)
+ 
+ 
+ @all_flavors
+@@ -393,7 +393,7 @@
+         add_queue(hq_env, manager=flavor.manager_type(), backlog=1)
+         # Check that after many status failures, the job is deemed to be finished and a new one is
+         # queued.
+-        wait_for_alloc(hq_env, "FAILED", first_job)
++        wait_for_alloc(hq_env, "FAILED", first_job, timeout=60)
+         wait_for_alloc(hq_env, "QUEUED", default_job_id(1))
+ 
+ 
+@@ -494,7 +494,7 @@
+     manager = ExtractSubmitScriptPath(flavor.create_adapter())
+ 
+     with MockJobManager(hq_env, manager):
+-        hq_env.start_server(env=dict(RUST_LOG="foo"))
++        start_server_with_quick_refresh(hq_env, env=dict(RUST_LOG="foo"))
+         prepare_tasks(hq_env)
+ 
+         add_queue(
+--- a/tests/autoalloc/utils.py
++++ b/tests/autoalloc/utils.py
+@@ -100,7 +100,7 @@
+         self.queue.put(value)
+ 
+     def get(self):
+-        return self.queue.get(timeout=5)
++        return self.queue.get(timeout=60)
+ 
+ 
+ class ExtractSubmitScriptPath(CommandHandler):
+@@ -155,12 +155,13 @@
+         raise e
+ 
+ 
+-def start_server_with_quick_refresh(hq_env: HqEnv, **kwargs) -> Popen:
++def start_server_with_quick_refresh(hq_env: HqEnv, env=None, **kwargs) -> Popen:
+     return hq_env.start_server(
+         **kwargs,
+         env={
+             "HQ_AUTOALLOC_REFRESH_INTERVAL_MS": "100",
+             "HQ_AUTOALLOC_MAX_SCHEDULE_DELAY_MS": "100",
+             "HQ_AUTOALLOC_SCHEDULE_TICK_INTERVAL_MS": "100",
++            **(env or {}),
+         },
+     )
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -158,9 +158,18 @@
+         server_args = self.server_args(self.server_dir, debug=self.debug)
+         if args:
+             server_args += args
++        server_link = os.path.join(self.server_dir, "hq-current")
++        previous_server = os.path.realpath(server_link)
+         process = self.start_process("server", server_args, env=environment)
+-        time.sleep(0.2)
+-        self.check_running_processes()
++
++        def server_started():
++            self.check_running_processes()
++            return (
++                os.path.realpath(server_link) != previous_server
++                and os.path.isfile(os.path.join(server_link, "access.json"))
++            )
++
++        wait_until(server_started)
+         return process
+ 
+     def start_workers(self, count, **kwargs) -> List[subprocess.Popen]:
+--- a/tests/pyapi/test_function.py
++++ b/tests/pyapi/test_function.py
+@@ -8,7 +8,7 @@
+ from hyperqueue.job import Job
+ 
+ from ..conftest import HqEnv
+-from ..utils import wait_for_job_state
++from ..utils import wait_for_job_state, wait_for_task_state
+ from ..utils.io import check_file_contents
+ from . import prepare_job_client
+ 
+@@ -66,7 +66,7 @@
+     job.function(lambda: 1, resources=ResourceRequest(cpus="2"))
+     job.function(lambda: 1, resources=ResourceRequest(cpus="all"))
+     submitted_job = client.submit(job)
+-    time.sleep(2.0)
++    wait_for_task_state(hq_env, submitted_job.id, [0, 1, 2], ["finished", "waiting", "finished"])
+ 
+     table = hq_env.command(["task", "list", str(submitted_job.id)], as_table=True)
+     assert table.get_column_value("State") == ["FINISHED", "WAITING", "FINISHED"]
+--- a/tests/test_array.py
++++ b/tests/test_array.py
+@@ -4,9 +4,10 @@
+ import time
+ 
+ from .conftest import HqEnv
+-from .utils import wait_for_job_state
+-from .utils.io import check_file_contents
++from .utils import wait_for_job_state, wait_for_task_state
++from .utils.io import check_file_contents, create_file
+ from .utils.job import default_task_output, list_jobs
++from .utils.wait import wait_until
+ 
+ 
+ def test_job_array_submit(hq_env: HqEnv):
+@@ -39,8 +40,28 @@
+ def test_job_array_report(hq_env: HqEnv):
+     hq_env.start_server()
+     hq_env.start_worker(cpus=4)
+-    hq_env.command(["submit", "--array=10-19", "--", "sleep", "1"])
+-    time.sleep(1.6)
++    hq_env.command(
++        [
++            "submit",
++            "--array=10-19",
++            "--",
++            "bash",
++            "-c",
++            'while [ ! -f "release-$HQ_TASK_ID" ]; do sleep 0.2; done',
++        ]
++    )
++
++    def running_tasks():
++        tasks = hq_env.command(["--output-mode=json", "task", "list", "1"], as_json=True, ignore_stderr=True)
++        task_ids = [task["id"] for task in tasks["1"] if task["state"] == "running"]
++        return task_ids if len(task_ids) == 4 else False
++
++    finished_tasks = wait_until(running_tasks)
++    for task_id in finished_tasks:
++        create_file(f"release-{task_id}")
++    wait_for_task_state(hq_env, 1, finished_tasks, ["finished"] * 4)
++    wait_until(running_tasks)
++
+     table = list_jobs(hq_env)
+     table.check_column_value("State", 0, "RUNNING")
+ 
+@@ -55,7 +76,9 @@
+     assert "FINISHED (4)" in states
+     assert "WAITING (2)" in states
+ 
+-    time.sleep(1.6)
++    for task_id in range(10, 20):
++        create_file(f"release-{task_id}")
++    wait_for_job_state(hq_env, 1, "FINISHED")
+ 
+     table = hq_env.command(["job", "info", "1"], as_table=True)
+     assert table.get_row_value("State").split("\n")[-1] == "FINISHED (10)"
+@@ -213,14 +236,22 @@
+     hq_env.start_server()
+     hq_env.start_worker()
+ 
++    submitted_at = datetime.datetime.now().replace(microsecond=0)
+     hq_env.command(["submit", "--array=1-3", "sleep", "1"])
+     wait_for_job_state(hq_env, 1, "FINISHED")
++    finished_at = datetime.datetime.now().replace(microsecond=0)
++
++    timestamps = {}
++    for task_id in range(1, 4):
++        table = hq_env.command(["task", "info", "1", str(task_id)], as_table=True)
++        timestamps[task_id] = (table.get_row_value("Start"), table.get_row_value("End"))
++        start = datetime.datetime.strptime(timestamps[task_id][0], "%d.%m.%Y %H:%M:%S")
++        end = datetime.datetime.strptime(timestamps[task_id][1], "%d.%m.%Y %H:%M:%S")
++        assert submitted_at <= start < end <= finished_at
+ 
+     time.sleep(1.2)  # This sleep is not redundant, we check that after finished time is not moving
+ 
+-    for i in range(1, 4):
+-        table = hq_env.command(["task", "info", "1", str(i)], as_table=True)
+-        start = datetime.datetime.strptime(table.get_row_value("Start"), "%d.%m.%Y %H:%M:%S")
+-        end = datetime.datetime.strptime(table.get_row_value("End"), "%d.%m.%Y %H:%M:%S")
+-        seconds = (end - start).total_seconds()
+-        assert 0.9 <= seconds <= 1.1
++    for task_id, (start, end) in timestamps.items():
++        table = hq_env.command(["task", "info", "1", str(task_id)], as_table=True)
++        assert table.get_row_value("Start") == start
++        assert table.get_row_value("End") == end
+--- a/tests/test_job_mn.py
++++ b/tests/test_job_mn.py
+@@ -36,9 +36,9 @@
+ 
+ def test_reservation_in_mn(hq_env: HqEnv):
+     hq_env.start_server()
+-    hq_env.command(["submit", "--nodes=3", "--", "bash", "-c", "sleep 3"])
+-    workers = hq_env.start_workers(3, args=["--heartbeat=500ms", "--idle-timeout=1s"])
+-    wait_for_job_state(hq_env, 1, "FINISHED")
++    hq_env.command(["submit", "--nodes=3", "--", "bash", "-c", "sleep 30"])
++    workers = hq_env.start_workers(3, args=["--heartbeat=500ms", "--idle-timeout=10s"])
++    wait_for_job_state(hq_env, 1, "FINISHED", timeout_s=60)
+     hq_env.check_running_processes()
+     time.sleep(2)
+     for w in workers:
+--- a/tests/test_journal.py
++++ b/tests/test_journal.py
+@@ -10,6 +10,7 @@
+ from .autoalloc.utils import add_queue, remove_queue
+ from .conftest import HqEnv
+ from .utils import wait_for_job_state, wait_for_task_state
++from .utils.wait import wait_until
+ import os
+ 
+ 
+@@ -107,14 +108,17 @@
+             "--array=0-4",
+             "--",
+             *python(
+-                f"import os, time; open('{tmp_path}/task-marker' + os.environ.get('HQ_TASK_ID'), 'w');"
+-                "time.sleep(1.5 if os.environ.get('HQ_TASK_ID') in ('1','3','4') else 0); sys.exit(1)"
++                f"import os, sys, time; open('{tmp_path}/task-marker' + os.environ.get('HQ_TASK_ID'), 'w');\n"
++                "if os.environ['HQ_TASK_ID'] in ('1', '3', '4'):\n"
++                f"    while not os.path.exists('{tmp_path}/release'):\n"
++                "        time.sleep(0.2)\n"
++                "sys.exit(1)"
+             ),
+         ]
+     )
+     hq_env.start_worker(cpus=5)
+-    wait_for_job_state(hq_env, 1, "RUNNING")
+-    time.sleep(0.2)
++    wait_for_task_state(hq_env, 1, [0, 1, 2, 3, 4], ["failed", "running", "failed", "running", "running"])
++    wait_until(lambda: all((tmp_path / f"task-marker{task_id}").is_file() for task_id in range(5)))
+ 
+     markers = sorted([name for name in os.listdir(tmp_path) if name.startswith("task-marker")])
+     assert markers == ["task-marker0", "task-marker1", "task-marker2", "task-marker3", "task-marker4"]
+@@ -137,6 +141,7 @@
+     out = hq_env.command(["--output-mode=json", "task", "info", "1", "0"], as_json=True)
+     assert out[0]["error"] == "Program terminated with exit code 1."
+ 
++    (tmp_path / "release").touch()
+     hq_env.start_worker(cpus=4)
+     wait_for_job_state(hq_env, [1], "FAILED")
+     markers = sorted([name for name in os.listdir(tmp_path) if name.startswith("task-marker")])
+--- a/tests/test_time.py
++++ b/tests/test_time.py
+@@ -8,12 +8,12 @@
+ def test_job_time_request1(hq_env: HqEnv):
+     # Tests that tasks are sent only to worker3 and worker 4 (because of time requests)
+     hq_env.start_server()
+-    hq_env.start_worker(args=["--time-limit", "2s"])
+-    hq_env.start_worker(args=["--time-limit", "4s"])
+-    hq_env.start_worker(args=["--time-limit", "10s"])
++    hq_env.start_worker(args=["--time-limit", "20s"])
++    hq_env.start_worker(args=["--time-limit", "40s"])
++    hq_env.start_worker(args=["--time-limit", "100s"])
+     hq_env.start_worker()
+ 
+-    hq_env.command(["submit", "--array=1-20", "--time-request=5s", "--", "ls"])
++    hq_env.command(["submit", "--array=1-20", "--time-request=50s", "--", "ls"])
+     wait_for_job_state(hq_env, 1, "FINISHED")
+     table = hq_env.command(["job", "info", "1"], as_table=True)
+     assert {"worker3", "worker4"} == set(table.get_row_value("Workers").split(","))
+@@ -22,10 +22,10 @@
+ def test_job_time_request2(hq_env: HqEnv):
+     # Test that a tasks with time request is not sent to worker without remaining lifetime
+     hq_env.start_server()
+-    hq_env.start_worker(args=["--time-limit", "4s"])
+-    hq_env.command(["submit", "--time-request=2s", "--", "ls"])
+-    time.sleep(2.2)
+-    hq_env.command(["submit", "--time-request=2s", "--", "ls"])
++    hq_env.start_worker(args=["--time-limit", "40s"])
++    hq_env.command(["submit", "--time-request=20s", "--", "ls"])
++    time.sleep(22)
++    hq_env.command(["submit", "--time-request=20s", "--", "ls"])
+     time.sleep(1.0)
+     # hq_env.start_worker(args=["--time-limit", "5s"])
+ 

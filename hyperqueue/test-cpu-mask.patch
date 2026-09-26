@@ -1,0 +1,22 @@
+--- a/tests/test_resources.py
++++ b/tests/test_resources.py
+@@ -367,8 +367,17 @@
+ )
+ def test_worker_detect_respect_cpu_mask(hq_env: HqEnv):
+     hq_env.start_server()
+-    resources = hq_env.command(["worker", "hwdetect"], cmd_prefix=["taskset", "-c", "1"])
+-    assert "cpus: [1]" in resources
++    resources = hq_env.command(
++        ["--output-mode=json", "worker", "hwdetect"],
++        cmd_prefix=["taskset", "-c", "1"],
++        as_json=True,
++        ignore_stderr=True,
++    )
++    cpus = next(resource for resource in resources["resources"] if resource["name"] == "cpus")
++    if cpus["kind"] == "groups":
++        assert [cpu for group in cpus["groups"] for cpu in group] == ["1"]
++    else:
++        assert cpus == {"name": "cpus", "kind": "list", "values": ["1"]}
+ 
+ 
+ def test_worker_no_detect_cpus_error(hq_env: HqEnv):
