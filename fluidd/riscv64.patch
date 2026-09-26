@@ -1,0 +1,41 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,6 +19,27 @@
+ 
++prepare() {
++  cd rolldown-1.2.8
++  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.33.0"
++  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++}
++
+ build() {
+-  cd fluidd
+-  pnpm install --frozen-lockfile
+-  pnpm run build
++  cd rolldown-1.2.8
++  CFLAGS="$CFLAGS -ffat-lto-objects" \
++    cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.33.0"
++  cargo build --frozen --release -p lightningcss_node --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/fluidd"
++  # Use packaged pnpm with the metadata-timeout fix, not the upstream pin.
++  # https://github.com/pnpm/pnpm/pull/12519
++  pnpm --pm-on-fail=ignore install --frozen-lockfile --no-runtime
++  install -m755 ../rolldown-1.2.8/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
++    node_modules/.pnpm/rolldown@1.2.8/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
++  install -m755 ../lightningcss-1.33.0/target/riscv64gc-unknown-linux-gnu/release/liblightningcss_node.so \
++    node_modules/.pnpm/lightningcss@1.33.0/node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  pnpm --pm-on-fail=ignore run build
+ }
+@@ -31 +52,7 @@
+ # vim: ts=2 sw=2 et:
++
++makedepends+=(rust cmake)
++source+=('rolldown-1.2.8.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.8.tar.gz'
++         'lightningcss-1.33.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.33.0.tar.gz')
++b2sums+=('2d070d6115d5328251f28845c10b80cff326689899f02f6b9d7264947ff2e39c8d7b0db165753739057de789e3bb777a8d4274f08b818a9b759f50b43a9124ee'
++         '67afeb5bd96b59cdf7702bf4198e00b48809028efbcd17b36e24df5e1717fd2a3804a476a4746b098fffbc13366a8e60097691a04278bc751b341f028c68f1b8')
