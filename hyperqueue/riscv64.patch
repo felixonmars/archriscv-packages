@@ -1,0 +1,37 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -40,6 +40,9 @@
+ 
+ prepare() {
+   cd $pkgbase-$pkgver
++  patch -Np1 -i "$srcdir/missing-qsub.patch"
++  patch -Np1 -i "$srcdir/test-timing.patch"
++  patch -Np1 -i "$srcdir/test-cpu-mask.patch"
+   cargo fetch --locked --target host-tuple
+ 
+   # run Python tests with the release binary
+@@ -63,13 +66,13 @@
+ 
+ check() {
+   cd $pkgbase-$pkgver
+-  cargo test --frozen --release "${_cargo_features_flags[@]}"
++  cargo test --frozen --release "${_cargo_features_flags[@]}" -- --test-threads=1
+ 
+   # test Python bindings
+   local pytest_options=(
+     -vv
+     -W ignore::DeprecationWarning
+-    -n16
++    -n1
+   )
+   python -m venv --system-site-packages test-env
+   test-env/bin/python -m installer target/wheels/*.whl
+@@ -120,3 +123,8 @@
+   python -m installer --destdir "$pkgdir" target/wheels/*.whl
+   install -vDm 644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=(missing-qsub.patch test-timing.patch test-cpu-mask.patch)
++b2sums+=('b2bb5e2e8773df828997f799225c62d297c594400ade7a6a09ea3afb035906a4b178f6f02d03a26faca92d02f50e93c711dd57044abe4ef1a4b3568abe9ee525'
++         'ad1b68cec9aaac39c35be57ae7799082a3eac2cf1d11167e216ff8f66e90ffda7031c17df5028adc948d16b871432402bd17c1914bab6ec3f3bd9f521e284365'
++         '0341055df72167d1d8ee9e4c8fd83254324ffec77106a27118fd1279a78d3d66d81bcec570600f3d03f359f2e1430c46fee3017fe37bd656ebf8921371db89ae')
