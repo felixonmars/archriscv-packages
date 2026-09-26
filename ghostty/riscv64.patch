@@ -1,0 +1,41 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -25,8 +25,7 @@
+          wayland libwayland-client.so
+          zlib)
+ makedepends=(blueprint-compiler
+-             pandoc-cli
+-             zig)
++             pandoc-cli)
+ optdepends=()
+ _archive="$pkgname-$pkgver"
+ source=("$url/archive/v$pkgver/$_archive.tar.gz")
+@@ -34,18 +33,20 @@
+ 
+ prepare() {
+ 	cd "$_archive"
++	PATH="$srcdir/zig-riscv64-linux-0.15.2:$PATH" \
+ 	ZIG_GLOBAL_CACHE_DIR="$srcdir/zig-global-cache/" ./nix/build-support/fetch-zig-cache.sh
+ }
+ 
+ build() {
+ 	cd "$_archive"
+-	DESTDIR=build zig build \
++	DESTDIR=build "$srcdir/zig-riscv64-linux-0.15.2/zig" build \
+ 		--summary all \
+ 		--prefix "/usr" \
+ 		--system "$srcdir/zig-global-cache/p" \
+ 		-Doptimize=ReleaseFast \
+ 		-Dgtk-x11=true \
+ 		-Dcpu=baseline \
++		-Dsimd=false \
+ 		-Dpie=true \
+ 		-Demit-docs \
+ 		-Dversion-string="$pkgver-arch$pkgrel" \
+@@ -90,3 +91,6 @@
+ 	mkdir -p "$pkgdir"/usr/share/nautilus-python/
+ 	cp -r build/usr/share/nautilus-python/* "$pkgdir"/usr/share/nautilus-python/
+ }
++
++source+=('https://ziglang.org/download/0.15.2/zig-riscv64-linux-0.15.2.tar.xz')
++sha256sums+=('493512bdca485be3c6a9b0f69dcb4cbe4587f3af8e1be282fdd827108ba39930')
