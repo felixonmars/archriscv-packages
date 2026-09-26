@@ -1,69 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -46,24 +46,57 @@
- source=(
-   https://cdn.kernel.org/pub/linux/kernel/v${pkgver%%.*}.x/${_srcname}.tar.{xz,sign}
-   $url/releases/download/$_srctag/linux-$_srctag.patch.zst{,.sig}
-+  # sg2042 write_once
-+  0000-sg2042-write_once.patch::https://github.com/revyos/linux/commit/8b001d81419df1c78c58411a51dfd0475233d319.patch?full_index=1
-+  # drm/ttm: support device w/o coherency
-+  0100-ttm-coherency.patch::https://github.com/revyos/linux/commit/bcfe733064fbe0cb6dab76a73eabf100e73801f9.patch?full_index=1
-+  0101-ttm-coherency2.patch::https://github.com/revyos/linux/commit/d5dad38f150b1e153b16cc610e9104bd1ef634b4.patch?full_index=1
-+  # rust + gcc
-+  0400-rust.patch::https://github.com/revyos/linux/commit/a0c1f2370d02c471f93578a7ce61cae18896acac.patch?full_index=1
-+  0401-rust1.patch::https://github.com/revyos/linux/commit/edc216123add9833e039b1c741f2c2b2bde4487d.patch?full_index=1
-+  0402-rust2.patch::https://github.com/revyos/linux/commit/71c8e98962c82e04b2e70c50a894032366651b89.patch?full_index=1
-+  0403-rust3.patch::https://github.com/revyos/linux/commit/b60775af94fda606995ef848678c5e812951fcf7.patch?full_index=1
- )
- source_x86_64=(config.x86_64)
-+source_riscv64=(
-+  config.x86_64
-+  riscv64.config-patch
-+)
- validpgpkeys=(
-   ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
-   647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
-   83BC8889351B5DEBBB68416EB8AC08600F108CDF  # Jan Alexander Steffens (heftig)
- )
-+sha256sums=('039aef84f2b0994aeda3f4fcfc3d02ec9d7a9bbb9020ea264c43f446c860f606'
-+            'SKIP'
-+            'bc8ce8ee78f2c5c701e16e600452648801474349456934721ffb541d49b3b5e6'
-+            'SKIP'
-+            '5f1f62f1082a6299cf6456f12287613aa9ebfc5be8291181258e9690b94c0fb1'
-+            'de1eaddab3130e9503c417489e793cd83a77f8a6453fb182667bdcfcd801b8ba'
-+            'f062bd6a6bb7e987617a0e576a03420673b062293d948b91c94eb3b87b15276b'
-+            '6fb42f5c26b5ef6e18c26720cb31c848de8efae4b4b236702685a2f02d53e793'
-+            'b91d25d18796baa11544a61aced57d490b40e3808198595d9cf0c0062163d24a'
-+            '35021cf475645d77515f1a09ae04bead566fcb8eb4d06d8f19a370b1ec1b4f07'
-+            '37f05363fff17aa29edf7cb6bd026d25bb7a4c20a7f91aaec30aa09cf269fc8e')
-+sha256sums_x86_64=('2649e6ac4aa085c288cb256f66eea25d257f394d0b4937159cebddd55fa0704e')
-+sha256sums_riscv64=('2649e6ac4aa085c288cb256f66eea25d257f394d0b4937159cebddd55fa0704e'
-+                    '21d600f7d375f42c2d6b1fceebf4ffaf864962ecd1376b98fc000c630c1e4400')
- b2sums=('bbbb558b48b65cf544fe74652437f4aab6578fbb523f4bfef401cecfed8ea94fc939dbab73f2d30216b0729165b8f4a33e23993b082ca9285f259535e7441688'
-         'SKIP'
-         '5a650ea865338889a4f8f6af8a7434168d0fa2df3525e3b9bd2bcbb3ad9f9983d294c5bf06cc23678ffc24a7de219a87ec77caff6019c0c82729162bac6ced0f'
--        'SKIP')
-+        'SKIP'
-+        '6748c004b274b187c3f3a8c0ab9548fd09dc4c962a7e59f74c4ce0181fe1dc1ff8bf0adb07688e4bb8776e21d63aa06b1494338ac6a9fcb2db5df881ef38135c'
-+        '552afc1c296991adb14c46e56a96d40a01688aeb1e12f2e294bd18b9316ceebd527a16b4ab08a82c0aa0a4cd13517f6a2f4534c25627d375b96958dfac66f034'
-+        '22cd5b8697894d8d4515f89e4053c05f99a6cb6de59b23aabc3f98fc4f80b4b1ad075399925ac67c81bbd5da5f18384d09171f778c8f4335357798965cafe6f1'
-+        'a450e64f3ce9551e4c40fcce47d0054722511dbda2dd7132dcd1c8a7c5a21ebab46433ced3f030fb0ab84c58688208cc70a3b0c227cf2015d9a243abe47c61b4'
-+        '36cdf842c02090ac7631d2fac6bc86960cdd51cb03d2b263e0f9a9aabbca118e4cff5ca12af20ea12460f413840b891e1d04119f63c3af59ad68a7b4e0ef4d83'
-+        '75d3f910b61c852dcb4c3d4ade69dc0746e2e29c790fca31c38ba06afc5858f42ed6aed4f352a594892ff06555df598607f7a9693060dfa70947fe8ad4af8459'
-+        '4027ad446a6da4b94f15a9928c8a7345022a647c240baefb61b523d90ba60a03e3ca7db9045aaa2b5a8fa91d37752852fd7f32c211d81ae1d1854159eb203fe6')
- b2sums_x86_64=('b8a6be7a684c50b8062db72a8d0f32a8fa8e74a897d1a06c6b2271cc0a873ff95fc4fb7aea7804c0de5aa4599b540f5ddb750698918bedd8625771abfded8430')
-+b2sums_riscv64=('b8a6be7a684c50b8062db72a8d0f32a8fa8e74a897d1a06c6b2271cc0a873ff95fc4fb7aea7804c0de5aa4599b540f5ddb750698918bedd8625771abfded8430'
-+                'c103ec3e3bee3d8ba5e5d19107c428625ce8e3dfdf5428180ea12c7004e703d60177a6aa3dc21c1a3687f7b82599b1196a5502de2f50d1df3faebc0eb2bce5a9')
- 
- # https://www.kernel.org/pub/linux/kernel/v7.x/sha256sums.asc
--sha256sums=('039aef84f2b0994aeda3f4fcfc3d02ec9d7a9bbb9020ea264c43f446c860f606'
--            'SKIP'
--            'bc8ce8ee78f2c5c701e16e600452648801474349456934721ffb541d49b3b5e6'
--            'SKIP')
- 
- export KBUILD_BUILD_HOST=archlinux
- export KBUILD_BUILD_USER=$pkgbase
-@@ -87,9 +120,14 @@
+@@ -87,9 +87,14 @@
    done
  
    echo "Setting config..."
@@ -80,7 +17,7 @@
  
    make -s kernelrelease > version
    echo "Prepared $pkgbase version $(<version)"
-@@ -101,7 +139,8 @@
+@@ -101,7 +106,8 @@
    make htmldocs SPHINXOPTS=-QT &
    local pid_docs=$!
  
@@ -90,7 +27,7 @@
    make -C tools/bpf/bpftool vmlinux.h feature-clang-bpf-co-re=1
    wait $pid_docs
  }
-@@ -144,6 +183,9 @@
+@@ -144,6 +150,9 @@
    ZSTD_CLEVEL=19 make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 \
      DEPMOD=/doesnt/exist modules_install  # Suppress depmod
  
@@ -100,7 +37,7 @@
    # remove build link
    rm "$modulesdir"/build
  }
-@@ -169,6 +211,7 @@
+@@ -169,6 +178,7 @@
    local karch
    case $CARCH in
      x86_64) karch=x86 ;;
@@ -108,3 +45,50 @@
      *) echo "Unknown CARCH $CARCH"; exit 1 ;;
    esac
  
+@@ -295,3 +305,46 @@
+ done
+ 
+ # vim:set ts=8 sts=2 sw=2 et:
++
++source+=(
++  # sg2042 write_once
++  0000-sg2042-write_once.patch::https://github.com/revyos/linux/commit/8b001d81419df1c78c58411a51dfd0475233d319.patch?full_index=1
++  # drm/ttm: support device w/o coherency
++  0100-ttm-coherency.patch::https://github.com/revyos/linux/commit/bcfe733064fbe0cb6dab76a73eabf100e73801f9.patch?full_index=1
++  0101-ttm-coherency2.patch::https://github.com/revyos/linux/commit/d5dad38f150b1e153b16cc610e9104bd1ef634b4.patch?full_index=1
++  # rust + gcc
++  0400-rust.patch::https://github.com/revyos/linux/commit/a0c1f2370d02c471f93578a7ce61cae18896acac.patch?full_index=1
++  0401-rust1.patch::https://github.com/revyos/linux/commit/edc216123add9833e039b1c741f2c2b2bde4487d.patch?full_index=1
++  0402-rust2.patch::https://github.com/revyos/linux/commit/71c8e98962c82e04b2e70c50a894032366651b89.patch?full_index=1
++  0403-rust3.patch::https://github.com/revyos/linux/commit/b60775af94fda606995ef848678c5e812951fcf7.patch?full_index=1
++)
++source_riscv64=(
++  config.x86_64
++  riscv64.config-patch
++)
++sha256sums+=(
++  '5f1f62f1082a6299cf6456f12287613aa9ebfc5be8291181258e9690b94c0fb1'
++  'de1eaddab3130e9503c417489e793cd83a77f8a6453fb182667bdcfcd801b8ba'
++  'f062bd6a6bb7e987617a0e576a03420673b062293d948b91c94eb3b87b15276b'
++  '6fb42f5c26b5ef6e18c26720cb31c848de8efae4b4b236702685a2f02d53e793'
++  'b91d25d18796baa11544a61aced57d490b40e3808198595d9cf0c0062163d24a'
++  '35021cf475645d77515f1a09ae04bead566fcb8eb4d06d8f19a370b1ec1b4f07'
++  '37f05363fff17aa29edf7cb6bd026d25bb7a4c20a7f91aaec30aa09cf269fc8e'
++)
++sha256sums_riscv64=(
++  'e0f7e27fdee2e0fde4096dd623ea1cae4d2d8922fb03dab842d7dd2c796c08ec'
++  '33fed4946a4952e9d44952133d38b3142edd05a561161490fcfa96ff1970759a'
++)
++b2sums+=(
++  '6748c004b274b187c3f3a8c0ab9548fd09dc4c962a7e59f74c4ce0181fe1dc1ff8bf0adb07688e4bb8776e21d63aa06b1494338ac6a9fcb2db5df881ef38135c'
++  '552afc1c296991adb14c46e56a96d40a01688aeb1e12f2e294bd18b9316ceebd527a16b4ab08a82c0aa0a4cd13517f6a2f4534c25627d375b96958dfac66f034'
++  '22cd5b8697894d8d4515f89e4053c05f99a6cb6de59b23aabc3f98fc4f80b4b1ad075399925ac67c81bbd5da5f18384d09171f778c8f4335357798965cafe6f1'
++  'a450e64f3ce9551e4c40fcce47d0054722511dbda2dd7132dcd1c8a7c5a21ebab46433ced3f030fb0ab84c58688208cc70a3b0c227cf2015d9a243abe47c61b4'
++  '36cdf842c02090ac7631d2fac6bc86960cdd51cb03d2b263e0f9a9aabbca118e4cff5ca12af20ea12460f413840b891e1d04119f63c3af59ad68a7b4e0ef4d83'
++  '75d3f910b61c852dcb4c3d4ade69dc0746e2e29c790fca31c38ba06afc5858f42ed6aed4f352a594892ff06555df598607f7a9693060dfa70947fe8ad4af8459'
++  '4027ad446a6da4b94f15a9928c8a7345022a647c240baefb61b523d90ba60a03e3ca7db9045aaa2b5a8fa91d37752852fd7f32c211d81ae1d1854159eb203fe6'
++)
++b2sums_riscv64=(
++  '4ea802760cae6169eab5e2a15323c2abda04943125e3626a85efd49016bfa8f11e71f69a693898af4250d481e6ea6a8e5edccc46421150e93778b8c3d6fda19a'
++  'fa10a7f28afeaf506130bc6241dfdbf4aad4376a9145465fc08d8877ca43a052ed68ed58b5743e9be3125454f571482e5a310e872f7418283b10a620ec96928e'
++)
