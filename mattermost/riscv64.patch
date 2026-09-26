@@ -1,0 +1,62 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,6 +43,16 @@
+ }
+ 
+ prepare() {
++    cd "$srcdir/source-map-2.1.1"
++    cargo build --release --locked -p parcel_sourcemap_node
++    cd "$srcdir/parcel-2.16.4"
++    sed -i 's/^mozjpeg-sys = .*/mozjpeg-sys = { version = "2.0.0", default-features = false, features = ["parallel", "unwinding"] }/' \
++        crates/node-bindings/Cargo.toml
++    cargo update -p mozjpeg-sys --precise 2.2.1
++    cargo build --release --locked -p parcel-node-bindings
++    cd "$srcdir/lightningcss-1.32.0"
++    cargo build --release --locked -p lightningcss_node
++    cd "$srcdir"
+     _srcenv
+ 
+     # This will fail to download some private dependencies for enterprise-version-only features
+@@ -67,7 +77,8 @@
+ 
+     # Arch's NPM is too new to pass build time checks.
+     # (Upstream isn't even adhering to this in their own CI.)
+-    jq 'del(.engines)' package.json | sponge package.json
++    jq 'del(.engines) | .overrides["@swc/core"] = "npm:@swc/wasm@1.15.33"' package.json | sponge package.json
++    jq 'del(.packages["node_modules/@swc/core"])' package-lock.json | sponge package-lock.json
+ 
+     local expressions=(
+         # See https://github.com/mattermost/mattermost/pull/31194
+@@ -80,7 +91,20 @@
+     sed -r -i Makefile "${expressions[@]/#/-e }"
+ 
+     # Pre-fetch nodejs dependencies
++    cp package.json package.json.orig
++    jq 'del(.scripts.postinstall)' package.json | sponge package.json
+     npm_config_allow_git=root make node_modules
++    mv package.json.orig package.json
++
++    install -Dm755 "$srcdir/source-map-2.1.1/target/release/libparcel_sourcemap_node.so" \
++        node_modules/@parcel/source-map/parcel_sourcemap_node/artifacts/index.linux-riscv64-gnu.node
++    install -Dm755 "$srcdir/parcel-2.16.4/target/release/libparcel_node_bindings.so" \
++        node_modules/@parcel/rust/parcel-node-bindings.linux-riscv64-gnu.node
++    install -Dm755 "$srcdir/lightningcss-1.32.0/target/release/liblightningcss_node.so" \
++        node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++    node-gyp rebuild --directory=node_modules/@parcel/watcher --nodedir=/usr
++    node-gyp rebuild --directory=node_modules/lmdb --nodedir=/usr
++    npm run postinstall
+ }
+ 
+ build() {
+@@ -191,3 +215,11 @@
+     install -Dm0644 <(_compgen bash) "$pkgdir/usr/share/bash-completion/completions/$pkgname"
+     install -Dm0644 <(_compgen zsh) "$pkgdir/usr/share/zsh/site-functions/_$pkgname"
+ }
++
++makedepends+=(node-gyp rust)
++source+=(source-map-2.1.1.tar.gz::https://github.com/parcel-bundler/source-map/archive/refs/tags/v2.1.1.tar.gz
++         parcel-2.16.4.tar.gz::https://github.com/parcel-bundler/parcel/archive/refs/tags/v2.16.4.tar.gz
++         lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz)
++sha256sums+=('68fa9f4a309afed79a4b44c85d6fdc83128322f14a0154fe999523785c369a39'
++             '325cfb82eef6ea35ab7d8e529029b91e546a0f675a218969c750a2c08f5a5ebe'
++             'ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9')
