@@ -1,0 +1,33 @@
+--- a/src/skimage/measure/fit.py
++++ b/src/skimage/measure/fit.py
+@@ -5,7 +5,8 @@
+ 
+ import numpy as np
+ from numpy.linalg import inv
+-from scipy import optimize, spatial
++from packaging import version
++import scipy
+ 
+ from .._shared.utils import (
+     _deprecate_estimate,
+@@ -621,7 +622,10 @@
+             )
+ 
+         center = C[0:2]
+-        distances = spatial.minkowski_distance(center, data)
++        if version.parse(scipy.__version__) >= version.parse('1.18.0dev0'):
++            distances = scipy.spatial.distance.minkowski(center, data)
++        else:
++            distances = scipy.spatial.minkowski_distance(center, data)
+         r = np.sqrt(np.mean(distances**2))
+ 
+         # Revert normalization and set init params.
+@@ -1022,7 +1026,7 @@
+             xi = x[i]
+             yi = y[i]
+             # faster without Dfun, because of the python overhead
+-            t, _ = optimize.leastsq(fun, t0[i], args=(xi, yi))
++            t, _ = scipy.optimize.leastsq(fun, t0[i], args=(xi, yi))
+             residuals[i] = np.sqrt(fun(t, xi, yi))
+ 
+         return residuals
