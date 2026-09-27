@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -52,7 +52,13 @@
+   # The Arch Linux ffmpeg package is GPL-licensed (--enable-gpl)
+   export I_CONFIRM_THIS_IS_NOT_A_LICENSE_VIOLATION=1
+ 
+-  python -m build --wheel --no-isolation
++  python -m build --wheel --no-isolation -Ccmake.define.TORCHCODEC_USE_SYSTEM_LIBAVIF=ON
++}
++
++prepare() {
++  cd $_name-$pkgver
++  patch -Np1 -i ../system-libavif.patch
++  patch -Np1 -i ../riscv64-tests.patch
+ }
+ 
+ check() {
+@@ -72,3 +78,8 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -vDm 644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=("system-libavif.patch::https://github.com/meta-pytorch/torchcodec/commit/1f8552b31581f3df100a5bb465b23bfb6d3c5fdb.patch"
++         riscv64-tests.patch)
++b2sums+=('ee9235b91e10aab9a3a1c6107dd47b69454d20021b74c07f1196af3c4736e36dcd7de5d22cb6028922b81fce3eb30350c5ed72be822f2a464eda0968e0de77b2'
++         '6437fdde0a8eb920f24982e94017e21f6138c128d11cd13b5c5c57fedd2a7c1b77a3600c3d44d8a14ccf247d9da1c3bc0118034094e22185aa4b444c77195dc6')
