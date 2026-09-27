@@ -1,32 +1,13 @@
-diff --git PKGBUILD PKGBUILD
-index 7c58c82..1e70a01 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -4,7 +4,7 @@ pkgname=libretro-kronos
- pkgver=7016
- pkgrel=1
- pkgdesc='Sega Saturn core'
--arch=(x86_64)
-+arch=(riscv64)
- url=https://github.com/libretro/yabause
- license=(GPL2)
- groups=(libretro)
-@@ -18,8 +18,16 @@ makedepends=(
-   libglvnd
- )
- _commit=146f4295eb7f5f76a2e6e6c84518c9bdf6a8398f
--source=(libretro-yabause::git+https://github.com/libretro/yabause.git#commit=${_commit})
--sha256sums=(SKIP)
-+source=(libretro-yabause::git+https://github.com/libretro/yabause.git#commit=${_commit}
-+        fix-unrecognized-command-line-option-msse.patch)
-+sha256sums=('SKIP'
-+            '24b71edbf79b5536a82a11072549dc56689d48745a2ca486004309b47410ef9f')
-+
-+prepare(){
+@@ -28,3 +28,10 @@
+   install -Dm 644 libretro-yabause/yabause/src/libretro/kronos_libretro.so -t "${pkgdir}"/usr/lib/libretro/
+ }
+ 
++prepare() {
 +  cd libretro-yabause
-+
 +  patch -Np1 -i ../fix-unrecognized-command-line-option-msse.patch
 +}
- 
- pkgver() {
-   cd libretro-yabause
++
++source+=(fix-unrecognized-command-line-option-msse.patch::https://github.com/libretro/yabause/commit/e81b147872927f06528150e4d06207cdb08e88b8.patch)
++b2sums+=('b1e0ba926a18f34cceb7015f424b50f5dceec7c0e1bcaa5071ffb5d7d1351a3fa8a946f0bcc401e36031a4b0a228237e1534861717237182e4b7a74f7271a391')
