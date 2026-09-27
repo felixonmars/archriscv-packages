@@ -1,0 +1,39 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,7 +19,9 @@
+ prepare() {
+   cd $pkgname
+   git submodule update --init --recursive
+-  pnpm install
++  sed -i 's/^  workerd: true/  workerd: false/' pnpm-workspace.yaml
++  sed -i '/"build":/s/next build/next build --webpack/' apps/$pkgname-app/package.json
++  SENTRYCLI_SKIP_DOWNLOAD=1 pnpm install
+   pnpm --filter @readest/readest-app setup-vendors
+   # Disable updater artifacts in tauri.conf.json
+   # Otherwise it will try to sign the built package with developer's GPG key which is unnecessary,
+@@ -31,8 +33,15 @@
+ }
+ 
+ build() {
++  cargo build --release --locked --manifest-path="$srcdir/lightningcss-1.32.0/node/Cargo.toml"
++  cargo build --release --locked --manifest-path="$srcdir/tailwindcss-4.3.3/crates/node/Cargo.toml"
++
+   cd $pkgname
+-  pnpm tauri build -b deb
++  cp "$srcdir/lightningcss-1.32.0/target/release/liblightningcss_node.so" \
++    node_modules/.pnpm/lightningcss@1.32.0/node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  cp "$srcdir/tailwindcss-4.3.3/target/release/libtailwind_oxide.so" \
++    node_modules/.pnpm/@tailwindcss+oxide@4.3.3/node_modules/@tailwindcss/oxide/tailwindcss-oxide.linux-riscv64-gnu.node
++  NODE_OPTIONS='--max-old-space-size=8192' pnpm --filter @readest/readest-app exec tauri build -b deb
+ }
+ 
+ package() {
+@@ -41,3 +50,8 @@
+   mv "$pkgdir"/usr/share/applications/{$_Packagename,com.bilingify.readest}.desktop
+   install -Dm644 data/metainfo/appdata.xml "$pkgdir"/usr/share/metainfo/com.bilingify.readest.appdata.xml
+ }
++
++source+=(lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz
++         tailwindcss-4.3.3.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.3.tar.gz)
++sha256sums+=('ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9'
++             'e702ce2493505287e8f6cab2dd1e0c14f154e57c296854d4ded38bde5da2be6e')
