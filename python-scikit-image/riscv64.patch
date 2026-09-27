@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -88,3 +88,20 @@
+   install -vDm 644 LICENSE.txt -t "$pkgdir"/usr/share/licenses/$pkgname/
+   install -vDm 644 README.md -t "$pkgdir"/usr/share/doc/$pkgname/
+ }
++
++prepare() {
++  cd $_name-$pkgver
++  patch -Np1 -i ../numpy-2.5.patch
++  patch -Np1 -i ../scipy-1.18.patch
++}
++
++checkdepends=(${checkdepends[@]/python-simpleitk})
++for _optdep in "${!optdepends[@]}"; do
++  if [[ ${optdepends[$_optdep]} == python-simpleitk:* ]]; then
++    unset 'optdepends[_optdep]'
++  fi
++done
++source+=("numpy-2.5.patch::$url/commit/b9b377cb403284954533b4cc2e61543a79e2d04c.patch?full_index=1"
++         scipy-1.18.patch)
++b2sums+=('b79e0329a58e98302ccd5f0661372bc5b4a66a1e0f41f3a7b8a7b40edd649df7fe7f199416b88ffc224077a1a05ff8bb2f92a132422b00f3d360d6f80d95ca25'
++         'd5653c9a2b07b5be70b91e8214b4f1b3052e165d2a0ffe5ce8e930550f1a582e5ade57d06f72232132463fd33926133e4914df45e2909c66b88b86200184c7d4')
