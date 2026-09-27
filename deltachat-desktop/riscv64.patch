@@ -1,0 +1,41 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -70,6 +70,8 @@
+   done
+ 
+   pnpm install --frozen-lockfile
++  patch -d node_modules/.pnpm/builder-util@26.15.3_supports-color@8.1.1/node_modules/builder-util -Np0 -i "$srcdir/builder-util-riscv64.patch"
++  patch -Np1 -i "$srcdir/deltachat-desktop-system-rpc.patch"
+ }
+ 
+ build() {
+@@ -88,9 +90,6 @@
+   pnpm --filter=$filter build
+ 
+   pnpm --filter=$filter exec electron-builder ${electron_builder_options[@]}
+-
+-  # symlink bundled stdio-rpc-server to the one provided by the deltachat-rpc-server package
+-  ln -fsv /usr/bin/deltachat-rpc-server packages/target-electron/dist/linux-unpacked/resources/app.asar.unpacked/node_modules/@deltachat/stdio-rpc-server-linux-x64/deltachat-rpc-server
+ }
+ 
+ package() {
+@@ -109,7 +108,7 @@
+ 
+   cd $pkgname
+   install -vdm 755 "$pkgdir/usr/lib/$pkgname/"
+-  cp -rv packages/target-electron/dist/linux-unpacked/resources/* "$pkgdir/usr/lib/$pkgname/"
++  cp -rv packages/target-electron/dist/linux-riscv64-unpacked/resources/* "$pkgdir/usr/lib/$pkgname/"
+ 
+   # icons
+   install -vDm 644 images/tray/${pkgname/-desktop/}.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+@@ -123,3 +122,10 @@
+ 
+   install -vDm 644 {CHANGELOG,CONTRIBUTING,README,SECURITY}.md -t "$pkgdir/usr/share/doc/$pkgname/"
+ }
++
++source+=(builder-util-riscv64.patch
++         deltachat-desktop-system-rpc.patch)
++sha512sums+=('50bbca0a71343f06c2293cc45590943adc432e2cb53196e1d275f6660d249c3cb449ec34bb610c4eb1b687e4b59f5467a465f6221a2aeaef363d339817d6f1f9'
++             'eab67a5a22eafa383ade9b6795f0a2540548dfd4a3efc41eaa645910150bdfba309ae125d41b5384ec1fd5e42f1c0fa10642a250b48a2ee5538f30e53d1e1724')
++b2sums+=('f941e67aa4d11f423be226765d84170c637c891e73823d35bf9004a8be5d56df1bc7bd38dd0387f2fb28ea6fb17c2221842780577dd2f8cefbd9fc5d1a082d23'
++         'e6ad5416ab308b3ebb9e99b20fe550599c50f7ee4c62bb40beba5082e11c27ffb50af0651c7ae20c18b56a17598f26065d7cb825cd61f4f855644277cb448fcd')
