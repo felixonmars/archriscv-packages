@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -80,12 +80,6 @@
+   cmake "${_cpu_args[@]}"
+   cmake --build build
+ 
+-  echo "Building torchvision (GPU version with CUDA)"
+-  cd "${srcdir}/${_pkgname}-cuda-${pkgver}"
+-  local _gpu_args=("${_common_cmake[@]}" -DWITH_CUDA=ON)
+-  cmake "${_gpu_args[@]}"
+-  cmake --build build
+-
+   # build python-torchvision
+   echo "Building torchvision python bindings (CPU version)"
+   cd "${srcdir}/python-${_pkgname}-${pkgver}"
+@@ -94,6 +88,8 @@
+   TORCHVISION_USE_NVJPEG=0 \
+   python -m build --wheel --no-isolation
+ 
++  return
++
+   # build python-torchvision-cuda
+   echo "Building torchvision python bindings (GPU version with CUDA)"
+   cd "${srcdir}/python-${_pkgname}-cuda-${pkgver}"
+@@ -161,4 +157,9 @@
+   install -vDm 644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
+ 
++pkgname=(${pkgname[@]/*-cuda})
++makedepends=(${makedepends[@]/python-pytorch-opt-cuda/python-pytorch})
++makedepends=(${makedepends[@]/cuda})
++makedepends=(${makedepends[@]/cudnn})
++
+ # vim:set ts=2 sw=2 et:
