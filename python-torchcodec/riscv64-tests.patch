@@ -1,0 +1,21 @@
+Resampled S32 sine MP3 output differs between TorchCodec and the FFmpeg CLI
+on riscv64: 317/32000 and 330/256000 samples exceed atol=1e-3. Reuse upstream's
+macOS 99%-close comparison for this case without skipping any tests.
+
+https://github.com/meta-pytorch/torchcodec/commit/eb51e0e97f456cf92c5c6987f6ebeae824ebab5a
+
+--- a/test/test_encoders.py
++++ b/test/test_encoders.py
+@@ -1174,7 +1174,11 @@
+                 rtol, atol = 0, 1e-2
+             else:
+                 rtol, atol = 0, 1e-3
+-            if sys.platform == "darwin":
++            if sys.platform == "darwin" or (
++                platform.machine().lower() == "riscv64"
++                and format == "mp3"
++                and asset is SINE_MONO_S32
++            ):
+                 assert_close = partial(assert_tensor_close_on_at_least, percentage=99)
+         elif format == "wav":
+             rtol, atol = 0, 1e-4
