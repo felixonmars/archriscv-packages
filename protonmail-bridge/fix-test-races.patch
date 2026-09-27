@@ -1,0 +1,66 @@
+--- a/internal/services/syncservice/stage_metadata_test.go
++++ b/internal/services/syncservice/stage_metadata_test.go
+@@ -19,6 +19,7 @@
+ 
+ import (
+ 	"context"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"sync"
+@@ -152,20 +153,18 @@
+ 	setupMetadataSuccessRunWith429(&tj1, numMessages, messageSize)
+ 	setupMetadataSuccessRunWith429(&tj2, numMessages, messageSize)
+ 
++	metadataDone := make(chan struct{})
+ 	go func() {
++		defer close(metadataDone)
+ 		metadata.run(ctx, TestMetadataPageSize, TestMaxMessages, &network.NoCoolDown{})
+ 	}()
+ 
+-	go func() {
+-		require.NoError(t, input.Produce(ctx, tj1.job))
+-		require.NoError(t, input.Produce(ctx, tj2.job))
+-	}()
+-
++	consumerDone := make(chan error, 1)
+ 	go func() {
+ 		for {
+ 			req, err := output.Consume(ctx)
+ 			if err != nil {
+-				require.ErrorIs(t, err, context.Canceled)
++				consumerDone <- err
+ 				return
+ 			}
+ 
+@@ -173,9 +172,17 @@
+ 		}
+ 	}()
+ 
++	defer func() {
++		cancel()
++		<-metadataDone
++		err := <-consumerDone
++		require.True(t, errors.Is(err, context.Canceled) || errors.Is(err, ErrNoMoreInput), "unexpected consumer error: %v", err)
++	}()
++
++	require.NoError(t, input.Produce(ctx, tj1.job))
++	require.NoError(t, input.Produce(ctx, tj2.job))
+ 	require.NoError(t, tj1.job.waitAndClose(ctx))
+ 	require.NoError(t, tj2.job.waitAndClose(ctx))
+-	cancel()
+ }
+ 
+ func TestMetadataIterator_ExitNoMoreMetadata(t *testing.T) {
+--- a/internal/services/userevents/service_test.go
++++ b/internal/services/userevents/service_test.go
+@@ -66,6 +66,9 @@
+ 	// Event Source expectations.
+ 	eventSource.EXPECT().GetLatestEventID(gomock.Any()).Times(1).Return(firstEventID, nil)
+ 	eventSource.EXPECT().GetEvent(gomock.Any(), gomock.Eq(firstEventID)).MinTimes(1).Return(secondEvent, false, nil)
++	eventSource.EXPECT().GetEvent(gomock.Cond(func(ctx context.Context) bool {
++		return ctx.Err() == context.Canceled
++	}), gomock.Eq(secondEventID)).AnyTimes().Return(nil, false, context.Canceled)
+ 
+ 	service := NewService(
+ 		"foo",
