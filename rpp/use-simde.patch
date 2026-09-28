@@ -1,0 +1,483 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -187,9 +187,7 @@
+ 
+ # set global compiler flags for the project
+ # -fPIC -- Generate position-independent code if possible.
+-# -mavx2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX and AVX2 built-in functions and code generation.
+-# -mfma -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX and FMA built-in functions and code generation.
+-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx2 -mf16c -mfma")
++set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+ 
+ # Check AVX/SSE support
+ include(CheckCXXCompilerFlag)
+--- a/src/modules/CMakeLists.txt
++++ b/src/modules/CMakeLists.txt
+@@ -120,7 +120,7 @@
+                                 tensor/cpu/kernel/tensor_stddev.cpp
+                                 tensor/cpu/kernel/normalize.cpp
+                                 tensor/cpu/kernel/threshold.cpp
+-                                PROPERTIES COMPILE_FLAGS -mno-fma)
++                                PROPERTIES COMPILE_FLAGS -ffp-contract=off)
+ endfunction()
+ 
+ set(CPPFILES "handle_api.cpp" "handle_host.cpp")
+--- a/src/include/common/cpu/rpp_cpu_simd_load_store.hpp
++++ b/src/include/common/cpu/rpp_cpu_simd_load_store.hpp
+@@ -28,13 +28,11 @@
+ #include "stdio.h"
+ #include "rppdefs.h"
+ 
+-#if _WIN32
+-#include <intrin.h>
+-#else
+-#include <x86intrin.h>
+-#include <smmintrin.h>
+-#include <immintrin.h>
+-#endif
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/avx2.h>
++#include <simde/x86/f16c.h>
++#include <simde/x86/fma.h>
++#define _MM_FROUND_NO_EXC SIMDE_MM_FROUND_NO_EXC
+ 
+ #define M256I(m256i_register) (*((_m256i_union*)&m256i_register))
+ 
+@@ -204,18 +202,12 @@
+ 
+ inline void rpp_storeu_si32(void *__p,
+                         	__m128i __b) {
+-  struct __storeu_si32 {
+-    int __v;
+-  } __attribute__((__packed__, __may_alias__));
+-  ((struct __storeu_si32 *)__p)->__v = ((__v4si)__b)[0];
++  _mm_storeu_si32(__p, __b);
+ }
+ 
+ inline void rpp_storeu_si64(void *__p,
+                             __m128i __b) {
+-  struct __storeu_si64 {
+-    long long __v;
+-  } __attribute__((__packed__, __may_alias__));
+-  ((struct __storeu_si64 *)__p)->__v = ((__v2di)__b)[0];
++  _mm_storeu_si64(__p, __b);
+ }
+ 
+ inline void rpp_mm_print_epi16(__m128i *v)
+--- a/src/include/common/cpu/rpp_cpu_simd_math.hpp
++++ b/src/include/common/cpu/rpp_cpu_simd_math.hpp
+@@ -316,7 +316,7 @@
+     return r;
+ }
+ 
+-#if __AVX2__
++#if __AVX2__ || defined(SIMDE_ENABLE_NATIVE_ALIASES)
+ static inline __m256 fast_exp_avx(__m256 _x)
+ {
+     __m256 c1 = _mm256_set1_ps(0.007972914726F);
+--- a/src/modules/tensor/cpu/kernel/spectrogram.cpp
++++ b/src/modules/tensor/cpu/kernel/spectrogram.cpp
+@@ -26,6 +26,7 @@
+ #include "ffts.h"
+ #include "ffts_attributes.h"
+ #include <complex>
++#include <cstdlib>
+ 
+ inline bool is_pow2(Rpp64s n) { return (n & (n-1)) == 0; }
+ inline bool can_use_real_impl(Rpp64s n) { return is_pow2(n); }
+@@ -181,8 +182,8 @@
+         }
+ 
+         // Set temporary buffers to 0
+-        Rpp32f FFTS_ALIGN(32) *fftInBuf = static_cast<Rpp32f*>(_mm_malloc(fftInSize * sizeof(Rpp32f), 32)); // ffts requires 32-byte aligned memory
+-        Rpp32f FFTS_ALIGN(32) *fftOutBuf = static_cast<Rpp32f*>(_mm_malloc(fftOutSize * sizeof(Rpp32f), 32)); // ffts requires 32-byte aligned memory
++        Rpp32f FFTS_ALIGN(32) *fftInBuf = static_cast<Rpp32f*>(std::aligned_alloc(32, (fftInSize * sizeof(Rpp32f) + 31) / 32 * 32)); // ffts requires 32-byte aligned memory
++        Rpp32f FFTS_ALIGN(32) *fftOutBuf = static_cast<Rpp32f*>(std::aligned_alloc(32, (fftOutSize * sizeof(Rpp32f) + 31) / 32 * 32)); // ffts requires 32-byte aligned memory
+ 
+         for (Rpp32s w = 0; w < numWindows; w++)
+         {
+@@ -242,8 +243,8 @@
+             }
+         }
+         ffts_free(p);
+-        _mm_free(fftInBuf);
+-        _mm_free(fftOutBuf);
++        std::free(fftInBuf);
++        std::free(fftOutBuf);
+     }
+     if(windowFn)
+         free(windowFn);
+--- a/api/rppdefs.h
++++ b/api/rppdefs.h
+@@ -48,13 +48,8 @@
+ #include <CL/cl.h>
+ #endif
+ 
+-#if _WIN32
+-#include <intrin.h>
+-#else
+-#include <x86intrin.h>
+-#include <smmintrin.h>
+-#include <immintrin.h>
+-#endif
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/sse2.h>
+ #include<vector>
+ 
+ /*! \brief 8 bit unsigned char minimum \ingroup group_rppdefs \page subpage_rpp */
+--- a/src/modules/tensor/cpu/kernel/jpeg_compression_distortion.cpp
++++ b/src/modules/tensor/cpu/kernel/jpeg_compression_distortion.cpp
+@@ -800,9 +800,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[8], pCr[8];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -871,9 +871,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -933,9 +933,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -999,9 +999,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[8], pCr[8];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1065,9 +1065,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 8)
+                 {
+-#if __AVX2__
+                     __m256 p[8];
+                     for(Rpp32s row = 0; row < 8; row++)
+                     {
+@@ -1105,10 +1105,10 @@
+                         if((row + i) < roi.xywhROI.roiHeight)
+                             rpp_simd_store(rpp_store8_f32pln1_to_u8pln1_avx, dstPtrTempRow, p[row]);                                 // simd loads
+                     }
+-#endif
+                     dstPtrTemp += 8;
+                     srcPtrTemp += 8;
+                 }
++#endif
+                 for(; vectorLoopCount < roi.xywhROI.roiWidth; vectorLoopCount += 8)
+                 {
+                     Rpp32s rowLimit = ((vectorLoopCount + 8) < roi.xywhROI.roiWidth) ? 8 : (roi.xywhROI.roiWidth - vectorLoopCount);
+@@ -1187,9 +1187,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1266,9 +1266,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1336,9 +1336,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1410,9 +1410,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[8], pCr[8];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1484,9 +1484,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 8)
+                 {
+-#if __AVX2__
+                     __m256 p[8];
+                     for(Rpp32s row = 0; row < 8; row++)
+                     {
+@@ -1528,10 +1528,10 @@
+                             rpp_simd_store(rpp_store8_f32pln1_to_f32pln1_avx, dstPtrTempRow, p[row]);                                 // simd loads
+                         }
+                     }
+-#endif
+                     dstPtrTemp += 8;
+                     srcPtrTemp += 8;
+                 }
++#endif
+                 for(; vectorLoopCount < roi.xywhROI.roiWidth; vectorLoopCount += 8)
+                 {
+                     Rpp32s rowLimit = ((vectorLoopCount + 8) < roi.xywhROI.roiWidth) ? 8 : (roi.xywhROI.roiWidth - vectorLoopCount);
+@@ -1610,9 +1610,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1689,9 +1689,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1759,9 +1759,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1833,9 +1833,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[8], pCr[8];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -1907,9 +1907,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 8)
+                 {
+-#if __AVX2__
+                     __m256 p[8];
+                     for(Rpp32s row = 0; row < 8; row++)
+                     {
+@@ -1951,10 +1951,10 @@
+                             rpp_simd_store(rpp_store8_f32_to_f16_avx, dstPtrTempRow, &p[row]);                                 // simd loads
+                         }
+                     }
+-#endif
+                     dstPtrTemp += 8;
+                     srcPtrTemp += 8;
+                 }
++#endif
+                 for(; vectorLoopCount < roi.xywhROI.roiWidth; vectorLoopCount += 8)
+                 {
+                     Rpp32s rowLimit = ((vectorLoopCount + 8) < roi.xywhROI.roiWidth) ? 8 : (roi.xywhROI.roiWidth - vectorLoopCount);
+@@ -2033,9 +2033,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[8], pCr[8];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -2104,9 +2104,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -2166,9 +2166,9 @@
+                 dstPtrTempB = dstPtrRowB;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 48)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[32], pCr[32];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -2232,9 +2232,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                 {
+-#if __AVX2__
+                     __m256 pRgb[96];
+                     __m256 pY[32], pCb[8], pCr[8];
+                     for(Rpp32s row = 0; row < 16; row++)
+@@ -2298,9 +2298,9 @@
+                 dstPtrTemp = dstPtrRow;
+ 
+                 Rpp32s vectorLoopCount = 0;
++#if __AVX2__
+                 for (; vectorLoopCount < alignedLength; vectorLoopCount += 8)
+                 {
+-#if __AVX2__
+                     __m256 p[8];
+                     for(Rpp32s row = 0; row < 8; row++)
+                     {
+@@ -2338,10 +2338,10 @@
+                         if((row + i) < roi.xywhROI.roiHeight)
+                             rpp_simd_store(rpp_store8_f32pln1_to_i8pln1_avx, dstPtrTempRow, p[row]);                                 // simd loads
+                     }
+-#endif
+                     dstPtrTemp += 8;
+                     srcPtrTemp += 8;
+                 }
++#endif
+                 for(; vectorLoopCount < roi.xywhROI.roiWidth; vectorLoopCount += 8)
+                 {
+                     Rpp32s rowLimit = ((vectorLoopCount + 8) < roi.xywhROI.roiWidth) ? 8 : (roi.xywhROI.roiWidth - vectorLoopCount);
+--- a/src/modules/tensor/cpu/kernel/solarize.cpp
++++ b/src/modules/tensor/cpu/kernel/solarize.cpp
+@@ -180,9 +180,9 @@
+                     dstPtrTemp = dstPtrRow;
+ 
+                     int vectorLoopCount = 0;
++#if __AVX2__
+                     for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                     {
+-#if __AVX2__
+                         __m256 p[2];
+                         rpp_simd_load(rpp_load16_u8_to_f32_avx, srcPtrTemp, p);
+                         compute_solarize_host<2>(p, pxThresholdParam, avx_p255);
+@@ -190,8 +190,8 @@
+ 
+                         srcPtrTemp += vectorIncrementPerChannel;
+                         dstPtrTemp += vectorIncrementPerChannel;
+-#endif
+                     }
++#endif
+                     for (; vectorLoopCount < bufferLength; vectorLoopCount++)
+                     {
+                         *dstPtrTemp++ = (*srcPtrTemp >= thresholdParam) ? (maxVal - (*srcPtrTemp)) : *srcPtrTemp;
+@@ -357,9 +357,9 @@
+                     dstPtrTemp = dstPtrRow;
+ 
+                     int vectorLoopCount = 0;
++#if __AVX2__
+                     for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                     {
+-#if __AVX2__
+                         __m256 p;
+                         rpp_simd_load(rpp_load8_f32_to_f32_avx, srcPtrTemp, &p);      // simd loads
+                         compute_solarize_host<1>(&p, pThresholdParam, avx_p1);              // threshold adjustment
+@@ -367,8 +367,8 @@
+ 
+                         srcPtrTemp += vectorIncrementPerChannel;
+                         dstPtrTemp += vectorIncrementPerChannel;
+-#endif
+                     }
++#endif
+                     for (; vectorLoopCount < bufferLength; vectorLoopCount++)
+                     {
+                         *dstPtrTemp++ = (*srcPtrTemp >= thresholdParam) ? (maxVal - (*srcPtrTemp)) : *srcPtrTemp;
+@@ -534,9 +534,9 @@
+                     dstPtrTemp = dstPtrRow;
+ 
+                     int vectorLoopCount = 0;
++#if __AVX2__
+                     for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                     {
+-#if __AVX2__
+                         __m256 p;
+                         rpp_simd_load(rpp_load8_f16_to_f32_avx, srcPtrTemp, &p);      // simd loads
+                         compute_solarize_host<1>(&p, pThresholdParam, avx_p1);              // threshold adjustment
+@@ -544,8 +544,8 @@
+ 
+                         srcPtrTemp += vectorIncrementPerChannel;
+                         dstPtrTemp += vectorIncrementPerChannel;
+-#endif
+                     }
++#endif
+                     for (; vectorLoopCount < bufferLength; vectorLoopCount++)
+                     {
+                         *dstPtrTemp++ = (*srcPtrTemp >= thresholdParam) ? (maxVal - (*srcPtrTemp)) : *srcPtrTemp;
+@@ -710,9 +710,9 @@
+                     dstPtrTemp = dstPtrRow;
+ 
+                     int vectorLoopCount = 0;
++#if __AVX2__
+                     for (; vectorLoopCount < alignedLength; vectorLoopCount += vectorIncrementPerChannel)
+                     {
+-#if __AVX2__
+                         __m256 p[2];
+                         rpp_simd_load(rpp_load16_i8_to_f32_avx, srcPtrTemp, p);
+                         compute_solarize_host<2>(p, pxThresholdParam, avx_p255);
+@@ -720,8 +720,8 @@
+ 
+                         srcPtrTemp += vectorIncrementPerChannel;
+                         dstPtrTemp += vectorIncrementPerChannel;
+-#endif
+                     }
++#endif
+                     for (; vectorLoopCount < bufferLength; vectorLoopCount++)
+                     {
+                         *dstPtrTemp++ = ((*srcPtrTemp + offset) >= thresholdParam) ? (maxVal - (*srcPtrTemp)) : *srcPtrTemp;

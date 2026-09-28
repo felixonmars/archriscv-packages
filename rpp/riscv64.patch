@@ -1,0 +1,34 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,5 +16,19 @@
+ _dirname="$(basename "$_git")-$(basename "${source[0]}" ".tar.gz")"
+ 
++prepare() {
++  patch -d "$_dirname" -Np1 -i "$srcdir/use-simde.patch"
++  patch -d "ffts-$_ffts_commit" -Np1 -i "$srcdir/ffts-fix-non-sse.patch"
++  cp "ffts-$_ffts_commit/COPYRIGHT" "$_dirname/third_party/ffts/FFTS_LICENSE"
++}
++
+ build() {
++  cmake -B build-ffts -S "ffts-$_ffts_commit" \
++    -D CMAKE_BUILD_TYPE=None \
++    -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \
++    -D DISABLE_DYNAMIC_CODE=ON \
++    -D GENERATE_POSITION_INDEPENDENT_CODE=ON
++  cmake --build build-ffts --target ffts_static
++  cp build-ffts/libffts.a "$_dirname/third_party/ffts/lib/"
++
+   # -fcf-protection is not supported by HIP, see
+   # https://rocm.docs.amd.com/projects/llvm-project/en/latest/reference/rocmcc.html#support-status-of-other-clang-options
+@@ -35,2 +49,11 @@
+   install -Dm644 "$_dirname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
++
++_ffts_commit=b22d839b61c5bd8a993e24ae3e01f39d9b5084fb
++depends+=('simde')
++source+=("use-simde.patch"
++         "ffts-$_ffts_commit.tar.gz::https://github.com/anthonix/ffts/archive/$_ffts_commit.tar.gz"
++         "ffts-fix-non-sse.patch::https://github.com/anthonix/ffts/commit/980941c1db4c693d9f87105e5563a22835918a4c.patch")
++sha256sums+=('1203a82fbae6c88568f070b6da4fd9526a498eaa197ccff0b4b9c7cf3347febc'
++             'ec623a9e75cf0897370a7988206f16e47ed6e32485522a0a8cc2ae35d846612a'
++             '8a63c01ba075a72890e842f15c21631a9377ac6f3b2ec79678d6fd449977a820')
