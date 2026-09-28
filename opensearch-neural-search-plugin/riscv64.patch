@@ -1,20 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,7 +11,7 @@ arch=('x86_64')
- url="https://github.com/opensearch-project/neural-search"
- license=('Apache-2.0')
- depends=("opensearch=${_opensearchver}")
--makedepends=("java-environment=${_jdkver}" 'unzip')
-+makedepends=("java-environment=${_jdkver}" 'unzip' 'gradle')
- source=("${pkgname}-${pkgver}.tar.gz::https://github.com/opensearch-project/neural-search/archive/${pkgver}.tar.gz")
- sha256sums=('31ead1bdcd780b941c7839d3551da8b25f3f099805e8a18323a77696c18a8cc3')
+@@ -17,2 +17,7 @@
  
-@@ -21,7 +21,7 @@ build() {
-   export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
-   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
++prepare() {
++  cd "neural-search-${pkgver}"
++  patch -Np1 -i ../stable-collapse-scores.patch
++}
++
+ build() {
+@@ -23,3 +28,3 @@
    # integTest (Reaper) requires JDK 14
 -  ./gradlew build \
 +  gradle build \
      --exclude-task "integTest" \
-     --exclude-task "jacocoTestReport" \
-     --exclude-task "jacocoTestCoverageVerification"
+@@ -36 +41,5 @@
+ }
++
++makedepends+=('gradle')
++source+=('stable-collapse-scores.patch')
++sha256sums+=('075f59167e41c4e32b1b2a77ae53f79274c8df8fed99972e11474b77cb7b35dc')
