@@ -1,0 +1,2679 @@
+Adapt Firecracker PR #5227 to v1.17.0 with APLIC pulses and eventfd devices.
+https://github.com/firecracker-microvm/firecracker/pull/5227
+Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
+
+--- /dev/null
++++ b/docs/riscv64.md
+@@ -0,0 +1,38 @@
++# Experimental RISC-V support
++
++This port adapts the RISC-V backend proposed in Firecracker PR #5227
++(commit `910b4f40b3367f720d6508fbad8a89bd968e7078`) to the 1.17 VM and device APIs.
++
++The host must provide RV64 KVM virtualization and the KVM RISC-V AIA device.
++An ordinary RISC-V machine without the hypervisor extension cannot run microVMs
++natively. The backend checks KVM capabilities and reports missing capabilities;
++it does not fall back to emulation inside Firecracker.
++
++Use an uncompressed RISC-V Linux `Image`, optionally with an initramfs, and
++`console=ttyS0` for the serial console. Guest RAM starts at `0x80000000`; the
++device tree occupies the reserved area below the kernel's `0x80200000` entry
++point. The device tree reports the KVM timer frequency, guest ISA extensions,
++memory, UART, AIA, initramfs, and VirtIO MMIO devices. Secondary harts start via
++KVM's SBI implementation.
++
++Device eventfds are serviced by the VMM event loop, which pulses each APLIC
++line with `KVM_IRQ_LINE`. RISC-V KVM's IRQFD in-atomic path asserts a wired
++line without deasserting it; connecting edge-triggered APLIC sources directly
++to IRQFD loses subsequent interrupts. Eventfds remain usable by VirtIO and
++vhost-user devices, and the VM owns the descriptors for their full lifetime.
++The device tree also supplies fresh host-generated entropy at each boot.
++
++The initial port uses VirtIO MMIO, not PCI. Snapshot save/restore, CPU register
++modifiers, CPU-configuration dumps, SMT, VMGenID, and VMClock are not implemented.
++Unsupported snapshot and CPU-configuration operations return errors rather
++than panicking. Architecture-independent KVM capability templates are accepted.
++
++The seccomp compiler recognizes the RISC-V audit architecture. As with upstream's
++other GNU-libc targets, the GNU build uses the upstream empty fallback policy
++unless an explicit seccomp filter is supplied; recognizing the architecture does
++not supply a production seccomp policy.
++
++The Rust test helpers generate actual RISC-V Image-format loop and dirty-memory
++workloads, rather than using an ARM image or a placeholder binary. Running KVM
++tests requires a compatible KVM host; merely compiling the tests does not verify
++guest execution.
+--- a/src/firecracker/src/api_server/mod.rs
++++ b/src/firecracker/src/api_server/mod.rs
+@@ -240,6 +240,9 @@
+         ]
+     }"#;
+ 
++    #[cfg(target_arch = "riscv64")]
++    const TEST_UNESCAPED_JSON_TEMPLATE: &str = r#"{"kvm_capabilities":["0\n\nTEST\n\n"]}"#;
++
+     #[test]
+     fn test_serve_vmm_action_request() {
+         let to_vmm_fd = EventFd::new(libc::EFD_NONBLOCK).unwrap();
+--- a/src/firecracker/src/api_server/request/actions.rs
++++ b/src/firecracker/src/api_server/request/actions.rs
+@@ -7,7 +7,7 @@
+ 
+ use super::super::parsed_request::{ParsedRequest, RequestError};
+ use super::Body;
+-#[cfg(target_arch = "aarch64")]
++#[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+ use super::StatusCode;
+ 
+ // The names of the members from this enum must precisely correspond (as a string) to the possible
+@@ -43,6 +43,13 @@
+             return Err(RequestError::Generic(
+                 StatusCode::BadRequest,
+                 "SendCtrlAltDel does not supported on aarch64.".to_string(),
++            ));
++
++            // SendCtrlAltDel not supported on riscv64.
++            #[cfg(target_arch = "riscv64")]
++            return Err(RequestError::Generic(
++                StatusCode::BadRequest,
++                "SendCtrlAltDel is not supported on riscv64.".to_string(),
+             ));
+ 
+             #[cfg(target_arch = "x86_64")]
+--- a/src/seccompiler/src/bin.rs
++++ b/src/seccompiler/src/bin.rs
+@@ -13,7 +13,7 @@
+         short,
+         long,
+         help = "The computer architecture where the BPF program runs. Supported architectures: \
+-                x86_64, aarch64."
++                x86_64, aarch64, riscv64."
+     )]
+     target_arch: String,
+     #[arg(short, long, help = "File path of the JSON input.")]
+--- a/src/seccompiler/src/bindings.rs
++++ b/src/seccompiler/src/bindings.rs
+@@ -56,6 +56,7 @@
+ 
+ pub const SCMP_ARCH_X86_64: u32 = 0xc000003e;
+ pub const SCMP_ARCH_AARCH64: u32 = 0xc00000b7;
++pub const SCMP_ARCH_RISCV64: u32 = 0xc00000f3;
+ /// Kill the process
+ pub const SCMP_ACT_KILL_PROCESS: u32 = 0x80000000;
+ /// Kill the thread
+--- a/src/seccompiler/src/types.rs
++++ b/src/seccompiler/src/types.rs
+@@ -169,6 +169,7 @@
+ pub enum TargetArch {
+     X86_64,
+     Aarch64,
++    Riscv64,
+ }
+ 
+ impl TargetArch {
+@@ -176,6 +177,7 @@
+         match self {
+             TargetArch::X86_64 => SCMP_ARCH_X86_64,
+             TargetArch::Aarch64 => SCMP_ARCH_AARCH64,
++            TargetArch::Riscv64 => SCMP_ARCH_RISCV64,
+         }
+     }
+ }
+@@ -186,7 +188,26 @@
+         match s.to_lowercase().as_str() {
+             "x86_64" => Ok(TargetArch::X86_64),
+             "aarch64" => Ok(TargetArch::Aarch64),
++            "riscv64" => Ok(TargetArch::Riscv64),
+             _ => Err(s.to_string()),
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn riscv64_target_uses_riscv_seccomp_architecture() {
++        assert_eq!(
++            TargetArch::from_str("riscv64").unwrap().to_scmp_type(),
++            SCMP_ARCH_RISCV64
++        );
++        assert_eq!(
++            TargetArch::from_str("RISCV64").unwrap().to_scmp_type(),
++            SCMP_ARCH_RISCV64
++        );
++        assert!(TargetArch::from_str("riscv32").is_err());
++    }
++}
+--- a/src/vmm/Cargo.toml
++++ b/src/vmm/Cargo.toml
+@@ -59,7 +59,7 @@
+ vmm-sys-util = { version = "0.15.0", features = ["with-serde"] }
+ zerocopy = { version = "0.8.50" }
+ 
+-[target.'cfg(target_arch = "aarch64")'.dependencies]
++[target.'cfg(any(target_arch = "aarch64", target_arch = "riscv64"))'.dependencies]
+ vm-fdt = "0.3.0"
+ 
+ [dev-dependencies]
+--- a/src/vmm/src/arch/mod.rs
++++ b/src/vmm/src/arch/mod.rs
+@@ -22,6 +22,22 @@
+ pub use aarch64::vm::{KvmVm, KvmVmError, VmState};
+ #[cfg(target_arch = "aarch64")]
+ pub use aarch64::{
++    ConfigurationError, arch_memory_regions, configure_system_for_boot, get_kernel_start,
++    initrd_load_addr, layout::*, load_kernel,
++};
++
++/// Module for riscv64 related functionality.
++#[cfg(target_arch = "riscv64")]
++pub mod riscv64;
++
++#[cfg(target_arch = "riscv64")]
++pub use riscv64::kvm::{Kvm, KvmArchError};
++#[cfg(target_arch = "riscv64")]
++pub use riscv64::vcpu::*;
++#[cfg(target_arch = "riscv64")]
++pub use riscv64::vm::{KvmVm, KvmVmError, VmState};
++#[cfg(target_arch = "riscv64")]
++pub use riscv64::{
+     ConfigurationError, arch_memory_regions, configure_system_for_boot, get_kernel_start,
+     initrd_load_addr, layout::*, load_kernel,
+ };
+@@ -49,7 +65,7 @@
+     /// Device Type: Virtio.
+     Virtio(u32),
+     /// Device Type: Serial.
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     Serial,
+     /// Device Type: RTC.
+     #[cfg(target_arch = "aarch64")]
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/aia/mod.rs
+@@ -0,0 +1,234 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright © 2024 Institute of Software, CAS. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++mod regs;
++
++use kvm_ioctls::{DeviceFd, VmFd};
++pub use regs::AiaState;
++
++/// Represent an AIA device
++#[derive(Debug)]
++pub struct AIADevice {
++    fd: DeviceFd,
++    vcpu_count: u64,
++}
++
++impl AIADevice {
++    const VERSION: u32 = kvm_bindings::kvm_device_type_KVM_DEV_TYPE_RISCV_AIA;
++
++    /// Return whether the device is MSI compatible.
++    pub fn msi_compatible(&self) -> bool {
++        true
++    }
++
++    /// Return the FDT `compatible` property string for IMSIC.
++    pub fn imsic_compatibility(&self) -> &str {
++        "riscv,imsics"
++    }
++
++    /// Return IMSIC properties.
++    pub fn imsic_properties(&self) -> [u32; 4] {
++        [
++            0,
++            AIADevice::get_imsic_addr() as u32,
++            0,
++            super::layout::IMSIC_SZ_PH * self.vcpu_count as u32,
++        ]
++    }
++
++    /// Return the FDT `compatible` property string for APLIC.
++    pub fn aplic_compatibility(&self) -> &str {
++        "riscv,aplic"
++    }
++
++    /// Return APLIC properties.
++    pub fn aplic_properties(&self) -> [u32; 4] {
++        [
++            0,
++            AIADevice::get_aplic_addr() as u32,
++            0,
++            ::kvm_bindings::KVM_DEV_RISCV_APLIC_SIZE,
++        ]
++    }
++
++    /// Return the file descriptor of the AIA device.
++    pub fn device_fd(&self) -> &DeviceFd {
++        &self.fd
++    }
++
++    /// Returns the number vCPUs this AIA device handles.
++    pub fn vcpu_count(&self) -> u64 {
++        self.vcpu_count
++    }
++
++    fn get_aplic_addr() -> u64 {
++        super::layout::APLIC_START
++    }
++
++    fn get_imsic_addr() -> u64 {
++        super::layout::IMSIC_START
++    }
++
++    /// Create the AIA device object.
++    pub fn create_device(fd: DeviceFd, vcpu_count: u64) -> Self {
++        Self { fd, vcpu_count }
++    }
++
++    /// Initialize an AIA device.
++    pub fn init_device(vm: &VmFd) -> Result<DeviceFd, AiaError> {
++        let mut aia_device = kvm_bindings::kvm_create_device {
++            type_: Self::VERSION,
++            fd: 0,
++            flags: 0,
++        };
++
++        vm.create_device(&mut aia_device)
++            .map_err(AiaError::CreateAIA)
++    }
++
++    fn init_device_attributes(aia_device: &Self) -> Result<(), AiaError> {
++        let aia_nr_sources: u32 = super::layout::IRQ_MAX;
++        Self::set_device_attribute(
++            aia_device.device_fd(),
++            kvm_bindings::KVM_DEV_RISCV_AIA_GRP_CONFIG,
++            u64::from(kvm_bindings::KVM_DEV_RISCV_AIA_CONFIG_SRCS),
++            &aia_nr_sources as *const u32 as u64,
++            0,
++        )?;
++
++        let aia_hart_bits = u64::from(aia_device.vcpu_count) - 1;
++        let aia_hart_bits = ::std::cmp::max(64 - aia_hart_bits.leading_zeros(), 1);
++        Self::set_device_attribute(
++            aia_device.device_fd(),
++            kvm_bindings::KVM_DEV_RISCV_AIA_GRP_CONFIG,
++            u64::from(kvm_bindings::KVM_DEV_RISCV_AIA_CONFIG_HART_BITS),
++            &aia_hart_bits as *const u32 as u64,
++            0,
++        )?;
++
++        // Set APLIC address.
++        let aia_addr_aplic: u64 = AIADevice::get_aplic_addr();
++        Self::set_device_attribute(
++            aia_device.device_fd(),
++            kvm_bindings::KVM_DEV_RISCV_AIA_GRP_ADDR,
++            u64::from(kvm_bindings::KVM_DEV_RISCV_AIA_ADDR_APLIC),
++            &aia_addr_aplic as *const u64 as u64,
++            0,
++        )?;
++
++        let aia_imsic_addr = |hart| -> u64 {
++            AIADevice::get_imsic_addr() + u64::from(hart) * u64::from(super::layout::IMSIC_SZ_PH)
++        };
++        for hart in 0..aia_device.vcpu_count {
++            let aia_addr_imsic = aia_imsic_addr(hart);
++            let aia_addr_imsic_attr = 1 + hart;
++            Self::set_device_attribute(
++                aia_device.device_fd(),
++                kvm_bindings::KVM_DEV_RISCV_AIA_GRP_ADDR,
++                u64::from(aia_addr_imsic_attr),
++                &aia_addr_imsic as *const u64 as u64,
++                0,
++            )?;
++        }
++
++        Ok(())
++    }
++
++    /// Create an AIA device.
++    pub fn create_aia(vm: &VmFd, vcpu_count: u64) -> Result<AIADevice, AiaError> {
++        let aia_fd = Self::init_device(vm)?;
++
++        let device = Self::create_device(aia_fd, vcpu_count);
++
++        Self::init_device_attributes(&device)?;
++
++        Self::finalize_device(&device)?;
++
++        Ok(device)
++    }
++
++    /// Finalize the setup of an AIA device.
++    pub fn finalize_device(aia_device: &Self) -> Result<(), AiaError> {
++        // Finalize the AIA.
++        Self::set_device_attribute(
++            aia_device.device_fd(),
++            kvm_bindings::KVM_DEV_RISCV_AIA_GRP_CTRL,
++            u64::from(kvm_bindings::KVM_DEV_RISCV_AIA_CTRL_INIT),
++            0,
++            0,
++        )?;
++
++        Ok(())
++    }
++
++    /// Set an AIA device attribute.
++    pub fn set_device_attribute(
++        fd: &DeviceFd,
++        group: u32,
++        attr: u64,
++        addr: u64,
++        flags: u32,
++    ) -> Result<(), AiaError> {
++        let attr = kvm_bindings::kvm_device_attr {
++            flags,
++            group,
++            attr,
++            addr,
++        };
++        fd.set_device_attr(&attr)
++            .map_err(|err| AiaError::DeviceAttribute(err, true, group, attr.attr))?;
++
++        Ok(())
++    }
++
++    /// Returns the number of implemented IMSIC interrupt identities.
++    pub fn num_ids(&self) -> Result<u32, AiaError> {
++        let mut identities = 0u32;
++        let mut attr = kvm_bindings::kvm_device_attr {
++            group: kvm_bindings::KVM_DEV_RISCV_AIA_GRP_CONFIG,
++            attr: u64::from(kvm_bindings::KVM_DEV_RISCV_AIA_CONFIG_IDS),
++            addr: &mut identities as *mut u32 as u64,
++            flags: 0,
++        };
++        // SAFETY: attr.addr points to a live u32 that the ioctl initializes.
++        unsafe {
++            self.fd
++                .get_device_attr(&mut attr)
++                .map_err(|err| AiaError::DeviceAttribute(err, false, attr.group, attr.attr))?
++        };
++
++        Ok(identities)
++    }
++}
++
++/// Errors thrown while setting up the AIA.
++#[derive(Debug, thiserror::Error, displaydoc::Display, PartialEq, Eq)]
++pub enum AiaError {
++    /// Error while calling KVM ioctl for setting up the global interrupt controller: {0}
++    CreateAIA(kvm_ioctls::Error),
++    /// AIA device attribute error: {0} (write={1}, group={2}, attribute={3}).
++    DeviceAttribute(kvm_ioctls::Error, bool, u32, u64),
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn creates_aia_with_portable_interrupt_capacity() {
++        let kvm = kvm_ioctls::Kvm::new().unwrap();
++        for cpu_count in [1, 2, 4] {
++            let vm = kvm.create_vm().unwrap();
++            let vcpus: Vec<_> = (0..cpu_count)
++                .map(|cpu_index| vm.create_vcpu(cpu_index).unwrap())
++                .collect();
++            let aia = AIADevice::create_aia(&vm, cpu_count).unwrap();
++            assert_eq!(aia.vcpu_count(), vcpus.len() as u64);
++            assert!(aia.num_ids().unwrap() >= crate::arch::IRQ_MAX);
++        }
++    }
++}
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/aia/regs.rs
+@@ -0,0 +1,11 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++use serde::{Deserialize, Serialize};
++
++/// Structure used for serializing the state of the AIA registers.
++/// For now, it is just a placeholder.
++#[derive(Debug, Default, Serialize, Deserialize)]
++pub struct AiaState;
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/fdt.rs
+@@ -0,0 +1,551 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright © 2024 Institute of Software, CAS. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++//
++// Portions Copyright 2017 The Chromium OS Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the THIRD-PARTY file.
++
++use std::ffi::CString;
++
++use kvm_bindings::*;
++use vm_fdt::{Error as VmFdtError, FdtWriter};
++use vm_memory::{GuestMemoryBackend, GuestMemoryError, GuestMemoryRegion};
++
++use super::aia::AIADevice;
++use super::regs::*;
++use crate::device_manager::DeviceManager;
++use crate::device_manager::mmio::MMIODeviceInfo;
++use crate::initrd::InitrdConfig;
++use crate::logger::error;
++use crate::vstate::memory::{Address, GuestMemoryMmap, GuestRegionType};
++use crate::vstate::vcpu::Vcpu;
++
++const ADDRESS_CELLS: u32 = 0x2;
++const SIZE_CELLS: u32 = 0x2;
++const CPU_INTC_BASE_PHANDLE: u32 = 3;
++const AIA_APLIC_PHANDLE: u32 = 1;
++const AIA_IMSIC_PHANDLE: u32 = 2;
++const S_MODE_EXT_IRQ: u32 = 9;
++const IRQ_TYPE_EDGE_RISING: u32 = 0x00000001;
++
++struct IsaExtInfo<'a> {
++    name: &'a [u8],
++    ext_id: KVM_RISCV_ISA_EXT_ID,
++}
++
++// Sorted alphabetically
++const ISA_INFO_ARRAY: [IsaExtInfo; 46] = [
++    IsaExtInfo {
++        name: b"smstateen",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_SMSTATEEN,
++    },
++    IsaExtInfo {
++        name: b"ssaia",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_SSAIA,
++    },
++    IsaExtInfo {
++        name: b"sstc",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_SSTC,
++    },
++    IsaExtInfo {
++        name: b"svinval",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_SVINVAL,
++    },
++    IsaExtInfo {
++        name: b"svnapot",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_SVNAPOT,
++    },
++    IsaExtInfo {
++        name: b"svpbmt",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_SVPBMT,
++    },
++    IsaExtInfo {
++        name: b"zacas",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZACAS,
++    },
++    IsaExtInfo {
++        name: b"zba",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBA,
++    },
++    IsaExtInfo {
++        name: b"zbb",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBB,
++    },
++    IsaExtInfo {
++        name: b"zbc",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBC,
++    },
++    IsaExtInfo {
++        name: b"zbkb",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBKB,
++    },
++    IsaExtInfo {
++        name: b"zbkc",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBKC,
++    },
++    IsaExtInfo {
++        name: b"zbkx",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBKX,
++    },
++    IsaExtInfo {
++        name: b"zbs",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZBS,
++    },
++    IsaExtInfo {
++        name: b"zfa",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZFA,
++    },
++    IsaExtInfo {
++        name: b"zfh",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZFH,
++    },
++    IsaExtInfo {
++        name: b"zfhmin",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZFHMIN,
++    },
++    IsaExtInfo {
++        name: b"zicbom",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICBOM,
++    },
++    IsaExtInfo {
++        name: b"zicboz",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICBOZ,
++    },
++    IsaExtInfo {
++        name: b"zicntr",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICNTR,
++    },
++    IsaExtInfo {
++        name: b"zicond",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICOND,
++    },
++    IsaExtInfo {
++        name: b"zicsr",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICSR,
++    },
++    IsaExtInfo {
++        name: b"zifencei",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZIFENCEI,
++    },
++    IsaExtInfo {
++        name: b"zihintntl",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZIHINTNTL,
++    },
++    IsaExtInfo {
++        name: b"zihintpause",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZIHINTPAUSE,
++    },
++    IsaExtInfo {
++        name: b"zihpm",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZIHPM,
++    },
++    IsaExtInfo {
++        name: b"zknd",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKND,
++    },
++    IsaExtInfo {
++        name: b"zkne",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKNE,
++    },
++    IsaExtInfo {
++        name: b"zknh",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKNH,
++    },
++    IsaExtInfo {
++        name: b"zkr",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKR,
++    },
++    IsaExtInfo {
++        name: b"zksed",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKSED,
++    },
++    IsaExtInfo {
++        name: b"zksh",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKSH,
++    },
++    IsaExtInfo {
++        name: b"zkt",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZKT,
++    },
++    IsaExtInfo {
++        name: b"ztso",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZTSO,
++    },
++    IsaExtInfo {
++        name: b"zvbb",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVBB,
++    },
++    IsaExtInfo {
++        name: b"zvbc",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVBC,
++    },
++    IsaExtInfo {
++        name: b"zvfh",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVFH,
++    },
++    IsaExtInfo {
++        name: b"zvfhmin",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVFHMIN,
++    },
++    IsaExtInfo {
++        name: b"zvkb",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKB,
++    },
++    IsaExtInfo {
++        name: b"zvkg",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKG,
++    },
++    IsaExtInfo {
++        name: b"zvkned",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKNED,
++    },
++    IsaExtInfo {
++        name: b"zvknha",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKNHA,
++    },
++    IsaExtInfo {
++        name: b"zvknhb",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKNHB,
++    },
++    IsaExtInfo {
++        name: b"zvksed",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKSED,
++    },
++    IsaExtInfo {
++        name: b"zvksh",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKSH,
++    },
++    IsaExtInfo {
++        name: b"zvkt",
++        ext_id: KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZVKT,
++    },
++];
++
++/// Errors thrown while configuring the Flattened Device Tree for riscv64.
++#[derive(Debug, thiserror::Error, displaydoc::Display)]
++pub enum FdtError {
++    /// Create FDT error: {0}
++    CreateFdt(#[from] VmFdtError),
++    /// Read cache info error: {0}
++    ReadCacheInfo(String),
++    /// Failure in writing FDT in memory.
++    WriteFdtToMemory(#[from] GuestMemoryError),
++    /// Get device attribute error.
++    GetDeviceAttr,
++    /// Get one register error.
++    GetOneReg(u64, kvm_ioctls::Error),
++}
++
++pub fn create_fdt(
++    vcpus: &[Vcpu],
++    guest_mem: &GuestMemoryMmap,
++    cmdline: CString,
++    timer_freq: u32,
++    device_manager: &DeviceManager,
++    aia_device: &AIADevice,
++    initrd: &Option<InitrdConfig>,
++) -> Result<Vec<u8>, FdtError> {
++    let mut fdt_writer = FdtWriter::new()?;
++
++    let root = fdt_writer.begin_node("")?;
++
++    fdt_writer.property_string("compatible", "linux,dummy-virt")?;
++    fdt_writer.property_u32("#address-cells", ADDRESS_CELLS)?;
++    fdt_writer.property_u32("#size-cells", SIZE_CELLS)?;
++    create_cpu_nodes(&mut fdt_writer, vcpus, timer_freq)?;
++    create_memory_node(&mut fdt_writer, guest_mem)?;
++    create_chosen_node(&mut fdt_writer, cmdline, initrd)?;
++    create_aia_node(&mut fdt_writer, aia_device)?;
++    create_devices_node(&mut fdt_writer, device_manager)?;
++
++    fdt_writer.end_node(root)?;
++
++    let fdt_final = fdt_writer.finish()?;
++
++    Ok(fdt_final)
++}
++
++const CPU_ISA_MAX_LEN: usize = ISA_INFO_ARRAY.len() * 16;
++
++// Create FDT cpu nodes the way kvmtool does.
++fn create_cpu_nodes(fdt: &mut FdtWriter, vcpus: &[Vcpu], timer_freq: u32) -> Result<(), FdtError> {
++    let valid_isa_order = b"IEMAFDQCLBJTPVNSUHKORWXYZG";
++    let mut cbom = false;
++    let cbom_blksz = &mut [0u8; 8];
++    let mut cboz = false;
++    let cboz_blksz = &mut [0u8; 8];
++
++    let cpus = fdt.begin_node("cpus")?;
++
++    fdt.property_u32("#address-cells", 0x1)?;
++    fdt.property_u32("#size-cells", 0x0)?;
++    fdt.property_u32("timebase-frequency", timer_freq)?;
++
++    for (cpu_index, vcpu) in vcpus.iter().enumerate() {
++        let vcpu_fd = &vcpu.kvm_vcpu.fd;
++        let cpu_index = u32::try_from(cpu_index).unwrap();
++
++        let cpu_isa = &mut [0; CPU_ISA_MAX_LEN];
++        let mut pos = "rv64".len();
++        cpu_isa[0..pos].copy_from_slice(b"rv64");
++
++        let mut bytes = [0u8; 8];
++        let off_isa = std::mem::offset_of!(kvm_riscv_config, isa);
++        let id_isa = riscv64_reg_config_id!(off_isa);
++
++        vcpu_fd
++            .get_one_reg(id_isa, &mut bytes)
++            .map_err(|err| FdtError::GetOneReg(id_isa, err))?;
++
++        let isa = u64::from_le_bytes(bytes);
++
++        for extension in valid_isa_order {
++            let index = *extension - b'A';
++            if isa & (1 << index) != 0 {
++                cpu_isa[pos] = 'a' as u8 + index;
++                pos += 1;
++            }
++        }
++
++        for isa_ext_info in ISA_INFO_ARRAY {
++            let ext_id = isa_ext_info.ext_id;
++            let id_isa_ext = riscv64_reg_isa_ext!(ext_id);
++            let isa_ext_out = &mut [0u8; 8];
++            if vcpu_fd.get_one_reg(id_isa_ext, isa_ext_out).is_err() {
++                continue;
++            }
++
++            if u64::from_le_bytes(*isa_ext_out) == 0u64 {
++                // This extension is not available
++                continue;
++            }
++
++            if ext_id == KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICBOM && !cbom {
++                let off_zicbom_blk_size = std::mem::offset_of!(kvm_riscv_config, zicbom_block_size);
++                let id_zicbom_blk_size = riscv64_reg_config_id!(off_zicbom_blk_size);
++                vcpu_fd
++                    .get_one_reg(id_zicbom_blk_size, cbom_blksz)
++                    .map_err(|err| {
++                        error!("get_one_reg() failed: {err:?}");
++                        FdtError::GetDeviceAttr
++                    })?;
++                cbom = true;
++            }
++
++            if ext_id == KVM_RISCV_ISA_EXT_ID_KVM_RISCV_ISA_EXT_ZICBOZ && !cboz {
++                let off_zicboz_blk_size = std::mem::offset_of!(kvm_riscv_config, zicboz_block_size);
++                let id_zicboz_blk_size = riscv64_reg_config_id!(off_zicboz_blk_size);
++                vcpu_fd
++                    .get_one_reg(id_zicboz_blk_size, cboz_blksz)
++                    .map_err(|err| {
++                        error!("get_one_reg() failed: {err:?}");
++                        FdtError::GetDeviceAttr
++                    })?;
++                cboz = true;
++            }
++
++            cpu_isa[pos] = '_' as u8;
++            pos += 1;
++            let name_len = isa_ext_info.name.len();
++            cpu_isa[pos..pos + name_len].copy_from_slice(isa_ext_info.name);
++            pos += name_len;
++        }
++
++        let off_satp = std::mem::offset_of!(kvm_riscv_config, satp_mode);
++        let id_satp = riscv64_reg_config_id!(off_satp);
++        let satp = &mut [0u8; 8];
++        let satp_mode = if vcpu_fd.get_one_reg(id_satp, satp).is_ok() {
++            u64::from_le_bytes(*satp)
++        } else {
++            8
++        };
++
++        let cpu = fdt.begin_node(&format!("cpu@{:x}", cpu_index))?;
++        fdt.property_string("device_type", "cpu")?;
++        fdt.property_string("compatible", "riscv")?;
++
++        match satp_mode {
++            10 => fdt.property_string("mmu-type", "riscv,sv57")?,
++            9 => fdt.property_string("mmu-type", "riscv,sv48")?,
++            8 => fdt.property_string("mmu-type", "riscv,sv39")?,
++            _ => fdt.property_string("mmu-type", "riscv,none")?,
++        }
++
++        fdt.property_string(
++            "riscv,isa",
++            ::std::str::from_utf8(&cpu_isa[0..pos]).expect("cpu_isa unexpected error"),
++        )?;
++
++        if cbom {
++            fdt.property_u32(
++                "riscv,cbom-block-size",
++                u32::try_from(u64::from_le_bytes(*cbom_blksz)).unwrap(),
++            )?;
++        }
++
++        if cboz {
++            fdt.property_u32(
++                "riscv,cboz-block-size",
++                u32::try_from(u64::from_le_bytes(*cboz_blksz)).unwrap(),
++            )?;
++        }
++
++        fdt.property_u32("reg", cpu_index)?;
++        fdt.property_string("status", "okay")?;
++
++        // interrupt controller node
++        let intc_node = fdt.begin_node("interrupt-controller")?;
++        fdt.property_string("compatible", "riscv,cpu-intc")?;
++        fdt.property_u32("#interrupt-cells", 1u32)?;
++        fdt.property_null("interrupt-controller")?;
++        fdt.property_u32("phandle", CPU_INTC_BASE_PHANDLE + cpu_index)?;
++        fdt.end_node(intc_node)?;
++
++        fdt.end_node(cpu)?;
++    }
++
++    fdt.end_node(cpus)?;
++
++    Ok(())
++}
++
++fn create_memory_node(fdt: &mut FdtWriter, guest_mem: &GuestMemoryMmap) -> Result<(), FdtError> {
++    for region in guest_mem
++        .iter()
++        .filter(|region| region.region_type == GuestRegionType::Dram)
++    {
++        let address = region.start_addr().raw_value();
++        let memory = fdt.begin_node(&format!("memory@{address:x}"))?;
++        fdt.property_string("device_type", "memory")?;
++        fdt.property_array_u64("reg", &[address, region.len()])?;
++        fdt.end_node(memory)?;
++    }
++
++    Ok(())
++}
++
++fn create_chosen_node(
++    fdt: &mut FdtWriter,
++    cmdline: CString,
++    initrd: &Option<InitrdConfig>,
++) -> Result<(), FdtError> {
++    let chosen = fdt.begin_node("chosen")?;
++
++    let cmdline_string = cmdline
++        .into_string()
++        .map_err(|_| vm_fdt::Error::InvalidString)?;
++    fdt.property_string("bootargs", cmdline_string.as_str())?;
++    if let Some(initrd) = initrd {
++        fdt.property_u64("linux,initrd-start", initrd.address.raw_value())?;
++        fdt.property_u64(
++            "linux,initrd-end",
++            initrd.address.raw_value() + initrd.size as u64,
++        )?;
++    }
++
++    let mut rng_seed = [0u8; 64];
++    aws_lc_rs::rand::fill(&mut rng_seed).expect("could not generate rng-seed");
++    fdt.property("rng-seed", &rng_seed)?;
++
++    fdt.end_node(chosen)?;
++
++    Ok(())
++}
++
++fn create_aia_node(fdt: &mut FdtWriter, aia: &AIADevice) -> Result<(), FdtError> {
++    if aia.msi_compatible() {
++        let imsic_name = format!("imsics@{:08x}", super::layout::IMSIC_START);
++        let imsic_node = fdt.begin_node(&imsic_name)?;
++
++        fdt.property_string("compatible", aia.imsic_compatibility())?;
++        let imsic_reg_prop = aia.imsic_properties();
++        fdt.property_array_u32("reg", &imsic_reg_prop)?;
++        fdt.property_u32("#interrupt-cells", 0u32)?;
++        fdt.property_null("interrupt-controller")?;
++        fdt.property_null("msi-controller")?;
++
++        fdt.property_u32(
++            "riscv,num-ids",
++            aia.num_ids().map_err(|_| FdtError::GetDeviceAttr)?,
++        )?;
++        fdt.property_u32("phandle", AIA_IMSIC_PHANDLE)?;
++
++        let mut irq_cells = vec![];
++        let num_cpus = aia.vcpu_count() as u32;
++        for cpu_index in 0..num_cpus {
++            irq_cells.push(CPU_INTC_BASE_PHANDLE + cpu_index);
++            irq_cells.push(S_MODE_EXT_IRQ);
++        }
++        fdt.property_array_u32("interrupts-extended", &irq_cells)?;
++
++        fdt.end_node(imsic_node)?;
++    }
++
++    let aplic_name = format!("aplic@{:x}", super::layout::APLIC_START);
++    let aplic_node = fdt.begin_node(&aplic_name)?;
++
++    fdt.property_string("compatible", aia.aplic_compatibility())?;
++    let reg_cells = aia.aplic_properties();
++    fdt.property_array_u32("reg", &reg_cells)?;
++    fdt.property_u32("#interrupt-cells", 2u32)?;
++    fdt.property_null("interrupt-controller")?;
++
++    fdt.property_u32("riscv,num-sources", super::layout::IRQ_MAX)?;
++    fdt.property_u32("phandle", AIA_APLIC_PHANDLE)?;
++    fdt.property_u32("msi-parent", AIA_IMSIC_PHANDLE)?;
++
++    fdt.end_node(aplic_node)?;
++
++    Ok(())
++}
++
++fn create_devices_node(
++    fdt: &mut FdtWriter,
++    device_manager: &DeviceManager,
++) -> Result<(), FdtError> {
++    if let Some(serial) = &device_manager.mmio_platform_devices.serial {
++        create_serial_node(fdt, &serial.resources)?;
++    }
++    if let Some(mmio_devices) = device_manager.mmio_virtio_devices() {
++        let mut devices: Vec<_> = mmio_devices.virtio_devices.values().collect();
++        devices.sort_by_key(|device| device.resources.addr);
++        for device in devices {
++            create_virtio_node(fdt, &device.resources)?;
++        }
++    }
++
++    Ok(())
++}
++
++fn create_virtio_node(fdt: &mut FdtWriter, dev_info: &MMIODeviceInfo) -> Result<(), FdtError> {
++    let virtio_mmio = fdt.begin_node(&format!("virtio_mmio@{:x}", dev_info.addr))?;
++    let irq = [dev_info.gsi.unwrap(), IRQ_TYPE_EDGE_RISING];
++
++    fdt.property_string("compatible", "virtio,mmio")?;
++    fdt.property_array_u64("reg", &[dev_info.addr, dev_info.len])?;
++    fdt.property_array_u32("interrupts", &irq)?;
++    fdt.property_u32("interrupt-parent", AIA_APLIC_PHANDLE)?;
++    fdt.end_node(virtio_mmio)?;
++
++    Ok(())
++}
++
++fn create_serial_node(fdt: &mut FdtWriter, dev_info: &MMIODeviceInfo) -> Result<(), FdtError> {
++    let serial_reg_prop = [dev_info.addr, dev_info.len];
++    let irq = [dev_info.gsi.unwrap(), IRQ_TYPE_EDGE_RISING];
++
++    let serial_name = format!("serial@{:x}", dev_info.addr);
++    let serial_node = fdt.begin_node(&serial_name)?;
++    fdt.property_string("compatible", "ns16550a")?;
++    fdt.property_array_u64("reg", &serial_reg_prop)?;
++    fdt.property_u32("clock-frequency", 3686400)?;
++    fdt.property_u32("interrupt-parent", AIA_APLIC_PHANDLE)?;
++    fdt.property_array_u32("interrupts", &irq)?;
++    fdt.end_node(serial_node)?;
++
++    Ok(())
++}
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/kvm.rs
+@@ -0,0 +1,45 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++use std::convert::Infallible;
++
++use kvm_ioctls::Kvm as KvmFd;
++
++use crate::cpu_config::templates::KvmCapability;
++
++/// ['Kvm'] initialization can't fail for Riscv64
++pub type KvmArchError = Infallible;
++
++/// Struct with kvm fd and kvm associated parameters.
++#[derive(Debug)]
++pub struct Kvm {
++    /// KVM fd.
++    pub fd: KvmFd,
++    /// Additional capabilities that were specified in cpu template.
++    pub kvm_cap_modifiers: Vec<KvmCapability>,
++}
++
++impl Kvm {
++    pub(crate) const DEFAULT_CAPABILITIES: [u32; 7] = [
++        kvm_bindings::KVM_CAP_IOEVENTFD,
++        kvm_bindings::KVM_CAP_USER_MEMORY,
++        kvm_bindings::KVM_CAP_DEVICE_CTRL,
++        kvm_bindings::KVM_CAP_MP_STATE,
++        kvm_bindings::KVM_CAP_ONE_REG,
++        kvm_bindings::KVM_CAP_IRQFD,
++        kvm_bindings::KVM_CAP_IRQCHIP,
++    ];
++
++    /// Initialize [`Kvm`] type for riscv64 architecture.
++    pub fn init_arch(
++        fd: KvmFd,
++        kvm_cap_modifiers: Vec<KvmCapability>,
++    ) -> Result<Self, KvmArchError> {
++        Ok(Self {
++            fd,
++            kvm_cap_modifiers,
++        })
++    }
++}
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/layout.rs
+@@ -0,0 +1,118 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++//       1024GB +------------------------------------------------------+
++//              |                         .                            |
++//              |                         .                            |
++//              |                         .                            |
++//              |                         .                            | DRAM_MEM_MAX_SIZE (1022GB)
++//              |                         .                            |
++//              |                         .                            |
++//              |                         .                            |
++//    2MB + 2GB +------------------------------------------------------+ RISCV_KERNEL_START
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//          2GB +------------------------------------------------------+ DRAM_MEM_START
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//          1GB +------------------------------------------------------+ MMIO_MEM_START
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//  128MB + 4KB +------------------------------------------------------+ IMSIC_START + IMSIC_SZ_PH
++//              |                                                      |
++//        128MB +------------------------------------------------------+ IMSIC_START
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//              |                                                      |
++//            0 +------------------------------------------------------+ APLIC_START
++
++/// Start of RAM on 64 bit RISCV.
++pub const DRAM_MEM_START: u64 = 0x8000_0000; // 2GB.
++/// The maximum RAM size.
++pub const DRAM_MEM_MAX_SIZE: usize = 0x00FF_8000_0000; // 1024 - 2 = 1022G.
++
++/// Start of system's RAM, which is actually the start of the FDT blob.
++pub const SYSTEM_MEM_START: u64 = DRAM_MEM_START;
++
++/// Size of memory region for FDT placement. The kernel image starts after it,
++/// since the kernel needs to be 2MB-aligned for riscv64.
++pub const SYSTEM_MEM_SIZE: u64 = 0x20_0000; // 2MB.
++
++/// Kernel command line maximum size.
++/// As per `arch/riscv/include/uapi/asm/setup.h`.
++pub const CMDLINE_MAX_SIZE: usize = 1024;
++
++/// Maximum size of the device tree blob.
++pub const FDT_MAX_SIZE: usize = 0x1_0000;
++
++/// Highest wired interrupt, within the minimum IMSIC capacity supported by KVM.
++pub const IRQ_MAX: u32 = kvm_bindings::KVM_DEV_RISCV_AIA_IDS_MIN;
++/// First usable interrupt on riscv64.
++pub const IRQ_BASE: u32 = 1;
++
++/// Below this address will reside the AIA, above this address will reside the MMIO devices.
++pub const MAPPED_IO_START: u64 = 1 << 30; // 1 GB
++
++/// The start of IMSIC(s).
++pub const IMSIC_START: u64 = 0x0800_0000;
++/// IMISC size per hart.
++pub const IMSIC_SZ_PH: u32 = ::kvm_bindings::KVM_DEV_RISCV_IMSIC_SIZE;
++
++/// The start of APLIC.
++pub const APLIC_START: u64 = 0x00;
++
++/// First wired APLIC interrupt source.
++pub const GSI_LEGACY_START: u32 = IRQ_BASE;
++/// Last wired APLIC interrupt source.
++pub const GSI_LEGACY_END: u32 = IRQ_MAX;
++/// Number of allocatable wired interrupts.
++pub const GSI_LEGACY_NUM: u32 = GSI_LEGACY_END - GSI_LEGACY_START + 1;
++/// First GSI reserved for MSI routing.
++pub const GSI_MSI_START: u32 = GSI_LEGACY_END + 1;
++/// Last GSI accepted by KVM's routing table.
++pub const GSI_MSI_END: u32 = 4095;
++/// Number of allocatable MSI routes.
++pub const GSI_MSI_NUM: u32 = GSI_MSI_END - GSI_MSI_START + 1;
++/// Beginning of the low MMIO window.
++pub const MMIO32_MEM_START: u64 = MAPPED_IO_START;
++/// Size of the low MMIO window.
++pub const MMIO32_MEM_SIZE: u64 = DRAM_MEM_START - MMIO32_MEM_START;
++/// Reserved PCI configuration window size.
++pub const PCI_MMCONFIG_SIZE: u64 = 256 << 20;
++/// Beginning of the reserved PCI configuration window.
++pub const PCI_MMCONFIG_START: u64 = DRAM_MEM_START - PCI_MMCONFIG_SIZE;
++/// ECAM aperture for one PCI segment.
++pub const PCI_MMIO_CONFIG_SIZE_PER_SEGMENT: u64 = 4096 * 256;
++/// Boot timer's fixed MMIO address.
++pub const BOOT_DEVICE_MEM_START: u64 = MMIO32_MEM_START;
++/// UART's fixed MMIO address.
++pub const SERIAL_MEM_START: u64 = BOOT_DEVICE_MEM_START + crate::device_manager::mmio::MMIO_LEN;
++/// Beginning of dynamically allocated low MMIO devices.
++pub const MEM_32BIT_DEVICES_START: u64 = SERIAL_MEM_START + crate::device_manager::mmio::MMIO_LEN;
++/// Space available for dynamically allocated low MMIO devices.
++pub const MEM_32BIT_DEVICES_SIZE: u64 = PCI_MMCONFIG_START - MEM_32BIT_DEVICES_START;
++/// High device memory begins beyond the maximum initial DRAM extent.
++pub const MEM_64BIT_DEVICES_START: u64 = 1024 << 30;
++/// Size of the high device memory window.
++pub const MEM_64BIT_DEVICES_SIZE: u64 = 256 << 30;
++/// Beginning of the memory-hotplug window.
++pub const FIRST_ADDR_PAST_64BITS_MMIO: u64 = MEM_64BIT_DEVICES_START + MEM_64BIT_DEVICES_SIZE;
++/// Memory-hotplug space within a 41-bit guest physical address space.
++pub const PAST_64BITS_MMIO_SIZE: u64 = (2048 << 30) - FIRST_ADDR_PAST_64BITS_MMIO;
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/mod.rs
+@@ -0,0 +1,245 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++/// Module for the global interrupt controller configuration.
++pub mod aia;
++mod fdt;
++/// Architecture specific KVM-related code.
++pub mod kvm;
++/// Layout for this riscv64 system.
++pub mod layout;
++/// Logic for configuring riscv64 registers.
++pub mod regs;
++/// Architecture specific vCPU code.
++pub mod vcpu;
++/// Architecture specific VM state code.
++pub mod vm;
++
++use std::cmp::min;
++use std::fs::File;
++
++use linux_loader::loader::pe::PE as Loader;
++use linux_loader::loader::{Cmdline, KernelLoader};
++use vm_memory::{GuestMemoryBackend, GuestMemoryError, GuestMemoryRegion};
++
++use crate::arch::{BootProtocol, EntryPoint};
++use crate::cpu_config::riscv64::CpuConfiguration;
++use crate::cpu_config::riscv64::custom_cpu_template::CustomCpuTemplate;
++use crate::device_manager::DeviceManager;
++use crate::initrd::InitrdConfig;
++use crate::vmm_config::machine_config::MachineConfig;
++use crate::vstate::memory::{Address, Bytes, GuestAddress, GuestMemoryMmap, GuestRegionType};
++use crate::vstate::vcpu::KvmVcpuError;
++use crate::vstate::vm::KvmVm;
++use crate::{Kvm, Vcpu, VcpuConfig, logger};
++
++/// Errors thrown while configuring riscv64 system.
++#[derive(Debug, thiserror::Error, displaydoc::Display)]
++pub enum ConfigurationError {
++    /// Failed to create a Flattened Device Tree for this riscv64 microVM: {0}
++    SetupFDT(#[from] fdt::FdtError),
++    /// Failed to write to guest memory.
++    MemoryError(GuestMemoryError),
++    /// Cannot copy kernel file fd
++    KernelFile,
++    /// Cannot load kernel due to invalid memory configuration or invalid kernel image: {0}
++    KernelLoader(#[from] linux_loader::loader::Error),
++    /// Kernel image overlaps the reserved device-tree area.
++    KernelOverlapsFdt,
++    /// Error configuring the vcpu: {0}
++    VcpuConfigure(#[from] KvmVcpuError),
++    /// Failed to read the RISC-V timer frequency: {0}
++    TimerFrequency(kvm_ioctls::Error),
++}
++
++/// The start of the memory area reserved for MMIO devices.
++pub const MMIO_MEM_START: u64 = layout::MAPPED_IO_START;
++/// The size of the memory area reserved for MMIO devices.
++pub const MMIO_MEM_SIZE: u64 = layout::DRAM_MEM_START - layout::MAPPED_IO_START; //>> 1GB
++
++/// Returns a Vec of the valid memory addresses for riscv64.
++/// See [`layout`](layout) module for a drawing of the specific memory model for this platform.
++///
++pub fn arch_memory_regions(size: usize) -> Vec<(GuestAddress, usize)> {
++    assert!(size > 0, "Attempt to allocate guest memory of length 0");
++    let dram_size = min(size, layout::DRAM_MEM_MAX_SIZE);
++
++    if dram_size != size {
++        logger::warn!(
++            "Requested memory size {} exceeds architectural maximum (1022GiB). Size has \
++             been truncated to {}",
++            size,
++            dram_size
++        );
++    }
++
++    vec![(GuestAddress(layout::DRAM_MEM_START), dram_size)]
++}
++
++/// Configures the system for booting Linux.
++pub fn configure_system_for_boot(
++    _kvm: &Kvm,
++    vm: &KvmVm,
++    device_manager: &mut DeviceManager,
++    vcpus: &mut [Vcpu],
++    machine_config: &MachineConfig,
++    cpu_template: &CustomCpuTemplate,
++    entry_point: EntryPoint,
++    initrd: &Option<InitrdConfig>,
++    boot_cmdline: Cmdline,
++) -> Result<(), ConfigurationError> {
++    let cpu_config = { CpuConfiguration };
++
++    // Apply CPU template to the base CpuConfiguration.
++    let cpu_config = CpuConfiguration::apply_template(cpu_config, cpu_template);
++
++    let vcpu_config = VcpuConfig {
++        vcpu_count: machine_config.vcpu_count,
++        smt: machine_config.smt,
++        cpu_config,
++    };
++
++    // Configure vCPUs with normalizing and setting the generated CPU configuration.
++    for vcpu in vcpus.iter_mut() {
++        vcpu.kvm_vcpu
++            .configure(vm.guest_memory(), entry_point, &vcpu_config)?;
++    }
++    let cmdline = boot_cmdline
++        .as_cstring()
++        .expect("Cannot create cstring from cmdline string");
++
++    let guest_mem = vm.guest_memory();
++    let frequency_id = kvm_bindings::KVM_REG_RISCV as u64
++        | u64::from(kvm_bindings::KVM_REG_SIZE_U64)
++        | u64::from(kvm_bindings::KVM_REG_RISCV_TIMER)
++        | (std::mem::offset_of!(kvm_bindings::kvm_riscv_timer, frequency) / 8) as u64;
++    let mut frequency = [0u8; 8];
++    vcpus[0]
++        .kvm_vcpu
++        .fd
++        .get_one_reg(frequency_id, &mut frequency)
++        .map_err(ConfigurationError::TimerFrequency)?;
++    let fdt = fdt::create_fdt(
++        vcpus,
++        guest_mem,
++        cmdline,
++        u64::from_le_bytes(frequency) as u32,
++        device_manager,
++        vm.get_irqchip(),
++        initrd,
++    )?;
++    let fdt_address = GuestAddress(get_fdt_addr());
++    guest_mem
++        .write_slice(fdt.as_slice(), fdt_address)
++        .map_err(ConfigurationError::MemoryError)?;
++
++    Ok(())
++}
++
++/// Load linux kernel into guest memory.
++pub fn load_kernel(
++    kernel: &File,
++    guest_memory: &GuestMemoryMmap,
++) -> Result<EntryPoint, ConfigurationError> {
++    // Need to clone the File because reading from it
++    // mutates it.
++    let mut kernel_file = kernel
++        .try_clone()
++        .map_err(|_| ConfigurationError::KernelFile)?;
++
++    let entry_addr = Loader::load(
++        guest_memory,
++        Some(GuestAddress(layout::DRAM_MEM_START)),
++        &mut kernel_file,
++        None,
++    )?;
++
++    if entry_addr.kernel_load.raw_value() < get_kernel_start() {
++        return Err(ConfigurationError::KernelOverlapsFdt);
++    }
++
++    Ok(EntryPoint {
++        entry_addr: entry_addr.kernel_load,
++        protocol: BootProtocol::LinuxBoot,
++    })
++}
++
++/// Returns the memory address where the kernel could be loaded.
++pub fn get_kernel_start() -> u64 {
++    layout::SYSTEM_MEM_START + layout::SYSTEM_MEM_SIZE
++}
++
++/// Returns the memory address where the initrd could be loaded.
++pub fn initrd_load_addr(guest_mem: &GuestMemoryMmap, initrd_size: usize) -> Option<u64> {
++    let dram = guest_mem
++        .iter()
++        .find(|region| region.region_type == GuestRegionType::Dram)?;
++    let address = dram
++        .last_addr()
++        .raw_value()
++        .checked_add(1)?
++        .checked_sub(initrd_size as u64)?
++        & !(crate::arch::GUEST_PAGE_SIZE as u64 - 1);
++    (address >= get_kernel_start()).then_some(address)
++}
++
++/// Auxiliary function to get the address where the device tree blob is loaded.
++fn get_fdt_addr() -> u64 {
++    layout::DRAM_MEM_START
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::test_utils::arch_mem;
++    use crate::test_utils::mock_resources::kernel_image_path;
++
++    #[test]
++    fn memory_layout_keeps_kernel_above_device_tree() {
++        let regions = arch_memory_regions(8 << 20);
++        assert_eq!(
++            regions,
++            vec![(GuestAddress(layout::DRAM_MEM_START), 8 << 20)]
++        );
++        assert_eq!(get_kernel_start() % (2 << 20), 0);
++        assert!(get_fdt_addr() + layout::FDT_MAX_SIZE as u64 <= get_kernel_start());
++    }
++
++    #[test]
++    fn initrd_is_page_aligned_and_inside_ram() {
++        let memory = arch_mem(8 << 20);
++        let address = initrd_load_addr(&memory, 4097).unwrap();
++        assert_eq!(address % crate::arch::GUEST_PAGE_SIZE as u64, 0);
++        assert!(address >= get_kernel_start());
++        assert!(memory.get_slice(GuestAddress(address), 4097).is_ok());
++        assert!(initrd_load_addr(&memory, 8 << 20).is_none());
++    }
++
++    #[test]
++    fn loads_executable_riscv_image() {
++        let memory = arch_mem(8 << 20);
++        let kernel = File::open(kernel_image_path(None)).unwrap();
++        let entry = load_kernel(&kernel, &memory).unwrap();
++        assert_eq!(entry.entry_addr.raw_value(), get_kernel_start());
++        let mut instruction = [0u8; 4];
++        memory
++            .read_slice(&mut instruction, entry.entry_addr)
++            .unwrap();
++        assert_eq!(u32::from_le_bytes(instruction), 0x0400_006f);
++    }
++
++    #[test]
++    fn rejects_image_overlapping_device_tree() {
++        let memory = arch_mem(8 << 20);
++        let mut image = std::fs::read(kernel_image_path(None)).unwrap();
++        image[8..16].fill(0);
++        let kernel = vmm_sys_util::tempfile::TempFile::new().unwrap();
++        std::fs::write(kernel.as_path(), image).unwrap();
++        assert!(matches!(
++            load_kernel(kernel.as_file(), &memory),
++            Err(ConfigurationError::KernelOverlapsFdt)
++        ));
++    }
++}
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/regs.rs
+@@ -0,0 +1,126 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright © 2024 Institute of Software, CAS. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++//
++// Portions Copyright 2017 The Chromium OS Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the THIRD-PARTY file.
++
++use serde::{Deserialize, Serialize};
++
++/// Storage for riscv64 registers with different sizes.
++#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct Riscv64RegisterVec {
++    ids: Vec<u64>,
++    data: Vec<u8>,
++}
++
++// Helper macro from Cloud Hypervisor.
++/// Get the ID of a register.
++#[macro_export]
++macro_rules! riscv64_reg_id {
++    ($reg_type: tt, $offset: tt) => {
++        // The core registers of an riscv64 machine are represented
++        // in kernel by the `kvm_riscv_core` structure:
++        //
++        // struct kvm_riscv_core {
++        //     struct user_regs_struct regs;
++        //     unsigned long mode;
++        // };
++        //
++        // struct user_regs_struct {
++        //     unsigned long pc;
++        //     unsigned long ra;
++        //     unsigned long sp;
++        //     unsigned long gp;
++        //     unsigned long tp;
++        //     unsigned long t0;
++        //     unsigned long t1;
++        //     unsigned long t2;
++        //     unsigned long s0;
++        //     unsigned long s1;
++        //     unsigned long a0;
++        //     unsigned long a1;
++        //     unsigned long a2;
++        //     unsigned long a3;
++        //     unsigned long a4;
++        //     unsigned long a5;
++        //     unsigned long a6;
++        //     unsigned long a7;
++        //     unsigned long s2;
++        //     unsigned long s3;
++        //     unsigned long s4;
++        //     unsigned long s5;
++        //     unsigned long s6;
++        //     unsigned long s7;
++        //     unsigned long s8;
++        //     unsigned long s9;
++        //     unsigned long s10;
++        //     unsigned long s11;
++        //     unsigned long t3;
++        //     unsigned long t4;
++        //     unsigned long t5;
++        //     unsigned long t6;
++        // };
++        // The id of a core register can be obtained like this: offset = id &
++        // ~(KVM_REG_ARCH_MASK | KVM_REG_SIZE_MASK | KVM_REG_RISCV_CORE). Thus,
++        // id = KVM_REG_RISCV | KVM_REG_SIZE_U64 | KVM_REG_RISCV_CORE | offset
++        //
++        // To generalize, the id of a register can be obtained by:
++        // id = KVM_REG_RISCV | KVM_REG_SIZE_U64 |
++        //      KVM_REG_RISCV_CORE/KVM_REG_RISCV_CONFIG/KVM_REG_RISCV_TIMER |
++        //      offset
++        KVM_REG_RISCV as u64
++            | u64::from($reg_type)
++            | u64::from(KVM_REG_SIZE_U64)
++            | ($offset as u64 / std::mem::size_of::<u64>() as u64)
++    };
++}
++pub(crate) use riscv64_reg_id;
++
++/// Return the ID of an ISA register.
++#[macro_export]
++macro_rules! riscv64_isa_id {
++    ($reg_type: tt, $id: tt) => {
++        KVM_REG_RISCV as u64 | u64::from($reg_type) | KVM_REG_SIZE_U64 as u64 | u64::from($id)
++    };
++}
++pub(crate) use riscv64_isa_id;
++
++/// Return the ID of a core register.
++#[macro_export]
++macro_rules! riscv64_reg_core_id {
++    ($offset: tt) => {
++        riscv64_reg_id!(KVM_REG_RISCV_CORE, $offset)
++    };
++}
++pub(crate) use riscv64_reg_core_id;
++
++/// Return the ID of a config register.
++#[macro_export]
++macro_rules! riscv64_reg_config_id {
++    ($offset: tt) => {
++        riscv64_reg_id!(KVM_REG_RISCV_CONFIG, $offset)
++    };
++}
++pub(crate) use riscv64_reg_config_id;
++
++/// Return the ID of timer register.
++#[macro_export]
++macro_rules! riscv64_reg_timer_id {
++    ($offset: tt) => {
++        riscv64_reg_id!(KVM_REG_RISCV_TIMER, $offset)
++    };
++}
++
++/// Return the ID of an ISA extension.
++#[macro_export]
++macro_rules! riscv64_reg_isa_ext {
++    ($ext_id: tt) => {
++        riscv64_isa_id!(KVM_REG_RISCV_ISA_EXT, $ext_id)
++    };
++}
++pub(crate) use riscv64_reg_isa_ext;
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/vcpu.rs
+@@ -0,0 +1,206 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++//
++// Portions Copyright 2017 The Chromium OS Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the THIRD-PARTY file.
++
++use std::fmt::Debug;
++use std::sync::Arc;
++
++use kvm_bindings::*;
++use kvm_ioctls::{VcpuExit, VcpuFd};
++use serde::{Deserialize, Serialize};
++
++use super::get_fdt_addr;
++use super::regs::*;
++use crate::arch::EntryPoint;
++use crate::cpu_config::templates::CpuConfiguration;
++use crate::logger::{IncMetric, METRICS, error};
++use crate::vcpu::{VcpuConfig, VcpuError};
++use crate::vstate::bus::Bus;
++use crate::vstate::memory::{Address, GuestMemoryMmap};
++use crate::vstate::vcpu::VcpuEmulation;
++use crate::vstate::vm::KvmVm;
++
++/// Errors thrown while setting riscv64 registers.
++#[derive(Debug, PartialEq, Eq, thiserror::Error, displaydoc::Display)]
++pub enum VcpuArchError {
++    /// Failed to get register {0}: {1}
++    GetOneReg(u64, kvm_ioctls::Error),
++    /// Failed to set register {0}: {1}
++    SetOneReg(u64, kvm_ioctls::Error),
++    /// Failed to retrieve list of registers: {0}
++    GetRegList(kvm_ioctls::Error),
++    /// Failed to get multiprocessor state: {0}
++    GetMp(kvm_ioctls::Error),
++    /// Failed to set multiprocessor state: {0}
++    SetMp(kvm_ioctls::Error),
++}
++
++/// Mandatory registers to set before booting a riscv64 vCPU:
++/// a0: hart/core ID
++/// a1: FDT address
++/// pc: kernel entry point
++pub fn setup_boot_regs(
++    vcpufd: &VcpuFd,
++    cpu_id: u8,
++    kernel_entry_addr: u64,
++    _mem: &GuestMemoryMmap,
++) -> Result<(), VcpuArchError> {
++    let off_a0 = std::mem::offset_of!(user_regs_struct, a0);
++    let id_a0 = riscv64_reg_core_id!(off_a0);
++    vcpufd
++        .set_one_reg(id_a0, &u64::from(cpu_id).to_le_bytes())
++        .map_err(|err| VcpuArchError::SetOneReg(id_a0, err))?;
++
++    let off_pc = std::mem::offset_of!(user_regs_struct, pc);
++    let id_pc = riscv64_reg_core_id!(off_pc);
++    vcpufd
++        .set_one_reg(id_pc, &kernel_entry_addr.to_le_bytes())
++        .map_err(|err| VcpuArchError::SetOneReg(id_pc, err))?;
++
++    let fdt_start: u64 = get_fdt_addr();
++    let off_a1 = std::mem::offset_of!(user_regs_struct, a1);
++    let id_a1 = riscv64_reg_core_id!(off_a1);
++    vcpufd
++        .set_one_reg(id_a1, &fdt_start.to_le_bytes())
++        .map_err(|err| VcpuArchError::SetOneReg(id_a1, err))?;
++
++    Ok(())
++}
++
++/// Errors associated with the wrappers over KVM ioctls.
++#[derive(Debug, PartialEq, Eq, thiserror::Error, displaydoc::Display)]
++pub enum KvmVcpuError {
++    /// Error configuring the vcpu registers: {0}
++    ConfigureRegisters(VcpuArchError),
++    /// Error creating vcpu: {0}
++    CreateVcpu(kvm_ioctls::Error),
++    /// Failed to dump CPU configuration: {0}
++    DumpCpuConfig(VcpuArchError),
++    /// Error getting the vcpu preferred target: {0}
++    GetPreferredTarget(kvm_ioctls::Error),
++    /// Error initializing the vcpu: {0}
++    Init(kvm_ioctls::Error),
++    /// Error applying template: {0}
++    ApplyCpuTemplate(VcpuArchError),
++    /// Failed to restore the state of the vcpu: {0}
++    RestoreState(VcpuArchError),
++    /// Failed to save the state of the vcpu: {0}
++    SaveState(VcpuArchError),
++    /// RISC-V snapshots and CPU configuration dumps are not supported.
++    UnsupportedOperation,
++}
++
++/// Error type for [`KvmVcpu::configure`].
++pub type KvmVcpuConfigureError = KvmVcpuError;
++
++/// A wrapper around creating and using a kvm riscv64 vcpu.
++#[derive(Debug)]
++pub struct KvmVcpu {
++    /// Index of vcpu.
++    pub index: u8,
++    /// KVM vcpu fd.
++    pub fd: VcpuFd,
++    /// Vcpu peripherals, such as buses.
++    pub peripherals: Peripherals,
++}
++
++/// Vcpu peripherals.
++#[derive(Default, Debug)]
++pub struct Peripherals {
++    /// mmio bus.
++    pub mmio_bus: Option<Arc<Bus>>,
++}
++
++impl KvmVcpu {
++    /// Constructs a new kvm vcpu with arch specific functionality.
++    ///
++    /// # Arguments
++    ///
++    /// * `index` - Represents the 0-based CPU index between [0, max vcpus).
++    /// * `vm` - The vm to which this vcpu will get attached.
++    pub fn new(index: u8, vm: &KvmVm) -> Result<Self, KvmVcpuError> {
++        let kvm_vcpu = vm
++            .fd()
++            .create_vcpu(index.into())
++            .map_err(KvmVcpuError::CreateVcpu)?;
++
++        Ok(KvmVcpu {
++            index,
++            fd: kvm_vcpu,
++            peripherals: Default::default(),
++        })
++    }
++
++    /// Configures an riscv64 specific vcpu for booting Linux.
++    ///
++    /// # Arguments
++    ///
++    /// * `guest_mem` - The guest memory used by this microvm.
++    /// * `kernel_entry_point` - Specifies the boot protocol and offset from `guest_mem` at which
++    ///   the kernel starts.
++    /// * `_vcpu_config` - The vCPU configuration. Not used in RISC-V.
++    pub fn configure(
++        &mut self,
++        guest_mem: &GuestMemoryMmap,
++        kernel_entry_point: EntryPoint,
++        _vcpu_config: &VcpuConfig,
++    ) -> Result<(), KvmVcpuError> {
++        setup_boot_regs(
++            &self.fd,
++            self.index,
++            kernel_entry_point.entry_addr.raw_value(),
++            guest_mem,
++        )
++        .map_err(KvmVcpuError::ConfigureRegisters)?;
++
++        if self.index != 0 {
++            self.fd
++                .set_mp_state(kvm_mp_state {
++                    mp_state: KVM_MP_STATE_STOPPED,
++                })
++                .map_err(|error| KvmVcpuError::ConfigureRegisters(VcpuArchError::SetMp(error)))?;
++        }
++
++        Ok(())
++    }
++
++    /// Save the KVM internal state. Unimplemented.
++    pub fn save_state(&self) -> Result<VcpuState, KvmVcpuError> {
++        Err(KvmVcpuError::UnsupportedOperation)
++    }
++
++    /// Use provided state to populate KVM internal state. Unimplemented.
++    pub fn restore_state(&mut self, _state: &VcpuState) -> Result<(), KvmVcpuError> {
++        Err(KvmVcpuError::UnsupportedOperation)
++    }
++
++    /// Dumps CPU configuration. Unimplemented.
++    pub fn dump_cpu_config(&self) -> Result<CpuConfiguration, KvmVcpuError> {
++        Err(KvmVcpuError::UnsupportedOperation)
++    }
++}
++
++impl Peripherals {
++    /// Runs the vCPU in KVM context and handles the kvm exit reason.
++    ///
++    /// Returns error or enum specifying whether emulation was handled or interrupted.
++    pub fn run_arch_emulation(&self, exit: VcpuExit) -> Result<VcpuEmulation, VcpuError> {
++        METRICS.vcpu.failures.inc();
++        error!("Unexpected exit reason on vcpu run: {:?}", exit);
++        Err(VcpuError::UnhandledKvmExit(format!("{:?}", exit)))
++    }
++}
++
++/// Structure holding vCPU kvm state.
++#[derive(Debug, Default, Clone, Serialize, Deserialize)]
++pub struct VcpuState {
++    /// Multiprocessing state.
++    pub mp_state: kvm_mp_state,
++    /// vCPU registers.
++    pub regs: Riscv64RegisterVec,
++}
+--- /dev/null
++++ b/src/vmm/src/arch/riscv64/vm.rs
+@@ -0,0 +1,119 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++use std::os::fd::{AsRawFd, RawFd};
++use std::sync::Mutex;
++
++use event_manager::{EventOps, Events};
++use serde::{Deserialize, Serialize};
++use vmm_sys_util::epoll::EventSet;
++use vmm_sys_util::eventfd::EventFd;
++
++use crate::Kvm;
++use crate::arch::riscv64::aia::AiaState;
++use crate::vstate::interrupts::InterruptError;
++use crate::vstate::memory::GuestMemoryState;
++use crate::vstate::vm::{VmCommon, VmError};
++
++/// Structure representing the current architecture's understand of what a "virtual machine" is.
++#[derive(Debug)]
++pub struct KvmVm {
++    /// Architecture independent parts of a vm.
++    pub common: VmCommon,
++    /// On riscv64 we need to keep around the fd obtained by creating the AIA device.
++    irqchip_handle: Option<crate::arch::riscv64::aia::AIADevice>,
++    pub(crate) irq_events: Mutex<Vec<(EventFd, u32)>>,
++}
++
++/// Error type for [`Vm::restore_state`]
++#[derive(Debug, PartialEq, Eq, thiserror::Error, displaydoc::Display)]
++pub enum KvmVmError {
++    /// Error creating the global interrupt controller: {0}
++    VmCreateAIA(crate::arch::riscv64::aia::AiaError),
++    /// Failed to save the VM's AIA state: {0}
++    SaveAia(crate::arch::riscv64::aia::AiaError),
++    /// Failed to restore the VM's AIA state: {0}
++    RestoreAia(crate::arch::riscv64::aia::AiaError),
++    /// RISC-V snapshots are not supported.
++    SnapshotUnsupported,
++}
++
++impl KvmVm {
++    /// Create a new `Vm` struct.
++    pub fn new(kvm: Kvm) -> Result<KvmVm, VmError> {
++        let common = Self::create_common(kvm)?;
++        Ok(KvmVm {
++            common,
++            irqchip_handle: None,
++            irq_events: Mutex::new(Vec::new()),
++        })
++    }
++
++    /// Pre-vCPU creation setup.
++    pub fn arch_pre_create_vcpus(&mut self, _: u8) -> Result<(), KvmVmError> {
++        Ok(())
++    }
++
++    /// Post-vCPU creation setup.
++    pub fn arch_post_create_vcpus(&mut self, nr_vcpus: u8) -> Result<(), KvmVmError> {
++        self.setup_irqchip(nr_vcpus)
++    }
++
++    /// Creates the AIA (Advanced Interrupt Architecture) IRQchip.
++    pub fn setup_irqchip(&mut self, vcpu_count: u8) -> Result<(), KvmVmError> {
++        self.irqchip_handle = Some(
++            crate::arch::riscv64::aia::AIADevice::create_aia(self.fd(), vcpu_count.into())
++                .map_err(KvmVmError::VmCreateAIA)?,
++        );
++        Ok(())
++    }
++
++    /// Gets a reference to the irqchip of the VM.
++    pub fn get_irqchip(&self) -> &crate::arch::riscv64::aia::AIADevice {
++        self.irqchip_handle.as_ref().expect("IRQ chip not set")
++    }
++
++    pub(crate) fn register_irq_events(
++        &self,
++        ops: &mut EventOps,
++    ) -> Result<(), event_manager::Error> {
++        for (event, _) in self.irq_events.lock().expect("Poisoned lock").iter() {
++            ops.add(Events::new(event, EventSet::IN))?;
++        }
++        Ok(())
++    }
++
++    pub(crate) fn process_irq_event(&self, source: RawFd) -> Option<Result<(), InterruptError>> {
++        let events = self.irq_events.lock().expect("Poisoned lock");
++        let (event, gsi) = events
++            .iter()
++            .find(|(event, _)| event.as_raw_fd() == source)?;
++        Some((|| {
++            event.read()?;
++            self.fd().set_irq_line(*gsi, true)?;
++            self.fd().set_irq_line(*gsi, false)?;
++            Ok(())
++        })())
++    }
++
++    /// Saves and returns the Kvm Vm state.
++    pub fn save_state(&self) -> Result<VmState, KvmVmError> {
++        Err(KvmVmError::SnapshotUnsupported)
++    }
++
++    /// Restore the KVM VM state
++    pub fn restore_state(&mut self, _state: &VmState) -> Result<(), KvmVmError> {
++        Err(KvmVmError::SnapshotUnsupported)
++    }
++}
++
++/// Structure holding an general specific VM state.
++#[derive(Debug, Default, Serialize, Deserialize)]
++pub struct VmState {
++    /// Guest memory state.
++    pub memory: GuestMemoryState,
++    /// AIA state.
++    pub aia: AiaState,
++}
+--- a/src/vmm/src/builder.rs
++++ b/src/vmm/src/builder.rs
+@@ -125,6 +125,9 @@
+     VcpuFdCloneError(#[from] crate::vstate::vcpu::CopyKvmFdError),
+     /// Error with the KvmVm object: {0}
+     KvmVm(#[from] VmError),
++    #[cfg(target_arch = "riscv64")]
++    /// PCI transport is not yet supported on RISC-V; use VirtIO MMIO devices.
++    RiscvPciUnsupported,
+ }
+ 
+ /// It's convenient to automatically convert `linux_loader::cmdline::Error`s
+@@ -146,6 +149,10 @@
+     event_manager: &mut EventManager,
+     seccomp_filters: &BpfThreadMap,
+ ) -> Result<Arc<Mutex<Vmm>>, StartMicrovmError> {
++    #[cfg(target_arch = "riscv64")]
++    if vm_resources.pci_enabled {
++        return Err(StartMicrovmError::RiscvPciUnsupported);
++    }
+     // Timestamp for measuring microVM boot duration.
+     let request_ts = TimestampUs::default();
+ 
+@@ -298,8 +305,20 @@
+         vm_resources.serial_rate_limiter(),
+     )?;
+ 
+-    device_manager.attach_vmgenid_device(&kvm_vm)?;
+-    device_manager.attach_vmclock_device(&kvm_vm)?;
++    #[cfg(target_arch = "riscv64")]
++    device_manager.attach_legacy_devices_riscv64(
++        &kvm_vm,
++        event_manager,
++        &mut boot_cmdline,
++        vm_resources.serial_out_path.as_ref(),
++        vm_resources.serial_rate_limiter(),
++    )?;
++
++    #[cfg(not(target_arch = "riscv64"))]
++    {
++        device_manager.attach_vmgenid_device(&kvm_vm)?;
++        device_manager.attach_vmclock_device(&kvm_vm)?;
++    }
+ 
+     #[cfg(target_arch = "aarch64")]
+     if vcpus[0].kvm_vcpu.supports_pvtime() {
+@@ -486,6 +505,9 @@
+     #[cfg(target_arch = "x86_64")]
+     vm.restore_state(&microvm_state.vm_state, clock_realtime)?;
+ 
++    #[cfg(target_arch = "riscv64")]
++    vm.restore_state(&microvm_state.vm_state)?;
++
+     // Restore the boot source config paths.
+     vm_resources.boot_source.config = microvm_state.vm_info.boot_source;
+ 
+--- a/src/vmm/src/cpu_config/mod.rs
++++ b/src/vmm/src/cpu_config/mod.rs
+@@ -14,5 +14,9 @@
+ #[cfg(target_arch = "aarch64")]
+ pub mod aarch64;
+ 
++/// Module containing type implementations needed for riscv64 CPU configuration
++#[cfg(target_arch = "riscv64")]
++pub mod riscv64;
++
+ #[cfg(test)]
+ pub(crate) mod test_utils;
+--- /dev/null
++++ b/src/vmm/src/cpu_config/riscv64/custom_cpu_template.rs
+@@ -0,0 +1,103 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++use std::borrow::Cow;
++
++use serde::{Deserialize, Serialize};
++
++use crate::cpu_config::templates::{
++    CpuTemplateType, GetCpuTemplate, GetCpuTemplateError, KvmCapability,
++};
++
++impl GetCpuTemplate for Option<CpuTemplateType> {
++    fn get_cpu_template(&self) -> Result<Cow<'_, CustomCpuTemplate>, GetCpuTemplateError> {
++        match self {
++            Some(template_type) => match template_type {
++                CpuTemplateType::Custom(template)
++                    if template.reg_modifiers.is_empty() && template.vcpu_features.is_empty() =>
++                {
++                    Ok(Cow::Borrowed(template))
++                }
++                CpuTemplateType::Custom(_) => Err(GetCpuTemplateError::UnsupportedRiscvModifiers),
++                CpuTemplateType::Static(_) => Ok(Cow::Owned(CustomCpuTemplate::default())),
++            },
++            None => Ok(Cow::Owned(CustomCpuTemplate::default())),
++        }
++    }
++}
++
++/// Wrapper type to containing riscv64 CPU config modifiers.
++#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
++#[serde(deny_unknown_fields)]
++pub struct CustomCpuTemplate {
++    /// Additional kvm capabilities to check before
++    /// configuring vcpus.
++    #[serde(default)]
++    pub kvm_capabilities: Vec<KvmCapability>,
++    /// Modifiers of enabled vcpu features for vcpu.
++    #[serde(default)]
++    pub vcpu_features: Vec<VcpuFeatures>,
++    /// Modifiers for registers on Riscv64 CPUs.
++    #[serde(default)]
++    pub reg_modifiers: Vec<RegisterModifier>,
++}
++
++impl CustomCpuTemplate {
++    /// Get a list of register IDs that are modified by the CPU template. We don't use CPU
++    /// templates for RISC-V, thus just return an empty array.
++    pub fn reg_list(&self) -> Vec<u64> {
++        vec![]
++    }
++
++    /// Reject unsupported register and feature modifiers rather than ignoring them.
++    pub fn validate(&self) -> Result<(), serde_json::Error> {
++        use serde::de::Error;
++        if !self.reg_modifiers.is_empty() || !self.vcpu_features.is_empty() {
++            return Err(serde_json::Error::custom(
++                GetCpuTemplateError::UnsupportedRiscvModifiers,
++            ));
++        }
++        Ok(())
++    }
++}
++
++/// Struct for defining enabled vcpu features. For now, it is just used as a placeholder.
++#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
++pub struct VcpuFeatures;
++
++/// Wrapper of a mask defined as a bitmap to apply changes to a given register's value. For now, it
++/// is used just as a placeholder.
++#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
++pub struct RegisterModifier;
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn accepts_kvm_capability_template() {
++        let template = CustomCpuTemplate::try_from(r#"{"kvm_capabilities":["36"]}"#).unwrap();
++        let configured = Some(CpuTemplateType::Custom(template));
++        assert_eq!(
++            configured.get_cpu_template().unwrap().kvm_capabilities,
++            vec![KvmCapability::Add(36)]
++        );
++    }
++
++    #[test]
++    fn unsupported_modifiers_are_rejected() {
++        let template = CustomCpuTemplate {
++            reg_modifiers: vec![RegisterModifier],
++            ..Default::default()
++        };
++        assert!(template.validate().is_err());
++        assert_eq!(
++            Some(CpuTemplateType::Custom(template))
++                .get_cpu_template()
++                .unwrap_err(),
++            GetCpuTemplateError::UnsupportedRiscvModifiers
++        );
++    }
++}
+--- /dev/null
++++ b/src/vmm/src/cpu_config/riscv64/mod.rs
+@@ -0,0 +1,40 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++/// Module for custom CPU templates
++pub mod custom_cpu_template;
++/// Module for static CPU templates
++pub mod static_cpu_templates;
++/// Shared CPU-template fixtures for API and VMM tests.
++pub mod test_utils;
++
++use super::templates::CustomCpuTemplate;
++use crate::arch::riscv64::vcpu::VcpuArchError;
++use crate::vstate::vcpu::KvmVcpuError;
++
++/// Errors thrown while configuring templates.
++#[derive(Debug, PartialEq, Eq, thiserror::Error, displaydoc::Display)]
++pub enum CpuConfigurationError {
++    /// Error initializing the vcpu: {0}
++    VcpuInit(#[from] KvmVcpuError),
++    /// Error reading vcpu registers: {0}
++    VcpuGetRegs(#[from] VcpuArchError),
++}
++
++/// CPU configuration for riscv64. Just a placeholder.
++#[derive(Debug, Default, Clone, PartialEq, Eq)]
++pub struct CpuConfiguration;
++
++impl CpuConfiguration {
++    /// Creates new guest CPU config based on the provided template. Not actually implemented yet.
++    pub fn apply_template(self, _: &CustomCpuTemplate) -> Self {
++        self
++    }
++
++    /// Returns ids of registers that are changed by this template.
++    pub fn register_ids(&self) -> Vec<u64> {
++        Vec::new()
++    }
++}
+--- /dev/null
++++ b/src/vmm/src/cpu_config/riscv64/static_cpu_templates.rs
+@@ -0,0 +1,29 @@
++// Copyright © 2025 Computing Systems Laboratory (CSLab), ECE, NTUA. All rights reserved.
++//
++// Copyright 2025 Amazon.com, Inc. or its affiliates. All Rights Reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++use serde::{Deserialize, Serialize};
++
++/// Templates available for configuring the supported RISCV CPU types.
++#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
++pub enum StaticCpuTemplate {
++    /// No CPU template is used.
++    #[default]
++    None,
++}
++
++impl StaticCpuTemplate {
++    /// Check if no template specified.
++    pub fn is_none(&self) -> bool {
++        self == &StaticCpuTemplate::None
++    }
++}
++
++impl std::fmt::Display for StaticCpuTemplate {
++    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
++        match self {
++            StaticCpuTemplate::None => write!(f, "None"),
++        }
++    }
++}
+--- /dev/null
++++ b/src/vmm/src/cpu_config/riscv64/test_utils.rs
+@@ -0,0 +1,14 @@
++use crate::cpu_config::templates::{CustomCpuTemplate, KvmCapability};
++
++/// A template using the architecture-independent KVM capability interface.
++pub const TEST_TEMPLATE_JSON: &str = r#"{"kvm_capabilities":["36"]}"#;
++/// An x86-only field that RISC-V must reject.
++pub const TEST_INVALID_TEMPLATE_JSON: &str = r#"{"msr_modifiers":[]}"#;
++
++/// Builds the template used by request round-trip tests.
++pub fn build_test_template() -> CustomCpuTemplate {
++    CustomCpuTemplate {
++        kvm_capabilities: vec![KvmCapability::Add(kvm_bindings::KVM_CAP_IOEVENTFD)],
++        ..Default::default()
++    }
++}
+--- a/src/vmm/src/cpu_config/templates.rs
++++ b/src/vmm/src/cpu_config/templates.rs
+@@ -15,6 +15,15 @@
+     pub use crate::cpu_config::aarch64::custom_cpu_template::CustomCpuTemplate;
+     pub use crate::cpu_config::aarch64::static_cpu_templates::StaticCpuTemplate;
+     pub use crate::cpu_config::aarch64::{
++        CpuConfiguration, CpuConfigurationError as GuestConfigError, test_utils,
++    };
++}
++
++#[cfg(target_arch = "riscv64")]
++mod common_types {
++    pub use crate::cpu_config::riscv64::custom_cpu_template::CustomCpuTemplate;
++    pub use crate::cpu_config::riscv64::static_cpu_templates::StaticCpuTemplate;
++    pub use crate::cpu_config::riscv64::{
+         CpuConfiguration, CpuConfigurationError as GuestConfigError, test_utils,
+     };
+ }
+@@ -38,6 +47,9 @@
+     InvalidStaticCpuTemplate(StaticCpuTemplate),
+     /// The current CPU model is not permitted to apply the CPU template.
+     InvalidCpuModel,
++    #[cfg(target_arch = "riscv64")]
++    /// RISC-V CPU register and feature modifiers are not supported.
++    UnsupportedRiscvModifiers,
+ }
+ 
+ /// Trait to unwrap the inner [`CustomCpuTemplate`] from [`Option<CpuTemplateType>`].
+--- a/src/vmm/src/device_manager/mmio.rs
++++ b/src/vmm/src/device_manager/mmio.rs
+@@ -20,9 +20,13 @@
+ use crate::EventManager;
+ use crate::arch::BOOT_DEVICE_MEM_START;
+ #[cfg(target_arch = "aarch64")]
+-use crate::arch::{RTC_MEM_START, SERIAL_MEM_START};
++use crate::arch::RTC_MEM_START;
++#[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
++use crate::arch::SERIAL_MEM_START;
+ #[cfg(target_arch = "aarch64")]
+-use crate::devices::legacy::{RTCDevice, SerialDevice};
++use crate::devices::legacy::RTCDevice;
++#[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
++use crate::devices::legacy::SerialDevice;
+ use crate::devices::pseudo::BootTimer;
+ use crate::devices::virtio::device::{VirtioDevice, VirtioDeviceId, VirtioDeviceType};
+ use crate::devices::virtio::transport::mmio::{IrqTrigger, MmioTransport};
+@@ -353,8 +357,8 @@
+     #[cfg(target_arch = "aarch64")]
+     /// Real-Time clock on Aarch64 platforms
+     pub(crate) rtc: Option<MMIODevice<RTCDevice>>,
+-    #[cfg(target_arch = "aarch64")]
+-    /// Serial device on Aarch64 platforms
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
++    /// Serial device on Aarch64 and RISC-V platforms
+     pub(crate) serial: Option<MMIODevice<SerialDevice>>,
+ }
+ 
+@@ -393,7 +397,7 @@
+         Ok(())
+     }
+ 
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     /// Register an early console at the specified MMIO configuration if given as parameter,
+     /// otherwise allocate a new MMIO resources for it.
+     pub fn register_mmio_serial(
+@@ -440,7 +444,7 @@
+         Ok(())
+     }
+ 
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     /// Append the registered early console to the kernel cmdline.
+     ///
+     /// This assumes that the device has been registered with the device manager.
+--- a/src/vmm/src/device_manager/mod.rs
++++ b/src/vmm/src/device_manager/mod.rs
+@@ -99,7 +99,7 @@
+     #[cfg(target_arch = "aarch64")]
+     /// Cmdline error
+     Cmdline,
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     /// Error creating serial device: {0}
+     CreateSerial(#[from] std::io::Error),
+     /// Error attach PCI device: {0}
+@@ -176,7 +176,7 @@
+     }
+ 
+     fn serial_state(&self) -> Option<persist::SerialState> {
+-        #[cfg(target_arch = "aarch64")]
++        #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+         {
+             self.mmio_platform_devices.serial.as_ref().map(|device| {
+                 let locked = device.inner.lock().expect("Poisoned lock");
+@@ -330,7 +330,7 @@
+         self.acpi_devices.append_aml_bytes(dsdt_data)
+     }
+ 
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     pub(crate) fn mmio_virtio_devices(&self) -> Option<&MMIOVirtioDevices> {
+         match &self.virtio_devices {
+             VirtioDevices::Mmio(mmio_devices) => Some(mmio_devices),
+@@ -382,6 +382,24 @@
+         Ok(())
+     }
+ 
++    #[cfg(target_arch = "riscv64")]
++    pub(crate) fn attach_legacy_devices_riscv64(
++        &mut self,
++        vm: &KvmVm,
++        event_manager: &mut EventManager,
++        cmdline: &mut Cmdline,
++        serial_out_path: Option<&PathBuf>,
++        serial_rate_limiter: Option<TokenBucket>,
++    ) -> Result<(), AttachDeviceError> {
++        let serial =
++            Self::setup_serial_device(event_manager, serial_out_path, None, serial_rate_limiter)?;
++        self.mmio_platform_devices
++            .register_mmio_serial(vm, serial, None)?;
++        self.mmio_platform_devices
++            .add_mmio_serial_to_cmdline(cmdline)?;
++        Ok(())
++    }
++
+     /// Artificially kick VirtIO devices as if they had external events.
+     pub fn kick_virtio_devices(&self) {
+         info!("Artificially kick devices");
+@@ -628,7 +646,7 @@
+     PciDeviceManager(#[from] PciManagerError),
+     /// Bus error: {0}
+     Bus(#[from] BusError),
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     /// Legacy: {0}
+     Legacy(#[from] std::io::Error),
+     /// Net: {0}
+--- a/src/vmm/src/device_manager/persist.rs
++++ b/src/vmm/src/device_manager/persist.rs
+@@ -178,7 +178,7 @@
+ /// Holds the states of the non-virtio (platform) devices connected over the MMIO transport.
+ #[derive(Default, Debug, Clone, Serialize, Deserialize)]
+ pub struct MMIOPlatformDevicesState {
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     /// State of the serial device in MMIO space.
+     pub serial: Option<MMIODeviceInfo>,
+     #[cfg(target_arch = "aarch64")]
+@@ -223,7 +223,7 @@
+ 
+     fn save(&self) -> Self::State {
+         MMIOPlatformDevicesState {
+-            #[cfg(target_arch = "aarch64")]
++            #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+             serial: self.serial.as_ref().map(|device| device.resources),
+             #[cfg(target_arch = "aarch64")]
+             rtc: self.rtc.as_ref().map(|device| device.resources),
+@@ -238,7 +238,7 @@
+     ) -> Result<Self, Self::Error> {
+         let mut platform_devices = MMIOPlatformDevices::new();
+ 
+-        #[cfg(target_arch = "aarch64")]
++        #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+         {
+             if let Some(device_info) = state.serial {
+                 let serial_state = constructor_args.serial_state.map(Into::into);
+@@ -256,6 +256,7 @@
+                 )?;
+             }
+ 
++            #[cfg(target_arch = "aarch64")]
+             if let Some(device_info) = state.rtc {
+                 let rtc = Arc::new(Mutex::new(RTCDevice::new()));
+                 platform_devices.register_mmio_rtc(constructor_args.vm, rtc, Some(device_info))?;
+--- a/src/vmm/src/devices/pci/pci_segment.rs
++++ b/src/vmm/src/devices/pci/pci_segment.rs
+@@ -135,7 +135,7 @@
+         Ok(segment)
+     }
+ 
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     pub(crate) fn new(
+         id: u16,
+         vm: &Arc<KvmVm>,
+--- a/src/vmm/src/initrd.rs
++++ b/src/vmm/src/initrd.rs
+@@ -102,6 +102,8 @@
+ 
+         #[cfg(target_arch = "aarch64")]
+         let gm = single_region_mem(mem_size + crate::arch::aarch64::layout::FDT_MAX_SIZE);
++        #[cfg(target_arch = "riscv64")]
++        let gm = single_region_mem_at(crate::arch::get_kernel_start(), mem_size);
+ 
+         // Need to reset the cursor to read initrd properly.
+         tempfile.seek(SeekFrom::Start(0)).unwrap();
+--- a/src/vmm/src/lib.rs
++++ b/src/vmm/src/lib.rs
+@@ -498,6 +498,11 @@
+ 
+     /// Saves the state of a paused Microvm.
+     pub fn save_state(&mut self, vm_info: &VmInfo) -> Result<MicrovmState, MicrovmStateError> {
++        if cfg!(target_arch = "riscv64") {
++            return Err(MicrovmStateError::NotAllowed(
++                "Snapshots are not supported on RISC-V".into(),
++            ));
++        }
+         self.check_unsnapshottable_devices()?;
+ 
+         // We need to save device state before saving KVM state.
+@@ -513,7 +518,7 @@
+         let vcpu_states = kvm_vm.save_vcpu_states()?;
+         let kvm_state = kvm_vm.kvm().save_state();
+         let vm_state = {
+-            #[cfg(target_arch = "x86_64")]
++            #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+             {
+                 kvm_vm
+                     .save_state()
+@@ -794,6 +799,15 @@
+ 
+         match &self.vm {
+             Vm::Kvm(kvm_vm) => {
++                #[cfg(target_arch = "riscv64")]
++                if event_set == EventSet::IN
++                    && let Some(result) = kvm_vm.process_irq_event(source)
++                {
++                    if let Err(error) = result {
++                        error!("Failed to deliver RISC-V device interrupt: {error}");
++                    }
++                    return;
++                }
+                 if source == kvm_vm.vcpus_exit_evt().as_raw_fd() && event_set == EventSet::IN {
+                     // Exit event handling should never do anything more than call 'self.stop()'.
+                     let _ = kvm_vm.vcpus_exit_evt().read();
+@@ -830,6 +844,10 @@
+     fn init(&mut self, ops: &mut EventOps) {
+         match &self.vm {
+             Vm::Kvm(kvm_vm) => {
++                #[cfg(target_arch = "riscv64")]
++                if let Err(error) = kvm_vm.register_irq_events(ops) {
++                    error!("Failed to register RISC-V device interrupts: {error}");
++                }
+                 if let Err(err) = ops.add(Events::new(kvm_vm.vcpus_exit_evt(), EventSet::IN)) {
+                     error!("Failed to register vmm exit event: {}", err);
+                 }
+--- a/src/vmm/src/persist.rs
++++ b/src/vmm/src/persist.rs
+@@ -774,6 +774,8 @@
+             vm_state: vmm.vm.as_kvm().unwrap().save_state(&mpidrs).unwrap(),
+             #[cfg(target_arch = "x86_64")]
+             vm_state: vmm.vm.as_kvm().unwrap().save_state().unwrap(),
++            #[cfg(target_arch = "riscv64")]
++            vm_state: VmState::default(),
+         };
+ 
+         let serialized_data = bitcode::serialize(&microvm_state).unwrap();
+--- a/src/vmm/src/resources.rs
++++ b/src/vmm/src/resources.rs
+@@ -1450,6 +1450,8 @@
+             cpu_template: Some(StaticCpuTemplate::T2),
+             #[cfg(target_arch = "aarch64")]
+             cpu_template: Some(StaticCpuTemplate::V1N1),
++            #[cfg(target_arch = "riscv64")]
++            cpu_template: None,
+             track_dirty_pages: Some(false),
+             huge_pages: Some(HugePageConfig::None),
+             #[cfg(feature = "gdb")]
+@@ -1478,10 +1480,10 @@
+             Err(MachineConfigError::InvalidVcpuCount)
+         );
+ 
+-        // Check that SMT is not supported on aarch64, and that on x86_64 enabling it requires vcpu
+-        // count to be even.
++        // Check that SMT is not supported on aarch64/riscv64, and that on x86_64 enabling it
++        // requires vcpu count to be even.
+         aux_vm_config.smt = Some(true);
+-        #[cfg(target_arch = "aarch64")]
++        #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+         assert_eq!(
+             vm_resources.update_machine_config(&aux_vm_config),
+             Err(MachineConfigError::SmtNotSupported)
+--- a/src/vmm/src/snapshot/mod.rs
++++ b/src/vmm/src/snapshot/mod.rs
+@@ -42,6 +42,9 @@
+ 
+ #[cfg(target_arch = "aarch64")]
+ const SNAPSHOT_MAGIC_ID: u64 = 0x0710_1984_AAAA_0000u64;
++
++#[cfg(target_arch = "riscv64")]
++const SNAPSHOT_MAGIC_ID: u64 = 0x0710_1984_5256_0000u64;
+ 
+ /// Maximum size in bytes for snapshot deserialization to prevent DOS attacks.
+ /// Snapshots contain VM state which can be large, but we set a reasonable upper bound.
+--- a/src/vmm/src/test_utils/mock_resources/mod.rs
++++ b/src/vmm/src/test_utils/mock_resources/mod.rs
+@@ -14,12 +14,63 @@
+ pub const DEFAULT_KERNEL_IMAGE: &str = "test_elf.bin";
+ #[cfg(target_arch = "aarch64")]
+ pub const DEFAULT_KERNEL_IMAGE: &str = "test_pe.bin";
++#[cfg(target_arch = "riscv64")]
++pub const DEFAULT_KERNEL_IMAGE: &str = "test_pe_riscv.bin";
+ #[cfg(target_arch = "x86_64")]
+ pub const NOISY_KERNEL_IMAGE: &str = "test_noisy_elf.bin";
+ #[cfg(target_arch = "aarch64")]
+ pub const NOISY_KERNEL_IMAGE: &str = "test_pe.bin";
++#[cfg(target_arch = "riscv64")]
++pub const NOISY_KERNEL_IMAGE: &str = "test_pe_riscv_noisy.bin";
+ 
+ pub fn kernel_image_path(kernel_image: Option<&str>) -> String {
++    #[cfg(target_arch = "riscv64")]
++    if kernel_image.is_none()
++        || matches!(
++            kernel_image,
++            Some(DEFAULT_KERNEL_IMAGE | NOISY_KERNEL_IMAGE)
++        )
++    {
++        use std::sync::OnceLock;
++        use vm_memory::ByteValued;
++        use vmm_sys_util::tempfile::TempFile;
++
++        static KERNEL: OnceLock<TempFile> = OnceLock::new();
++        static NOISY_KERNEL: OnceLock<TempFile> = OnceLock::new();
++        let noisy = kernel_image == Some(NOISY_KERNEL_IMAGE);
++        let kernel = if noisy { &NOISY_KERNEL } else { &KERNEL };
++        return kernel
++            .get_or_init(|| {
++                let header = linux_loader::loader::pe::riscv64_image_header {
++                    code0: 0x0400_006f,
++                    code1: 0x0000_0013,
++                    text_offset: 0x20_0000,
++                    image_size: 4096,
++                    version: 2,
++                    magic: u64::from_le_bytes(*b"RISCV\0\0\0"),
++                    magic2: u32::from_le_bytes(*b"RSC\x05"),
++                    ..Default::default()
++                };
++                let mut image = vec![0u8; 4096];
++                image[..header.as_slice().len()].copy_from_slice(header.as_slice());
++                let instructions: &[u32] = if noisy {
++                    &[0x0000_0297, 0x0802_b023, 0xffdf_f06f]
++                } else {
++                    &[0x0000_006f]
++                };
++                for (index, instruction) in instructions.iter().enumerate() {
++                    image[64 + index * 4..68 + index * 4]
++                        .copy_from_slice(&instruction.to_le_bytes());
++                }
++                let kernel = TempFile::new().unwrap();
++                std::fs::write(kernel.as_path(), image).unwrap();
++                kernel
++            })
++            .as_path()
++            .to_str()
++            .unwrap()
++            .to_owned();
++    }
+     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+     path.push("src/test_utils/mock_resources");
+     path.push(kernel_image.unwrap_or(DEFAULT_KERNEL_IMAGE));
+@@ -53,7 +104,7 @@
+         self
+     }
+ 
+-    #[cfg(target_arch = "x86_64")]
++    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+     pub fn with_kernel(mut self, kernel_image: &str) -> Self {
+         self.0.kernel_image_path = kernel_image_path(Some(kernel_image));
+         self
+--- a/src/vmm/src/test_utils/mod.rs
++++ b/src/vmm/src/test_utils/mod.rs
+@@ -81,7 +81,7 @@
+     let boot_source_cfg = MockBootSourceConfig::new().with_default_boot_args();
+     #[cfg(target_arch = "aarch64")]
+     let boot_source_cfg: BootSourceConfig = boot_source_cfg.into();
+-    #[cfg(target_arch = "x86_64")]
++    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+     let boot_source_cfg: BootSourceConfig = match _kernel_image {
+         Some(kernel) => boot_source_cfg.with_kernel(kernel).into(),
+         None => boot_source_cfg.into(),
+--- a/src/vmm/src/vmm_config/machine_config.rs
++++ b/src/vmm/src/vmm_config/machine_config.rs
+@@ -24,8 +24,8 @@
+     InvalidVcpuCount,
+     /// Could not get the configuration of the previously installed balloon device to validate the memory size.
+     InvalidVmState,
+-    /// Enabling simultaneous multithreading is not supported on aarch64.
+-    #[cfg(target_arch = "aarch64")]
++    /// Enabling simultaneous multithreading is not supported on this architecture.
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     SmtNotSupported,
+     /// Could not determine host kernel version when checking hugetlbfs compatibility
+     KernelVersion,
+@@ -259,7 +259,7 @@
+ 
+         let smt = update.smt.unwrap_or(self.smt);
+ 
+-        #[cfg(target_arch = "aarch64")]
++        #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+         if smt {
+             return Err(MachineConfigError::SmtNotSupported);
+         }
+@@ -284,6 +284,7 @@
+         let cpu_template = match update.cpu_template {
+             None => self.cpu_template.clone(),
+             Some(StaticCpuTemplate::None) => None,
++            #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+             Some(other) => Some(CpuTemplateType::Static(other)),
+         };
+ 
+@@ -316,6 +317,8 @@
+         const TEMPLATE: StaticCpuTemplate = StaticCpuTemplate::V1N1;
+         #[cfg(target_arch = "x86_64")]
+         const TEMPLATE: StaticCpuTemplate = StaticCpuTemplate::T2S;
++        #[cfg(target_arch = "riscv64")]
++        const TEMPLATE: StaticCpuTemplate = StaticCpuTemplate::None;
+ 
+         let mconfig = MachineConfig {
+             cpu_template: None,
+--- a/src/vmm/src/vstate/vcpu.rs
++++ b/src/vmm/src/vstate/vcpu.rs
+@@ -882,13 +882,15 @@
+         path.push("src/test_utils/mock_resources/test_elf.bin");
+         #[cfg(target_arch = "aarch64")]
+         path.push("src/test_utils/mock_resources/test_pe.bin");
++        #[cfg(target_arch = "riscv64")]
++        path.push(crate::test_utils::mock_resources::kernel_image_path(None));
+ 
+         let mut kernel_file = File::open(path).expect("Cannot open kernel file");
+ 
+         #[cfg(target_arch = "x86_64")]
+         let entry_addr = linux_loader::loader::elf::Elf::load(
+             vm_memory,
+-            Some(GuestAddress(crate::arch::get_kernel_start())),
++            Some(GuestAddress(crate::arch::DRAM_MEM_START)),
+             &mut kernel_file,
+             Some(GuestAddress(crate::arch::get_kernel_start())),
+         )
+@@ -896,6 +898,14 @@
+         #[cfg(target_arch = "aarch64")]
+         let entry_addr =
+             linux_loader::loader::pe::PE::load(vm_memory, None, &mut kernel_file, None).unwrap();
++        #[cfg(target_arch = "riscv64")]
++        let entry_addr = linux_loader::loader::pe::PE::load(
++            vm_memory,
++            Some(GuestAddress(crate::arch::get_kernel_start())),
++            &mut kernel_file,
++            None,
++        )
++        .unwrap();
+         entry_addr.kernel_load
+     }
+ 
+@@ -944,6 +954,19 @@
+                 &vm.kvm().optional_capabilities(),
+             )
+             .expect("failed to configure vcpu");
++
++        #[cfg(target_arch = "riscv64")]
++        vcpu.kvm_vcpu
++            .configure(
++                vm.guest_memory(),
++                entry_point,
++                &VcpuConfig {
++                    vcpu_count: 1,
++                    smt: false,
++                    cpu_config: crate::cpu_config::riscv64::CpuConfiguration::default(),
++                },
++            )
++            .unwrap();
+ 
+         let mut seccomp_filters = get_empty_filters();
+         let barrier = Arc::new(Barrier::new(2));
+--- a/src/vmm/src/vstate/vm.rs
++++ b/src/vmm/src/vstate/vm.rs
+@@ -665,7 +665,14 @@
+ 
+     /// Register a device IRQ
+     pub fn register_irq(&self, fd: &EventFd, gsi: u32) -> Result<(), errno::Error> {
++        #[cfg(not(target_arch = "riscv64"))]
+         self.common.fd.register_irqfd(fd, gsi)?;
++        #[cfg(target_arch = "riscv64")]
++        self.irq_events.lock().expect("Poisoned lock").push((
++            fd.try_clone()
++                .map_err(|error| errno::Error::new(error.raw_os_error().unwrap_or(libc::EIO)))?,
++            gsi,
++        ));
+ 
+         let mut entry = kvm_irq_routing_entry {
+             gsi,
+--- a/src/vmm/tests/integration_tests.rs
++++ b/src/vmm/tests/integration_tests.rs
+@@ -39,10 +39,10 @@
+ #[allow(unused_mut, unused_variables)]
+ fn check_booted_microvm(vmm: Arc<Mutex<Vmm>>, mut evmgr: EventManager) {
+     // On x86_64, the vmm should exit once its workload completes and signals the exit event.
+-    // On aarch64, the test kernel doesn't exit, so the vmm is force-stopped.
++    // On aarch64 and riscv64, the test kernel loops until the vmm is force-stopped.
+     #[cfg(target_arch = "x86_64")]
+     evmgr.run_with_timeout(500).unwrap();
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     vmm.lock().unwrap().stop(FcExitCode::Ok);
+ 
+     assert_eq!(
+@@ -83,11 +83,11 @@
+ 
+     // The microVM should be able to resume and exit successfully.
+     // On x86_64, the vmm should exit once its workload completes and signals the exit event.
+-    // On aarch64, the test kernel doesn't exit, so the vmm is force-stopped.
++    // On aarch64 and riscv64, the test kernel loops until the vmm is force-stopped.
+     vmm.lock().unwrap().resume_vm().unwrap();
+     #[cfg(target_arch = "x86_64")]
+     evmgr.run_with_timeout(500).unwrap();
+-    #[cfg(target_arch = "aarch64")]
++    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
+     vmm.lock().unwrap().stop(FcExitCode::Ok);
+     assert_eq!(
+         vmm.lock().unwrap().shutdown_exit_code(),
+@@ -172,6 +172,17 @@
+ }
+ 
+ #[test]
++#[cfg(target_arch = "riscv64")]
++fn test_riscv_snapshot_returns_error_without_device_state_panic() {
++    let (vmm, _) = default_vmm_no_boot(None);
++    assert!(matches!(
++        vmm.lock().unwrap().save_state(&VmInfo::default()),
++        Err(MicrovmStateError::NotAllowed(message))
++            if message == "Snapshots are not supported on RISC-V"
++    ));
++}
++
++#[test]
+ fn test_disallow_snapshots_without_pausing() {
+     let (vmm, _) = default_vmm(Some(NOISY_KERNEL_IMAGE));
+     let vm_info = VmInfo {
