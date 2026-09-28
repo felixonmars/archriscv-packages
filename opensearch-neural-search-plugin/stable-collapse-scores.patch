@@ -1,0 +1,17 @@
+--- a/src/test/java/org/opensearch/neuralsearch/search/collector/HybridCollapsingTopDocsCollectorTests.java
++++ b/src/test/java/org/opensearch/neuralsearch/search/collector/HybridCollapsingTopDocsCollectorTests.java
+@@ -757,7 +757,13 @@
+         LeafCollector leafCollector = collector.getLeafCollector(context);
+         leafCollector.setScorer(hybridScorer);
+ 
+-        collectDocsAndScores(hybridScorer, scores, leafCollector, 0, IntStream.range(0, 20).toArray());
++        for (int docId = 0; docId < context.reader().maxDoc(); docId++) {
++            Document document = context.reader().storedFields().document(docId);
++            int originalId = document.getField("_id").numericValue().intValue();
++            hybridScorer.resetScores();
++            hybridScorer.getSubQueryScores()[0] = scores.get(originalId);
++            leafCollector.collect(docId);
++        }
+ 
+         List<CollapseTopFieldDocs> topDocs = collector.topDocs();
+         assertEquals(1, topDocs.size());
