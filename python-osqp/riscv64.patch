@@ -1,23 +1,8 @@
-diff --git PKGBUILD PKGBUILD
-index c4f2776..42b49e7 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -20,8 +20,7 @@ makedepends=(cmake
-              python-setuptools
-              python-setuptools-scm
-              python-wheel)
--checkdepends=(intel-oneapi-mkl
--              python-pytest)
-+checkdepends=(python-pytest)
- source=(git+https://github.com/osqp/osqp-python#tag=v$pkgver
-         git+https://github.com/osqp/osqp
-         osqp-qdldl::git+https://github.com/osqp/qdldl)
-@@ -51,7 +50,7 @@ check() {
-   cd osqp-python
-   python -m venv --system-site-packages test-env
-   test-env/bin/python -m installer dist/*.whl
--  test-env/bin/python -m pytest -v
-+  test-env/bin/python -m pytest -v --deselect src/osqp/tests/mkl_pardiso_test.py
+@@ -55,3 +55,5 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
- 
- package() {
++
++checkdepends=(${checkdepends[@]/intel-oneapi-mkl})
