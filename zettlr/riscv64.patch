@@ -1,53 +1,50 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -50,14 +50,27 @@ prepare() {
+@@ -52,7 +52,17 @@
  	sed -i "s/\([\^ :]\)${_oldElectron[0]}/\1$_electronVersion/" package.json yarn.lock
- 	echo -ne '#!/usr/bin/env bash\n\nexit 0' > scripts/get-pandoc.sh
  	sed -e "s/@ELECTRON@/$_electron/" "../${source[1]}" > $pkgname.sh
--	yarn install --immutable # postinstall script installs electron-builder deps
--	ln -sf /usr/bin/pandoc resources/pandoc-linux-x64
+ 	npm pkg set desktopName="$pkgname"
+-	bin/yarn install --immutable # postinstall script installs electron-builder deps
 +	local _hash=$(echo -n "https://github.com/electron/electron/releases/download/v$_electronVersion" | sha256sum | cut -d ' ' -f 1)
 +	local _electron_zip="electron-v$_electronVersion-linux-$CARCH.zip"
 +	cd "/usr/lib/$_electron" && zip -r "/tmp/$_electron_zip" ./ && cd -
 +	local _sha256="$(sha256sum "/tmp/$_electron_zip" | cut -d ' ' -f 1)"
 +	local _cache_dir="$HOME/.cache/electron/$_hash"
 +	mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
-+	echo "$_sha256 *$_electron_zip" > "$_cache_dir/SHASUMS256.txt"
-+ 	jq ".resolutions.\"lzma-native\" = \"patch:lzma-native@npm%3A8.0.6#${srcdir}/liblzma-fix.patch\"
-+	| .resolutions.\"@electron/packager\" = \"patch:@electron/packager@npm%3A18.3.5#${srcdir}/electron-packager-riscv64.patch\"
-+	" package.json > package.json.new
++	sed -i "/packagerConfig: {/a\\    download: { checksums: { '$_electron_zip': '$_sha256' } }," forge.config.js
++	jq ".resolutions.\"@electron/packager\" = \"patch:@electron/packager@npm%3A18.4.4#${srcdir}/electron-packager-riscv64.patch\"" package.json > package.json.new
 +	mv package.json.new package.json
 +	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-+	yarn install # postinstall script installs electron-builder deps
-+	ln -sf /usr/bin/pandoc resources/pandoc-linux-riscv64
++	bin/yarn install
  }
  
  build() {
- 	cd "$_archive"
+@@ -60,10 +70,8 @@
  	local NODE_ENV=''
--	yarn package:linux-x64
-+	export PATH+=":$(realpath node_modules/.bin)"
-+	cross-env NODE_ENV=production npm_config_arch=riscv64 electron-forge package --platform=linux --arch=riscv64
+ 	export ZETTLR_DISABLE_UPDATE_CHECK=1
+ 	export BUNDLE_PANDOC=0
+-	# electron-forge target differs by arch; derive from $CARCH (x86_64 unchanged).
+-	local _yarn_target=linux-x64
+-	[[ "$CARCH" == aarch64 ]] && _yarn_target=linux-arm
+-	bin/yarn package:$_yarn_target
++	NODE_ENV=production npm_config_arch=riscv64 bin/yarn node --no-sparkplug \
++		node_modules/.bin/electron-forge package --platform=linux --arch=riscv64
  }
  
  package() {
-@@ -66,11 +79,17 @@ package() {
- 	install -Dm0755 "$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
- 	local _destdir="usr/lib/$pkgname"
- 	install -Dm0644 -t "$pkgdir/$_destdir/" \
--		"out/$_pkgname-linux-x64/resources/"{app.asar,icon.code.icns}
--	cp -a out/$_pkgname-linux-x64/resources/app.asar.unpacked "$pkgdir/$_destdir/"
-+		"out/$_pkgname-linux-riscv64/resources/"{app.asar,icon.code.icns}
-+	cp -a out/$_pkgname-linux-riscv64/resources/app.asar.unpacked "$pkgdir/$_destdir/"
+@@ -74,6 +82,7 @@
+ 	# electron-forge names the output dir linux-x64 on x86_64, linux-arm64 on aarch64
+ 	local _outarch=x64
+ 	[[ "$CARCH" == aarch64 ]] && _outarch=arm64
++	[[ "$CARCH" == riscv64 ]] && _outarch=riscv64
+ 	install -Dm0644 -t "$pkgdir/$_destdir/" "out/$_pkgname-linux-$_outarch/resources/app.asar"
+ 	cp -a "out/$_pkgname-linux-$_outarch/resources/app.asar.unpacked" "$pkgdir/$_destdir/"
  	for px in 16 24 32 48 64 96 128 256 512 1024; do
- 		install -Dm0644 "resources/icons/png/${px}x${px}.png" \
- 			"$pkgdir/usr/share/icons/hicolor/${px}x${px}/apps/$pkgname.png"
+@@ -82,3 +91,7 @@
  	done
  	install -Dm0644 -t "$pkgdir/usr/share/mime/packages/" "../${source[2]}"
  }
 +
 +makedepends+=(zip)
-+source+=("liblzma-fix.patch::https://github.com/addaleax/lzma-native/pull/135.patch"
-+         "electron-packager-riscv64.patch")
-+sha256sums+=('066f050457349873ff36375b547dd7de482ecce182ed9d9ad2514db8fc81c75b'
-+             '8f5cfa5f3005c7bff8267f958ebed1309c792c7bddf8f888e6cab6c6b000b19d')
++source+=(electron-packager-riscv64.patch)
++sha256sums+=('f35e66b817e7f25532654dcd599a33939939982062084577f43de2cf62ce3aa1')
