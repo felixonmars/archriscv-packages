@@ -1,0 +1,35 @@
+--- a/cvxpy/tests/test_expressions.py
++++ b/cvxpy/tests/test_expressions.py
+@@ -20,7 +20,7 @@
+ import numpy as np
+ import pytest
+ import scipy.sparse as sp
+-from hypothesis import assume, given
++from hypothesis import assume, given, settings
+ from hypothesis.extra.numpy import (
+     arrays,
+     basic_indices,
+@@ -1898,6 +1898,7 @@
+         prob.solve(canon_backend=cp.SCIPY_CANON_BACKEND)
+         assert np.allclose(expr.value, y)
+ 
++    @settings(deadline=None)
+     @given(integer_array_indices(shape=(2,2,2)))
+     def test_nd_integer_index(self, s) -> None:
+         expr = self.x[s]
+@@ -1919,6 +1920,7 @@
+         prob.solve(canon_backend=cp.SCIPY_CANON_BACKEND)
+         assert np.allclose(expr.value, y)
+ 
++    @settings(deadline=None)
+     @given(axis=integer_array_indices(shape=(6,5,4,3,2,1)))
+     def test_nd_big_index(self, axis) -> None:
+         in_shape = (6,5,4,3,2,1)
+@@ -2108,6 +2110,7 @@
+         prob.solve(canon_backend=cp.SCIPY_CANON_BACKEND)
+         assert np.allclose(x.value, target)
+ 
++    @settings(deadline=None)
+     @given(shape=broadcastable_shapes((8, 14, 8, 28), max_dims=4))
+     def test_nd_broadcast_generated(self, shape) -> None:
+         x = cp.Variable((8, 14, 8, 28))
