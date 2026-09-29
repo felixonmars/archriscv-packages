@@ -1,11 +1,40 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,7 +35,7 @@
+@@ -27,10 +27,19 @@
+ prepare() {
+   cd $_name
+   pnpm install --frozen-lockfile
++  GOPATH="$srcdir" go -C "$srcdir/typescript-go" mod download -modcacherw
+ }
+ 
+ build() {
+-  cd $_name/packages/svelte2tsx
++  cd typescript-go
++  GOPATH="$srcdir" CGO_ENABLED=0 go build -mod=readonly -modcacherw -trimpath -tags=noembed -o tsgo ./cmd/tsgo
++
++  cd ../$_name
++  install -Dm755 ../typescript-go/tsgo node_modules/@typescript/native-preview-linux-riscv64/lib/tsgo
++  cp ../typescript-go/internal/bundled/libs/*.d.ts node_modules/@typescript/native-preview-linux-riscv64/lib/
++  printf '{}\n' > node_modules/@typescript/native-preview-linux-riscv64/package.json
++
++  cd packages/svelte2tsx
+   pnpm build
+   cd ../language-server
+   pnpm build
+@@ -38,7 +47,7 @@
  
  check() {
    cd $_name/packages/language-server
 -  pnpm run test --no-experimental-strip-types
-+  pnpm run test --no-experimental-strip-types -- --timeout 1000000
++  pnpm run test --no-experimental-strip-types --timeout 1000000
  }
  
  package() {
+@@ -62,3 +71,7 @@
+   cp -r bin dist node_modules package.json "$pkgdir"/$mod_dir
+   install -Dm644 -t "$pkgdir"/usr/share/doc/$pkgname README.md
+ }
++
++makedepends+=(go)
++source+=('typescript-go::git+https://github.com/microsoft/typescript-go.git#commit=acfaa5bcc8631d3c51ad65a8562a656c8d6a4bd5')
++b2sums+=('SKIP')
