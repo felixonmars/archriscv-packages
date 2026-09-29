@@ -1,0 +1,285 @@
+--- a/amd_openvx/openvx/CMakeLists.txt
++++ b/amd_openvx/openvx/CMakeLists.txt
+@@ -167,8 +167,10 @@
+     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /DVX_API_ENTRY=__declspec(dllexport)")
+     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd /DVX_API_ENTRY=__declspec(dllexport)")
+ else()
+-    # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
+-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
++    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
++        # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
++        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
++    endif()
+     target_link_libraries(openvx dl m)
+ endif()
+ 
+--- a/amd_openvx/openvx/ago/ago_haf_cpu_arithmetic.cpp
++++ b/amd_openvx/openvx/ago/ago_haf_cpu_arithmetic.cpp
+@@ -3636,8 +3636,8 @@
+ 			pixelsL = _mm_loadu_si128((__m128i *)pLocalSrc);
+ 			pixelsH = _mm_unpackhi_epi8(pixelsL, zeromask);
+ 			pixelsL = _mm_cvtepu8_epi16(pixelsL);
+-			pixelsL = _mm_slli_epi16(pixelsL, (int)shift);
+-			pixelsH = _mm_slli_epi16(pixelsH, (int)shift);
++			pixelsL = _mm_sll_epi16(pixelsL, _mm_cvtsi32_si128(shift));
++			pixelsH = _mm_sll_epi16(pixelsH, _mm_cvtsi32_si128(shift));
+ 			_mm_store_si128((__m128i *)pLocalDst, pixelsL);
+ 			_mm_store_si128((__m128i *)(pLocalDst + 8), pixelsH);
+ 
+--- a/amd_openvx/openvx/ago/ago_haf_cpu_filter.cpp
++++ b/amd_openvx/openvx/ago/ago_haf_cpu_filter.cpp
+@@ -2816,10 +2816,10 @@
+ 				result0 = _mm_add_epi32(result0, temp0);
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -2995,10 +2995,10 @@
+ 				result0 = _mm_add_epi32(result0, temp0);
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -3128,10 +3128,10 @@
+ 				}
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -3259,10 +3259,10 @@
+ 				}
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -3392,10 +3392,10 @@
+ 				}
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -3523,10 +3523,10 @@
+ 				}
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -3656,10 +3656,10 @@
+ 				}
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+@@ -3787,10 +3787,10 @@
+ 				}
+ 			}
+ 
+-			result0 = _mm_srli_epi32(result0, shift);
+-			result1 = _mm_srli_epi32(result1, shift);
+-			result2 = _mm_srli_epi32(result2, shift);
+-			result3 = _mm_srli_epi32(result3, shift);
++			result0 = _mm_srl_epi32(result0, _mm_cvtsi32_si128(shift));
++			result1 = _mm_srl_epi32(result1, _mm_cvtsi32_si128(shift));
++			result2 = _mm_srl_epi32(result2, _mm_cvtsi32_si128(shift));
++			result3 = _mm_srl_epi32(result3, _mm_cvtsi32_si128(shift));
+ 
+ 			row = _mm_packs_epi32(result2, result3);
+ 			temp0 = _mm_packs_epi32(result0, result1);
+--- a/amd_openvx/openvx/ago/ago_platform.cpp
++++ b/amd_openvx/openvx/ago/ago_platform.cpp
+@@ -34,6 +34,9 @@
+ 
+ bool agoIsCpuHardwareSupported()
+ {
++#if defined(__riscv)
++	return true;
++#else
+ 	bool isHardwareSupported = false;
+ 	int CPUInfo[4] = { -1 };
+ 	__cpuid(CPUInfo, 0);
+@@ -44,6 +47,7 @@
+ 			isHardwareSupported = true;
+ 	}
+ 	return isHardwareSupported;
++#endif
+ }
+ 
+ uint32_t agoControlFpSetRoundEven()
+--- a/amd_openvx/openvx/ago/ago_platform.h
++++ b/amd_openvx/openvx/ago/ago_platform.h
+@@ -56,9 +56,14 @@
+ #include <intrin.h>
+ #else
+ #include <dlfcn.h>
++#if defined(__riscv)
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/avx2.h>
++#else
+ #include <x86intrin.h>
+ #include <smmintrin.h>
+ #include <immintrin.h>
++#endif
+ #if __APPLE__
+ #include <cstdlib>
+ #include <cmath>
+--- a/amd_openvx_extensions/amd_custom/CMakeLists.txt
++++ b/amd_openvx_extensions/amd_custom/CMakeLists.txt
+@@ -78,8 +78,10 @@
+     list(APPEND SOURCES source/custom_kernels.cpp source/custom_layer.cpp)
+     include_directories(../../amd_openvx/openvx/include ${ROCM_PATH}/include include ./custom_lib)
+ 
+-    # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
+-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
++    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
++        # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
++        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
++    endif()
+ 
+     link_directories(${HIP_PATH}/lib)
+     add_subdirectory(custom_lib)
+--- a/amd_openvx_extensions/amd_media/CMakeLists.txt
++++ b/amd_openvx_extensions/amd_media/CMakeLists.txt
+@@ -107,8 +107,11 @@
+     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+ else()
+     # -Wno-deprecated-declarations -- Do not warn about uses of functions, variables, and types marked as deprecated by using the deprecated attribute.
+-    # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation. 
+-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -msse4.2")
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
++    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
++        # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
++        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
++    endif()
+ endif()
+ 
+ message("-- ${White}amd_media -- CMAKE_CXX_FLAGS:${CMAKE_CXX_FLAGS}${ColourReset}")
+--- a/amd_openvx_extensions/amd_nn/CMakeLists.txt
++++ b/amd_openvx_extensions/amd_nn/CMakeLists.txt
+@@ -147,7 +147,7 @@
+ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
+     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+-else()
++elseif(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
+     # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
+     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+ endif()
+--- a/amd_openvx_extensions/amd_rpp/CMakeLists.txt
++++ b/amd_openvx_extensions/amd_rpp/CMakeLists.txt
+@@ -271,8 +271,10 @@
+     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+ else()
+     set(LINK_LIBRARY_LIST ${LINK_LIBRARY_LIST} openvx)
+-    # -mavx2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX and AVX2 built-in functions and code generation.
+-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
++    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
++        # -mavx2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX and AVX2 built-in functions and code generation.
++        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
++    endif()
+ endif()
+ 
+ target_link_libraries(vx_rpp ${LINK_LIBRARY_LIST})
+--- a/amd_openvx_extensions/amd_rpp/source/tensor/TensorAddTensor.cpp
++++ b/amd_openvx_extensions/amd_rpp/source/tensor/TensorAddTensor.cpp
+@@ -23,6 +23,9 @@
+ #include "internal_publishKernels.h"
+ #if _WIN32
+ #include <intrin.h>
++#elif defined(__riscv)
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/avx2.h>
+ #else
+ #include <immintrin.h>
+ #include <smmintrin.h>
+--- a/amd_openvx_extensions/amd_rpp/source/tensor/TensorMulScalar.cpp
++++ b/amd_openvx_extensions/amd_rpp/source/tensor/TensorMulScalar.cpp
+@@ -23,6 +23,9 @@
+ #include "internal_publishKernels.h"
+ #if _WIN32
+ #include <intrin.h>
++#elif defined(__riscv)
++#define SIMDE_ENABLE_NATIVE_ALIASES
++#include <simde/x86/avx2.h>
+ #else
+ #include <immintrin.h>
+ #include <smmintrin.h>
+--- a/utilities/mv_deploy/CMakeLists.txt
++++ b/utilities/mv_deploy/CMakeLists.txt
+@@ -42,9 +42,11 @@
+ # install MIVisionX executables -- {ROCM_PATH}/bin
+ install(TARGETS mv_compile DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
+ 
+-# -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
+-# -mf16c   -- Support F16C built-in functions and code generation.
+-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mf16c")
++if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^riscv")
++    # -msse4.2 -- Support MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1 and SSE4.2 built-in functions and code generation.
++    # -mf16c   -- Support F16C built-in functions and code generation.
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mf16c")
++endif()
+ target_link_libraries(mv_compile ${CMAKE_DL_LIBS} stdc++fs)
+ 
+ # install MIVisionX include files -- {ROCM_PATH}/include/mivisionx/

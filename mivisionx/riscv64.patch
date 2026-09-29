@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,11 @@
+ options=(!lto)
+ _dirname="$(basename "$_git")-$(basename "${source[0]}" ".tar.gz")"
+ 
++prepare() {
++  cd "$_dirname"
++  patch -Np1 -i ../riscv64-simde.patch
++}
++
+ build() {
+   # -fcf-protection is not supported by HIP, see
+   # https://docs.amd.com/bundle/ROCm-Compiler-Reference-Guide-v5.3/page/Appendix_A.html
+@@ -55,3 +60,7 @@
+   DESTDIR="$pkgdir" cmake --install build
+   install -Dm644 "$_dirname/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
++
++makedepends+=('simde')
++source+=('riscv64-simde.patch')
++sha256sums+=('bfe3673749f6097892510ec60cbad0699b62e250129d0eb333e249013498f46e')
