@@ -1,0 +1,19 @@
+--- a/src/diagnosticsManager.ts
++++ b/src/diagnosticsManager.ts
+@@ -6,6 +6,7 @@
+  */
+ 
+ import type * as lsp from 'vscode-languageserver';
++import { URI } from 'vscode-uri';
+ import debounce from 'p-debounce';
+ import type { Logger } from './utils/logger.js';
+ import { toDiagnostic } from './protocol-translation.js';
+@@ -63,7 +64,7 @@
+     public async waitForDiagnosticsForTesting(): Promise<void> {
+         return new Promise(resolve => {
+             const interval = setInterval(() => {
+-                if (this.diagnosticsPerKind.size === 3) {  // Must include all types of `DiagnosticKind`.
++                if (this.diagnosticsPerKind.size === 3 && !this.client.hasPendingDiagnostics(URI.parse(this.uri))) {  // Must include all types of `DiagnosticKind`.
+                     clearInterval(interval);
+                     this.publishDiagnostics();
+                     resolve();

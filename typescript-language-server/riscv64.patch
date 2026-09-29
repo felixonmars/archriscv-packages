@@ -1,0 +1,42 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -22,17 +22,26 @@
+ 
+ prepare() {
+   cd $pkgname
++  patch -Np1 -i ../test-diagnostics.patch
+   pnpm install --frozen-lockfile
++
++  cd "$srcdir/rolldown-1.2.4"
++  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
+ }
+ 
+ build() {
+-  cd $pkgname
++  cd "$srcdir/rolldown-1.2.4"
++  cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/$pkgname"
++  install -m755 "$srcdir/rolldown-1.2.4/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so" \
++    node_modules/.pnpm/rolldown@1.2.4/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
+   pnpm build # Needs bin links
+ }
+ 
+ check() {
+   cd $pkgname
+-  pnpm test:commit
++  pnpm test:commit --testTimeout=120000
+ }
+ 
+ package() {
+@@ -53,3 +62,10 @@
+   install -Dm644 -t "$pkgdir"/usr/share/doc/$pkgname {CHANGELOG,README}.md
+   install -Dm644 -t "$pkgdir"/usr/share/licenses/$pkgname LICENSE
+ }
++
++makedepends+=(rust cmake)
++options+=(!lto)
++source+=('rolldown-1.2.4.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.4.tar.gz'
++         'test-diagnostics.patch')
++b2sums+=('f0103aa594403795d6b39dd0b3f8d19f33b831b7de11c8b0d01ad58570839f6cc8a207abe3de66f84b7e09a33edea09b5ceda848011198afc7e259783d707b27'
++         '8976c697cbcffaab027f263b993aca0e50aefac09fd68a02ec43320935849267cdeadbe8212cef4bc50e734138026b3430227a5fbbb418c77c28062321f65fdd')
