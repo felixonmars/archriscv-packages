@@ -1,0 +1,110 @@
+--- a/tests/integration.rs
++++ b/tests/integration.rs
+@@ -1931,35 +1931,59 @@
+         f.testwl.dispatch();
+     }
+ 
+-    // Give Xwayland time to respond to all of the events
+-    std::thread::sleep(Duration::from_millis(50));
+     // If the required wl_output::geometry event on binding is not sent, Xwayland will leave the
+     // cathode-ray tube controller (CRTC; a representation of the area to be sent to output(s) in
+     // RandR) with an uninitialized rotation, which swaps the width and height of the CRTC.
+-    let resources = connection.get_reply(&xcb::randr::GetScreenResources {
+-        window: connection.root,
+-    });
+-    assert_eq!(resources.outputs().len(), 2);
+-    for output in resources.outputs().iter().copied() {
+-        let output_reply = connection.get_reply(&xcb::randr::GetOutputInfo {
+-            output,
+-            config_timestamp: resources.config_timestamp(),
+-        });
+-        let name = std::str::from_utf8(output_reply.name()).unwrap();
+-        let info_idx = outputs.iter().position(|o| o.name == name).unwrap();
+-        let crtc_reply = connection.get_reply(&xcb::randr::GetCrtcInfo {
+-            crtc: output_reply.crtc(),
+-            config_timestamp: resources.config_timestamp(),
++    let start = Instant::now();
++    let (output_count, output_infos) = loop {
++        f.testwl.dispatch();
++        let resources = connection.get_reply(&xcb::randr::GetScreenResources {
++            window: connection.root,
+         });
+-        let crtc_info = OutputInfo {
+-            name: name.into(),
+-            x: crtc_reply.x() as _,
+-            y: crtc_reply.y() as _,
+-            width: crtc_reply.width() as _,
+-            height: crtc_reply.height() as _,
+-        };
++        let output_count = resources.outputs().len();
++        let mut output_infos = Vec::new();
++        for output in resources.outputs().iter().copied() {
++            let output_reply = connection.get_reply(&xcb::randr::GetOutputInfo {
++                output,
++                config_timestamp: resources.config_timestamp(),
++            });
++            if output_reply.crtc().resource_id() == 0 {
++                continue;
++            }
++            let name = std::str::from_utf8(output_reply.name()).unwrap();
++            let crtc_reply = connection.get_reply(&xcb::randr::GetCrtcInfo {
++                crtc: output_reply.crtc(),
++                config_timestamp: resources.config_timestamp(),
++            });
++            let crtc_info = OutputInfo {
++                name: name.into(),
++                x: crtc_reply.x() as _,
++                y: crtc_reply.y() as _,
++                width: crtc_reply.width() as _,
++                height: crtc_reply.height() as _,
++            };
++            output_infos.push((crtc_info, crtc_reply.rotation()));
++        }
++        if (output_count == outputs.len()
++            && output_infos.len() == outputs.len()
++            && output_infos.iter().all(|(info, rotation)| {
++                outputs.contains(info) && *rotation == xcb::randr::Rotation::ROTATE_0
++            }))
++            || start.elapsed() >= Duration::from_secs(5)
++        {
++            break (output_count, output_infos);
++        }
++        std::thread::sleep(Duration::from_millis(10));
++    };
++    assert_eq!(output_count, 2);
++    assert_eq!(output_infos.len(), 2);
++    for (crtc_info, rotation) in output_infos {
++        let info_idx = outputs
++            .iter()
++            .position(|info| info.name == crtc_info.name)
++            .unwrap();
+         assert_eq!(crtc_info, outputs[info_idx]);
+-        assert_eq!(crtc_reply.rotation(), xcb::randr::Rotation::ROTATE_0);
++        assert_eq!(rotation, xcb::randr::Rotation::ROTATE_0);
+         outputs.swap_remove(info_idx);
+     }
+ }
+@@ -2130,10 +2154,19 @@
+ 
+     output2.scale(2);
+     output2.done();
+-    f.testwl.dispatch();
+-    std::thread::sleep(Duration::from_millis(1));
+-
+-    let settings = connection.get_xsettings();
++    let start = Instant::now();
++    let settings = loop {
++        f.testwl.dispatch();
++        let settings = connection.get_xsettings();
++        if (settings.data["Xft/DPI"].value == 2 * 96 * 1024
++            && settings.data["Gdk/WindowScalingFactor"].value == 2
++            && settings.data["Gdk/UnscaledDPI"].value == 96 * 1024)
++            || start.elapsed() >= Duration::from_secs(5)
++        {
++            break settings;
++        }
++        std::thread::sleep(Duration::from_millis(10));
++    };
+     assert_eq!(settings.data["Xft/DPI"].value, 2 * 96 * 1024);
+     assert_eq!(settings.data["Gdk/WindowScalingFactor"].value, 2);
+     assert_eq!(settings.data["Gdk/UnscaledDPI"].value, 96 * 1024);
