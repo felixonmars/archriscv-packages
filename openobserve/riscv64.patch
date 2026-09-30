@@ -1,0 +1,64 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,18 +23,35 @@
+ prepare() {
+   cd $pkgname
+ 
++  patch -Np2 -d ../rquickjs-sys-0.11.0 -i "$srcdir/rquickjs-bindgen-target.patch"
++  patch -Np1 -d ../aws-lc-sys-0.45.0 -i "$srcdir/aws-lc-cc-cache.patch"
++  sed -i 's/^default = \["gxhash"\]/default = []/' src/config/Cargo.toml
++  sed -i '/^rquickjs = /s/features = \[/&"bindgen", /' Cargo.toml
++  sed -i '/^\[patch\.crates-io\]$/a rquickjs-sys = { path = "../rquickjs-sys-0.11.0" }' Cargo.toml
++  sed -i '/^\[patch\.crates-io\]$/a aws-lc-sys = { path = "../aws-lc-sys-0.45.0" }' Cargo.toml
++
+   # TODO: Temporary fix for https://github.com/openobserve/openobserve/issues/14450
+   cargo update
+ 
+   # Note: We're not fetching the stable toolchain via rustup here
+   # because upstream uses a specific version in a toolchain file.
+   cargo fetch --locked --target host-tuple
++  cargo fetch --locked --target host-tuple --manifest-path="$srcdir/lightningcss-1.32.0/node/Cargo.toml"
++  cargo fetch --locked --target host-tuple --manifest-path="$srcdir/tailwindcss-4.3.3/crates/node/Cargo.toml"
+ }
+ 
+ build() {
+   cd $pkgname/web
+ 
++  export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
++  cargo build --frozen --release --manifest-path="$srcdir/lightningcss-1.32.0/node/Cargo.toml"
++  cargo build --frozen --release --manifest-path="$srcdir/tailwindcss-4.3.3/crates/node/Cargo.toml"
++
+   npm install
++  cp "$srcdir/lightningcss-1.32.0/target/release/liblightningcss_node.so" \
++    node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  cp "$srcdir/tailwindcss-4.3.3/target/release/libtailwind_oxide.so" \
++    node_modules/@tailwindcss/oxide/tailwindcss-oxide.linux-riscv64-gnu.node
+   # We ave to increase the heap limit as otherwise we'd get
+   # Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory"
+   NODE_OPTIONS="--max-old-space-size=8192" npm run build
+@@ -43,7 +60,6 @@
+ 
+   CFLAGS+=' -ffat-lto-objects'
+   CXXFLAGS+=' -ffat-lto-objects'
+-  export RUSTFLAGS="-C target-feature=+aes,+sse2"
+   export RUSTONIG_SYSTEM_LIBONIG=1
+   export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
+   export ZSTD_SYS_USE_PKG_CONFIG=1
+@@ -63,3 +79,17 @@
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++makedepends+=('lld')
++source+=(lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz
++         tailwindcss-4.3.3.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.3.tar.gz
++         "rquickjs-sys-0.11.0.tar.gz::https://static.crates.io/crates/rquickjs-sys/rquickjs-sys-0.11.0.crate"
++         "rquickjs-bindgen-target.patch::https://github.com/DelSkayn/rquickjs/commit/d0afdfa6919b874d95ac184f11b7e5e4993d5241.patch"
++         "aws-lc-sys-0.45.0.tar.gz::https://static.crates.io/crates/aws-lc-sys/aws-lc-sys-0.45.0.crate"
++         "aws-lc-cc-cache.patch::https://github.com/aws/aws-lc-rs/commit/17d1542ff69595430b528c87fa3d83596c7cef8c.patch")
++sha256sums+=('ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9'
++             'e702ce2493505287e8f6cab2dd1e0c14f154e57c296854d4ded38bde5da2be6e'
++             '27344601ef27460e82d6a4e1ecb9e7e99f518122095f3c51296da8e9be2b9d83'
++             'fda236d16cc6425c551fbcbcd385ac4e592642f97955d67579faa31e7f6cbdf8'
++             '9bff6c3b54fad79a2e60b8102caf565819711497c1f5f092f49508e2f5c31b27'
++             '41f2508661f50579b165675a2c11ff3b57a35c49d4a57b9825033f44e79d5be3')
