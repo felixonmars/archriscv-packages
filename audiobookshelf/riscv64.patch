@@ -1,0 +1,38 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -38,4 +38,7 @@
+ 
+ prepare() {
++  cargo fetch --locked --manifest-path="$srcdir/tailwindcss-4.0.13/crates/node/Cargo.toml"
++  cargo fetch --locked --manifest-path="$srcdir/lightningcss-1.29.2/node/Cargo.toml"
++
+   cd "$pkgname"
+ 
+@@ -45,7 +48,15 @@
+ 
+ build() {
++  cargo build --release --locked --manifest-path="$srcdir/tailwindcss-4.0.13/crates/node/Cargo.toml"
++  cargo build --release --locked --manifest-path="$srcdir/lightningcss-1.29.2/node/Cargo.toml"
++
+   cd "$pkgname"
+ 
+-  npm run client
++  npm ci --prefix client
++  cp "$srcdir/tailwindcss-4.0.13/target/release/libtailwind_oxide.so" \
++    client/node_modules/@tailwindcss/oxide/tailwindcss-oxide.linux-riscv64-gnu.node
++  cp "$srcdir/lightningcss-1.29.2/target/release/liblightningcss_node.so" \
++    client/node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  npm run generate --prefix client
+   npm ci --omit=dev
+ }
+@@ -68,2 +79,10 @@
+     xargs -I {} install -vDm644 {} "$pkgdir/usr/lib/$pkgname/"{}
+ }
++
++makedepends+=(python-setuptools rust)
++source+=(tailwindcss-4.0.13.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.0.13.tar.gz
++         lightningcss-1.29.2.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.29.2.tar.gz)
++sha512sums+=('0fea21face537ace8da65f5f5019455556f2e528f913ddb9165ed6815ca88a82e24f6fb9a0c465fa3fb3413bf0dc2d2f3148bc48df9db789860304c1d7e450c1'
++             '353f43a449287a737ed45c14150139138d8923ec969a6cf84b734e481b9142022c6181b54eda3013cd4c53290015da52ac26b61032291dd35927d0296bb9a648')
++b2sums+=('3543fc6841ea5042d3dc4d9b4020c507e82675f85a6455e805f8b5fccfcdcc5541f49a9e88f53fc71aaeb7a3e66bbddc7d7f8773b29a6dfd11af72716450c9b7'
++         'bac950642170ef28656a4fedc62bbacb7d46b9a807daee3c1373e9cfa28b22bf89a9914e965999fbde0a5142d0b0b896d45a8c3f2ce44ff132a659e27c1ff436')
