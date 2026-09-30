@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -50,7 +50,14 @@
+   git apply -3 ../0001-Arch-Linux-paths.patch
+ 
+   cargo fetch --locked --target host-tuple
+-  pnpm install --frozen-lockfile
++  printf '\nsupportedArchitectures:\n  cpu: [current, wasm32]\n' >> pnpm-workspace.yaml
++  pnpm install --frozen-lockfile --no-runtime --fetch-timeout=600000
++
++  local version
++  for version in 1.32.0 1.33.0; do
++    bsdtar -xzf "$srcdir/lightningcss-wasm-$version.tgz" \
++      -C "node_modules/.pnpm/lightningcss@$version/node_modules/lightningcss" --strip-components=1
++  done
+ }
+ 
+ build() {
+@@ -82,3 +89,9 @@
+ }
+ 
+ # vim:set sw=2 sts=-1 et:
++
++source+=('https://registry.npmjs.org/lightningcss-wasm/-/lightningcss-wasm-1.32.0.tgz'
++         'https://registry.npmjs.org/lightningcss-wasm/-/lightningcss-wasm-1.33.0.tgz')
++b2sums+=('5d7ad2c469f6151be5ac1ebe3f2fc834f4fca1009b3026390239e1759f0a41c41407f51556fbf80c3f87bf72b548391dead091879b5f42170e7eb1221abbc831'
++         '967225eeb9586da314d4d99e5da020c6e30ec6d9d996e21a7c4c8420d3532f4a537785482d078fb45e2b11cad1ec931c3da1387a1184f903179269fd77e04393')
++noextract+=(lightningcss-wasm-1.32.0.tgz lightningcss-wasm-1.33.0.tgz)
