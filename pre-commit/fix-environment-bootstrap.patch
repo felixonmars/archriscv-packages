@@ -1,0 +1,165 @@
+--- a/pre_commit/languages/node.py
++++ b/pre_commit/languages/node.py
+@@ -99,6 +99,11 @@
+     cmd_output_b(*cmd)
+ 
+     with in_env(prefix, version):
++        npm_version = cmd_output('npm', '--version')[1]
++        if npm_version.startswith(('11.9.', '11.10.', '11.11.', '11.12.')):
++            lang_base.setup_cmd(
++                prefix, ('npm', 'install', '-g', 'npm@11.13.0'),
++            )
+         install = (
+             'npm', 'install', '--allow-git=root', '--install-links', '-g',
+             *pkgs,
+--- a/pre_commit/languages/rust.py
++++ b/pre_commit/languages/rust.py
+@@ -82,7 +82,7 @@
+ 
+ def install_rust_with_toolchain(toolchain: str, envdir: str) -> None:
+     with tempfile.TemporaryDirectory() as rustup_dir:
+-        with envcontext((('CARGO_HOME', envdir), ('RUSTUP_HOME', rustup_dir))):
++        with envcontext((('CARGO_HOME', envdir),)):
+             # acquire `rustup` if not present
+             if parse_shebang.find_executable('rustup') is None:
+                 # We did not detect rustup and need to download it first.
+@@ -145,10 +145,9 @@
+         ctx.enter_context(in_env(prefix, version))
+ 
+         if version != 'system':
+-            install_rust_with_toolchain(_rust_toolchain(version), envdir)
+-
+             tmpdir = ctx.enter_context(tempfile.TemporaryDirectory())
+             ctx.enter_context(envcontext((('RUSTUP_HOME', tmpdir),)))
++            install_rust_with_toolchain(_rust_toolchain(version), envdir)
+ 
+         if len(lib_deps) > 0:
+             _add_dependencies(prefix, lib_deps)
+--- a/tests/languages/node_test.py
++++ b/tests/languages/node_test.py
+@@ -2,6 +2,7 @@
+ 
+ import json
+ import os
++import platform
+ import shutil
+ import sys
+ from unittest import mock
+@@ -17,6 +18,7 @@
+ from pre_commit.util import cmd_output
+ from pre_commit.util import cmd_output_b
+ from testing.language_helpers import run_language
++from testing.util import cwd
+ from testing.util import git_commit
+ from testing.util import xfailif_windows
+ 
+@@ -158,6 +160,38 @@
+     assert ret == (0, b'Hello World\n')
+ 
+ 
++@pytest.mark.parametrize('version', (C.DEFAULT, 'system', '26.0.0'))
++@pytest.mark.parametrize('npm_version,upgrade', (
++    ('11.8.0', False),
++    ('11.9.0', True),
++    ('11.10.1', True),
++    ('11.11.1', True),
++    ('11.12.1', True),
++    ('11.13.0', False),
++    ('11.19.0', False),
++    ('12.1.0', False),
++))
++def test_npm_git_policy_upgrade(tmp_path, version, npm_version, upgrade):
++    prefix = Prefix(str(tmp_path))
++    with mock.patch.object(node, 'cmd_output_b'):
++        with mock.patch.object(
++                node, 'cmd_output', return_value=(0, f'{npm_version}\n', ''),
++        ):
++            with mock.patch.object(node.lang_base, 'setup_cmd') as setup_cmd:
++                node.install_environment(prefix, version, ('lodash',))
++
++    expected = []
++    if upgrade:
++        expected.append(mock.call(
++            prefix, ('npm', 'install', '-g', 'npm@11.13.0'),
++        ))
++    expected.append(mock.call(prefix, (
++        'npm', 'install', '--allow-git=root', '--install-links', '-g',
++        'lodash',
++    )))
++    assert setup_cmd.call_args_list == expected
++
++
+ def test_npm_install_succeeds_with_build(tmp_path):
+     _make_hello_world(tmp_path)
+ 
+@@ -168,9 +202,19 @@
+         json.dump(contents, f)
+     _make_repo(tmp_path)
+ 
+-    # node version chosen to be npm 11.19.0 with this particular bug
+-    ret = run_language(tmp_path, node, 'node-hello', version='26.7.0')
++    # Keep npm 11.19.0 despite the missing Node 26.7.0 riscv64 build.
++    if platform.machine() == 'riscv64':
++        version = '26.0.0'
++        tmp_path.joinpath('setup.cfg').write_text(
++            '[nodeenv]\nwith_npm = true\nnpm = 11.19.0\n',
++        )
++    else:
++        version = '26.7.0'
++    with cwd(tmp_path):
++        ret = run_language(tmp_path, node, 'node-hello', version=version)
+     assert ret == (0, b'Hello World\n')
++    with node.in_env(Prefix(str(tmp_path)), version):
++        assert cmd_output('npm', '--version')[1].strip() == '11.19.0'
+ 
+ 
+ def test_node_additional_deps(tmp_path):
+--- a/tests/languages/rust_test.py
++++ b/tests/languages/rust_test.py
+@@ -1,5 +1,7 @@
+ from __future__ import annotations
+ 
++import os
++from pathlib import Path
+ from unittest import mock
+ 
+ import pytest
+@@ -7,6 +9,7 @@
+ import pre_commit.constants as C
+ from pre_commit import parse_shebang
+ from pre_commit.languages import rust
++from pre_commit.prefix import Prefix
+ from pre_commit.store import _make_local_repo
+ from testing.language_helpers import run_language
+ from testing.util import cwd
+@@ -74,6 +77,30 @@
+     assert ret == (0, b'Hello, world!\n')
+ 
+ 
++def test_toolchain_survives_until_cargo_install(tmp_path):
++    toolchains = []
++
++    def cmd_output(*cmd, **kwargs):
++        toolchain = Path(os.environ['RUSTUP_HOME']).joinpath('toolchains')
++        if cmd[:2] == ('rustup', 'toolchain'):
++            toolchain.mkdir()
++            toolchains.append(toolchain)
++        else:
++            assert cmd[:2] == ('cargo', 'install')
++            assert toolchains == [toolchain]
++            assert toolchain.is_dir()
++        return 0, b'', b''
++
++    with mock.patch.object(
++            parse_shebang, 'find_executable', return_value='rustup',
++    ):
++        with mock.patch.object(rust, 'cmd_output_b', side_effect=cmd_output):
++            rust.install_environment(Prefix(str(tmp_path)), '1.56.0', ())
++
++    assert len(toolchains) == 1
++    assert not toolchains[0].exists()
++
++
+ @pytest.mark.parametrize('version', (C.DEFAULT, '1.56.0'))
+ def test_language_version_with_rustup(tmp_path, version):
+     assert parse_shebang.find_executable('rustup') is not None
