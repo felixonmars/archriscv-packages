@@ -1,0 +1,53 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,5 +21,14 @@
+ 
+ prepare() {
+-  cd $pkgbase-$pkgver
++  patch -Np1 -d deno_runtime-0.177.0 -i ../deno-runtime-riscv64.patch
++
++  cd rusty_v8
++  git submodule update --init --recursive
++  patch -Np1 -i ../v8-compiler-rt-riscv64.patch
++  sed -i 's/^bindgen = "0\.69"/bindgen = "0.72.1"/' Cargo.toml
++
++  cd ../$pkgbase-$pkgver
++  printf '\n[patch.crates-io]\nv8 = { path = "../rusty_v8" }\ndeno_runtime = { path = "../deno_runtime-0.177.0" }\n' >> Cargo.toml
++  cargo update -p v8 -p deno_runtime
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+@@ -29,4 +38,21 @@
+   CFLAGS+=' -ffat-lto-objects'
+ 
++  export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
++  export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
++  export CXXFLAGS="${CXXFLAGS//-fexceptions/}"
++
++  local _clang_version=$(clang -dumpversion | cut -d . -f 1)
++  local _extra_gn_args=(
++    'is_clang=true'
++    'custom_toolchain="//build/toolchain/linux/unbundle:default"'
++    'host_toolchain="//build/toolchain/linux/unbundle:default"'
++    "clang_version=\"$_clang_version\""
++  )
++  export CC=clang CXX=clang++ AR=ar NM=nm
++  export V8_FROM_SOURCE=1
++  export CLANG_BASE_PATH=/usr
++  export GN=/usr/bin/gn NINJA=/usr/bin/ninja
++  export EXTRA_GN_ARGS="${_extra_gn_args[*]}"
++
+   cd $pkgbase-$pkgver
+   cargo build --frozen --release --package vl-convert
+@@ -90,2 +116,12 @@
+   install -vDm 644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++makedepends+=(clang git gn lld ninja python)
++source+=("git+https://github.com/denoland/rusty_v8.git#tag=v0.105.1"
++         v8-compiler-rt-riscv64.patch
++         "deno_runtime-0.177.0.tar.gz::https://static.crates.io/crates/deno_runtime/deno_runtime-0.177.0.crate"
++         deno-runtime-riscv64.patch)
++b2sums+=('SKIP'
++         '60f50a9885701811cf8d147c4ea673c3f60fe33ceaf98c89cc75cd8505f49ab6a8e1627f8ce053e9f887300f0fda6ef5b75f5a1db31f3a0e2879188ff6094488'
++         '8099ac36ba687c7e7f1c9994d0ba17ea6219c10d2b0cab4bedc141fbff3baac42f16e4f5f713ef2f64617c293194af09911279f913ecd18f21e393a1412ae0a1'
++         'ed2c7dd576979653cc312831139bcf5533866bd31c9a982980935088b57494f7ec80979847f8049dcb84c84c54b56ea3d289fd9f1e997f4f5e86a17bbc1d2613')
