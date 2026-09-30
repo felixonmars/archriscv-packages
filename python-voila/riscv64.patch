@@ -1,0 +1,12 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -61,6 +61,9 @@
+ 
+ build() {
+   cd $_name-$pkgver
++  sed -i -e '/"lerna":/d' \
++    -e 's#lerna run build:prod#jlpm workspace @voila-dashboards/jupyterlab-preview run build:prod \&\& jlpm workspace @voila-dashboards/widgets-manager7 run build:prod \&\& jlpm workspace @voila-dashboards/widgets-manager8 run build:prod \&\& jlpm workspace @voila-dashboards/voila run build:prod#' \
++    package.json
+   # NOTE: jupyterlab requires 'httpx~=0.28.0' in its pyproject.toml, but Arch still has only 0.27.0 so we must use --skip-dependency-check
+   python -m build --wheel --no-isolation --skip-dependency-check
+ }
