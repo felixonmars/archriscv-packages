@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -55,6 +55,7 @@
+ 
+   # Rename LOG macro due to name conflict with abseil-provided one
+   git apply < "${srcdir}/rocal-abseil-log-clash.patch"
++  patch -Np1 -i "$srcdir/rocal-non-x86.patch"
+ }
+ 
+ build() {
+@@ -66,6 +67,7 @@
+     -D CMAKE_INSTALL_PREFIX=/usr
+     -D BUILD_SHARED_LIBS=OFF
+     -D CMAKE_POLICY_VERSION_MINIMUM=3.5
++    -D RAPIDJSON_ENABLE_INSTRUMENTATION_OPT=OFF
+   )
+   cmake "${rapidjson_args[@]}"
+   cmake --build build-rapidjson
+@@ -93,3 +95,6 @@
+ 
+   install -Dm644 "$_dirname/LICENSE.txt" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
++
++source+=("rocal-non-x86.patch::https://github.com/ROCm/rocAL/commit/4d6cb5cd01214f1671a02221dd7c3c381306457c.patch")
++sha256sums+=('596512e84edd2f46c73b43f43d1414d3f9743097f0b2846a02e0638d4e76c2b7')
