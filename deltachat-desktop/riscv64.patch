@@ -9,17 +9,21 @@
  }
  
  build() {
-@@ -88,9 +90,6 @@
-   pnpm --filter=$filter build
+@@ -83,9 +85,10 @@
  
-   pnpm --filter=$filter exec electron-builder ${electron_builder_options[@]}
--
--  # symlink bundled stdio-rpc-server to the one provided by the deltachat-rpc-server package
--  ln -fsv /usr/bin/deltachat-rpc-server packages/target-electron/dist/linux-unpacked/resources/app.asar.unpacked/node_modules/@deltachat/stdio-rpc-server-linux-x64/deltachat-rpc-server
+   cd $pkgname
+   export NODE_ENV=production
+-  pnpm --filter=$filter pack:asar
+-  # Remove the prebuilt deltachat-rpc-server, as we are using a packaged one.
+-  rm -v packages/target-electron/dist/linux-unpacked/resources/app.asar.unpacked/node_modules/@deltachat/stdio-rpc-server-linux-x64/deltachat-rpc-server
++  pnpm --filter=$filter pack:generate_config
++  pnpm --filter=$filter build4production
++  pnpm --filter=$filter run pack:patch-node-modules
++  pnpm --filter=$filter exec electron-builder ${electron_builder_options[@]}
  }
  
  package() {
-@@ -109,7 +108,7 @@
+@@ -104,7 +107,7 @@
  
    cd $pkgname
    install -vdm 755 "$pkgdir/usr/lib/$pkgname/"
@@ -28,7 +32,7 @@
  
    # icons
    install -vDm 644 images/tray/${pkgname/-desktop/}.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
-@@ -123,3 +122,10 @@
+@@ -118,3 +121,10 @@
  
    install -vDm 644 {CHANGELOG,CONTRIBUTING,README,SECURITY}.md -t "$pkgdir/usr/share/doc/$pkgname/"
  }
@@ -36,6 +40,6 @@
 +source+=(builder-util-riscv64.patch
 +         deltachat-desktop-system-rpc.patch)
 +sha512sums+=('50bbca0a71343f06c2293cc45590943adc432e2cb53196e1d275f6660d249c3cb449ec34bb610c4eb1b687e4b59f5467a465f6221a2aeaef363d339817d6f1f9'
-+             'eab67a5a22eafa383ade9b6795f0a2540548dfd4a3efc41eaa645910150bdfba309ae125d41b5384ec1fd5e42f1c0fa10642a250b48a2ee5538f30e53d1e1724')
++             '9551484947db2ec45c90a006253c47a6829f3d8b852507ccd05b809d3af0c86e288374a5787c959607a63aa88b8f5652c4c288fdf390b0b9878311e95334abb5')
 +b2sums+=('f941e67aa4d11f423be226765d84170c637c891e73823d35bf9004a8be5d56df1bc7bd38dd0387f2fb28ea6fb17c2221842780577dd2f8cefbd9fc5d1a082d23'
-+         'e6ad5416ab308b3ebb9e99b20fe550599c50f7ee4c62bb40beba5082e11c27ffb50af0651c7ae20c18b56a17598f26065d7cb825cd61f4f855644277cb448fcd')
++         '140f0b58d0255937eac6491ed154a1951a3690bc974dfac5cbb020b6219aee1bc457aa8d1f0d51873a449fc409e3308efd3e9178b8e8c2b59b3f5d92c1f40f6f')
