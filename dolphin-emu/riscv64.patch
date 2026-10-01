@@ -1,10 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -89,6 +89,7 @@ pkgver() {
+@@ -105,6 +105,7 @@
+     git config submodule.${submodule}.url ../${submodule##*/}
+     git -c protocol.file.allow=always submodule update ${submodule}
+   done
++  patch -Np1 -i "${srcdir}/cpp-ipc-riscv.patch"
+   cd Externals/cubeb/cubeb
+   git submodule init cmake/sanitizers-cmake
+   git config submodule.cmake/sanitizers-cmake.url "${srcdir}"/sanitizers-cmake
+@@ -113,6 +114,7 @@
  
  build() {
    cmake -S dolphin-emu -B build -G Ninja \
 +    -DENABLE_GENERIC=ON \
      -DCMAKE_BUILD_TYPE=None \
+     -DCMAKE_SKIP_RPATH=ON \
      -DCMAKE_INSTALL_PREFIX=/usr \
-     -DDISTRIBUTOR=archlinux.org \
+@@ -153,3 +155,6 @@
+   )
+   install -Dm 755 build/Binaries/dolphin-tool -t "${pkgdir}"/usr/bin/
+ }
++
++source+=(cpp-ipc-riscv.patch)
++b2sums+=('6d05049427adaef03e873a3debcfdc5e6b1d64145d7dd2b0a6e786c347992f4395ef63ae6e5eca3f572e94e62fb8e1bd9f430f775857201d53b165e3d612086e')
