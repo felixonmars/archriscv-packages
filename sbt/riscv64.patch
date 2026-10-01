@@ -1,15 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -30,6 +30,7 @@
-   ./sbt \
+@@ -23,4 +23,9 @@
+ backup=(etc/${pkgname}/sbtopts)
+ 
++prepare() {
++  cd "${pkgname}"
++  patch -Np1 -i "${srcdir}/increase-parser-test-timeout.patch"
++}
++
+ build() {
+   cd "${pkgname}"
+@@ -31,4 +36,5 @@
      -Dsbt.build.version=${pkgver} \
      -Dsbt.build.offline=false \
 +    -Dsbt.build.includesbtn=false \
      clean \
      launcherPackage/Universal/packageBin \
-     launcherPackage/Universal/packageZipTarball
-@@ -48,9 +49,9 @@
- 
+@@ -49,7 +55,7 @@
    mkdir -p "${pkgdir}"/usr/share/${pkgname}
    cp -r bin "${pkgdir}"/usr/share/${pkgname}
 -  rm "${pkgdir}"/usr/share/${pkgname}/bin/*{.bat,.exe,-darwin}
@@ -19,4 +26,10 @@
 +  chmod +x "${pkgdir}"/usr/share/${pkgname}/bin/sbt
    mkdir -p "${pkgdir}"/usr/bin
    ln -s /usr/share/${pkgname}/bin/sbt "${pkgdir}"/usr/bin/sbt
- 
+@@ -62,2 +68,6 @@
+   install -D LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}
+ }
++
++source+=(increase-parser-test-timeout.patch)
++sha256sums+=('2b00f3fe13c0a47f39c0369d9ba640cac89ba5dcb67b9674d7bb0f66b6486c90')
++b2sums+=('1b66833a58e4c5fbdf934fcf157c98849d66de0b4b3bf0ec7d08585b5016a0a9aa3ac997f7c5e41f27e93864a5e0f104839ff820b3500661c88f3e2905a2f05b')
