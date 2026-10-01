@@ -1,0 +1,29 @@
+--- a/tests/mock_jmap.rs
++++ b/tests/mock_jmap.rs
+@@ -610,15 +610,22 @@
+     let worker_a = std::thread::spawn(move || {
+         let _ = a.post_json(&limited_url, &json!({}));
+     });
+-    std::thread::sleep(std::time::Duration::from_millis(150));
+-    let started = Instant::now();
++    let deadline = Instant::now() + std::time::Duration::from_secs(30);
++    let (started, remaining) = loop {
++        let started = Instant::now();
++        if let Some(remaining) = shared.rate_limit().cooldown().remaining() {
++            break (started, remaining);
++        }
++        assert!(started < deadline, "first worker did not arm the shared cooldown");
++        std::thread::sleep(std::time::Duration::from_millis(10));
++    };
+     shared.get(&other_url).expect("other request ok");
+     let waited = started.elapsed();
+     worker_a.join().unwrap();
+ 
+     assert!(
+-        waited.as_millis() >= 600,
+-        "second worker should have been paused by the shared 429 cooldown, waited {waited:?}"
++        waited >= remaining,
++        "second worker waited {waited:?}, less than the remaining shared 429 cooldown {remaining:?}"
+     );
+     limiter.assert();
+     other.assert();
