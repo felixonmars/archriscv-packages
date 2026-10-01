@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -83,10 +83,20 @@
+ }
+ 
+ build() {
+-  make -C libretro-ppsspp/libretro
++  cmake -S libretro-ppsspp -B build -G Ninja \
++    -DCMAKE_BUILD_TYPE=None \
++    -DCMAKE_INSTALL_PREFIX=/usr \
++    -DCMAKE_SKIP_RPATH=ON \
++    -DHEADLESS=OFF \
++    -DLIBRETRO=ON \
++    -DUNITTEST=OFF
++  cmake --build build
+ }
+ 
+ package() {
+-  install -Dm 644 libretro-ppsspp/libretro/ppsspp_libretro.so -t "${pkgdir}"/usr/lib/libretro/
++  install -Dm 644 build/lib/ppsspp_libretro.so -t "${pkgdir}"/usr/lib/libretro/
+   install -Dm 644 libretro-ppsspp/LICENSE.TXT -t "${pkgdir}"/usr/share/licenses/libretro-ppsspp/
+ }
++
++depends+=(libpng zlib)
++makedepends+=(cmake ninja python)
