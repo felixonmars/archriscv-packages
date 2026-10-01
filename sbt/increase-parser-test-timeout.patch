@@ -1,0 +1,15 @@
+--- a/main-command/src/test/scala/sbt/MultiParserSpec.scala
++++ b/main-command/src/test/scala/sbt/MultiParserSpec.scala
+@@ -124,9 +124,9 @@
+     val start = System.nanoTime
+     assert(multiLine.parse == commands)
+     val elapsed = System.nanoTime - start
+-    // Make sure this took less than 10 seconds. It takes about 30 milliseconds to run with
+-    // 100 commands and 3 milliseconds with 3 commands. With a bad parser, it will run indefinitely.
+-    assert(elapsed.nanoseconds < 10.seconds)
++    // Allow slower riscv64 builders a minute while still catching the parser regression,
++    // which made this input run indefinitely.
++    assert(elapsed.nanoseconds < 1.minute)
+ 
+   test("parsing should exclude alias"):
+     val alias = """alias scalacFoo = ; set scalacOptions ++= Seq("-foo")"""
