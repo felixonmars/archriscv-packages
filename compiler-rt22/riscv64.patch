@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,7 +28,12 @@
+ )
+ 
+ prepare() {
+-  cd llvm-project-$pkgver.src/compiler-rt
++  cd llvm-project-$pkgver.src
++
++  # https://github.com/llvm/llvm-project/pull/185486
++  patch -Np1 -i "$srcdir/fix-cfloat128-detection.patch"
++
++  cd compiler-rt
+   mkdir build
+ }
+ 
+@@ -53,4 +58,7 @@
+   install -Dm644 "$srcdir/llvm-project-$pkgver.src/compiler-rt/LICENSE.TXT" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+ }
+ 
++source+=("fix-cfloat128-detection.patch::https://github.com/llvm/llvm-project/commit/ea9f8b77467fdbfab0d5bb3342e97de6b54e4e2d.patch")
++sha256sums+=('7889ae188557c6172d2a31e7c7354a69f8a8a561b064e569122ccd9c86c07545')
++
+ # vim:set ts=2 sw=2 et:
