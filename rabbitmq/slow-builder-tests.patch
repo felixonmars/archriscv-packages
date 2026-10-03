@@ -1,0 +1,53 @@
+--- a/deps/rabbit/test/feature_flags_v2_SUITE.erl
++++ b/deps/rabbit/test/feature_flags_v2_SUITE.erl
+@@ -57,7 +57,7 @@
+         ]).
+ 
+ suite() ->
+-    [{timetrap, {minutes, 1}}].
++    [{timetrap, {minutes, 5}}].
+ 
+ all() ->
+     [
+@@ -65,7 +65,7 @@
+     ].
+ 
+ groups() ->
+-    GroupOptions = [parallel],
++    GroupOptions = [],
+     Groups =
+     [
+      {direct, GroupOptions,
+--- a/deps/rabbit/test/peer_discovery_tmp_hidden_node_SUITE.erl
++++ b/deps/rabbit/test/peer_discovery_tmp_hidden_node_SUITE.erl
+@@ -256,7 +256,7 @@
+     Peers.
+ 
+ setup_test_node(PeerPid, PeerOptions) ->
+-    peer:call(PeerPid, ?MODULE, do_setup_test_node, [PeerOptions]).
++    peer:call(PeerPid, ?MODULE, do_setup_test_node, [PeerOptions], 60000).
+ 
+ do_setup_test_node(PeerOptions) ->
+     Context = case maps:get(longnames, PeerOptions, false) of
+--- a/deps/rabbit/test/unit_config_value_encryption_SUITE.erl
++++ b/deps/rabbit/test/unit_config_value_encryption_SUITE.erl
+@@ -56,6 +56,9 @@
+ %% Test Cases
+ %% -------------------------------------------------------------------
+ 
++decrypt_config() ->
++    [{timetrap, {hours, 2}}].
++
+ decrypt_config(_Config) ->
+     %% Take all available block ciphers.
+     Hashes = rabbit_pbe:supported_hashes() -- ?SKIPPED_HASHES,
+@@ -106,6 +109,9 @@
+     ok = application:unload(rabbit),
+     ok.
+ 
++decrypt_config_map() ->
++    [{timetrap, {hours, 2}}].
++
+ decrypt_config_map(_Config) ->
+     Hashes = rabbit_pbe:supported_hashes() -- ?SKIPPED_HASHES,
+     Ciphers = rabbit_pbe:supported_ciphers() -- ?SKIPPED_CIPHERS,
