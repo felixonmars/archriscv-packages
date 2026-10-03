@@ -1,0 +1,79 @@
+--- a/src/lib/util/machine.sh
++++ b/src/lib/util/machine.sh
+@@ -22,7 +22,14 @@
+ 			tr --squeeze-repeats '.' | \
+ 			head --bytes=$(( max_hostname - max_pid_digits - 1 ))
+ 	)"
+-	machine=${machine%%.}
+-	machine=${machine%%-}
++	local previous
++	while [[ ${previous-} != "${machine}" ]]; do
++		previous=${machine}
++		machine=${machine%.}
++		machine=${machine%-}
++		machine=${machine//-./.}
++		machine=${machine//.-/.}
++		machine=${machine//../.}
++	done
+ 	printf "%s.%s" "${machine}" "$$"
+ }
+--- a/test/case/lib/util/machine.bats
++++ b/test/case/lib/util/machine.bats
+@@ -55,3 +55,57 @@
+ 	assert_pid "$output"
+ 	assert_name "$output" bats-exec-test-1234567890abcdefghijklmnopqrstuvwxyz1234
+ }
++
++@test "machine_name normalize trailing plus/dash" {
++	run machine_name foo+++
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-foo
++}
++
++@test "machine_name strip trailing dot" {
++	run machine_name foo...
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-foo
++}
++
++@test "machine_name dot dash" {
++	run machine_name foo.-bar
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-foo.bar
++}
++
++@test "machine_name dash dot" {
++	run machine_name foo-.bar
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-foo.bar
++}
++
++@test "machine_name repeating mixed separators" {
++	run machine_name foo.-.-.-.bar
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-foo.bar
++}
++
++@test "machine_name strip mixed trailing separators" {
++	run machine_name foo.-.-.-.
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-foo
++}
++
++@test "machine_name package plus build suffix" {
++	run machine_name wasi-libc++.build
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-wasi-libc.build
++}
++
++@test "machine_name package plus inspect suffix" {
++	run machine_name wasi-libc++.inspect
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-wasi-libc.inspect
++}
++
++@test "machine_name package plus checkpkg suffix" {
++	run machine_name wasi-libc++.checkpkg
++	assert_pid "$output"
++	assert_name "$output" bats-exec-test-wasi-libc.checkpkg
++}
