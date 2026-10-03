@@ -1,43 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,6 +17,8 @@
-   # cross targets
-   rust-aarch64-gnu
-   rust-aarch64-musl
-+  rust-x86_64-gnu
-+  rust-x86_64-musl
- )
- pkgver=1.98.0
- pkgrel=1
-@@ -63,12 +65,16 @@
-   aarch64-linux-gnu-gcc
-   aarch64-linux-gnu-glibc
-   musl-aarch64
-+  x86_64-linux-gnu-gcc
-+  x86_64-linux-gnu-glibc
-   musl-x86_64
- )
- makedepends_riscv64=(
-   aarch64-linux-gnu-gcc
-   aarch64-linux-gnu-glibc
-   musl-aarch64
-+  x86_64-linux-gnu-gcc
-+  x86_64-linux-gnu-glibc
-   musl-x86_64
- )
- makedepends_x86_64=(
-@@ -130,8 +136,8 @@
-         'd9b974154aa5615f4ca0c8956405974d3a8458a5b267e5d1105793b2bbc092be1fba5b579fd7fa97c7eac9d0840cb87090f2cce2091c62ec70a5e121bac84002'
-         'd5fcda00c46e1e1ea9ed1d269d3ef549d4ad96148d7d0744acd673de802b3bf3747ceec1fa506d3e7c128cdff742410b1e69218d59ef20a5f246755c1bd02694')
- b2sums_aarch64=('40e105f88ad18c28c5634574aa3f5a07d77b40aa06c80bbfd2bbfbf55d5fa98301f31d52e58d39c7331213fec71285af05019b13c850d3bbdaa4f2d225b7b15f')
--b2sums_loong64=('a611e20959eaa0ce4c42e5f6caf1531a0a1f5089f5734d3161f66933995de3d24e0f645b8220d9f9ab6ebf28f10bdc85425539387bf8bfae3d2e676ea0229c53')
--b2sums_riscv64=('a6c671ddd136a6f259e42b87d4443962bfb0e2313dfe9acd9a3bf1c07094f75319c4c0c53c864d89aa3aef6c0e1acd8ce65b5dc20bc514c9d4b450f898266a1e')
-+b2sums_loong64=('82dcd6102d1c43e4da2dfeb14fc7e0df0df21d009ec588e72657b29d66105d82124c6e8cb72cae2a7db95f809ed4a751fc2b975786e248dfc3c83ce66380fb53')
-+b2sums_riscv64=('a24210a5776f7d779f42385d575df62d49c8d3fa3c52b51c5a822ea03a213a8a2756813b647f5252aa2659bb05b2779ca051bfe85640b320a9c9a6387febfaac')
- b2sums_x86_64=('c1bd1c53cdaf4e7a54c757a490945cb4d7b120c01f32ae06d707aa64aa71431e1ce88e0e759b817cb566e56748b51a5d508719274dc7a1e02734b6505858a4de')
- validpgpkeys=(
-   108F66205EAEB0AAA8DD5E1C85AB96E6FA1BE5FE  # Rust Language (Tag and Release Signing Key) <rust-key@rust-lang.org>
-@@ -265,6 +271,8 @@
+@@ -185,6 +185,10 @@
+   export RUST_BACKTRACE=1
+   unset CFLAGS CXXFLAGS LDFLAGS
+ 
++  if [[ $CARCH = riscv64 ]]; then
++    export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
++  fi
++
+   local xpy_options=(
+     -j "$(nproc)"
+   )
+@@ -280,6 +284,8 @@
      loong64|riscv64)
        _pick dest-aarch64-gnu usr/lib/rustlib/aarch64-unknown-linux-gnu
        _pick dest-aarch64-musl usr/lib/rustlib/aarch64-unknown-linux-musl
@@ -46,7 +20,7 @@
        ;;
    esac
  }
-@@ -386,4 +394,35 @@
+@@ -401,4 +407,44 @@
    _install_licenses
  }
  
@@ -81,6 +55,15 @@
 +  _install_licenses
 +}
 +
++pkgname+=(rust-x86_64-gnu rust-x86_64-musl)
++makedepends_loong64+=(x86_64-linux-gnu-gcc x86_64-linux-gnu-glibc)
++makedepends_riscv64+=(libatomic x86_64-linux-gnu-gcc x86_64-linux-gnu-glibc)
++b2sums_loong64[0]='bd4d529837c1bf57131a68a54cdf448a0ef5fd79e7cd30ae3234d15f3ca47d6bf4f9d0a2feaede2a50523e888605cebd23be3783bba04b5abd143bc28d2b6179'
++b2sums_riscv64[0]='ff8ec67496b078e99b40c1fa62c807b2c535d931214e544e0a2047a0a0f0cef19d8d441aa30d17c6e8dac54068fe7228037494455a2be5c2f9070d2306d3b590'
++if [[ $CARCH = riscv64 ]]; then
++  makedepends=(${makedepends[@]/rust})
++fi
++
  # vim:set ts=2 sw=2 et:
 --- bootstrap.loong64.toml
 +++ bootstrap.loong64.toml
@@ -93,7 +76,7 @@
    "wasm32-unknown-unknown",
    "wasm32v1-none",
    "wasm32-wasip1",
-@@ -92,6 +94,25 @@
+@@ -93,6 +95,25 @@
  ranlib = "aarch64-linux-gnu-gcc-ranlib"
  sanitizers = false
  
@@ -121,7 +104,7 @@
  cxx = "clang++"
 --- bootstrap.riscv64.toml
 +++ bootstrap.riscv64.toml
-@@ -18,6 +18,8 @@
+@@ -18,15 +18,14 @@
    "riscv64gc-unknown-linux-musl",
    "aarch64-unknown-linux-gnu",
    "aarch64-unknown-linux-musl",
@@ -130,7 +113,16 @@
    "wasm32-unknown-unknown",
    "wasm32v1-none",
    "wasm32-wasip1",
-@@ -92,6 +94,25 @@
+   "wasm32-wasip1-threads",
+   "wasm32-wasip2",
+ ]
+-cargo = "/usr/bin/cargo"
+-rustc = "/usr/bin/rustc"
+-rustfmt = "/usr/bin/rustfmt"
+ locked-deps = true
+ vendor = true
+ tools = [
+@@ -93,6 +92,25 @@
  ranlib = "aarch64-linux-gnu-gcc-ranlib"
  sanitizers = false
  
