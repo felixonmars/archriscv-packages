@@ -1,19 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -15,7 +15,7 @@ b2sums=('d2cdf274baf9cf8890ee4c5c434448a34bc6d3d8967df6e2e9334fe1eff66ce53715973
- prepare() {
-   setconf config USE_OPENMP 0
-   setconf config USE_SHARED 1
--  setconf config USE_SSE 1
-+  setconf config USE_SSE 0
-   setconf libsquish.pc.in Version "$pkgver"
- }
+@@ -15,5 +15,5 @@
  
-@@ -25,6 +25,7 @@ build() {
-     -D CMAKE_BUILD_TYPE=Release \
-     -D CMAKE_INSTALL_PREFIX=/usr \
+ prepare() {
+-  for x in USE_OPENMP=0 USE_SHARED=1 USE_SSE=1; do
++  for x in USE_OPENMP=0 USE_SHARED=1 USE_SSE=0; do
+     setconf config $x
+   done
+@@ -28,4 +28,5 @@
+     -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \
      -D BUILD_SHARED_LIBS=ON \
 +    -D BUILD_SQUISH_WITH_SSE2=OFF \
-     -G Ninja \
      -S .
-   ninja -C build
+   make -C build
