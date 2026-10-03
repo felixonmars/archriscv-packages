@@ -1,0 +1,96 @@
+--- a/test/asynchronous/test_srv_polling.py
++++ b/test/asynchronous/test_srv_polling.py
+@@ -20,6 +20,7 @@
+ import sys
+ import time
+ from typing import Any
++from unittest.mock import patch
+ 
+ from test.utils_shared import FunctionCallRecorder
+ 
+@@ -27,6 +28,7 @@
+ 
+ import pymongo
+ from pymongo import common
++from pymongo.asynchronous.monitor import SrvMonitor
+ from pymongo.errors import ConfigurationError
+ from pymongo.uri_parser_shared import _have_dnspython
+ from test.asynchronous import AsyncPyMongoTestCase, client_knobs, unittest
+@@ -361,19 +363,22 @@
+ 
+     async def test_srv_waits_to_poll(self):
+         modified = [("localhost.test.build.10gen.cc", 27019)]
++        poll_times = []
+ 
+-        def resolver_response():
++        def get_seedlist():
++            poll_times.append(time.monotonic())
+             return modified
+ 
+-        with SrvPollingKnobs(
+-            ttl_time=WAIT_TIME,
+-            min_srv_rescan_interval=WAIT_TIME,
+-            nodelist_callback=resolver_response,
++        with (
++            SrvPollingKnobs(min_srv_rescan_interval=WAIT_TIME),
++            patch.object(SrvMonitor, "_get_seedlist", side_effect=get_seedlist),
+         ):
+             client = self.simple_client(self.CONNECTION_STRING)
+             await client.aconnect()
+-            with self.assertRaises(AssertionError):
+-                await self.assert_nodelist_change(modified, client, timeout=WAIT_TIME / 2)
++            await self.assert_nodelist_change(modified, client)
++            self.assertGreaterEqual(
++                poll_times[0], client._topology._srv_monitor._startup_time + WAIT_TIME
++            )
+ 
+     def test_import_dns_resolver(self):
+         # Regression test for PYTHON-4407
+--- a/test/test_srv_polling.py
++++ b/test/test_srv_polling.py
+@@ -20,6 +20,7 @@
+ import sys
+ import time
+ from typing import Any
++from unittest.mock import patch
+ 
+ from test.utils_shared import FunctionCallRecorder
+ 
+@@ -28,6 +29,7 @@
+ import pymongo
+ from pymongo import common
+ from pymongo.errors import ConfigurationError
++from pymongo.synchronous.monitor import SrvMonitor
+ from pymongo.uri_parser_shared import _have_dnspython
+ from test import PyMongoTestCase, client_knobs, unittest
+ from test.utils import wait_until
+@@ -361,19 +363,22 @@
+ 
+     def test_srv_waits_to_poll(self):
+         modified = [("localhost.test.build.10gen.cc", 27019)]
++        poll_times = []
+ 
+-        def resolver_response():
++        def get_seedlist():
++            poll_times.append(time.monotonic())
+             return modified
+ 
+-        with SrvPollingKnobs(
+-            ttl_time=WAIT_TIME,
+-            min_srv_rescan_interval=WAIT_TIME,
+-            nodelist_callback=resolver_response,
++        with (
++            SrvPollingKnobs(min_srv_rescan_interval=WAIT_TIME),
++            patch.object(SrvMonitor, "_get_seedlist", side_effect=get_seedlist),
+         ):
+             client = self.simple_client(self.CONNECTION_STRING)
+             client._connect()
+-            with self.assertRaises(AssertionError):
+-                self.assert_nodelist_change(modified, client, timeout=WAIT_TIME / 2)
++            self.assert_nodelist_change(modified, client)
++            self.assertGreaterEqual(
++                poll_times[0], client._topology._srv_monitor._startup_time + WAIT_TIME
++            )
+ 
+     def test_import_dns_resolver(self):
+         # Regression test for PYTHON-4407
