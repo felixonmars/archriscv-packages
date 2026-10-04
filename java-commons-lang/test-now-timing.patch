@@ -1,0 +1,16 @@
+--- a/src/test/java/org/apache/commons/lang3/concurrent/EventCountCircuitBreakerTest.java
++++ b/src/test/java/org/apache/commons/lang3/concurrent/EventCountCircuitBreakerTest.java
+@@ -325,9 +325,11 @@
+     void testNow() {
+         final EventCountCircuitBreaker breaker = new EventCountCircuitBreaker(OPENING_THRESHOLD, 1,
+                 TimeUnit.SECONDS);
++        final long beforeNanos = System.nanoTime();
+         final long nowNanos = breaker.nanoTime();
+-        final long deltaNanos = Math.abs(System.nanoTime() - nowNanos);
+-        assertTrue(deltaNanos < 100_000, String.format("Delta %,d ns to current time too large", deltaNanos));
++        final long afterNanos = System.nanoTime();
++        assertTrue(nowNanos - beforeNanos >= 0, "Time precedes sampling interval");
++        assertTrue(afterNanos - nowNanos >= 0, "Time exceeds sampling interval");
+     }
+ 
+     /**
