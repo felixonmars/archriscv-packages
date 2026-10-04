@@ -1,0 +1,58 @@
+--- a/tests/functional/test_credentials.py
++++ b/tests/functional/test_credentials.py
+@@ -73,9 +73,6 @@
+     parse_registered_feature_ids,
+ )
+ 
+-TIME_IN_ONE_HOUR = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+-TIME_IN_SIX_MONTHS = datetime.now(tz=timezone.utc) + timedelta(hours=4320)
+-
+ 
+ class TestCredentialRefreshRaces(unittest.TestCase):
+     def assert_consistent_credentials_seen(self, creds, func):
+@@ -649,9 +646,10 @@
+ 
+     def test_sso_source_profile(self):
+         token_cache_key = '32096c2e0eff33d844ee6d675407ace18289357d'
++        token_expiration = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+         cached_token = {
+             'accessToken': 'C',
+-            'expiresAt': TIME_IN_ONE_HOUR.strftime('%Y-%m-%dT%H:%M:%SZ'),
++            'expiresAt': token_expiration.strftime('%Y-%m-%dT%H:%M:%SZ'),
+         }
+         temp_cache = JSONFileCache(self.tempdir)
+         temp_cache[token_cache_key] = cached_token
+@@ -1044,15 +1042,16 @@
+         return True
+ 
+     def __getitem__(self, cache_key):
++        now = datetime.now(tz=timezone.utc)
+         return {
+             "startUrl": "https://test.awsapps.com/start",
+             "region": "us-east-1",
+             "accessToken": "access-token",
+-            "expiresAt": TIME_IN_ONE_HOUR.strftime('%Y-%m-%dT%H:%M:%SZ'),
++            "expiresAt": (now + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ'),
+             "expiresIn": 3600,
+             "clientId": "client-12345",
+             "clientSecret": "client-secret",
+-            "registrationExpiresAt": TIME_IN_SIX_MONTHS.strftime(
++            "registrationExpiresAt": (now + timedelta(hours=4320)).strftime(
+                 '%Y-%m-%dT%H:%M:%SZ'
+             ),
+             "refreshToken": "refresh-here",
+@@ -1167,12 +1166,13 @@
+         assert request.headers.get('X-Amz-Security-Token') == session_token
+ 
+     def add_credential_response(self, stubber):
++        expiration = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+         response = {
+             'roleCredentials': {
+                 'accessKeyId': self.access_key_id,
+                 'secretAccessKey': self.secret_access_key,
+                 'sessionToken': self.session_token,
+-                'expiration': TIME_IN_ONE_HOUR.timestamp() * 1000,
++                'expiration': expiration.timestamp() * 1000,
+             }
+         }
+         stubber.add_response(body=json.dumps(response).encode('utf-8'))
