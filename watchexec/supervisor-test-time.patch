@@ -1,0 +1,111 @@
+--- a/crates/supervisor/Cargo.toml
++++ b/crates/supervisor/Cargo.toml
+@@ -46,6 +46,7 @@
+ 
+ [dev-dependencies]
+ boxcar = "0.2.9"
++tokio = { version = "1.38.0", default-features = false, features = ["test-util"] }
+ 
+ [target.'cfg(unix)'.dev-dependencies.nix]
+ version = "0.31.1"
+--- a/crates/supervisor/src/job/test.rs
++++ b/crates/supervisor/src/job/test.rs
+@@ -459,7 +459,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn graceful_stop() {
+ 	let (job, task) = start_job(working_command());
+ 
+@@ -495,7 +495,7 @@
+ ///
+ /// When a process responds to SIGTERM gracefully and the Job handle is dropped,
+ /// the task should exit cleanly without panicking.
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn graceful_stop_with_job_dropped() {
+ 	let (job, task) = start_job(working_command());
+ 
+@@ -528,7 +528,7 @@
+ 		.expect("task should not panic");
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn graceful_restart() {
+ 	let (job, task) = start_job(working_command());
+ 
+@@ -573,7 +573,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn graceful_stop_beyond_grace() {
+ 	let (job, task) = start_job(ungraceful_command());
+ 
+@@ -613,7 +613,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn graceful_restart_beyond_grace() {
+ 	let (job, task) = start_job(ungraceful_command());
+ 
+@@ -675,7 +675,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn try_restart() {
+ 	let (job, task) = start_job(graceful_command());
+ 
+@@ -712,7 +712,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn try_graceful_restart() {
+ 	let (job, task) = start_job(graceful_command());
+ 
+@@ -776,7 +776,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn try_restart_beyond_grace() {
+ 	let (job, task) = start_job(ungraceful_command());
+ 
+@@ -827,7 +827,7 @@
+ 	task.abort();
+ }
+ 
+-#[tokio::test]
++#[tokio::test(start_paused = true)]
+ async fn try_graceful_restart_beyond_grace() {
+ 	let (job, task) = start_job(ungraceful_command());
+ 
+--- a/crates/supervisor/src/job/testchild.rs
++++ b/crates/supervisor/src/job/testchild.rs
+@@ -5,10 +5,13 @@
+ 	pin::Pin,
+ 	process::{ExitStatus, Output},
+ 	sync::Arc,
+-	time::{Duration, Instant},
++	time::Duration,
+ };
+ 
+-use tokio::{sync::Mutex, time::sleep};
++use tokio::{
++	sync::Mutex,
++	time::{sleep, Instant},
++};
+ use watchexec_events::ProcessEnd;
+ 
+ use crate::command::{Command, Program};
