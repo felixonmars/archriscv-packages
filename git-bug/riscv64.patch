@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -27,7 +27,18 @@
+ 
+   # download pnpm dependencies
+   cd webui
+-  pnpm install
++  sed -i '/"overrides": {/a\
++      "lightningcss@1.32.0": "npm:lightningcss-wasm@1.32.0",\
++      "lightningcss@1.33.0": "npm:lightningcss-wasm@1.33.0",' package.json
++  cat >> pnpm-workspace.yaml <<'EOF'
++supportedArchitectures:
++  cpu: [current, wasm32]
++packageExtensions:
++  'rolldown@1.2.8':
++    dependencies:
++      '@rolldown/binding-wasm32-wasi': 1.2.8
++EOF
++  pnpm install --no-frozen-lockfile
+ }
+ 
+ build() {
