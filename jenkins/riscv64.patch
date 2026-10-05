@@ -1,24 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,7 +13,7 @@
- license=('MIT')
- _java=21
- depends=("java-runtime=${_java}" 'ttf-dejavu' 'fontconfig')
--makedepends=("java-environment=${_java}" 'git' 'maven')
-+makedepends=("java-environment=${_java}" 'git' 'maven' 'corepack')
- provides=('jenkins-ci')
- conflicts=('jenkins-ci')
- replaces=('jenkins-ci')
-@@ -34,6 +34,8 @@
+@@ -34,10 +34,19 @@
  prepare() {
  	cd "${pkgname}"
  	patch -Np1 -i "${srcdir}/skip-failing-test.patch"
 +	patch -Np1 -i "${srcdir}/use-system-corepack.patch"
-+	patch -Np1 -i "${srcdir}/use-rolldown-wasm.patch"
++	patch -Np1 -i "${srcdir}/use-rolldown-native.patch"
++
++	cd "${srcdir}/rolldown-1.2.11"
++	cargo fetch --locked --target riscv64gc-unknown-linux-gnu
  }
  
  build() {
-@@ -45,7 +47,7 @@
+-	cd "${pkgname}"
++	cd "${srcdir}/rolldown-1.2.11"
++	CFLAGS="$CFLAGS -ffat-lto-objects" \
++		cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++	cd "${srcdir}/${pkgname}"
+ 	export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:${PATH}"
+ 	mvn -am -pl war,bom -Pquick-build -Dproject.build.outputTimestamp="${SOURCE_DATE_EPOCH}" package
+ }
+@@ -45,7 +54,7 @@
  check() {
  	cd "${pkgname}"
  	export PATH="/usr/lib/jvm/java-${_java}-openjdk/bin:${PATH}"
@@ -27,11 +30,14 @@
  }
  
  package() {
-@@ -57,3 +59,7 @@
+@@ -57,3 +66,10 @@
  	install -Dm 644 "${srcdir}/${pkgname}.conf" "${pkgdir}/etc/conf.d/${pkgname}"
  	install -Dm 644 LICENSE.txt "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
  }
 +
-+source+=('use-system-corepack.patch' 'use-rolldown-wasm.patch')
++makedepends+=('corepack' 'rust' 'cmake')
++source+=('use-system-corepack.patch' 'use-rolldown-native.patch'
++         'rolldown-1.2.11.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.11.tar.gz')
 +sha512sums+=('88d8eb21704b36833ffb912169acb7b02bd181764520c5a2aad0a7fd739fb0e6b2888ddd60c814a090b10788ddf9d77dec8b6a0dbdddf7a2fd483e6a1c46e7a2'
-+            'd14417be40462e1f1eb859f2c3a73cf7d29815e1aa5abe0ad0d639501b33981aa75b0a6147958bc741953c92b10b845ad80acc62368b88141062278b303cdc51')
++            'fde0b6a8ef5fa14d383f863d472c0c3341752379a8345a575ac3f1118e2b6195b4c74838d8d87747cbe0f454854343d6bab9e72beeca27f423ccaa3946799a46'
++            '6118af9e79428bacec90dd7991603f80f56d1a0717fef0238e28b8e295b54d5bfc37cb80e7cbf397f538bd1da908c3961d0174a6ff9fcd5911d3b136ab6e956c')
