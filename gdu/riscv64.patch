@@ -1,0 +1,36 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,6 +18,8 @@
+ 
+ prepare() {
+   cd ${pkgname}
++  GOFLAGS="-mod=readonly" go mod vendor -v
++  patch -Np1 -i "$srcdir/ristretto-mmap.patch"
+   mkdir -p dist/
+ }
+ 
+@@ -31,7 +33,7 @@
+   GOPATH="${srcdir}"
+   go build \
+     -buildmode=pie \
+-    -mod=readonly \
++    -mod=vendor \
+     -modcacherw \
+     -pgo=default.pgo \
+     -ldflags "-compressdwarf=false -linkmode external -extldflags \"${LDFLAGS}\" ${_BUILDINFO}" \
+@@ -41,7 +43,7 @@
+ 
+ check() {
+   cd ${pkgname}
+-  go test -skip 'TestAnalyzePathWithIgnoring' -skip 'TestDefaultMountTableHasFilesystemIDs' ./...
++  go test -mod=vendor -skip 'TestAnalyzePathWithIgnoring' -skip 'TestDefaultMountTableHasFilesystemIDs' ./...
+ }
+ 
+ package() {
+@@ -52,3 +54,6 @@
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++source+=(ristretto-mmap.patch)
++sha256sums+=('eab81fef8a28d1b0b83355d9970674bfdd5149b3e049f5f13ed8b143efff6fac')
