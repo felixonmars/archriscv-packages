@@ -1,9 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -46,7 +46,22 @@
+@@ -52,7 +52,22 @@
  prepare() {
-   patch -d codex-rust-v$pkgver -Np1 \
-     -i "$srcdir/fix-chatgpt-recursion-limit.patch"
+   patch -d codex-rust-v$pkgver/codex-rs -Np1 \
+     -i "$srcdir/voice-system-libraries.patch"
 +  install -dm755 "v8-$_v8ver/third_party/icu/common"
 +  base64 -d "$srcdir/v8-icu-icudtl.dat.base64" \
 +    > "v8-$_v8ver/third_party/icu/common/icudtl.dat"
@@ -23,7 +23,7 @@
    cargo fetch --target "$(rustc --print host-tuple)"
  }
  
-@@ -54,12 +69,35 @@
+@@ -60,14 +75,37 @@
    cd codex-rust-v$pkgver/codex-rs
    # Used for dynamic linking
    export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
@@ -31,6 +31,8 @@
 -  export RUSTY_V8_SRC_BINDING_PATH="$srcdir/src_binding-$_v8ver.rs"
    export RUSTONIG_DYNAMIC_LIBONIG=1
    export ZSTD_SYS_USE_PKG_CONFIG=1
+   # The CLI and voice helper require matching build identities.
+   export STABLE_GIT_COMMIT="arch-$pkgver-$pkgrel"
    # Reduces build time by about 10 minutes
    export CARGO_PROFILE_RELEASE_LTO=thin
 +  local _clang_version=$(clang -dumpversion | cut -d . -f 1)
@@ -61,7 +63,7 @@
    cargo build --frozen --release \
                --bin codex \
                --bin codex-code-mode-host \
-@@ -83,3 +121,26 @@
+@@ -136,3 +174,26 @@
  }
  
  # vim:set ts=2 sw=2 et:
