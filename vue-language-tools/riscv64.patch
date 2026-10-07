@@ -1,30 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,22 +11,45 @@
- url="https://github.com/vuejs/language-tools/tree/master/packages/language-server"
- license=(MIT)
- depends=(nodejs)
--makedepends=(git pnpm)
-+makedepends=(git go pnpm)
- checkdepends=(npm)
- optdepends=('typescript-language-server: provides a typescript lsp')
- provides=(vue-typescript-plugin)
- replaces=(vue-typescript-plugin)
- options=(!emptydirs)
--source=("$pkgbase::git+https://github.com/vuejs/language-tools.git#tag=v$pkgver")
--b2sums=('66d3a679fe13be115695a208444b5d3f266b7f7538b3f675e5619719e41eccee0b23192ec1d590b79449bc83e19e58c75ca4984fde0b1bef79f289060118e66b')
-+source=("$pkgbase::git+https://github.com/vuejs/language-tools.git#tag=v$pkgver"
-+        'typescript-native-bridge::git+https://github.com/johnsoncodehk/typescript-native-bridge.git#commit=b9b7f72d09b485205628a2b35841129e00875231'
-+        'typescript-go::git+https://github.com/microsoft/typescript-go.git#commit=2bd066d87f5bafd315be9f40889d0a60b9e58e0b')
-+b2sums=('66d3a679fe13be115695a208444b5d3f266b7f7538b3f675e5619719e41eccee0b23192ec1d590b79449bc83e19e58c75ca4984fde0b1bef79f289060118e66b'
-+        'SKIP'
-+        'SKIP')
+@@ -22,11 +22,30 @@
  
  prepare() {
  	cd $pkgbase
 +	sed -i 's/testTimeout: .*,/testTimeout: 400_000,/' vitest.config.ts
 +	sed -i '/^packages:/i supportedArchitectures:\n  os:\n    - current\n    - wasip1-threads\n  cpu:\n    - current\n    - wasm32\n' pnpm-workspace.yaml
-+	sed -i '$s/});/}, 1_200_000);/' packages/tsc/tests/typecheck.spec.ts
++	sed -i '$s/});/}, 1_200_000);/' packages/tsc/tests/{typecheck,unmapped-diagnostics}.spec.ts
  	pnpm install --frozen-lockfile
 +
 +	cd ../typescript-native-bridge
@@ -50,3 +32,12 @@
  	COREPACK_ENABLE_STRICT=0 pnpm build
  }
  
+@@ -57,3 +76,8 @@
+ 	ln -s $mod_dir/README.md "$pkgdir/usr/share/doc/$pkgname/"
+ 	ln -s $mod_dir/LICENSE "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++makedepends+=(go)
++source+=('typescript-native-bridge::git+https://github.com/johnsoncodehk/typescript-native-bridge.git#commit=9281a12c7c4e42dc50c0c27a8dba4a0e93639ddc'
++         'typescript-go::git+https://github.com/microsoft/typescript-go.git#commit=2bd066d87f5bafd315be9f40889d0a60b9e58e0b')
++b2sums+=('SKIP' 'SKIP')
