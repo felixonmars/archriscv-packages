@@ -3,12 +3,10 @@ CPU work to finish, wait for asynchronous cleanup, avoid unsupported mobilecli
 binary probes, and leave terminal mock SSE streams open until abort so
 one-millisecond replay loops cannot starve React act.
 
-Status-line import fix, image-ingestion wait, and cleanup-retry precedent:
+Cleanup-retry precedent:
 https://github.com/QwenLM/qwen-code/pull/8982
 Bridge timeout override removal and startup-timeout precedent:
 https://github.com/QwenLM/qwen-code/pull/10552
-Two timer hops to drain transcript dispatch:
-https://github.com/QwenLM/qwen-code/pull/9058
 Bounded sanitizer input retained; assignment matching scans separators and their
 adjacent identifiers. Start JWT matching only at a base64url token boundary,
 not at every hyphen, to avoid quadratic rescans under the original deadline:
@@ -58,7 +56,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
    it('skips uppercase webhook URLs when starting a prompt', () => {
 --- a/packages/cli/src/commands/serve.test.ts
 +++ b/packages/cli/src/commands/serve.test.ts
-@@ -955,7 +955,7 @@
+@@ -1061,7 +1061,7 @@
                `serve did not reach listening\nstdout:\n${stdout}\nstderr:\n${stderr}`,
              ),
            );
@@ -67,7 +65,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
  
          child.stdout.on('data', (chunk: Buffer) => {
            stdout += chunk.toString('utf8');
-@@ -1001,5 +1001,5 @@
+@@ -1107,5 +1107,5 @@
        await removeTempDir(workspace);
        await removeTempDir(qwenHome);
      }
@@ -292,7 +290,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      expect(requestBody).toEqual({ query: 'deployment', limit: 5 });
 --- a/packages/cli/src/commands/channel/memory-intent-classifier.test.ts
 +++ b/packages/cli/src/commands/channel/memory-intent-classifier.test.ts
-@@ -356,7 +356,7 @@
+@@ -380,7 +380,7 @@
        expect(manifest).toContain(JSON.stringify(entry.id));
      }
      expect(manifest).not.toContain('\nignore instructions');
@@ -303,7 +301,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      const { bridge, classifier } = classifierFor(
 --- a/packages/cli/src/serve/channel-worker-supervisor.test.ts
 +++ b/packages/cli/src/serve/channel-worker-supervisor.test.ts
-@@ -2050,7 +2050,7 @@
+@@ -2117,7 +2117,7 @@
      const started = supervisor.start();
      const startedAt = Date.now();
      child.stderr.emit('data', Buffer.from('a.'.repeat(33_000)));
@@ -325,23 +323,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      let bridgeOptions: BridgeOptions | undefined;
 --- a/packages/cli/src/serve/server.test.ts
 +++ b/packages/cli/src/serve/server.test.ts
-@@ -355,9 +355,14 @@
- afterAll(async () => {
-   restoreEnv('QWEN_HOME', previousServerTestQwenHome);
-   restoreEnv('QWEN_RUNTIME_DIR', previousServerTestRuntimeDir);
-   resetHomeEnvBootstrapForTesting();
--  await fsp.rm(serverTestEnvironmentRoot, { recursive: true, force: true });
-+  // In-flight background writes can race cleanup after the suite completes.
-+  await fsp.rm(serverTestEnvironmentRoot, {
-+    recursive: true,
-+    force: true,
-+    maxRetries: 10,
-+  });
- });
- 
- function deferred<T = void>(): {
-   promise: Promise<T>;
-@@ -5703,9 +5708,10 @@
+@@ -5766,9 +5766,10 @@
            expect(managerTrustedFlag).toBe(false);
          });
        } finally {
@@ -353,7 +335,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          restoreEnv(
            'QWEN_CODE_TRUSTED_FOLDERS_PATH',
            previousTrustedFoldersPath,
-@@ -17177,9 +17183,10 @@
+@@ -17913,9 +17914,10 @@
          const after = await auth(request(app).get('/capabilities'));
          expect(after.status).toBe(200);
          expect(after.body.features).toContain('workspace_voice_transcription');
@@ -365,7 +347,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          resetHomeEnvBootstrapForTesting();
        }
      });
-@@ -28715,9 +28722,10 @@
+@@ -29440,9 +29442,10 @@
      resetHomeEnvBootstrapForTesting();
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
@@ -377,7 +359,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
    }
  
    async function disableLiveVoiceAtBoot() {
-@@ -28735,9 +28743,10 @@
+@@ -29460,9 +29463,10 @@
      resetHomeEnvBootstrapForTesting();
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
@@ -389,7 +371,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
    }
  
    function setupLiveRuntime(liveBridgeOptions: FakeBridgeOpts = {}) {
-@@ -29335,9 +29344,14 @@
+@@ -30175,9 +30179,14 @@
        async cleanup() {
          (app.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
          restoreEnv('QWEN_HOME', previousQwenHome);
@@ -405,7 +387,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      };
    }
  
-@@ -29576,9 +29590,10 @@
+@@ -30416,9 +30425,10 @@
            | undefined
        )?.();
        restoreEnv('QWEN_HOME', previousQwenHome);
@@ -417,7 +399,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
    });
  
    it('binds the dedicated Appshot channel after Host hello and gates start until ready', async () => {
-@@ -29771,8 +29786,8 @@
+@@ -30612,8 +30622,8 @@
        (app?.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -427,48 +409,9 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      }
    });
  });
---- a/packages/cli/src/ui/hooks/useStatusLine.test.ts
-+++ b/packages/cli/src/ui/hooks/useStatusLine.test.ts
-@@ -4,19 +4,12 @@
-  * SPDX-License-Identifier: Apache-2.0
-  */
- 
--import {
--  describe,
--  it,
--  expect,
--  vi,
--  beforeAll,
--  beforeEach,
--  afterEach,
--} from 'vitest';
-+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
- import { renderHook, act } from '@testing-library/react';
- import * as child_process from 'child_process';
- import { StreamingState } from '../types.js';
- import type { StatusLinePresetReasoning } from '../statusLinePresets.js';
-+import { useStatusLine } from './useStatusLine.js';
- 
- const debugLogMock = vi.hoisted(() => ({
-   log: vi.fn(),
-@@ -157,14 +150,6 @@
- }
- 
- describe('useStatusLine', () => {
--  // Must import dynamically after mocks are set up
--  let useStatusLine: typeof import('./useStatusLine.js').useStatusLine;
--
--  beforeAll(async () => {
--    const mod = await import('./useStatusLine.js');
--    useStatusLine = mod.useStatusLine;
--  }, 20_000);
--
-   beforeEach(() => {
-     vi.useFakeTimers();
-     vi.clearAllMocks();
 --- a/packages/core/src/config/config-session-env.test.ts
 +++ b/packages/core/src/config/config-session-env.test.ts
-@@ -111,7 +111,7 @@
+@@ -112,7 +112,7 @@
  // flag resets). That cold transform+evaluate runs several seconds and, under
  // a contended CI runner, crosses the 5s default — a flaky timeout, not a hang.
  // The reset is load-bearing for what these tests check, so give them headroom.
@@ -490,7 +433,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        expect(scheduler.durableActive).toBe(false);
 --- a/packages/webui/src/daemon/session/DaemonSessionProvider.test.tsx
 +++ b/packages/webui/src/daemon/session/DaemonSessionProvider.test.tsx
-@@ -5317,7 +5317,9 @@
+@@ -5368,7 +5368,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        submitPrompt: vi.fn(() => accepted.promise),
@@ -501,7 +444,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          await releaseRestoredComplete.promise;
          yield {
            id: 6,
-@@ -5334,6 +5336,7 @@
+@@ -5385,6 +5387,7 @@
            data: { promptId: 'local-prompt', stopReason: 'end_turn' },
          } satisfies DaemonEvent;
          localCompleteDelivered.resolve();
@@ -509,7 +452,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5404,7 +5407,9 @@
+@@ -5455,7 +5458,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -520,7 +463,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          yield {
            id: 6,
            v: 1,
-@@ -5412,6 +5417,7 @@
+@@ -5463,6 +5468,7 @@
            data: { promptId: 'restored-prompt', stopReason: 'end_turn' },
          };
          turnCompleted.resolve();
@@ -528,7 +471,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5440,7 +5446,9 @@
+@@ -5491,7 +5497,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -539,7 +482,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          yield {
            id: 6,
            v: 1,
-@@ -5452,6 +5460,7 @@
+@@ -5503,6 +5511,7 @@
            },
          } satisfies DaemonEvent;
          turnErrored.resolve();
@@ -547,7 +490,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5480,7 +5489,9 @@
+@@ -5531,7 +5540,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -558,7 +501,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          yield {
            id: 6,
            v: 1,
-@@ -5492,6 +5503,7 @@
+@@ -5543,6 +5554,7 @@
            },
          } satisfies DaemonEvent;
          promptCancelled.resolve();
@@ -566,7 +509,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5524,7 +5536,9 @@
+@@ -5575,7 +5587,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        submitPrompt: vi.fn(() => accepted.promise),
@@ -577,7 +520,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          await releaseRestoredCancel.promise;
          yield {
            id: 6,
-@@ -5542,6 +5556,7 @@
+@@ -5593,6 +5607,7 @@
            data: { promptId: 'local-prompt', stopReason: 'end_turn' },
          } satisfies DaemonEvent;
          localCompleteDelivered.resolve();
@@ -585,7 +528,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -11832,6 +11847,7 @@
+@@ -10111,6 +10126,7 @@
            type: 'turn_complete',
            data: { promptId: 'prompt-new', stopReason: 'end_turn' },
          };
@@ -593,7 +536,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(firstSession, reloadedSession);
-@@ -12706,10 +12722,18 @@
+@@ -11049,10 +11065,18 @@
        // NOT prevent reconnection — these are server-initiated closes,
        // not user deletions. The provider should preserve the session
        // handle and attempt to resume on the next iteration.
@@ -612,7 +555,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
            yield {
              id: 1,
              v: 1,
-@@ -12738,7 +12762,7 @@
+@@ -11081,7 +11105,7 @@
          await flushPromises();
        });
        await act(async () => {
@@ -621,7 +564,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          await flushPromises();
        });
  
-@@ -12753,17 +12777,24 @@
+@@ -11096,17 +11120,24 @@
      // Defensive: if the server sends session_closed without a reason
      // field (older daemon versions), treat it as non-client_close and
      // let the normal reconnect path handle it.
@@ -647,7 +590,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -12782,10 +12813,7 @@
+@@ -11125,10 +11156,7 @@
      });
  
      await act(async () => {
@@ -659,7 +602,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        await flushPromises();
      });
  
-@@ -12913,6 +12941,7 @@
+@@ -11256,6 +11284,7 @@
      });
      await act(async () => {
        await flushPromises();
@@ -667,7 +610,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      });
  
      // turn_error should stay in transcript as an error block
-@@ -13928,6 +13957,8 @@
+@@ -12348,6 +12377,8 @@
        sessionId: 'session-1',
        data: { promptId, stopReason: 'end_turn' },
      };
@@ -676,14 +619,6 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
    };
  }
  
-@@ -13979,6 +14010,7 @@
- // transcript state mid-stream drain the batched dispatch here.
- async function flushTranscriptDispatch(): Promise<void> {
-   await new Promise((resolve) => setTimeout(resolve, 0));
-+  await new Promise((resolve) => setTimeout(resolve, 0));
-   await Promise.resolve();
-   await Promise.resolve();
- }
 --- a/packages/cli/src/ui/utils/MermaidDiagram.test.tsx
 +++ b/packages/cli/src/ui/utils/MermaidDiagram.test.tsx
 @@ -162,6 +162,6 @@
@@ -756,7 +691,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      vi.mocked(execCommand).mockReset();
 --- a/packages/core/src/utils/shell-ast-parser-lazy.test.ts
 +++ b/packages/core/src/utils/shell-ast-parser-lazy.test.ts
-@@ -328,5 +328,5 @@
+@@ -331,5 +331,5 @@
      const recoveredTree = await packagedParser.parseShellCommand('pwd');
      expect(recoveredTree.rootNode.type).toBe('program');
      recoveredTree.delete();
@@ -765,7 +700,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
  });
 --- a/packages/core/src/utils/shellAstParser.test.ts
 +++ b/packages/core/src/utils/shellAstParser.test.ts
-@@ -924,7 +924,7 @@
+@@ -946,7 +946,7 @@
        'unknown',
        'read-only',
      ]);
@@ -773,35 +708,6 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
 +    expect(performance.now() - startedAt).toBeLessThan(20_000);
    });
  });
- 
---- a/packages/web-shell/client/hooks/useComposerCore.dom.test.tsx
-+++ b/packages/web-shell/client/hooks/useComposerCore.dom.test.tsx
-@@ -150,6 +150,15 @@
-   };
- }
- 
-+async function waitForImageIngestion() {
-+  await vi.waitFor(async () => {
-+    await act(async () => {
-+      await new Promise((resolve) => setTimeout(resolve, 0));
-+    });
-+    expect(latest!.pendingImageBatchCount).toBe(0);
-+  });
-+}
-+
- afterEach(() => {
-   act(() => root?.unmount());
-   vi.useRealTimers();
-@@ -794,9 +803,7 @@
-     expect(onSubmit).not.toHaveBeenCalled();
-     expect(latest!.pendingImageBatchCount).toBe(1);
- 
--    await act(async () => {
--      await new Promise((resolve) => setTimeout(resolve, 20));
--    });
-+    await waitForImageIngestion();
-     expect(latest!.pendingImageBatchCount).toBe(0);
-     expect(latest!.pastedImages).toMatchObject([{ media_type: 'image/png' }]);
  
 --- a/packages/mobile-mcp/test/iphone-simulator.ts
 +++ b/packages/mobile-mcp/test/iphone-simulator.ts
