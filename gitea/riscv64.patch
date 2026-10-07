@@ -1,0 +1,43 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -43,11 +43,21 @@
+ 
+ prepare() {
+ 	cd "${pkgname}"
++	sed -i "s|provider: playwright(),|provider: playwright({launchOptions: {executablePath: '/usr/bin/chromium', args: ['--no-zygote']}}),|" vitest.config.ts
+ 	make deps-frontend deps-backend deps-tools
++
++	cd "$srcdir/rolldown-1.2.6"
++	cargo fetch --locked --target riscv64gc-unknown-linux-gnu
+ }
+ 
+ build() {
+-	cd "${pkgname}"
++	cd rolldown-1.2.6
++	CFLAGS="$CFLAGS -ffat-lto-objects" \
++		cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++	cd "$srcdir/${pkgname}"
++	install -m755 ../rolldown-1.2.6/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
++		node_modules/.pnpm/rolldown@1.2.6/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
+ 	export CGO_CPPFLAGS="${CPPFLAGS}"
+ 	export CGO_CFLAGS="${CFLAGS}"
+ 	export CGO_CXXFLAGS="${CXXFLAGS}"
+@@ -65,7 +75,8 @@
+ 	# These tests expect .gitconfig path to be "$HOME/.gitconfig" (which isn't the case due to the above workaround)
+ 	rm -v modules/git/config_test.go modules/git/gpg_test.go
+ 	# `-p 1` to prevent race conditions from go tests when trying to lock the gitconfig file
+-	make test-frontend
++	# Playwright does not provide riscv64 browsers; use the packaged Chromium.
++	PLAYWRIGHT_BROWSERS=chromium make --assume-old=playwright test-frontend
+ 	make test-backend GOTEST_FLAGS="-p 1"
+ }
+ 
+@@ -78,3 +89,7 @@
+ 	install -Dm 644 "${srcdir}/${pkgname}.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/${pkgname}.conf"
+ 	install -Dm 644 "${srcdir}/${pkgname}.sysusers" "${pkgdir}/usr/lib/sysusers.d/${pkgname}.conf"
+ }
++
++makedepends+=(rust cmake)
++source+=('rolldown-1.2.6.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.6.tar.gz')
++sha256sums+=('cd266dff259efa389bf9cb961345d3cd3eb4da5307ac317b671832a98a70268b')
