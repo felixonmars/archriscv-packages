@@ -1,6 +1,6 @@
 --- a/src/compiler/riscv/c-call.lisp
 +++ b/src/compiler/riscv/c-call.lisp
-@@ -220,21 +220,23 @@
+@@ -218,20 +218,22 @@
    (:info amount)
    (:result-types system-area-pointer)
    (:results (result :scs (sap-reg any-reg)))
@@ -12,10 +12,9 @@
 -        (inst subi nsp-tn nsp-tn delta)))
 +        (add-imm nsp-tn nsp-tn (- delta) 'alloc-number-stack-space tmp)))
      (move result nsp-tn)))
-
+ 
  (define-vop (dealloc-number-stack-space)
    (:info amount)
-   (:policy :fast-safe)
 +  (:temporary (:sc unsigned-reg) tmp)
    (:generator 0
      (unless (zerop amount)
