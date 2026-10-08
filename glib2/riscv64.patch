@@ -1,13 +1,28 @@
-Index: PKGBUILD
-===================================================================
---- PKGBUILD	(revision 456845)
-+++ PKGBUILD	(working copy)
-@@ -58,7 +58,7 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -68,6 +68,8 @@
+ prepare() {
+   cd glib
+ 
++  patch -Np1 -i ../memory-monitor-psi-dev-null.patch
++
+   # Suppress noise from glib-compile-schemas.hook
+   git apply -3 ../0001-glib-compile-schemas-Remove-noisy-deprecation-warnin.patch
+ 
+@@ -107,7 +109,7 @@
  }
  
  check() {
 -  meson test -C build --no-suite flaky --no-suite slow --print-errorlogs
-+  meson test -C build --no-suite flaky --no-suite slow --print-errorlogs  --timeout-multiplier 10
++  meson test -C build --no-suite flaky --no-suite slow --print-errorlogs --timeout-multiplier 10
  }
  
- package_glib2() {
+ _pick() {
+@@ -187,4 +189,7 @@
+   install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 glib/docs/reference/COPYING
+ }
+ 
++source+=(memory-monitor-psi-dev-null.patch)
++b2sums+=('7d75d26839fa523bd507c59411f84e4a94e6ef67b0d69bef0eeab756f32a862349ec50747a325c0d1e191316a001972b2ce0db11c079a4971b076a37fd2af4d4')
++
+ # vim:set sw=2 sts=-1 et:
