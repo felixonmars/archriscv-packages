@@ -1,0 +1,23 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -203,7 +203,7 @@
+     # Processor-specific optimizations (x86 vs ARM)
+     if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm|aarch64")
+         add_compile_definitions(HAVE_NEON=1)
+-    else()
++    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86|amd64|AMD64|i.86")
+         # Keep distributable builds compatible with AVX-capable x86_64 CPUs.
+         # Local builds may explicitly target the build machine for extra optimization.
+         if("$ENV{USE_MARCH_NATIVE}" STREQUAL "1")
+@@ -316,8 +316,10 @@
+         # Exclude files depending on architecture
+         if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm|aarch64")
+             list(FILTER FFTW_SOURCES EXCLUDE REGEX ".*(avx|/sse).*")
+-        else()
++        elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86|amd64|AMD64|i.86")
+             list(FILTER FFTW_SOURCES EXCLUDE REGEX ".*neon.*")
++        else()
++            list(FILTER FFTW_SOURCES EXCLUDE REGEX ".*(avx|/sse|neon).*")
+         endif()
+         
+         # Exclude unused FFTW components
