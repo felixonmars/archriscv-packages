@@ -1,0 +1,39 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -80,4 +80,14 @@
+ 
++prepare() {
++  cd "$srcdir"/rolldown-1.2.11
++  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++}
++
+ # based on https://github.com/streamlit/streamlit/blob/develop/Makefile
+ build() {
++  cd "$srcdir"/rolldown-1.2.11
++  CFLAGS="$CFLAGS -ffat-lto-objects" \
++    cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++  cd "$srcdir"
++
+   # initialize corepack
+@@ -91,3 +101,14 @@
+   cd "$srcdir"/$_name/frontend
+-  yarn install --immutable
++  sed -i \
++    -e 's|"@vitejs/plugin-react-swc": "[^"]*"|"@vitejs/plugin-react": "5.2.0"|' \
++    -e 's|"@swc/plugin-emotion": "[^"]*"|"@emotion/babel-plugin": "11.13.5"|' \
++    {app,lib}/package.json
++  sed -i \
++    -e 's|@vitejs/plugin-react-swc|@vitejs/plugin-react|' \
++    -e 's|plugins: \[\["@swc/plugin-emotion", {}\]\]|babel: { plugins: ["@emotion/babel-plugin"] }|' \
++    {app,lib}/vite.config.ts
++  sed -i '/"resolutions": {/a\    "lightningcss": "npm:lightningcss-wasm@1.33.0",' package.json
++  yarn remove @bufbuild/buf
++  install -m755 "$srcdir"/rolldown-1.2.11/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
++    node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
+ 
+@@ -163 +184,5 @@
+ }
++
++makedepends+=(rust cmake)
++source+=('rolldown-1.2.11.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.11.tar.gz')
++b2sums+=('bd3e3768363ead6b800598b763a9fc9807723e689fffd7d303da254b54e022e9def8225cc0a9f15f48a6d94b56317016054049127418d0db3f81e32a504cab09')
