@@ -1,0 +1,62 @@
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+
+_target=riscv64-unknown-elf
+pkgname=newlib
+pkgver=4.6.0.20260123
+pkgrel=1
+pkgdesc='C library for bare-metal RISC-V'
+arch=('riscv64')
+url='https://sourceware.org/newlib/'
+license=('LicenseRef-Newlib')
+makedepends=(
+  'texinfo'
+  'xz'
+)
+options=('!emptydirs' '!strip' '!debug' 'staticlibs')
+source=("https://sourceware.org/pub/newlib/newlib-${pkgver}.tar.gz")
+sha512sums=('ffa16d6465c0b429264c46395fa760fbcf072d3ff86e87330ba1f483efcfe66393ef83b03932759444a0ebeaef94d3ca58a59e91ab7b97b2a6ac6be2e7589657')
+
+build() {
+  cd "$srcdir"
+
+  rm -rf build
+  mkdir build
+  cd build
+
+  export CC_FOR_TARGET='gcc'
+  export CXX_FOR_TARGET='g++'
+  export AR_FOR_TARGET='ar'
+  export AS_FOR_TARGET='as'
+  export LD_FOR_TARGET='ld'
+  export NM_FOR_TARGET='nm'
+  export OBJCOPY_FOR_TARGET='objcopy'
+  export OBJDUMP_FOR_TARGET='objdump'
+  export RANLIB_FOR_TARGET='ranlib'
+  export READELF_FOR_TARGET='readelf'
+  export STRIP_FOR_TARGET='strip'
+  export CFLAGS_FOR_TARGET='-Os -ffreestanding -fno-builtin -fno-pie -fno-stack-protector -U__linux__ -U__gnu_linux__ -U__unix__ -Ulinux -Uunix -mcmodel=medany -march=rv64imafdc -mabi=lp64d'
+  export CXXFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET"
+
+  ../newlib-${pkgver}/configure \
+    --target="${_target}" \
+    --prefix=/usr \
+    --libdir=/usr/${_target}/lib \
+    --enable-newlib-io-long-long \
+    --enable-newlib-register-fini \
+    --disable-newlib-supplied-syscalls \
+    --disable-nls
+  make
+}
+
+package() {
+  cd "$srcdir"/build
+
+  make DESTDIR="$pkgdir" install
+
+  install -Dm644 "$srcdir"/newlib-${pkgver}/COPYING.NEWLIB \
+    "$pkgdir"/usr/share/licenses/$pkgname/COPYING.NEWLIB
+  install -m644 -t "$pkgdir"/usr/share/licenses/$pkgname \
+    "$srcdir"/newlib-${pkgver}/COPYING*
+
+  rm -rf "$pkgdir"/usr/share/info
+}
