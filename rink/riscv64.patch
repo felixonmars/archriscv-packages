@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,12 +21,15 @@ makedepends=(
+   make
+   rust
+  )
+-source=("git+https://github.com/tiffany352/$pkgname-rs.git#tag=v$pkgver?signed")
+-b2sums=('fcf03e1b399f0cbd7e6692e956f34f437a8b31c0734eec8d7a4507124a0538927db08663313ce120e7098eacc69ab378fbf71b055970095d05a281ec4a6f7358')
++source=("git+https://github.com/tiffany352/$pkgname-rs.git#tag=v$pkgver?signed"
++        fix-timeout.patch )
++b2sums=('fcf03e1b399f0cbd7e6692e956f34f437a8b31c0734eec8d7a4507124a0538927db08663313ce120e7098eacc69ab378fbf71b055970095d05a281ec4a6f7358'
++       	'1d158530fae251ead689c03977847fb82478b4e01d58383d5841aa95dfaee57f6b71a251e4bf43247359576595914117666dac903e71caa05b8880a78c074d21' )
+ validpgpkeys=('BC69595DA4AC1B321854939833F53ED0A9B562C1') # tiffany <tiffany@stormbit.net>
+ 
+ prepare() {
+   cd $pkgname-rs
++  patch -Np1 -E -i "../fix-timeout.patch"  
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+ 

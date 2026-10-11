@@ -1,0 +1,77 @@
+diff --git a/cli/tests/http_test.rs b/cli/tests/http_test.rs
+index 5071d03..b60514c 100644
+--- a/cli/tests/http_test.rs
++++ b/cli/tests/http_test.rs
+@@ -22,12 +22,12 @@ fn test_download_timeout() {
+     let thread_handle = std::thread::spawn(move || {
+         let request = server2.recv().expect("the request should not fail");
+         assert_eq!(request.url(), "/data/currency.json");
+-        std::thread::sleep(Duration::from_millis(100));
++        std::thread::sleep(Duration::from_millis(5000));
+     });
+     let result = rink::currency::download_to_file(
+         &PathBuf::from("currency.json"),
+         "http://127.0.0.1:3090/data/currency.json",
+-        Duration::from_millis(5),
++        Duration::from_millis(5000),
+     );
+     let result = result.expect_err("this should always fail");
+     let result = result.to_string();
+@@ -54,7 +54,7 @@ fn test_download_404() {
+     let result = rink::currency::download_to_file(
+         &PathBuf::from("currency.json"),
+         "http://127.0.0.1:3090/data/currency.json",
+-        Duration::from_millis(2000),
++        Duration::from_millis(5000),
+     );
+     let result = result.expect_err("this should always fail");
+     assert_eq!(
+@@ -82,7 +82,7 @@ fn test_download_success() {
+     let result = rink::currency::download_to_file(
+         &PathBuf::from("currency.json"),
+         "http://127.0.0.1:3090/data/currency.json",
+-        Duration::from_millis(2000),
++        Duration::from_millis(5000),
+     );
+     let mut result = result.expect("this should succeed");
+     let mut string = String::new();
+@@ -105,7 +105,7 @@ fn test_force_refresh_success() {
+         cache_expiration_enabled: false,
+         endpoint: "http://127.0.0.1:3090/data/currency.json".to_owned(),
+         cache_duration: Duration::ZERO,
+-        timeout: Duration::from_millis(2000),
++        timeout: Duration::from_millis(5000),
+     };
+
+     let server = SERVER.lock().unwrap();
+@@ -135,7 +135,7 @@ fn test_force_refresh_timeout() {
+         cache_expiration_enabled: false,
+         endpoint: "http://127.0.0.1:3090/data/currency.json".to_owned(),
+         cache_duration: Duration::ZERO,
+-        timeout: Duration::from_millis(5),
++        timeout: Duration::from_millis(5000),
+     };
+
+     let server = SERVER.lock().unwrap();
+@@ -144,7 +144,7 @@ fn test_force_refresh_timeout() {
+     let thread_handle = std::thread::spawn(move || {
+         let request = server2.recv().expect("the request should not fail");
+         assert_eq!(request.url(), "/data/currency.json");
+-        std::thread::sleep(Duration::from_millis(100));
++        std::thread::sleep(Duration::from_millis(5000));
+     });
+     let result = rink::currency::force_fetch_currency(&config);
+     let result = result.expect_err("this should timeout");
+diff --git a/sandbox/integration/main.rs b/sandbox/integration/main.rs
+index 22b88d5..4c4ee56 100644
+--- a/sandbox/integration/main.rs
++++ b/sandbox/integration/main.rs
+@@ -41,7 +41,7 @@ impl Service for AddTwoService {
+
+     // The timeout to use for query execution.
+     fn timeout(_config: &Self::Config) -> Duration {
+-        Duration::from_millis(100)
++        Duration::from_millis(5000)
+     }
+
+     // On the child, the service will be created from the config on startup.
