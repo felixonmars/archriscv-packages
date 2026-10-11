@@ -1,0 +1,112 @@
+--- a/pkg/ctl/mcp/stdio_test.go
++++ b/pkg/ctl/mcp/stdio_test.go
+@@ -4,7 +4,6 @@
+ 	"bytes"
+ 	"context"
+ 	"encoding/json"
+-	"io"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -48,14 +47,6 @@
+ 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+ 	defer cancel()
+ 
+-	// Start the server in a goroutine
+-	go func() {
+-		err := stdioServer.Listen(ctx, mockStdin, mockStdout)
+-		if err != nil && err != context.DeadlineExceeded && err != io.EOF {
+-			t.Errorf("Unexpected error from stdio server: %v", err)
+-		}
+-	}()
+-
+ 	// Write a ping request to stdin
+ 	pingRequest := map[string]interface{}{
+ 		"jsonrpc": "2.0",
+@@ -73,7 +64,8 @@
+ 	require.NoError(t, err)
+ 
+ 	// Wait for response
+-	time.Sleep(100 * time.Millisecond)
++	err = stdioServer.Listen(ctx, mockStdin, mockStdout)
++	require.NoError(t, err)
+ 
+ 	// Read response from stdout
+ 	response := mockStdout.String()
+@@ -130,14 +122,6 @@
+ 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+ 	defer cancel()
+ 
+-	// Start the server in a goroutine
+-	go func() {
+-		err := stdioServer.Listen(ctx, mockStdin, mockStdout)
+-		if err != nil && err != context.DeadlineExceeded && err != io.EOF {
+-			t.Errorf("Unexpected error from stdio server: %v", err)
+-		}
+-	}()
+-
+ 	// Write a tool call request to stdin
+ 	toolRequest := map[string]interface{}{
+ 		"jsonrpc": "2.0",
+@@ -159,7 +143,8 @@
+ 	require.NoError(t, err)
+ 
+ 	// Wait for response
+-	time.Sleep(100 * time.Millisecond)
++	err = stdioServer.Listen(ctx, mockStdin, mockStdout)
++	require.NoError(t, err)
+ 
+ 	// Read response from stdout
+ 	response := mockStdout.String()
+@@ -209,14 +194,6 @@
+ 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+ 	defer cancel()
+ 
+-	// Start the server in a goroutine
+-	go func() {
+-		err := stdioServer.Listen(ctx, mockStdin, mockStdout)
+-		if err != nil && err != context.DeadlineExceeded && err != io.EOF {
+-			t.Errorf("Unexpected error from stdio server: %v", err)
+-		}
+-	}()
+-
+ 	// Write multiple requests to stdin
+ 	requests := []map[string]interface{}{
+ 		{
+@@ -241,10 +218,9 @@
+ 		// Write to mock stdin
+ 		_, err = mockStdin.Write(reqBytes)
+ 		require.NoError(t, err)
+-
+-		// Wait for response
+-		time.Sleep(100 * time.Millisecond)
+ 	}
++	err = stdioServer.Listen(ctx, mockStdin, mockStdout)
++	require.NoError(t, err)
+ 
+ 	// Read response from stdout
+ 	response := mockStdout.String()
+@@ -289,21 +265,14 @@
+ 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+ 	defer cancel()
+ 
+-	// Start the server in a goroutine
+-	go func() {
+-		err := stdioServer.Listen(ctx, mockStdin, mockStdout)
+-		if err != nil && err != context.DeadlineExceeded && err != io.EOF {
+-			t.Errorf("Unexpected error from stdio server: %v", err)
+-		}
+-	}()
+-
+ 	// Write an invalid JSON request to stdin
+ 	invalidRequest := `{"jsonrpc": "2.0", "id": 1, "method": "ping"`
+ 	_, err = mockStdin.WriteString(invalidRequest + "\n")
+ 	require.NoError(t, err)
+ 
+ 	// Wait for response
+-	time.Sleep(100 * time.Millisecond)
++	err = stdioServer.Listen(ctx, mockStdin, mockStdout)
++	require.NoError(t, err)
+ 
+ 	// Read response from stdout
+ 	response := mockStdout.String()
