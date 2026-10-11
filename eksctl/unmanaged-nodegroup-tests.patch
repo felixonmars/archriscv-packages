@@ -1,0 +1,27 @@
+--- a/pkg/cfn/manager/unmanaged_nodegroup_test.go
++++ b/pkg/cfn/manager/unmanaged_nodegroup_test.go
+@@ -3,6 +3,7 @@
+ import (
+ 	"context"
+ 	"fmt"
++	"sync"
+ 
+ 	"github.com/weaveworks/eksctl/pkg/cfn/manager/mocks"
+ 
+@@ -72,6 +73,7 @@
+ 			provider             = mockprovider.NewMockProvider()
+ 			stackManager         mocks.NodeGroupStackManager
+ 			resourceSetArgs      []resourceSetOptions
++			resourceSetMutex     sync.Mutex
+ 			nodeGroupResourceSet mocks.NodeGroupResourceSet
+ 		)
+ 		nodeGroupResourceSet.On("AddAllResources", mock.Anything).Return(nil).Times(len(clusterConfig.NodeGroups))
+@@ -80,6 +82,8 @@
+ 			ClusterConfig: clusterConfig,
+ 			NodeGroups:    clusterConfig.NodeGroups,
+ 			CreateNodeGroupResourceSet: func(options builder.NodeGroupOptions) manager.NodeGroupResourceSet {
++				resourceSetMutex.Lock()
++				defer resourceSetMutex.Unlock()
+ 				resourceSetArgs = append(resourceSetArgs, resourceSetOptions{
+ 					nodeGroupName:              options.NodeGroup.Name,
+ 					disableAccessEntryResource: options.DisableAccessEntryResource,
