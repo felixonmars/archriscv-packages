@@ -1,6 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -66,7 +66,7 @@
+@@ -23,6 +23,7 @@
+ 
+ prepare() {
+   cd ${pkgname}
++  patch -Np1 -i "$srcdir/secret-service-startup.patch"
+   GOFLAGS="-mod=readonly" go mod vendor -v
+ }
+ 
+@@ -66,7 +67,7 @@
    )
    # shellcheck disable=SC2086
    GOPASS_GPG_OPTS="--no-secmem-warning" GOPASS_BINARY=$PWD/gopass \
@@ -9,3 +17,10 @@
  }
  
  package() {
+@@ -79,3 +80,6 @@
+   install -vDm644 fish.completion "${pkgdir}/usr/share/fish/vendor_completions.d/gopass.fish"
+   install -vDm644 zsh.completion "${pkgdir}/usr/share/zsh/site-functions/_gopass"
+ }
++
++source+=(secret-service-startup.patch)
++sha512sums+=('e07fb684b32ce12ce6b2e75cd7918a769d8b2159e5bd112c8dd56bc6c63a09d5baa8ea941bb4276033e94a55dbbe97f2903c1e6db9e9ea413fabc2715b6be8a8')
