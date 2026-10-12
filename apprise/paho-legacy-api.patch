@@ -1,0 +1,47 @@
+--- a/apprise/plugins/mqtt.py
++++ b/apprise/plugins/mqtt.py
+@@ -51,7 +51,7 @@
+ try:
+     # 3rd party modules
+     import paho.mqtt.client as mqtt
+-    from paho.mqtt.client import CallbackAPIVersion as _MQTTCallbackAPI
++    _MQTTCallbackAPI = getattr(mqtt, "CallbackAPIVersion", None)
+ 
+     # We're good to go!
+     NOTIFY_MQTT_SUPPORT_ENABLED = True
+@@ -69,7 +69,7 @@
+ 
+ except ImportError:
+     # No problem; we just simply can't support this plugin because we're
+-    # missing the required paho-mqtt >= 2.1.0 library.
++    # missing the required paho-mqtt >= 1.6.1 library.
+     _MQTTCallbackAPI = None
+     MQTT_PROTOCOL_MAP = {}
+ 
+@@ -89,7 +89,7 @@
+ 
+     requirements = {
+         # Define our required packaging in order to work
+-        "packages_required": "paho-mqtt >= 2.1.0"
++        "packages_required": "paho-mqtt >= 1.6.1"
+     }
+ 
+     # The default descriptive name associated with the Notification
+@@ -316,12 +316,16 @@
+ 
+         # Our MQTT Client Object
+         self.client = mqtt.Client(
+-            _MQTTCallbackAPI.VERSION2,
+             client_id=self.client_id,
+             clean_session=not self.session,
+             userdata=None,
+             protocol=self.mqtt_protocol,
+             transport=self.mqtt_transport,
++            **(
++                {"callback_api_version": _MQTTCallbackAPI.VERSION2}
++                if _MQTTCallbackAPI is not None
++                else {}
++            ),
+         )
+ 
+         # Our maximum number of in-flight messages
