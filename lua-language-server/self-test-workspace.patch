@@ -1,0 +1,33 @@
+--- a/test/full/self.lua
++++ b/test/full/self.lua
+@@ -7,11 +7,22 @@
+ local guide  = require 'parser.guide'
+ local vm     = require 'vm'
+ local util   = require 'utility'
++local lclient = require 'lclient'
+ 
+ local path = ROOT / 'script'
+ 
+ local uris = {}
+ 
++local preloadFileSize = config.get(nil, 'Lua.workspace.preloadFileSize')
++local neededFileStatus = config.get(nil, 'Lua.diagnostics.neededFileStatus')
++lclient():start(function (client)
++    client:registerFakers()
++    client:initialize()
++    config.set(nil, 'Lua.workspace.preloadFileSize', preloadFileSize)
++    config.set(nil, 'Lua.diagnostics.neededFileStatus', neededFileStatus)
++    ws.awaitReady(furi.encode(path:string()))
++end)
++
+ files.reset()
+ fsu.scanDirectory(path, function (path)
+     if path:extension() ~= '.lua' then
+@@ -32,7 +43,6 @@
+ 
+ print('基准诊断目录：', path)
+ 
+-ws.awaitReady(furi.encode(path:string()))
+ diag.diagnosticsScope(furi.encode(path:string()))
+ 
+ local clock = os.clock()
