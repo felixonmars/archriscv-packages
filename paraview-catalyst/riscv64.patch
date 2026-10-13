@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -33,6 +33,11 @@
+ # LTO breaks the ABI tests
+ options=(!lto)
+ 
++prepare() {
++  cd $_name-v$pkgver
++  patch -Np0 -i "$srcdir/char-signed-test.patch"
++}
++
+ build() {
+   local cmake_options=(
+     -B build
+@@ -51,7 +56,7 @@
+ }
+ 
+ check() {
+-  ctest --test-dir build --parallel 8 --output-on-failure
++  LD_LIBRARY_PATH=$srcdir/build/lib ctest --test-dir build --parallel 8 --output-on-failure
+ }
+ 
+ package() {
+@@ -61,3 +66,6 @@
+   install -vDm 644 $_name-v$pkgver/License.txt -t "$pkgdir/usr/share/licenses/$pkgname/"
+   install -vDm 644 $_name-v$pkgver/3rdPartyLicenses.txt -t "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++source+=(char-signed-test.patch)
++b2sums+=('63b1f2ad37e993da04664cba61deb2cdca05f37854f13f4c55a9913a61cc200f224633a2067b61d35d231bf3d814fe7d0425815664fcb70f775c9954aff7ff46')
