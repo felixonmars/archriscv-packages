@@ -323,7 +323,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      let bridgeOptions: BridgeOptions | undefined;
 --- a/packages/cli/src/serve/server.test.ts
 +++ b/packages/cli/src/serve/server.test.ts
-@@ -5766,9 +5766,10 @@
+@@ -5867,9 +5867,10 @@
            expect(managerTrustedFlag).toBe(false);
          });
        } finally {
@@ -335,7 +335,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          restoreEnv(
            'QWEN_CODE_TRUSTED_FOLDERS_PATH',
            previousTrustedFoldersPath,
-@@ -17913,9 +17914,10 @@
+@@ -18404,9 +18405,10 @@
          const after = await auth(request(app).get('/capabilities'));
          expect(after.status).toBe(200);
          expect(after.body.features).toContain('workspace_voice_transcription');
@@ -347,7 +347,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          resetHomeEnvBootstrapForTesting();
        }
      });
-@@ -29440,9 +29442,10 @@
+@@ -30196,9 +30198,10 @@
      resetHomeEnvBootstrapForTesting();
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
@@ -359,7 +359,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
    }
  
    async function disableLiveVoiceAtBoot() {
-@@ -29460,9 +29463,10 @@
+@@ -30216,9 +30219,10 @@
      resetHomeEnvBootstrapForTesting();
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
@@ -370,8 +370,8 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      };
    }
  
-   function setupLiveRuntime(liveBridgeOptions: FakeBridgeOpts = {}) {
-@@ -30175,9 +30179,14 @@
+   function setupLiveRuntime(
+@@ -31385,9 +31389,14 @@
        async cleanup() {
          (app.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
          restoreEnv('QWEN_HOME', previousQwenHome);
@@ -387,7 +387,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      };
    }
  
-@@ -30416,9 +30425,10 @@
+@@ -31626,9 +31635,10 @@
            | undefined
        )?.();
        restoreEnv('QWEN_HOME', previousQwenHome);
@@ -398,8 +398,8 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      }
    });
  
-   it('binds the dedicated Appshot channel after Host hello and gates start until ready', async () => {
-@@ -30612,8 +30622,8 @@
+   it('binds the dedicated Appshot channel after Host hello and waits to start until ready', async () => {
+@@ -31825,8 +31835,8 @@
        (app?.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -433,7 +433,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        expect(scheduler.durableActive).toBe(false);
 --- a/packages/webui/src/daemon/session/DaemonSessionProvider.test.tsx
 +++ b/packages/webui/src/daemon/session/DaemonSessionProvider.test.tsx
-@@ -5368,7 +5368,9 @@
+@@ -5367,7 +5367,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        submitPrompt: vi.fn(() => accepted.promise),
@@ -444,7 +444,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          await releaseRestoredComplete.promise;
          yield {
            id: 6,
-@@ -5385,6 +5387,7 @@
+@@ -5384,6 +5386,7 @@
            data: { promptId: 'local-prompt', stopReason: 'end_turn' },
          } satisfies DaemonEvent;
          localCompleteDelivered.resolve();
@@ -452,7 +452,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5455,7 +5458,9 @@
+@@ -5454,7 +5457,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -463,7 +463,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          yield {
            id: 6,
            v: 1,
-@@ -5463,6 +5468,7 @@
+@@ -5462,6 +5467,7 @@
            data: { promptId: 'restored-prompt', stopReason: 'end_turn' },
          };
          turnCompleted.resolve();
@@ -471,7 +471,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5491,7 +5497,9 @@
+@@ -5556,7 +5562,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -482,7 +482,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          yield {
            id: 6,
            v: 1,
-@@ -5503,6 +5511,7 @@
+@@ -5568,6 +5576,7 @@
            },
          } satisfies DaemonEvent;
          turnErrored.resolve();
@@ -490,7 +490,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5531,7 +5540,9 @@
+@@ -5596,7 +5605,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -501,7 +501,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          yield {
            id: 6,
            v: 1,
-@@ -5543,6 +5554,7 @@
+@@ -5608,6 +5619,7 @@
            },
          } satisfies DaemonEvent;
          promptCancelled.resolve();
@@ -509,7 +509,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -5575,7 +5587,9 @@
+@@ -5640,7 +5652,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        submitPrompt: vi.fn(() => accepted.promise),
@@ -520,7 +520,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          await releaseRestoredCancel.promise;
          yield {
            id: 6,
-@@ -5593,6 +5607,7 @@
+@@ -5658,6 +5672,7 @@
            data: { promptId: 'local-prompt', stopReason: 'end_turn' },
          } satisfies DaemonEvent;
          localCompleteDelivered.resolve();
@@ -528,7 +528,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -10111,6 +10126,7 @@
+@@ -10263,6 +10278,7 @@
            type: 'turn_complete',
            data: { promptId: 'prompt-new', stopReason: 'end_turn' },
          };
@@ -536,7 +536,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(firstSession, reloadedSession);
-@@ -11049,10 +11065,18 @@
+@@ -11201,10 +11217,18 @@
        // NOT prevent reconnection — these are server-initiated closes,
        // not user deletions. The provider should preserve the session
        // handle and attempt to resume on the next iteration.
@@ -555,7 +555,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
            yield {
              id: 1,
              v: 1,
-@@ -11081,7 +11105,7 @@
+@@ -11233,7 +11257,7 @@
          await flushPromises();
        });
        await act(async () => {
@@ -564,7 +564,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
          await flushPromises();
        });
  
-@@ -11096,17 +11120,24 @@
+@@ -11248,17 +11272,24 @@
      // Defensive: if the server sends session_closed without a reason
      // field (older daemon versions), treat it as non-client_close and
      // let the normal reconnect path handle it.
@@ -590,7 +590,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        },
      });
      sdkMocks.sessions.push(session);
-@@ -11125,10 +11156,7 @@
+@@ -11277,10 +11308,7 @@
      });
  
      await act(async () => {
@@ -602,7 +602,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
        await flushPromises();
      });
  
-@@ -11256,6 +11284,7 @@
+@@ -11408,6 +11436,7 @@
      });
      await act(async () => {
        await flushPromises();
@@ -610,7 +610,7 @@ https://github.com/QwenLM/qwen-code/blob/v0.21.10/packages/mobile-mcp/src/mobile
      });
  
      // turn_error should stay in transcript as an error block
-@@ -12348,6 +12377,8 @@
+@@ -12500,6 +12529,8 @@
        sessionId: 'session-1',
        data: { promptId, stopReason: 'end_turn' },
      };
