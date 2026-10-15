@@ -1,0 +1,23 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -120,7 +120,10 @@
+   # https://github.com/google/mozc/discussions/1429
+   # REVISION in mozc_version_template.bzl is no longer used by Bazel builds.
+   # REVISION will be probably removed once GYP builds are completely removed.
+-  bazel build --config oss_linux --config stable_channel --config release_build --config no_sframe base:mozc_version_txt >/dev/null 2>&1
++  bazel build --config oss_linux --config stable_channel --config release_build --config no_sframe \
++      --distdir="${srcdir}" \
++      --registry="file://${srcdir}/bazel-central-registry" \
++      base:mozc_version_txt >/dev/null 2>&1
+   source <(grep -E '^(MAJOR|MINOR|BUILD_OSS|REVISION)\s*=' bazel-bin/base/mozc_version.txt)
+    _bzr_ver="$MAJOR.$MINOR.$BUILD_OSS.$REVISION"
+   printf "%s" "${_bzr_ver}"
+@@ -170,3 +173,8 @@
+   install -d "${pkgdir}/usr/share/licenses/$pkgname/"
+   install -m 644 ../LICENSE data/installer/*.html "${pkgdir}/usr/share/licenses/${pkgname}/"
+ }
++
++makedepends=("${makedepends[@]/bazelisk/bazel}")
++source+=(https://github.com/astral-sh/python-build-standalone/releases/download/20251031/cpython-3.11.14+20251031-riscv64-unknown-linux-gnu-install_only.tar.gz)
++noextract+=(cpython-3.11.14+20251031-riscv64-unknown-linux-gnu-install_only.tar.gz)
++sha512sums+=('4377883d5adda035b9b6a5a6bad336826f06765d2e14109d4e06b64020507f69149226542ec97ba511edc9515bd2192a516e9e1531165b41463fdd8a2ec18005')
