@@ -1,11 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -28,6 +28,14 @@
- source=("https://github.com/lextudio/pysnmp/archive/v$pkgver/${pkgname#python-}-v$pkgver.tar.gz")
- sha512sums=('53eb9657590fe2fbd3af956177200ee51df7d9f6d1eab51ea689b47a7a4181cc0ff3cfae229be6e8ec5c2ee18acb578ca412c244196ceab410d09413472bd05a')
+@@ -30,2 +30,11 @@
  
 +prepare() {
 +  cd ${pkgname#python-}-$pkgver
++  patch -Np1 -i "$srcdir/local-test-agent.patch"
 +  # Allow MIB setup and the blocking slow-agent fixture on slower builders.
 +  sed -i -e 's/timeout=3/timeout=10/' -e 's/elapsed_time <= 3/elapsed_time <= 10/' \
 +    tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v1_get.py \
@@ -13,5 +12,8 @@
 +}
 +
  build() {
-   cd ${pkgname#python-}-$pkgver
-   python -m build --wheel --no-isolation
+@@ -56 +65,4 @@
+ # vim: ts=2 sw=2 et:
++
++source+=(local-test-agent.patch)
++sha512sums+=('359b288ad53b236dabae3c3ac18d3c6077d3982329ac21501cce15a26de505cecddf81b96e4c44c9314752dfff5ab3dcf1b1f41f0af0083d3ba96223256276e8')
