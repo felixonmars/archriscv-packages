@@ -1,0 +1,416 @@
+--- a/tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v1_get.py
++++ b/tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v1_get.py
+@@ -275,17 +275,17 @@
+ 
+ @pytest.mark.asyncio
+ async def test_v1_get_multiple_objects():
+-    async with AgentContextManager(enable_custom_objects=True):
++    async with AgentContextManager(enable_custom_objects=True) as agent:
++        mib_builder = agent.get_mib_builder()
++        compiler.add_mib_compiler(mib_builder)
++        (MibScalarInstance,) = mib_builder.import_symbols("SNMPv2-SMI", "MibScalarInstance")
++        (ifDescr,) = mib_builder.import_symbols("IF-MIB", "ifDescr")
++        mib_builder.export_symbols(
++            "__TEST-IF-MIB",
++            MibScalarInstance(ifDescr.name, (1,), ifDescr.syntax.clone("eth0")),
++            MibScalarInstance(ifDescr.name, (2,), ifDescr.syntax.clone("eth1")),
++        )
+         with SnmpDispatcher() as snmpDispatcher:
+-            # # Step 1: Set up MIB builder and add custom MIB directory
+-            # mibBuilder = builder.MibBuilder()
+-            # compiler.addMibCompiler(mibBuilder)
+-            # mibViewController = view.MibViewController(mibBuilder)
+-
+-            # # Load the custom MIB
+-            # mibBuilder.loadModules("LEXTUDIO-TEST-MIB")
+-            # snmpDispatcher.cache["mibViewController"] = mibViewController
+-
+             netiftable = [
+                 ObjectIdentity("IF-MIB", "ifDescr", 1),
+                 ObjectIdentity("IF-MIB", "ifDescr", 2),
+@@ -295,7 +295,7 @@
+                 snmpDispatcher,
+                 CommunityData("public", mpModel=0),
+                 await UdpTransportTarget.create(
+-                    ("demo.pysnmp.com", 161), timeout=1, retries=0
++                    ("localhost", AGENT_PORT), timeout=1, retries=0
+                 ),
+                 *[ObjectType(x) for x in netiftable],
+             )
+--- a/tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v2c_bulk.py
++++ b/tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v2c_bulk.py
+@@ -41,7 +41,7 @@
+             errorIndication, errorStatus, errorIndex, varBinds = await bulk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 1,
+                 2,
+                 *mib_objects,
+--- a/tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v2c_bulkwalk.py
++++ b/tests/hlapi/v1arch/asyncio/manager/cmdgen/test_v1arch_v2c_bulkwalk.py
+@@ -4,7 +4,7 @@
+ from pysnmp.hlapi.v1arch.asyncio import *
+ from tests.agent_context import AGENT_PORT, AgentContextManager
+ 
+-total_count = 68
++total_count = 212
+ 
+ 
+ @pytest.mark.asyncio
+@@ -15,8 +15,7 @@
+             objects = bulk_walk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 0,
+                 max_repetitions,
+                 ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
+@@ -138,8 +137,7 @@
+             objects = bulk_walk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 0,
+                 max_repetitions,
+                 ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
+@@ -166,47 +164,46 @@
+ 
+ @pytest.mark.asyncio
+ async def test_v2c_get_table_bulk_0_8():
+-    with SnmpDispatcher() as snmpDispatcher:
+-        max_repetitions = 8
+-        objects = bulk_walk_cmd(
+-            snmpDispatcher,
+-            CommunityData("public"),
+-            # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-            await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
+-            0,
+-            max_repetitions,
+-            ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
+-        )
+-
+-        objects_list = [obj async for obj in objects]
+-
+-        errorIndication, errorStatus, errorIndex, varBinds = objects_list[0]
+-
+-        assert errorIndication is None
+-        assert errorStatus == 0
+-        assert len(varBinds) == max_repetitions
+-        assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysObjectID.0"
+-
+-        errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
+-
+-        assert errorIndication is None
+-        assert errorStatus == 0
+-        assert len(varBinds) == max_repetitions
+-        # assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysName.0"
++    async with AgentContextManager():
++        with SnmpDispatcher() as snmpDispatcher:
++            max_repetitions = 8
++            objects = bulk_walk_cmd(
++                snmpDispatcher,
++                CommunityData("public"),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
++                0,
++                max_repetitions,
++                ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
++            )
++
++            objects_list = [obj async for obj in objects]
++
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[0]
++
++            assert errorIndication is None
++            assert errorStatus == 0
++            assert len(varBinds) == max_repetitions
++            assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysObjectID.0"
++
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++
++            assert errorIndication is None
++            assert errorStatus == 0
++            assert len(varBinds) == max_repetitions
++            # assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysName.0"
+ 
+-        assert len(objects_list) == math.ceil(total_count / max_repetitions)
++            assert len(objects_list) == math.ceil(total_count / max_repetitions)
+ 
+ 
+ @pytest.mark.asyncio
+-async def test_v2c_get_table_bulk_0_35():
++async def test_v2c_get_table_bulk_partial_last_batch():
+     async with AgentContextManager():
+         with SnmpDispatcher() as snmpDispatcher:
+-            max_repetitions = 35  # 68/2 + 1
++            max_repetitions = 35
+             objects = bulk_walk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 0,
+                 max_repetitions,
+                 ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
+@@ -221,11 +218,11 @@
+             assert len(varBinds) == max_repetitions
+             assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysObjectID.0"
+ 
+-            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[-1]
+ 
+             assert errorIndication is None
+             assert errorStatus == 0
+-            assert len(varBinds) == total_count - max_repetitions
++            assert len(varBinds) == total_count % max_repetitions
+             # assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysName.0"
+ 
+             assert len(objects_list) == math.ceil(total_count / max_repetitions)
+@@ -239,8 +236,7 @@
+             objects = bulk_walk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 0,
+                 max_repetitions,
+                 ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
+@@ -266,8 +262,7 @@
+             objects = bulk_walk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 0,
+                 max_repetitions,
+                 ObjectType(ObjectIdentity("SNMPv2-MIB", "system")),
+@@ -283,10 +278,10 @@
+             assert len(varBinds) == max_repetitions
+             assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysDescr.0"
+ 
+-            errorIndication, errorStatus, errorIndex, varBinds = objects_list[3]
+-            assert len(varBinds) == 1
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++            assert len(varBinds) == 3
+ 
+-            assert len(objects_list) == 4
++            assert len(objects_list) == 2
+ 
+ 
+ @pytest.mark.asyncio
+@@ -297,8 +292,7 @@
+             objects = bulk_walk_cmd(
+                 snmpDispatcher,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 0,
+                 max_repetitions,
+                 ObjectType(ObjectIdentity("SNMPv2-MIB", "system")),
+@@ -314,10 +308,10 @@
+             assert len(varBinds) == max_repetitions
+             assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysDescr.0"
+ 
+-            errorIndication, errorStatus, errorIndex, varBinds = objects_list[2]
+-            assert len(varBinds) == 4
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++            assert len(varBinds) == 2
+ 
+-            assert len(objects_list) == 3
++            assert len(objects_list) == 2
+ 
+ 
+ @pytest.mark.asyncio
+--- a/tests/hlapi/v3arch/asyncio/manager/cmdgen/test_v2c_bulkwalk.py
++++ b/tests/hlapi/v3arch/asyncio/manager/cmdgen/test_v2c_bulkwalk.py
+@@ -4,7 +4,7 @@
+ from pysnmp.hlapi.v3arch.asyncio import *
+ from tests.agent_context import AGENT_PORT, AgentContextManager
+ 
+-total_count = 68  # Ensure this matches the actual total count of SNMP objects
++total_count = 212
+ 
+ 
+ @pytest.mark.asyncio
+@@ -15,8 +15,7 @@
+             objects = bulk_walk_cmd(
+                 snmpEngine,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 ContextData(),
+                 0,
+                 max_repetitions,
+@@ -141,8 +140,7 @@
+             objects = bulk_walk_cmd(
+                 snmpEngine,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 ContextData(),
+                 0,
+                 max_repetitions,
+@@ -170,48 +168,47 @@
+ 
+ @pytest.mark.asyncio
+ async def test_v2c_get_table_bulk_0_8():
+-    with SnmpEngine() as snmpEngine:
+-        max_repetitions = 8
+-        objects = bulk_walk_cmd(
+-            snmpEngine,
+-            CommunityData("public"),
+-            # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-            await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
+-            ContextData(),
+-            0,
+-            max_repetitions,
+-            ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
+-        )
+-
+-        objects_list = [obj async for obj in objects]
+-
+-        errorIndication, errorStatus, errorIndex, varBinds = objects_list[0]
+-
+-        assert errorIndication is None
+-        assert errorStatus == 0
+-        assert len(varBinds) == max_repetitions
+-        assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysObjectID.0"
+-
+-        errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
+-
+-        assert errorIndication is None
+-        assert errorStatus == 0
+-        assert len(varBinds) == max_repetitions
+-        # assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysName.0"
++    async with AgentContextManager():
++        with SnmpEngine() as snmpEngine:
++            max_repetitions = 8
++            objects = bulk_walk_cmd(
++                snmpEngine,
++                CommunityData("public"),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
++                ContextData(),
++                0,
++                max_repetitions,
++                ObjectType(ObjectIdentity("SNMPv2-MIB", "sysDescr", 0)),
++            )
+ 
+-        assert len(objects_list) == math.ceil(total_count / max_repetitions)
++            objects_list = [obj async for obj in objects]
++
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[0]
++
++            assert errorIndication is None
++            assert errorStatus == 0
++            assert len(varBinds) == max_repetitions
++            assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysObjectID.0"
++
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++
++            assert errorIndication is None
++            assert errorStatus == 0
++            assert len(varBinds) == max_repetitions
++            # assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysName.0"
++
++            assert len(objects_list) == math.ceil(total_count / max_repetitions)
+ 
+ 
+ @pytest.mark.asyncio
+-async def test_v2c_get_table_bulk_0_35():
++async def test_v2c_get_table_bulk_partial_last_batch():
+     async with AgentContextManager():
+         with SnmpEngine() as snmpEngine:
+-            max_repetitions = 35  # (68/2) + 1
++            max_repetitions = 35
+             objects = bulk_walk_cmd(
+                 snmpEngine,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 ContextData(),
+                 0,
+                 max_repetitions,
+@@ -227,11 +224,11 @@
+             assert len(varBinds) == max_repetitions
+             assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysObjectID.0"
+ 
+-            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[-1]
+ 
+             assert errorIndication is None
+             assert errorStatus == 0
+-            assert len(varBinds) == total_count - max_repetitions
++            assert len(varBinds) == total_count % max_repetitions
+             # assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysName.0"
+ 
+             assert len(objects_list) == math.ceil(total_count / max_repetitions)
+@@ -245,8 +242,7 @@
+             objects = bulk_walk_cmd(
+                 snmpEngine,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 ContextData(),
+                 0,
+                 max_repetitions,
+@@ -273,8 +269,7 @@
+             objects = bulk_walk_cmd(
+                 snmpEngine,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 ContextData(),
+                 0,
+                 max_repetitions,
+@@ -291,10 +286,10 @@
+             assert len(varBinds) == max_repetitions
+             assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysDescr.0"
+ 
+-            errorIndication, errorStatus, errorIndex, varBinds = objects_list[3]
+-            assert len(varBinds) == 1
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++            assert len(varBinds) == 3
+ 
+-            assert len(objects_list) == 4
++            assert len(objects_list) == 2
+ 
+ 
+ @pytest.mark.asyncio
+@@ -305,8 +300,7 @@
+             objects = bulk_walk_cmd(
+                 snmpEngine,
+                 CommunityData("public"),
+-                # await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+-                await UdpTransportTarget.create(("demo.pysnmp.com", 161)),
++                await UdpTransportTarget.create(("localhost", AGENT_PORT)),
+                 ContextData(),
+                 0,
+                 max_repetitions,
+@@ -323,10 +317,10 @@
+             assert len(varBinds) == max_repetitions
+             assert varBinds[0][0].prettyPrint() == "SNMPv2-MIB::sysDescr.0"
+ 
+-            errorIndication, errorStatus, errorIndex, varBinds = objects_list[2]
+-            assert len(varBinds) == 4
++            errorIndication, errorStatus, errorIndex, varBinds = objects_list[1]
++            assert len(varBinds) == 2
+ 
+-            assert len(objects_list) == 3
++            assert len(objects_list) == 2
+ 
+ 
+ @pytest.mark.asyncio
