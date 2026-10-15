@@ -25,3 +25,30 @@
  
  set +e
  "${LIBTOOL}" --mode=execute env ASAN_OPTIONS="${ASAN_OPTS}" \
+--- a/cupsfilters/test-pwgtopdf-bit-row.sh
++++ b/cupsfilters/test-pwgtopdf-bit-row.sh
+@@ -6,6 +6,7 @@
+ LIBTOOL="${BUILD_ROOT}/libtool"
+ CC="${CC:-cc}"
+ SAN_FLAGS="${SAN_FLAGS:--fsanitize=address -fno-omit-frame-pointer}"
++ASAN_OPTS="${ASAN_OPTIONS:-detect_leaks=0,abort_on_error=0}"
+ PKG_CFLAGS="$(pkg-config --cflags lcms2 pdfio 2>/dev/null || true)"
+ PKG_LIBS="$(pkg-config --libs lcms2 pdfio 2>/dev/null || true)"
+ 
+@@ -148,7 +149,7 @@
+ 
+ "${CC}" -std=c11 -O0 ${SAN_FLAGS} -o "${GENERATOR_BIN}" \
+   -I"${BUILD_ROOT}" ${PKG_CFLAGS} "${GENERATOR_SRC}" ${PKG_LIBS}
+-"${GENERATOR_BIN}" "${INPUT_PWG}"
++ASAN_OPTIONS="${ASAN_OPTS}" "${GENERATOR_BIN}" "${INPUT_PWG}"
+ 
+ "${LIBTOOL}" --mode=compile --tag=CC "${CC}" -std=gnu11 -O0 \
+   -D_GNU_SOURCE ${SAN_FLAGS} \
+@@ -159,7 +160,6 @@
+   "${BUILD_ROOT}/libcupsfilters.la" ${PKG_LIBS} -lm \
+   -o "${HARNESS_BIN}" >/dev/null
+ 
+-ASAN_OPTS="${ASAN_OPTIONS:-detect_leaks=0,abort_on_error=0}"
+ set +e
+ "${LIBTOOL}" --mode=execute env \
+   DYLD_LIBRARY_PATH="${BUILD_ROOT}/.libs${DYLD_LIBRARY_PATH:+:${DYLD_LIBRARY_PATH}}" \
