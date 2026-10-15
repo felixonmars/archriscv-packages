@@ -1,7 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -36,12 +36,14 @@
-             '257b0e29fb807039d3d67fe7c9188a2b9696403c57821b10cb6c8d635e39789a')
+@@ -38,10 +38,12 @@
  
  prepare() {
 -  zip -qr playwright-$pkgver-linux.zip package
@@ -11,14 +10,16 @@
 +  # Upstream has no riscv64 driver bundle, but Arch uses system node.
 +  patch -Np1 -i ../add-riscv64-wheel-support.patch
    sed -e 's|==.*\"|"|' -i pyproject.toml # Drop dependency version constraints
-   sed -e "s|driver_version = \".*\"|driver_version = \"$pkgver\"|" -i setup.py
+-  sed -e "s|driver_version = \".*\"|driver_version = \"$pkgver\"|" -i setup.py
 -  install -Dm644 "$srcdir"/playwright-$pkgver-linux.zip -t driver
++  printf '%s\n' "$pkgver" > DRIVER_VERSION
 +  install -Dm644 "$srcdir"/playwright-$pkgver-linux-riscv64.zip -t driver
  }
  
- build() {
-@@ -64,3 +66,6 @@
+@@ -64,5 +66,7 @@
+ 
  # Replace bundled node with system one
+-  rm "$pkgdir"/usr/lib/python*/site-packages/playwright/driver/node
    ln -s /usr/bin/node -t "$pkgdir"/usr/lib/python*/site-packages/playwright/driver/
  }
 +
