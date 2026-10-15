@@ -9,7 +9,7 @@
      set(KFR_ENABLE_MULTIARCH
          OFF
          CACHE INTERNAL "" FORCE)
-@@ -284,14 +284,22 @@
+@@ -282,14 +282,22 @@
  
  if (NOT X86)
      if (KFR_ARCH IN_LIST DETECT_NAMES)
@@ -92,7 +92,7 @@
  #endif
  
  #define KFR_ARCH_ID_GENERIC 0
-@@ -685,6 +686,7 @@
+@@ -687,6 +688,7 @@
  #define KFR_NARGS2(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, ...) _10
  #define KFR_NARGS(...) KFR_NARGS2(__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
  
@@ -100,7 +100,7 @@
  #define KFR_IF_IS_AVX512(...)
  #define KFR_IF_IS_AVX2(...)
  #define KFR_IF_IS_AVX(...)
-@@ -693,8 +695,12 @@
+@@ -695,8 +697,12 @@
  #define KFR_IF_IS_SSSE3(...)
  #define KFR_IF_IS_SSE3(...)
  #define KFR_IF_IS_SSE2(...)
@@ -114,7 +114,7 @@
  #undef KFR_IF_IS_AVX512
  #define KFR_IF_IS_AVX512(...) __VA_ARGS__
  #elif defined KFR_ARCH_AVX2
-@@ -718,6 +724,9 @@
+@@ -720,6 +726,9 @@
  #elif defined KFR_ARCH_SSE2
  #undef KFR_IF_IS_SSE2
  #define KFR_IF_IS_SSE2(...) __VA_ARGS__
@@ -126,7 +126,7 @@
  #ifdef KFR_COMPILER_GNU
 --- include/kfr/kfr.h
 +++ include/kfr/kfr.h
-@@ -104,11 +104,6 @@
+@@ -105,11 +105,6 @@
      "ARM builds require NEON support. Add -march=native for native build or skip the check with KFR_FORCE_GENERIC_CPU=1"
  #endif
  
@@ -135,8 +135,8 @@
 -    "ARM builds require NEON support. Add -march=native for native build or skip the check with KFR_FORCE_GENERIC_CPU=1"
 -#endif
 -
- #if !defined KFR_ARCH_X86 && !defined KFR_COMPILER_CLANG
- #error "Non-x86 builds require Clang compiler"
+ #if !defined KFR_ARCH_X86 && !defined KFR_COMPILER_CLANG && !defined KFR_COMPILER_GCC
+ #error "Non-x86 builds require Clang or GCC compiler"
  #endif
 --- include/kfr/multiarch.h
 +++ include/kfr/multiarch.h
@@ -286,7 +286,7 @@
  
 --- src/dft/bitrev.hpp
 +++ src/dft/bitrev.hpp
-@@ -122,7 +122,7 @@
+@@ -134,7 +134,7 @@
  template <typename T, size_t N>
  KFR_INTRINSIC void br_simd_two(bool swap, complex<T>* data0, complex<T>* data1, size_t stride)
  {
@@ -297,7 +297,7 @@
          v0                = bitreverse<2>(v0);
 --- src/dft/ft.hpp
 +++ src/dft/ft.hpp
-@@ -2732,7 +2732,7 @@
+@@ -2835,7 +2835,7 @@
  }
  
  template <typename T>
@@ -308,7 +308,7 @@
  struct fourstep_twiddles
 --- src/dft/ngfft-impl.hpp
 +++ src/dft/ngfft-impl.hpp
-@@ -338,8 +338,9 @@
+@@ -345,8 +345,9 @@
              return 3;
      }
  
