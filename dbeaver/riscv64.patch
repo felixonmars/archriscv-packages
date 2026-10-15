@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -50,8 +50,17 @@
+   cd "${srcdir}/${pkgname}-${pkgver}"
+ 
++  sed -i '/<environments>/a\
++                        <environment>\
++                            <os>linux</os>\
++                            <ws>gtk</ws>\
++                            <arch>riscv64</arch>\
++                        </environment>' pom.xml
++  echo 'root.linux.gtk.riscv64 = file:../../product/community/icons/dbeaver.png' >> \
++    features/org.jkiss.dbeaver.ce.feature/build.properties
++
+   # Download dependencies during prepare FS#55873
+   # https://bugs.archlinux.org/task/55873
+   export MAVEN_OPTS="-Xmx2048m"
+-  mvn --batch-mode -T 1C validate
++  mvn --batch-mode -Dmaven.resolver.validation=MILD -T 1C validate
+ }
+ 
+@@ -59,5 +68,5 @@
+   cd "${pkgname}-${pkgver}"
+   pushd "product/aggregate"
+-  mvn --batch-mode -Pproduct-dbeaver-ce,product-dbeaver-eclipse-ce -Djdk.xml.maxGeneralEntitySizeLimit=0 -Djdk.xml.totalEntitySizeLimit=0 -T 1C package
++  mvn --batch-mode -Dmaven.resolver.validation=MILD -Pproduct-dbeaver-ce,product-dbeaver-eclipse-ce -Djdk.xml.maxGeneralEntitySizeLimit=0 -Djdk.xml.totalEntitySizeLimit=0 -T 1C package
+   popd
+   # Add missing dependency org.apache.commons.commons-compress
