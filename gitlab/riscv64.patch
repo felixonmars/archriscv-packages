@@ -5,7 +5,7 @@
  _logdir=/var/log/gitlab
  
 +_rbtrace_version=0.5.5
-+_glaz_revision=af9019a186fbb42cede0ad5ba7496aff2f88cb41
++_glaz_revision=0c90ffcd6e6f74b7a1998e196e7d324ad7d54b56
 +
  prepare() {
 +	# Refresh rbtrace's bundled msgpack config.guess and config.sub for riscv64.
@@ -29,7 +29,7 @@
  	cd gitlab-foss
  
  	# https://github.com/nodejs/node/issues/48444
-@@ -139,13 +153,24 @@
+@@ -139,13 +153,25 @@
  	bundle config --local force_ruby_platform true # some native gems are not available for newer ruby
  	bundle config --local deployment true
  	bundle config --local without 'development test aws kerberos'
@@ -39,6 +39,7 @@
 +	# Replace rbtrace with the copy patched above.
 +	export GEM_HOME=$HOME/.gem
 +	bundle config --local cache_path vendor/cache/
++	bundle config --local ignore_funding_requests true
 +	bundle cache --no-install
 +	cp ../rbtrace/rbtrace-${_rbtrace_version}.gem vendor/cache/
 +	rbtrace_checksum=$(sha256sum vendor/cache/rbtrace-${_rbtrace_version}.gem)
@@ -55,7 +56,7 @@
  
  	export CGO_CPPFLAGS="${CPPFLAGS}"
  	export CGO_CFLAGS="${CFLAGS}"
-@@ -256,3 +281,10 @@
+@@ -256,3 +282,10 @@
  
  	find "$pkgdir$_appdir" -name man -type d -print0 | xargs -0 -I {} rm -rf {}
  }
@@ -65,4 +66,4 @@
 +source+=("git+https://github.com/tmm1/rbtrace.git#tag=v${_rbtrace_version}"
 +         "git+https://gitlab.com/gitlab-org/auth/glaz.git#commit=${_glaz_revision}")
 +sha256sums+=('a46a61f3c12ee54ed73a2d326009fc4de05eb69fd262008b44c9008cc492719a'
-+             '69f6f1f87c5c559189ddb30c49b5dea03297a9ea5d71beeac90e38320707fc9c')
++             '433eb194806fc24b55e0a823e97ba749b460955533662bd4a7c613664be1cbfe')
