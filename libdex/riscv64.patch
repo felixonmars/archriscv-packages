@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,6 +41,7 @@
+ 
+ prepare() {
+   cd libdex
++  patch -Np1 -i ../weak-ref-retarget-lock-order.patch
+ }
+ 
+ build() {
+@@ -55,7 +56,7 @@
+ 
+ check() (
+   dbus-run-session xvfb-run -s '-nolisten local +iglx -noreset' \
+-    meson test -C build --print-errorlogs
++    meson test -C build --print-errorlogs --timeout-multiplier 10
+ )
+ 
+ package_libdex() {
+@@ -74,4 +75,7 @@
+   mv doc/* "$pkgdir"
+ }
+ 
++source+=(weak-ref-retarget-lock-order.patch)
++b2sums+=('ec4322c5fd3df318678420bef817b01628b724307cccbe4e789d0c5b5962ac1d64a28d3487c7fd82410ca25419ed751d58480fb6aad0bdc893512b35b27768e8')
++
+ # vim:set sw=2 sts=-1 et:
