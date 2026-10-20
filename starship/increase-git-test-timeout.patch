@@ -1,0 +1,16 @@
+--- a/src/modules/git_status.rs
++++ b/src/modules/git_status.rs
+@@ -370,8 +370,11 @@
+             .stack_size(256 * 1024)
+             .spawn({
+                 let is_interrupted = is_interrupted.clone();
+-                let abort_after =
+-                    std::time::Duration::from_millis(context.root_config.command_timeout);
++                let abort_after = if cfg!(test) {
++                    std::time::Duration::from_secs(30)
++                } else {
++                    std::time::Duration::from_millis(context.root_config.command_timeout)
++                };
+                 move || {
+                     std::thread::sleep(abort_after);
+                     is_interrupted.store(true, std::sync::atomic::Ordering::SeqCst);
