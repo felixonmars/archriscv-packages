@@ -1,19 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -37,12 +37,16 @@ build() {
-   cargo build \
-     --release \
-     --frozen \
-+    --no-default-features \
-+    --features battery,notify,gix-faster \
-     --manifest-path starship/Cargo.toml
- }
+@@ -22,4 +22,5 @@
  
- check() {
-   cargo test \
-     --frozen \
-+    --no-default-features \
-+    --features battery,notify,gix-faster \
-     --manifest-path starship/Cargo.toml
- }
+ prepare() {
++  patch -Np1 -d starship -i "$srcdir/increase-git-test-timeout.patch"
+   cargo fetch \
+     --locked \
+@@ -54,2 +55,5 @@
  
+ # vim: ts=2 sw=2 et:
++
++source+=(increase-git-test-timeout.patch)
++sha256sums+=('ef054f894dd262e64529fbdd2a10055bcb3dea68bb9e1fe7acbeddad39e9a301')
