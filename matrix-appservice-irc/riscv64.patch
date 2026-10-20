@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -40,4 +40,5 @@
+ 
+ prepare() {
++  cargo fetch --locked --manifest-path="$srcdir/matrix-rust-sdk-crypto-nodejs-0.4.0-beta.1/Cargo.toml"
+   cd $pkgname-$pkgver
+   touch registration.yaml
+@@ -45,6 +46,12 @@
+ 
+ build() {
++  cargo build --frozen --release --manifest-path="$srcdir/matrix-rust-sdk-crypto-nodejs-0.4.0-beta.1/Cargo.toml"
+   cd $pkgname-$pkgver
+-  yarn --strict-semver --frozen-lockfile
++  yarn --strict-semver --frozen-lockfile --ignore-scripts
++  install -m755 "$srcdir/matrix-rust-sdk-crypto-nodejs-0.4.0-beta.1/target/release/libmatrix_sdk_crypto_nodejs.so" \
++    node_modules/@matrix-org/matrix-sdk-crypto-nodejs/matrix-sdk-crypto.linux-riscv64-gnu.node
++  npm pkg delete scripts.postinstall --prefix node_modules/@matrix-org/matrix-sdk-crypto-nodejs
++  npm rebuild --dangerously-allow-all-scripts
++  yarn run prepare
+   yarn build:app
+ }
+@@ -121,2 +128,7 @@
+   install -vDm 644 {CHANGELOG,CONTRIBUTING,HOWTO,README}.md -t "$pkgdir/usr/share/doc/$pkgname"
+ }
++
++makedepends+=(npm rust)
++source+=(matrix-rust-sdk-crypto-nodejs-0.4.0-beta.1.tar.gz::https://github.com/matrix-org/matrix-rust-sdk-crypto-nodejs/archive/refs/tags/v0.4.0-beta.1.tar.gz)
++sha512sums+=('94651ad6fb1887d9904899bc73ba7a38c6cd76783f5032fff65c13d1d1a65c89059df872585ac3f0b86ec921a0536ea7e5fcca7e2db38f29db2e29b91dfdd402')
++b2sums+=('9e3cdd072418fb1c40ab4078066856b422b1e91cf69b18239e9becc2212f393276fdcab752d211383c6fbf8b70613bd22da71c76cc90f9122748c1f0fea08ffc')
