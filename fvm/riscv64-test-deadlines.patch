@@ -38,7 +38,7 @@
      },
      skip: Platform.isWindows ? 'POSIX pseudo-terminal required' : false,
 -    timeout: const Timeout(Duration(minutes: 2)),
-+    timeout: const Timeout(Duration(minutes: 4)),
++    timeout: const Timeout(Duration(minutes: 8)),
    );
  }
  
@@ -49,12 +49,12 @@
          _configure_terminal(master_fd)
  
 -        _wait_for(master_fd, output, PARENT_CONTEXT, 20)
-+        _wait_for(master_fd, output, PARENT_CONTEXT, 60)
++        _wait_for(master_fd, output, PARENT_CONTEXT, 180)
          if os.tcgetpgrp(master_fd) != parent_pid:
              raise RuntimeError("Dart parent is not the PTY foreground process group")
  
 -        _wait_for(master_fd, output, b"FVM_PTY_TEST:CHILD_READY:", 20)
-+        _wait_for(master_fd, output, b"FVM_PTY_TEST:CHILD_READY:", 60)
++        _wait_for(master_fd, output, b"FVM_PTY_TEST:CHILD_READY:", 180)
          child_match = CHILD_READY_PATTERN.search(output)
          if child_match is None:
              raise RuntimeError("Could not parse the fake Flutter child PID")
