@@ -1,0 +1,17 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -71,6 +71,7 @@
+ 
+ prepare() {
+   cp -r $pkgbase{,-src}
++  patch -p1 -d nginx-tests -i "$srcdir/h3_limit_req-fix-spurious-failures.patch"
+   # Fix ssl_certificate_compression test: loop only checked first algorithm
+   sed '/\$has_zlib = 1 if \$algo == 1;/{n;/^\t\t\t\tlast;/d}' -i nginx-tests/ssl_certificate_compression.t
+ }
+@@ -309,3 +310,6 @@
+   backup=(etc/nginx/modules.d/20-xslt.conf)
+   _package_module xslt
+ }
++
++source+=('h3_limit_req-fix-spurious-failures.patch::https://freenginx.org/hg/nginx-tests/raw-rev/1867428f1673214f6e2bb647a2bba0ae3a77bcb7')
++sha512sums+=('968876b01bee3c7cea816958ebaf8241f4d030aa0071552aed2e22ea615ef6e3ae8b06b4af4d780a8fbb93c9422b629fdbaaf21d0822ee40960bcfb56c6e8054')
