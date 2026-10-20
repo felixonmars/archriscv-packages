@@ -1,0 +1,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -16,7 +16,10 @@
+ prepare() {
+   cd "$pkgname-$pkgver"
+   sed -i '/^duckdb =/s/"bundled"/"buildtime_bindgen"/' Cargo.toml
++  sed -i '/^DUCKDB_DOWNLOAD_LIB/d' .cargo/config.toml
+   cargo fetch --target "$(rustc --print host-tuple)"
++  sed -i 's@duckdb/duckdb.h@duckdb.h@' \
++    "${CARGO_HOME:-$HOME/.cargo}"/registry/src/*/libduckdb-sys-*/wrapper.h
+ }
+ 
+ build() {
