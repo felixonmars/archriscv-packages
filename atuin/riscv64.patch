@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -33,6 +33,11 @@
+@@ -33,6 +33,13 @@
  prepare() {
  	_srcenv
  
@@ -8,24 +8,28 @@
 +	patch -Np1 -i "$srcdir/meta-test-timeout.patch"
 +	# Secret-redaction timing tests exceed 10s on slower RISC-V builders.
 +	patch -Np1 -i "$srcdir/secrets-test-timeout.patch"
++	# Concurrent imports can reuse an export filename before cleanup is checked.
++	patch -Np1 -i "$srcdir/opencode-export-tempfile.patch"
 +
  	# Fully lock down user
  	sed -i 's/^u /u! /' systemd/atuin-server.sysusers
  
-@@ -50,6 +55,8 @@
+@@ -50,6 +57,8 @@
  
  check() {
  	_srcenv
 +	# SQLite pool setup can exceed upstream's 2s test default on slower builders.
 +	export ATUIN_TEST_LOCAL_TIMEOUT=30.0
- 	cargo test --frozen --all-features --workspace --lib
- }
- 
-@@ -77,3 +84,7 @@
+ 	local skipped=(
+ 		# Assumes things about the host that aren't true in a chroot
+ 		ai_session::store::tests::reproject_takes_the_capture_lock_for_this_hosts_records
+@@ -87,3 +96,9 @@
  	install -Dm0644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md "crates/$pkgname/server.toml"
  	install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE
  }
 +
-+source+=(meta-test-timeout.patch secrets-test-timeout.patch)
-+sha256sums+=('ae69cd0acc5a16ea3d7d0fd4735336a033c808993d84ee8849699df98cbc87fe'
-+            '0999060694b3ad96b08d256102a0378e7fa4641789b3b8aca0fc01664fc71e9f')
++checkdepends+=(fish zsh)
++source+=(meta-test-timeout.patch secrets-test-timeout.patch opencode-export-tempfile.patch)
++sha256sums+=('266cbf0e8a37ec2053e5d8f9dd64dd220fb09044070e37bd05a7e8be9ac99924'
++            '9f201ebcf8121b718c2c6b8dda30401be4c71fa3496abc80c4391e3e4a9c09f2'
++            '741671d10b5cb88d3ff44125785152899d15ef8ff85eb3120525df3cb7050b6e')
