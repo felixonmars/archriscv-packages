@@ -1,6 +1,6 @@
 --- a/package.json
 +++ b/package.json
-@@ -127,6 +127,7 @@
+@@ -130,6 +130,7 @@
      "oxlint": "1.60.0",
      "oxlint-tsgolint": "0.21.0",
      "prettier": "3.6.2",
@@ -8,7 +8,7 @@
      "semver": "^7.6.0",
      "sst": "catalog:",
      "turbo": "2.10.2"
-@@ -154,6 +155,7 @@
+@@ -157,6 +158,7 @@
      "electron"
    ],
    "overrides": {
@@ -16,23 +16,23 @@
      "@opentui/core": "catalog:",
      "@opentui/keymap": "catalog:",
      "@opentui/solid": "catalog:",
-@@ -165,6 +167,8 @@
+@@ -169,6 +171,8 @@
      "solid-js": "catalog:"
    },
    "patchedDependencies": {
-+    "@opentui/core@0.5.10": "patches/opentui-riscv64.patch",
++    "@opentui/core@0.6.6": "patches/opentui-riscv64.patch",
 +    "@tailwindcss/oxide-wasm32-wasi@4.3.3": "patches/fix-oxide-worker-exit.patch",
      "@ai-sdk/openai-compatible@2.0.41": "patches/@ai-sdk%2Fopenai-compatible@2.0.41.patch",
      "@dnd-kit/dom@0.5.0": "patches/@dnd-kit%2Fdom@0.5.0.patch",
      "@npmcli/agent@4.0.2": "patches/@npmcli%2Fagent@4.0.2.patch",
 --- a/packages/cli/script/app-assets.ts
 +++ b/packages/cli/script/app-assets.ts
-@@ -6,7 +6,7 @@
+@@ -8,7 +8,7 @@
  export async function buildAppArchive(channel: string, options?: { skipBuild?: boolean }) {
-   if (options?.skipBuild) return "{}"
+   if (options?.skipBuild) return AppArchive.encode([])
    const root = path.resolve(import.meta.dirname, "../../app")
 -  await $`bun run build`
 +  await $`node ${root}/node_modules/vite/bin/vite.js build`
      .cwd(root)
      .env({ ...process.env, OPENCODE_CHANNEL: channel, VITE_OPENCODE_SERVER_MODE: "origin" })
-   return JSON.stringify(
+   return AppArchive.encode(
