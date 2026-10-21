@@ -1,6 +1,6 @@
 --- a/packages/cli/script/build.ts
 +++ b/packages/cli/script/build.ts
-@@ -32,10 +32,11 @@
+@@ -36,10 +36,11 @@
  
  const allTargets: {
    os: string
@@ -13,7 +13,7 @@
    { os: "linux", arch: "arm64" },
    { os: "linux", arch: "x64" },
    { os: "linux", arch: "x64", avx2: false },
-@@ -107,7 +108,10 @@
+@@ -139,7 +140,10 @@
        )
      },
    }
@@ -39,3 +39,111 @@
      },
      "#photon-wasm": {
        "workerd": "./src/image/photon-wasm.workerd.ts",
+--- a/packages/core/src/pty/pty.bun.ts
++++ b/packages/core/src/pty/pty.bun.ts
+@@ -1,42 +1,60 @@
+-import { dlopen } from "bun:ffi"
+-import { spawn } from "bun-pty"
+-import type { Opts, Proc } from "./pty.js"
++import { EventEmitter } from "node:events"
++import type { Exit, Opts, Proc } from "./pty.js"
+ 
+ export type { Disp, Exit, Opts, Proc } from "./pty.js"
+ 
+-if (process.platform === "win32") {
+-  const library = dlopen("kernel32.dll", {
+-    SetConsoleCtrlHandler: { args: ["ptr", "i32"], returns: "i32" },
+-    GetLastError: { args: [], returns: "u32" },
+-  })
+-  try {
+-    // Detached servers start with Ctrl+C ignored, and ConPTY shells inherit it.
+-    // Clear that attribute once before spawning shells; keep registered handlers.
+-    if (library.symbols.SetConsoleCtrlHandler(null, 0) === 0)
+-      throw new Error(`Failed to enable PTY Ctrl+C handling: Windows error ${library.symbols.GetLastError()}`)
+-  } finally {
+-    library.close()
+-  }
+-}
+-
+ function spawnPty(file: string, args: string[], opts: Opts): Proc {
+-  const pty = spawn(file, args, opts)
++  const events = new EventEmitter<{ data: [string]; exit: [Exit] }>()
++  const decoder = new TextDecoder()
++  const closed = Promise.withResolvers<void>()
++  const proc = Bun.spawn([file, ...args], {
++    cwd: opts.cwd,
++    env: opts.env,
++    terminal: {
++      name: opts.name,
++      cols: opts.cols ?? 80,
++      rows: opts.rows ?? 24,
++      data(_terminal, data) {
++        const text = decoder.decode(data, { stream: true })
++        if (text) events.emit("data", text)
++      },
++      exit() {
++        const text = decoder.decode()
++        if (text) events.emit("data", text)
++        closed.resolve()
++      },
++    },
++  })
++  void Promise.all([proc.exited, closed.promise]).then(([exitCode]) => {
++    proc.terminal!.close()
++    events.emit("exit", { exitCode, signal: proc.signalCode ?? undefined })
++  })
+   return {
+-    pid: pty.pid,
++    pid: proc.pid,
+     onData(listener) {
+-      return pty.onData(listener)
++      events.on("data", listener)
++      return {
++        dispose() {
++          events.off("data", listener)
++        },
++      }
+     },
+     onExit(listener) {
+-      return pty.onExit(listener)
++      events.on("exit", listener)
++      return {
++        dispose() {
++          events.off("exit", listener)
++        },
++      }
+     },
+     write(data) {
+-      pty.write(data)
++      proc.terminal!.write(data)
+     },
+     resize(cols, rows) {
+-      pty.resize(cols, rows)
++      proc.terminal!.resize(cols, rows)
+     },
+     kill(signal) {
+-      pty.kill(signal)
++      proc.kill(signal as NodeJS.Signals | undefined)
+     },
+   }
+ }
+--- a/script/native-arch.ts
++++ b/script/native-arch.ts
+@@ -9,7 +9,7 @@
+ }
+ 
+ const PE_MACHINES: Record<number, string> = { 0x8664: "x64", 0xaa64: "arm64", 0x014c: "x86", 0x01c4: "arm" }
+-const ELF_MACHINES: Record<number, string> = { 62: "x64", 183: "arm64", 3: "x86", 40: "arm" }
++const ELF_MACHINES: Record<number, string> = { 62: "x64", 183: "arm64", 3: "x86", 40: "arm", 243: "riscv64" }
+ const MACHO_CPUS: Record<number, string> = { 0x01000007: "x64", 0x0100000c: "arm64", 7: "x86", 12: "arm" }
+ 
+ export namespace NativeArch {
+@@ -29,7 +29,7 @@
+    * wrong-architecture library loads only on the machine that needs it, so it ships unnoticed: 2.0.27's ARM64
+    * Windows CLI embedded an x64 rust_pty.dll and could not open a terminal.
+    */
+-  export async function verify(file: string, arch: "x64" | "arm64") {
++  export async function verify(file: string, arch: "x64" | "arm64" | "riscv64") {
+     const found = images(await readFile(file))
+     if (found[0]?.offset !== 0) throw new Error(`${file} is not a native executable or library`)
+     const wrong = found.filter((image) => !image.arches.includes(arch))
