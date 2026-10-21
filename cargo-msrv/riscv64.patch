@@ -1,11 +1,23 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -8,7 +8,7 @@
- url="https://github.com/foresterre/cargo-msrv"
- license=('MIT' 'Apache-2.0')
- depends=('glibc' 'libgcc' 'openssl' 'rustup')
--makedepends=('cargo')
-+makedepends=('cargo' 'clang' 'cmake')
- source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
- sha256sums=('b5a66ccd44e7f28bae070a730d315b71bbca727b7ea558db9af93ab23e703883')
- options=('!lto')
+@@ -21,11 +21,14 @@
+ 
+ build() {
+   cd "$pkgname-$pkgver"
++  # GNU BFD rejects --icf=safe from the devtools Rust flags.
++  export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
+   cargo build --release --frozen
+ }
+ 
+ check() {
+   cd "$pkgname-$pkgver"
++  export RUSTFLAGS+=" -C link-arg=-fuse-ld=lld"
+   cargo test --frozen --all --lib -- --test-threads=1
+ }
+ 
+@@ -38,3 +41,5 @@
+ }
+ 
+ # vim:set ts=2 sw=2 et:
++
++makedepends+=('lld')
