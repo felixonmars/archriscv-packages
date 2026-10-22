@@ -1,0 +1,41 @@
+--- a/src/if_perl.xs
++++ b/src/if_perl.xs
+@@ -192,6 +192,9 @@
+ #  define Perl_get_context dll_Perl_get_context
+ # endif
+ # define Perl_croak dll_Perl_croak
++# if (PERL_REVISION == 5) && (PERL_VERSION >= 38)
++#  define Perl_vcroak dll_Perl_vcroak
++# endif
+ # ifdef PERL5101_OR_LATER
+ #  define Perl_croak_xs_usage dll_Perl_croak_xs_usage
+ # endif
+@@ -346,6 +349,9 @@
+ static void* (*Perl_get_context)(void);
+ # endif
+ static void (*Perl_croak)(pTHX_ const char*, ...) __attribute__noreturn__;
++# if (PERL_REVISION == 5) && (PERL_VERSION >= 38)
++static void (*Perl_vcroak)(pTHX_ const char*, va_list*) __attribute__noreturn__;
++# endif
+ # ifdef PERL5101_OR_LATER
+ /* Perl-5.18 has a different Perl_croak_xs_usage signature. */
+ #  if (PERL_REVISION == 5) && (PERL_VERSION >= 18)
+@@ -521,6 +527,9 @@
+     {"Perl_get_context", (PERL_PROC*)&Perl_get_context},
+ # endif
+     {"Perl_croak", (PERL_PROC*)&Perl_croak},
++# if (PERL_REVISION == 5) && (PERL_VERSION >= 38)
++    {"Perl_vcroak", (PERL_PROC*)&Perl_vcroak},
++# endif
+ # ifdef PERL5101_OR_LATER
+     {"Perl_croak_xs_usage", (PERL_PROC*)&Perl_croak_xs_usage},
+ # endif
+@@ -1481,7 +1490,7 @@
+     dTHX;
+     va_list args;
+     va_start(args, pat);
+-    (*dll_Perl_croak_nocontext)(pat, &args);
++    (*dll_Perl_vcroak)(aTHX_ pat, &args);
+     NOT_REACHED; /* NOTREACHED */
+     va_end(args);
+ }
