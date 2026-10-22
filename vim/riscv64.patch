@@ -1,21 +1,31 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -45,6 +45,10 @@
+@@ -45,6 +45,16 @@
  validpgpkeys=('4F19708816918E19AAE19DEEF3F92DA383FDDE09') # Christian Brabandt <cb@256bit.org>
  
  prepare() {
 +  (cd vim
 +    # Wait for asynchronous gdb output before checking breakpoint signs.
 +    patch -Np1 -i ../fix-termdebug-remote-test-wait.patch
++    # Forward Perl's variadic errors through its va_list API.
++    patch -Np1 -i ../fix-perl-croak-varargs.patch
++    # Keep the row-limit regression test within its timeout on slow builders.
++    patch -Np1 -i ../fix-terminal-csi-resize-test.patch
++    # Allow slow builders to finish crash fixtures, GDB startup and terminal I/O.
++    patch -Np1 -i ../fix-slow-test-timeouts.patch
 +  )
    (cd vim/src
      # define the place for the global (g)vimrc file (set to /etc/vimrc)
      sed -E 's|^.*(#define SYS_.*VIMRC_FILE.*").*$|\1|g' -i feature.h
-@@ -214,4 +218,7 @@
+@@ -215,4 +225,11 @@
    install -Dm 644 "${srcdir}"/vimdoc.hook "${pkgdir}"/usr/share/libalpm/hooks/vimdoc.hook
  }
  
-+source+=(fix-termdebug-remote-test-wait.patch)
-+sha256sums+=('dcf2ed45abf4e07117a95d5a619ca3ea4fb6018c35dceec1de589e3a67bbd8bc')
++source+=(fix-termdebug-remote-test-wait.patch fix-perl-croak-varargs.patch
++         fix-terminal-csi-resize-test.patch fix-slow-test-timeouts.patch)
++sha256sums+=('dcf2ed45abf4e07117a95d5a619ca3ea4fb6018c35dceec1de589e3a67bbd8bc'
++             '96b74154999a58e7603835b8faa5980f68c5435e30ef2ee0a5c9b84c2f725213'
++             '2d3e37ad4cad40c37cd24f7b4a18d791a74e9db3cdf69cc75f565469fc342e07'
++             '9ba87aad1ec04d3954a9a6aac6c1339609357c40e8452f9b5c9a9467c198159b')
 +
  # vim: ts=2 sw=2 et:

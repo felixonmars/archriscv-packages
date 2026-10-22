@@ -1,0 +1,56 @@
+--- a/src/testdir/test_crash.vim
++++ b/src/testdir/test_crash.vim
+@@ -4,13 +4,13 @@
+ CheckScreendump
+ 
+ " Run the command in terminal and wait for it to complete via notification
+-func s:RunCommandAndWait(buf, cmd)
++func s:RunCommandAndWait(buf, cmd, timeout = 5000)
+   call term_sendkeys(a:buf, a:cmd .. "; printf '" .. TermNotifyParentCmd(v:false) .. "'\<cr>")
+   if ValgrindOrAsan()
+     " test times out on ASAN CI builds
+-    call WaitForChildNotification(10000)
++    call WaitForChildNotification(max([10000, a:timeout]))
+   else
+-    call WaitForChildNotification()
++    call WaitForChildNotification(a:timeout)
+   endif
+ endfunc
+ 
+@@ -233,7 +233,8 @@
+   let file = 'crash/heap_overflow3'
+   let cmn_args = "%s -u NONE -i NONE -n -X -m -n -e -s -S %s -c ':qa!'"
+   let args = printf(cmn_args, vim, file)
+-  call s:RunCommandAndWait(buf, args)
++  " This fixture exceeds the default five-second wait on slow builders.
++  call s:RunCommandAndWait(buf, args, 30000)
+ 
+   let file = 'crash/heap_overflow_glob2regpat'
+   let cmn_args = "%s -u NONE -i NONE -n -X -m -n -e -s -S %s -c ':qa!'"
+--- a/src/testdir/test_plugin_termdebug.vim
++++ b/src/testdir/test_plugin_termdebug.vim
+@@ -55,6 +55,11 @@
+ 
+ packadd termdebug
+ 
++func SetUp()
++  " GDB initialization can exceed the three-second default on slow builders.
++  au User TermdebugStartPre let g:termdebug_config = extend(get(g:, 'termdebug_config', {}), {'timeout': 3000})
++endfunc
++
+ func s:GetTermdebugFunction(name)
+   for line in execute('scriptnames')->split("\n")
+     if line =~# 'termdebug/plugin/termdebug\.vim$'
+--- a/src/testdir/test_terminal.vim
++++ b/src/testdir/test_terminal.vim
+@@ -908,8 +908,8 @@
+ func Test_terminal_noblock()
+   let g:test_is_flaky = 1
+   let buf = term_start(&shell)
+-  " Starting a terminal can be slow, esp. on busy CI machines.
+-  let wait_time = 7500
++  " Starting a shell and draining the buffered output can be slow on busy CI.
++  let wait_time = 30000
+   let letters = 'abcdefghijklmnopqrstuvwxyz'
+   if has('bsd') || has('mac') || has('sun')
+     " The shell or something else has a problem dealing with more than 1000
