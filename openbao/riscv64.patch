@@ -1,0 +1,13 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -52,6 +52,10 @@
+   sed -i 's|/etc/openbao/openbao.env|/etc/default/openbao|g' .release/linux/package/usr/lib/systemd/system/openbao.service
+ 
+   pushd ui
++  # The pinned pnpm release has no riscv64 native binary.
++  printf '\npmOnFail: ignore\n' >> pnpm-workspace.yaml
++  # pnpm 12 no longer reads package.json overrides.
++  node -p "'overrides: ' + JSON.stringify(require('./package.json').pnpm.overrides)" >> pnpm-workspace.yaml
+   pnpm install
+   popd
+ 
