@@ -1,7 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,10 +21,16 @@
-             '658e32634fc7463f79099d19e2e54ef59318811209d1e5f7adf5caae9b57ad06dfe9bbe41d272c47d92cd0ad1c746cc0e04775c495c8e120cbd62c88239d1945')
+@@ -22,17 +22,21 @@
  
  prepare() {
 +  # Fix incomplete libuv bindings with Clang 22: https://github.com/rust-lang/rust-bindgen/pull/3278
@@ -17,16 +16,16 @@
    # Use system-provided Rust toolchain for V8 build
    sed -i '/download_rust_toolchain();/d' build.rs
    patch -Np1 -i ../deno-2.9.6-rust-system.patch
-@@ -41,6 +47,7 @@
  
+-  # https://github.com/denoland/rusty_v8/issues/1587
+-  patch -Np1 -i ../compiler-rt-adjust-paths.patch
+-
    cd ../deno
    echo -e "\n[patch.crates-io]\nv8 = { path = '../rusty_v8' }" >> Cargo.toml
 +  echo "libuv-sys-lite = { path = '../libuv-sys-lite-1.48.4' }" >> Cargo.toml
    # Keep the V8 backend while disabling Deno's self-upgrade and vendored zlib-ng.
    sed -i \
-     -e '/^v8 = \[/s/"__runtime_defaults", //' \
-@@ -104,3 +111,6 @@
- 
+@@ -98,2 +102,5 @@
    install -Dm644 LICENSE.md -t "$pkgdir"/usr/share/licenses/$pkgname/
  }
 +
