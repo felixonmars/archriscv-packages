@@ -1,0 +1,1748 @@
+diff --git a/Makefile b/Makefile
+index b248131..96225a1 100644
+--- a/Makefile
++++ b/Makefile
+@@ -81,13 +81,15 @@ static-%.tar.gz:
+ 	@#cd static-$* && PKG_CONFIG_LIBDIR="`pwd`/inst/pkg" zig build -Dtarget=$*
+ 	@#	--build-file ../build.zig --search-prefix inst/ --cache-dir zig -Drelease-fast=true
+ 	@# Alternative approach, bypassing zig-build
++	cd static-$* && ${ZIG} translate-c -target $* -Inc/include -Izstd -lc ../src/c.h > c.zig
+ 	cd static-$* && ${ZIG} build-exe -target $*\
+-		-Inc/include -Izstd -lc nc/lib/libncursesw.a zstd/libzstd.a\
+-		--cache-dir zig-cache -static -fstrip -O ReleaseFast ../src/main.zig
++		-lc nc/lib/libncursesw.a zstd/libzstd.a\
++		--cache-dir zig-cache -static -fstrip -OReleaseFast --name ncdu\
++		--dep c -Mroot=../src/main.zig -target $* -OReleaseFast -Mc=c.zig
+ 	@# My system's strip can't deal with arm binaries and zig doesn't wrap a strip alternative.
+ 	@# Whatever, just let it error for those.
+-	strip -R .eh_frame -R .eh_frame_hdr static-$*/main || true
+-	cd static-$* && mv main ncdu && tar -czf ../static-$*.tar.gz ncdu
++	strip -R .eh_frame -R .eh_frame_hdr static-$*/ncdu || true
++	cd static-$* && tar -czf ../static-$*.tar.gz ncdu
+ 	rm -rf static-$*
+ 
+ static-linux-x86_64: static-x86_64-linux-musl.tar.gz
+diff --git a/README.md b/README.md
+index 8954745..bf55414 100644
+--- a/README.md
++++ b/README.md
+@@ -19,7 +19,7 @@ C version (1.x).
+ 
+ ## Requirements
+ 
+-- Zig 0.14 or 0.15
++- Zig 0.16.0 (this patched tree targets the released 0.16 API)
+ - Some sort of POSIX-like OS
+ - ncurses
+ - libzstd
+@@ -27,6 +27,12 @@ C version (1.x).
+ ## Install
+ 
+ You can use the Zig build system if you're familiar with that.
++The build translates `src/c.h` into a Zig module before compiling ncdu;
++the ncurses and libzstd development headers must be available to the target compiler.
++Pass `--search-prefix PREFIX` to search `PREFIX/include` during translation and
++`PREFIX/lib` during executable linking. C translation does not link ncurses or zstd.
++Filesystem metadata uses `fstatat` and `struct stat` from the target libc headers,
++including the platform-specific modification-time field; no Linux `statx` migration is required.
+ 
+ There's also a handy Makefile that supports the typical targets, e.g.:
+ 
+diff --git a/build.zig b/build.zig
+index b1708a4..9515772 100644
+--- a/build.zig
++++ b/build.zig
+@@ -10,6 +10,16 @@ pub fn build(b: *std.Build) void {
+     const pie = b.option(bool, "pie", "Build with PIE support (by default: target-dependant)");
+     const strip = b.option(bool, "strip", "Strip debugging info (by default false)") orelse false;
+ 
++    const c = b.addTranslateC(.{
++        .root_source_file = b.path("src/c.h"),
++        .target = target,
++        .optimize = optimize,
++    });
++    // TranslateC does not inherit --search-prefix include paths.
++    for (b.search_prefixes.items) |prefix| {
++        c.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{ prefix, "include" }) });
++    }
++
+     const main_mod = b.createModule(.{
+         .root_source_file = b.path("src/main.zig"),
+         .target = target,
+@@ -17,6 +27,7 @@ pub fn build(b: *std.Build) void {
+         .strip = strip,
+         .link_libc = true,
+     });
++    main_mod.addImport("c", c.createModule());
+     main_mod.linkSystemLibrary("ncursesw", .{});
+     main_mod.linkSystemLibrary("zstd", .{});
+ 
+diff --git a/src/bin_export.zig b/src/bin_export.zig
+index a10128b..e876209 100644
+--- a/src/bin_export.zig
++++ b/src/bin_export.zig
+@@ -7,13 +7,13 @@ const model = @import("model.zig");
+ const sink = @import("sink.zig");
+ const util = @import("util.zig");
+ const ui = @import("ui.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ pub const global = struct {
+-    var fd: std.fs.File = undefined;
++    var fd: std.Io.File = undefined;
+     var index: std.ArrayListUnmanaged(u8) = .empty;
+     var file_off: u64 = 0;
+-    var lock: std.Thread.Mutex = .{};
++    var lock: std.Io.Mutex = .init;
+     var root_itemref: u64 = 0;
+ };
+ 
+@@ -125,8 +125,8 @@ pub const Thread = struct {
+         var block = createBlock(t);
+         defer block.deinit(main.allocator);
+ 
+-        global.lock.lock();
+-        defer global.lock.unlock();
++        global.lock.lockUncancelable(main.io);
++        defer global.lock.unlock(main.io);
+         // This can only really happen when the root path exceeds our block size,
+         // in which case we would probably have error'ed out earlier anyway.
+         if (expected_len > t.buf.len) ui.die("Error writing data: path too long.\n", .{});
+@@ -135,13 +135,13 @@ pub const Thread = struct {
+             if (global.file_off >= (1<<40)) ui.die("Export data file has grown too large, please report a bug.\n", .{});
+             global.index.items[4..][t.block_num*8..][0..8].* = bigu64((global.file_off << 24) + block.items.len);
+             global.file_off += block.items.len;
+-            global.fd.writeAll(block.items) catch |e|
++            global.fd.writeStreamingAll(main.io, block.items) catch |e|
+                 ui.die("Error writing to file: {s}.\n", .{ ui.errorString(e) });
+         }
+ 
+         t.off = 0;
+         t.block_num = @intCast((global.index.items.len - 4) / 8);
+-        global.index.appendSlice(main.allocator, &[1]u8{0}**8) catch unreachable;
++        global.index.appendSlice(main.allocator, &@as([8]u8, @splat(0))) catch unreachable;
+         if (global.index.items.len + 12 >= (1<<28)) ui.die("Too many data blocks, please report a bug.\n", .{});
+ 
+         const newsize = blockSize(t.block_num);
+@@ -246,7 +246,7 @@ pub const Dir = struct {
+     // I'm not expecting much lock contention, but it's possible to turn
+     // last_item into an atomic integer and other fields could be split up for
+     // subdir use.
+-    lock: std.Thread.Mutex = .{},
++    lock: std.Io.Mutex = .init,
+     last_sub: ?u64 = null,
+     stat: sink.Stat,
+     items: u64 = 0,
+@@ -268,8 +268,8 @@ pub const Dir = struct {
+ 
+ 
+     pub fn addSpecial(d: *Dir, t: *Thread, name: []const u8, sp: model.EType) void {
+-        d.lock.lock();
+-        defer d.lock.unlock();
++        d.lock.lockUncancelable(main.io);
++        defer d.lock.unlock(main.io);
+         d.items += 1;
+         if (sp == .err) d.suberr = true;
+         d.last_sub = t.itemStart(sp, d.last_sub, name);
+@@ -277,8 +277,8 @@ pub const Dir = struct {
+     }
+ 
+     pub fn addStat(d: *Dir, t: *Thread, name: []const u8, stat: *const sink.Stat) void {
+-        d.lock.lock();
+-        defer d.lock.unlock();
++        d.lock.lockUncancelable(main.io);
++        defer d.lock.unlock(main.io);
+         d.items += 1;
+         if (stat.etype != .link) {
+             d.size +|= stat.size;
+@@ -309,8 +309,8 @@ pub const Dir = struct {
+     }
+ 
+     pub fn addDir(d: *Dir, stat: *const sink.Stat) Dir {
+-        d.lock.lock();
+-        defer d.lock.unlock();
++        d.lock.lockUncancelable(main.io);
++        defer d.lock.unlock(main.io);
+         d.items += 1;
+         d.size +|= stat.size;
+         d.blocks +|= stat.blocks;
+@@ -318,8 +318,8 @@ pub const Dir = struct {
+     }
+ 
+     pub fn setReadError(d: *Dir) void {
+-        d.lock.lock();
+-        defer d.lock.unlock();
++        d.lock.lockUncancelable(main.io);
++        defer d.lock.unlock(main.io);
+         d.err = true;
+     }
+ 
+@@ -375,8 +375,8 @@ pub const Dir = struct {
+     }
+ 
+     pub fn final(d: *Dir, t: *Thread, name: []const u8, parent: ?*Dir) void {
+-        if (parent) |p| p.lock.lock();
+-        defer if (parent) |p| p.lock.unlock();
++        if (parent) |p| p.lock.lockUncancelable(main.io);
++        defer if (parent) |p| p.lock.unlock(main.io);
+ 
+         if (parent) |p| {
+             // Different dev? Don't merge the 'inodes' sets, just count the
+@@ -445,21 +445,21 @@ pub fn done(threads: []sink.Thread) void {
+         main.allocator.free(t.sink.bin.buf);
+     }
+ 
+-    while (std.mem.endsWith(u8, global.index.items, &[1]u8{0}**8))
++    while (std.mem.endsWith(u8, global.index.items, &@as([8]u8, @splat(0))))
+         global.index.shrinkRetainingCapacity(global.index.items.len - 8);
+     global.index.appendSlice(main.allocator, &bigu64(global.root_itemref)) catch unreachable;
+     global.index.appendSlice(main.allocator, &blockHeader(1, @intCast(global.index.items.len + 4))) catch unreachable;
+     global.index.items[0..4].* = blockHeader(1, @intCast(global.index.items.len));
+-    global.fd.writeAll(global.index.items) catch |e|
++    global.fd.writeStreamingAll(main.io, global.index.items) catch |e|
+         ui.die("Error writing to file: {s}.\n", .{ ui.errorString(e) });
+     global.index.clearAndFree(main.allocator);
+ 
+-    global.fd.close();
++    global.fd.close(main.io);
+ }
+ 
+-pub fn setupOutput(fd: std.fs.File) void {
++pub fn setupOutput(fd: std.Io.File) void {
+     global.fd = fd;
+-    fd.writeAll(SIGNATURE) catch |e|
++    fd.writeStreamingAll(main.io, SIGNATURE) catch |e|
+         ui.die("Error writing to file: {s}.\n", .{ ui.errorString(e) });
+     global.file_off = 8;
+ 
+diff --git a/src/bin_reader.zig b/src/bin_reader.zig
+index cdbe117..41a8a24 100644
+--- a/src/bin_reader.zig
++++ b/src/bin_reader.zig
+@@ -8,7 +8,7 @@ const util = @import("util.zig");
+ const sink = @import("sink.zig");
+ const ui = @import("ui.zig");
+ const bin_export = @import("bin_export.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ 
+ const CborMajor = bin_export.CborMajor;
+@@ -39,9 +39,9 @@ const ItemKey = bin_export.ItemKey;
+ // This file only implements (2) at the moment.
+ 
+ pub const global = struct {
+-    var fd: std.fs.File = undefined;
++    var fd: std.Io.File = undefined;
+     var index: []u8 = undefined;
+-    var blocks: [8]Block = [1]Block{.{}}**8;
++    var blocks: [8]Block = @splat(.{});
+     var counter: u64 = 0;
+ 
+     // Last itemref being read/parsed. This is a hack to provide *some* context on error.
+@@ -97,7 +97,7 @@ fn readBlock(num: u32) []const u8 {
+     // Only read the compressed data part, assume block header, number and footer are correct.
+     const buf = main.allocator.alloc(u8, @intCast(len - 12)) catch unreachable;
+     defer main.allocator.free(buf);
+-    const rdlen = global.fd.preadAll(buf, off + 8)
++    const rdlen = global.fd.readPositionalAll(main.io, buf, off + 8)
+         catch |e| ui.die("Error reading from file: {s}\n", .{ui.errorString(e)});
+     if (rdlen != buf.len) die();
+ 
+@@ -233,8 +233,8 @@ const CborVal = struct {
+ 
+     fn etype(v: *const CborVal) model.EType {
+         const n = v.int(i32);
+-        return std.meta.intToEnum(model.EType, n)
+-            catch if (n < 0) .pattern else .nonreg;
++        return std.enums.fromInt(model.EType, n)
++            orelse if (n < 0) .pattern else .nonreg;
+     }
+ 
+     fn itemref(v: *const CborVal, cur: u64) u64 {
+@@ -501,21 +501,26 @@ pub fn import() void {
+ }
+ 
+ // Assumes that the file signature has already been read and validated.
+-pub fn open(fd: std.fs.File) !void {
++pub fn open(fd: std.Io.File) !void {
+     global.fd = fd;
+ 
+-    // Do not use fd.getEndPos() because that requires newer kernels supporting statx() #261.
+-    try fd.seekFromEnd(0);
+-    const size = try fd.getPos();
++    // Keep using lseek: Io.File.length uses statx on Linux, which broke older kernels (#261).
++    const end = std.c.lseek(fd.handle, 0, std.c.SEEK.END);
++    if (end < 0) return switch (std.posix.errno(end)) {
++        .SPIPE => error.Unseekable,
++        .OVERFLOW => error.FileTooBig,
++        else => error.Unexpected,
++    };
++    const size: u64 = @intCast(end);
+     if (size < 16) return error.EndOfStream;
+ 
+     // Read index block
+     var buf: [4]u8 = undefined;
+-    if (try fd.preadAll(&buf, size - 4) != 4) return error.EndOfStream;
++    if (try fd.readPositionalAll(main.io, &buf, size - 4) != 4) return error.EndOfStream;
+     const index_header = bigu32(buf);
+     if ((index_header >> 28) != 1 or (index_header & 7) != 0) die();
+     const len = (index_header & 0x0fffffff) - 8; // excluding block header & footer
+     if (len >= size) die();
+     global.index = main.allocator.alloc(u8, len) catch unreachable;
+-    if (try fd.preadAll(global.index, size - len - 4) != global.index.len) return error.EndOfStream;
++    if (try fd.readPositionalAll(main.io, global.index, size - len - 4) != global.index.len) return error.EndOfStream;
+ }
+diff --git a/src/browser.zig b/src/browser.zig
+index c664baf..f38af9b 100644
+--- a/src/browser.zig
++++ b/src/browser.zig
+@@ -9,7 +9,7 @@ const mem_sink = @import("mem_sink.zig");
+ const bin_reader = @import("bin_reader.zig");
+ const delete = @import("delete.zig");
+ const ui = @import("ui.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ const util = @import("util.zig");
+ 
+ // Currently opened directory.
+@@ -137,7 +137,7 @@ pub fn loadDir(next_sel: u64) void {
+     // XXX: The current dir listing is wiped before loading the new one, which
+     // causes the screen to flicker a bit when the loading indicator is drawn.
+     // Should we keep the old listing around?
+-    main.event_delay_timer.reset();
++    main.event_delay_time = std.Io.Clock.awake.now(main.io);
+     _ = dir_alloc.reset(.free_all);
+     dir_items.shrinkRetainingCapacity(0);
+     dir_refs.shrinkRetainingCapacity(0);
+@@ -190,7 +190,7 @@ pub fn initRoot() void {
+         dir_parent = model.root;
+         dir_parents.append(main.allocator, .{ .ptr = &dir_parent.entry }) catch unreachable;
+     }
+-    dir_path = main.allocator.dupeZ(u8, dir_parent.entry.name()) catch unreachable;
++    dir_path = main.allocator.dupeSentinel(u8, dir_parent.entry.name(), 0) catch unreachable;
+     loadDir(0);
+ }
+ 
+@@ -224,7 +224,7 @@ fn enterParent() void {
+     } else
+         dir_parent = p.ptr.?.dir() orelse unreachable;
+ 
+-    const newpath = main.allocator.dupeZ(u8, std.fs.path.dirname(dir_path) orelse unreachable) catch unreachable;
++    const newpath = main.allocator.dupeSentinel(u8, std.fs.path.dirname(dir_path) orelse unreachable, 0) catch unreachable;
+     main.allocator.free(dir_path);
+     dir_path = newpath;
+ }
+@@ -541,13 +541,13 @@ const info = struct {
+             if (ext.pack.hasuid) {
+                 ui.addstr("  UID: ");
+                 ui.style(.default);
+-                ui.addstr(std.fmt.bufPrintZ(&buf, "{d:<6}", .{ ext.uid }) catch unreachable);
++                ui.addstr(std.fmt.bufPrintSentinel(&buf, "{d:<6}", .{ ext.uid }, 0) catch unreachable);
+                 ui.style(.bold);
+             }
+             if (ext.pack.hasgid) {
+                 ui.addstr(" GID: ");
+                 ui.style(.default);
+-                ui.addstr(std.fmt.bufPrintZ(&buf, "{d:<6}", .{ ext.gid }) catch unreachable);
++                ui.addstr(std.fmt.bufPrintSentinel(&buf, "{d:<6}", .{ ext.gid }, 0) catch unreachable);
+             }
+         } else {
+             ui.addstr("Type: ");
+@@ -596,7 +596,7 @@ const info = struct {
+             ui.addstr("  Inode: ");
+             ui.style(.default);
+             var buf: [32]u8 = undefined;
+-            ui.addstr(std.fmt.bufPrintZ(&buf, "{}", .{ l.ino }) catch unreachable);
++            ui.addstr(std.fmt.bufPrintSentinel(&buf, "{}", .{ l.ino }, 0) catch unreachable);
+             row.* += 1;
+         }
+     }
+diff --git a/src/c.zig b/src/c.zig
+deleted file mode 100644
+index 88f8e12..0000000
+--- a/src/c.zig
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// SPDX-FileCopyrightText: Yorhel <projects@yorhel.nl>
+-// SPDX-License-Identifier: MIT
+-
+-pub const c = @cImport({
+-    @cDefine("_XOPEN_SOURCE", "1"); // for wcwidth()
+-    @cInclude("stdio.h"); // fopen(), used to initialize ncurses
+-    @cInclude("string.h"); // strerror()
+-    @cInclude("time.h"); // strftime()
+-    @cInclude("wchar.h"); // wcwidth()
+-    @cInclude("locale.h"); // setlocale() and localeconv()
+-    @cInclude("fnmatch.h"); // fnmatch()
+-    @cInclude("unistd.h"); // getuid()
+-    @cInclude("sys/types.h"); // struct passwd
+-    @cInclude("pwd.h"); // getpwnam(), getpwuid()
+-    if (@import("builtin").os.tag == .linux) {
+-        @cInclude("sys/vfs.h"); // statfs()
+-    }
+-    @cInclude("curses.h");
+-    @cInclude("zstd.h");
+-});
+diff --git a/src/delete.zig b/src/delete.zig
+index 5d4d4af..f1bb883 100644
+--- a/src/delete.zig
++++ b/src/delete.zig
+@@ -10,7 +10,7 @@ const scan = @import("scan.zig");
+ const sink = @import("sink.zig");
+ const mem_sink = @import("mem_sink.zig");
+ const util = @import("util.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ var parent: *model.Dir = undefined;
+ var entry: *model.Entry = undefined;
+@@ -42,30 +42,30 @@ fn err(e: anyerror) bool {
+     return main.state != .delete;
+ }
+ 
+-fn deleteItem(dir: std.fs.Dir, path: [:0]const u8, ptr: *align(1) ?*model.Entry) bool {
++fn deleteItem(dir: std.Io.Dir, path: [:0]const u8, ptr: *align(1) ?*model.Entry) bool {
+     entry = ptr.*.?;
+     main.handleEvent(false, false);
+     if (main.state != .delete)
+         return true;
+ 
+     if (entry.dir()) |d| {
+-        var fd = dir.openDirZ(path, .{ .no_follow = true, .iterate = false }) catch |e| return err(e);
++        var fd = dir.openDir(main.io, path, .{ .follow_symlinks = false, .iterate = false }) catch |e| return err(e);
+         var it = &d.sub.ptr;
+         parent = d;
+         defer parent = parent.parent.?;
+         while (it.*) |n| {
+             if (deleteItem(fd, n.name(), it)) {
+-                fd.close();
++                fd.close(main.io);
+                 return true;
+             }
+             if (it.* == n) // item deletion failed, make sure to still advance to next
+                 it = &n.next.ptr;
+         }
+-        fd.close();
+-        dir.deleteDirZ(path) catch |e|
++        fd.close(main.io);
++        dir.deleteDir(main.io, path) catch |e|
+             return if (e != error.DirNotEmpty or d.sub.ptr == null) err(e) else false;
+     } else
+-        dir.deleteFileZ(path) catch |e| return err(e);
++        dir.deleteFile(main.io, path) catch |e| return err(e);
+     ptr.*.?.zeroStats(parent);
+     ptr.* = ptr.*.?.next.ptr;
+     return false;
+@@ -74,7 +74,7 @@ fn deleteItem(dir: std.fs.Dir, path: [:0]const u8, ptr: *align(1) ?*model.Entry)
+ // Returns true if the item has been deleted successfully.
+ fn deleteCmd(path: [:0]const u8, ptr: *align(1) ?*model.Entry) bool {
+     {
+-        var env = std.process.getEnvMap(main.allocator) catch unreachable;
++        var env = main.environ.createMap(main.allocator) catch unreachable;
+         defer env.deinit();
+         env.put("NCDU_DELETE_PATH", path) catch unreachable;
+ 
+@@ -86,7 +86,7 @@ fn deleteCmd(path: [:0]const u8, ptr: *align(1) ?*model.Entry) bool {
+         ui.runCmd(&.{"/bin/sh", "-c", cmd}, null, &env, true);
+     }
+ 
+-    const stat = scan.statAt(std.fs.cwd(), path, false, null) catch {
++    const stat = scan.statAt(std.Io.Dir.cwd(), path, false, null) catch {
+         // Stat failed. Would be nice to display an error if it's not
+         // 'FileNotFound', but w/e, let's just assume the item has been
+         // deleted as expected.
+@@ -144,7 +144,7 @@ pub fn delete() ?*model.Entry {
+     path.appendSlice(main.allocator, entry.name()) catch unreachable;
+ 
+     if (main.config.delete_command.len == 0) {
+-        _ = deleteItem(std.fs.cwd(), util.arrayListBufZ(&path, main.allocator), it);
++        _ = deleteItem(std.Io.Dir.cwd(), util.arrayListBufZ(&path, main.allocator), it);
+         model.inodes.addAllStats();
+         return if (it.* == e) e else next_sel;
+     } else {
+diff --git a/src/exclude.zig b/src/exclude.zig
+index 2376640..151f5a0 100644
+--- a/src/exclude.zig
++++ b/src/exclude.zig
+@@ -3,7 +3,7 @@
+ 
+ const std = @import("std");
+ const main = @import("main.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ // Reference:
+ //   https://manned.org/glob.7
+@@ -55,12 +55,12 @@ const Pattern = struct {
+     }
+ 
+     fn parse(pat_: []const u8) *const Pattern {
+-        var pat = std.mem.trimLeft(u8, pat_, "/");
++        var pat = std.mem.trimStart(u8, pat_, "/");
+         const top = main.allocator.create(Pattern) catch unreachable;
+         var tail = top;
+         tail.sub = null;
+-        while (std.mem.indexOfScalar(u8, pat, '/')) |idx| {
+-            tail.pattern = main.allocator.dupeZ(u8, pat[0..idx]) catch unreachable;
++        while (std.mem.findScalar(u8, pat, '/')) |idx| {
++            tail.pattern = main.allocator.dupeSentinel(u8, pat[0..idx], 0) catch unreachable;
+             tail.isdir = true;
+             tail.isliteral = isLiteral(tail.pattern);
+             pat = pat[idx+1..];
+@@ -71,7 +71,7 @@ const Pattern = struct {
+             tail = next;
+             tail.sub = null;
+         }
+-        tail.pattern = main.allocator.dupeZ(u8, pat) catch unreachable;
++        tail.pattern = main.allocator.dupeSentinel(u8, pat, 0) catch unreachable;
+         tail.isdir = false;
+         tail.isliteral = isLiteral(tail.pattern);
+         return top;
+@@ -150,7 +150,7 @@ fn PatternList(comptime withsub: bool) type {
+                 const e = self.literals.getOrPut(main.allocator, pat) catch unreachable;
+                 if (!e.found_existing) {
+                     e.key_ptr.* = pat;
+-                    e.value_ptr.* = if (withsub) .{} else {};
++                    e.value_ptr.* = if (withsub) .empty else {};
+                 }
+                 if (!withsub and !pat.isdir and e.key_ptr.*.isdir) e.key_ptr.* = pat;
+                 if (withsub) {
+@@ -249,8 +249,8 @@ pub fn getPatterns(path_: []const u8) Patterns {
+     if (path.len == 0) return root;
+     var pat = root;
+     defer pat.deinit();
+-    while (std.mem.indexOfScalar(u8, path, '/')) |idx| {
+-        const name = main.allocator.dupeZ(u8, path[0..idx]) catch unreachable;
++    while (std.mem.findScalar(u8, path, '/')) |idx| {
++        const name = main.allocator.dupeSentinel(u8, path[0..idx], 0) catch unreachable;
+         defer main.allocator.free(name);
+         path = path[idx+1..];
+ 
+@@ -259,7 +259,7 @@ pub fn getPatterns(path_: []const u8) Patterns {
+         pat = sub;
+     }
+ 
+-    const name = main.allocator.dupeZ(u8, path) catch unreachable;
++    const name = main.allocator.dupeSentinel(u8, path, 0) catch unreachable;
+     defer main.allocator.free(name);
+     return pat.enter(name);
+ }
+diff --git a/src/json_export.zig b/src/json_export.zig
+index 3937b3f..8def2cc 100644
+--- a/src/json_export.zig
++++ b/src/json_export.zig
+@@ -7,7 +7,7 @@ const model = @import("model.zig");
+ const sink = @import("sink.zig");
+ const util = @import("util.zig");
+ const ui = @import("ui.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ // JSON output is necessarily single-threaded and items MUST be added depth-first.
+ 
+@@ -42,7 +42,7 @@ const ZstdWriter = struct {
+         main.allocator.destroy(w);
+     }
+ 
+-    fn write(w: *ZstdWriter, f: std.fs.File, in: []const u8, flush: bool) !void {
++    fn write(w: *ZstdWriter, f: std.Io.File, in: []const u8, flush: bool) !void {
+         var arg = c.ZSTD_inBuffer{
+             .src = in.ptr,
+             .size = in.len,
+@@ -52,7 +52,7 @@ const ZstdWriter = struct {
+             const v = c.ZSTD_compressStream2(w.ctx, &w.out, &arg, if (flush) c.ZSTD_e_end else c.ZSTD_e_continue);
+             if (c.ZSTD_isError(v) != 0) return error.ZstdCompressError;
+             if (flush or w.out.pos > w.outbuf.len / 2) {
+-                try f.writeAll(w.outbuf[0..w.out.pos]);
++                try f.writeStreamingAll(main.io, w.outbuf[0..w.out.pos]);
+                 w.out.pos = 0;
+             }
+             if (!flush and arg.pos == arg.size) break;
+@@ -62,7 +62,7 @@ const ZstdWriter = struct {
+ };
+ 
+ pub const Writer = struct {
+-    fd: std.fs.File,
++    fd: std.Io.File,
+     zstd: ?*ZstdWriter = null,
+     // Must be large enough to hold PATH_MAX*6 plus some overhead.
+     // (The 6 is because, in the worst case, every byte expands to a "\u####"
+@@ -78,7 +78,7 @@ pub const Writer = struct {
+         // in which case we would probably have error'ed out earlier anyway.
+         if (bytes > ctx.buf.len) ui.die("Error writing JSON export: path too long.\n", .{});
+         const buf = ctx.buf[0..ctx.off];
+-        (if (ctx.zstd) |z| z.write(ctx.fd, buf, bytes == 0) else ctx.fd.writeAll(buf)) catch |e|
++        (if (ctx.zstd) |z| z.write(ctx.fd, buf, bytes == 0) else ctx.fd.writeStreamingAll(main.io, buf)) catch |e|
+             ui.die("Error writing to file: {s}.\n", .{ ui.errorString(e) });
+         ctx.off = 0;
+     }
+@@ -138,12 +138,12 @@ pub const Writer = struct {
+         ctx.write(buf[index..]);
+     }
+ 
+-    fn init(out: std.fs.File) *Writer {
++    fn init(out: std.Io.File) *Writer {
+         var ctx = main.allocator.create(Writer) catch unreachable;
+         ctx.* = .{ .fd = out };
+         if (main.config.compress) ctx.zstd = ZstdWriter.create();
+         ctx.write("[1,2,{\"progname\":\"ncdu\",\"progver\":\"" ++ main.program_version ++ "\",\"timestamp\":");
+-        ctx.writeUint(@intCast(@max(0, std.time.timestamp())));
++        ctx.writeUint(@intCast(@max(0, std.Io.Clock.real.now(main.io).toSeconds())));
+         ctx.writeByte('}');
+         return ctx;
+     }
+@@ -261,10 +261,10 @@ pub fn done() void {
+     global.writer.write("]\n");
+     global.writer.flush(0);
+     if (global.writer.zstd) |z| z.destroy();
+-    global.writer.fd.close();
++    global.writer.fd.close(main.io);
+     main.allocator.destroy(global.writer);
+ }
+ 
+-pub fn setupOutput(out: std.fs.File) void {
++pub fn setupOutput(out: std.Io.File) void {
+     global.writer = Writer.init(out);
+ }
+diff --git a/src/json_import.zig b/src/json_import.zig
+index 28224e6..005c778 100644
+--- a/src/json_import.zig
++++ b/src/json_import.zig
+@@ -7,7 +7,7 @@ const util = @import("util.zig");
+ const model = @import("model.zig");
+ const sink = @import("sink.zig");
+ const ui = @import("ui.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ 
+ const ZstdReader = struct {
+@@ -37,15 +37,15 @@ const ZstdReader = struct {
+         main.allocator.destroy(r);
+     }
+ 
+-    fn read(r: *ZstdReader, f: std.fs.File, out: []u8) !usize {
++    fn read(r: *ZstdReader, f: std.Io.File, out: []u8) !usize {
+         while (true) {
+             if (r.in.size == r.in.pos) {
+                 r.in.pos = 0;
+-                r.in.size = try f.read(&r.inbuf);
+-                if (r.in.size == 0) {
+-                    if (r.lastret == 0) return 0;
+-                    return error.ZstdDecompressError; // Early EOF
+-                }
++                r.in.size = f.readStreaming(main.io, &.{&r.inbuf}) catch |e| switch (e) {
++                    error.EndOfStream => return if (r.lastret == 0) 0 else error.ZstdDecompressError,
++                    else => return e,
++                };
++                if (r.in.size == 0) continue;
+             }
+ 
+             var arg = c.ZSTD_outBuffer{ .dst = out.ptr, .size = out.len, .pos = 0 };
+@@ -63,7 +63,7 @@ const ZstdReader = struct {
+ // strings.
+ 
+ const Parser = struct {
+-    rd: std.fs.File,
++    rd: std.Io.File,
+     zstd: ?*ZstdReader = null,
+     rdoff: usize = 0,
+     rdsize: usize = 0,
+@@ -84,7 +84,14 @@ const Parser = struct {
+ 
+     fn fill(p: *Parser) void {
+         p.rdoff = 0;
+-        p.rdsize = (if (p.zstd) |z| z.read(p.rd, &p.buf) else p.rd.read(&p.buf)) catch |e| switch (e) {
++        const input: anyerror!usize = if (p.zstd) |z| z.read(p.rd, &p.buf) else blk: {
++            while (true) {
++                const n = p.rd.readStreaming(main.io, &.{&p.buf}) catch |e| break :blk e;
++                if (n != 0) break :blk n;
++            }
++        };
++        p.rdsize = input catch |e| switch (e) {
++            error.EndOfStream => 0,
+             error.IsDir => p.die("not a file"), // should be detected at open() time, but no flag for that...
+             error.SystemResources => p.die("out of memory"),
+             error.ZstdDecompressError => p.die("decompression error"),
+@@ -528,7 +535,7 @@ fn item(ctx: *Ctx, parent: ?*sink.Dir, dev: u64) void {
+ }
+ 
+ 
+-pub fn import(fd: std.fs.File, head: []const u8) void {
++pub fn import(fd: std.Io.File, head: []const u8) void {
+     const sink_threads = sink.createThreads(1);
+     defer sink.done();
+ 
+diff --git a/src/main.zig b/src/main.zig
+index 7301586..9b0c384 100644
+--- a/src/main.zig
++++ b/src/main.zig
+@@ -18,7 +18,10 @@ const browser = @import("browser.zig");
+ const delete = @import("delete.zig");
+ const util = @import("util.zig");
+ const exclude = @import("exclude.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
++
++pub var io: std.Io = if (@import("builtin").is_test) std.testing.io else undefined;
++pub var environ: std.process.Environ = undefined;
+ 
+ test "imports" {
+     _ = model;
+@@ -118,8 +121,8 @@ pub const config = struct {
+ 
+ pub var state: enum { scan, browse, refresh, shell, delete } = .scan;
+ 
+-const stdin = if (@hasDecl(std.io, "getStdIn")) std.io.getStdIn() else std.fs.File.stdin();
+-const stdout = if (@hasDecl(std.io, "getStdOut")) std.io.getStdOut() else std.fs.File.stdout();
++const stdin = std.Io.File.stdin();
++const stdout = std.Io.File.stdout();
+ 
+ // Simple generic argument parser, supports getopt_long() style arguments.
+ const Args = struct {
+@@ -178,7 +181,7 @@ const Args = struct {
+             return self.next();
+         }
+         if (val[1] == '-') {
+-            if (std.mem.indexOfScalar(u8, val, '=')) |sep| {
++            if (std.mem.findScalar(u8, val, '=')) |sep| {
+                 if (sep == 2) try self.die("Invalid option '{s}'.\n", .{val});
+                 self.last_arg = val[sep+1.. :0];
+                 self.last = val[0..sep];
+@@ -309,7 +312,7 @@ fn argConfig(args: *Args, opt: Args.Option, infile: bool) !void {
+     else if (opt.is("--no-confirm-quit")) config.confirm_quit = false
+     else if (opt.is("--confirm-delete")) config.confirm_delete = true
+     else if (opt.is("--no-confirm-delete")) config.confirm_delete = false
+-    else if (opt.is("--delete-command")) config.delete_command = allocator.dupeZ(u8, try args.arg()) catch unreachable
++    else if (opt.is("--delete-command")) config.delete_command = allocator.dupeSentinel(u8, try args.arg(), 0) catch unreachable
+     else if (opt.is("--color")) {
+         const val = try args.arg();
+         if (std.mem.eql(u8, val, "off")) config.ui_color = .off
+@@ -323,19 +326,19 @@ fn argConfig(args: *Args, opt: Args.Option, infile: bool) !void {
+ }
+ 
+ fn tryReadArgsFile(path: [:0]const u8) void {
+-    var f = std.fs.cwd().openFileZ(path, .{}) catch |e| switch (e) {
++    var f = std.Io.Dir.cwd().openFile(io, path, .{}) catch |e| switch (e) {
+         error.FileNotFound => return,
+         error.NotDir => return,
+         else => ui.die("Error opening {s}: {s}\nRun with --ignore-config to skip reading config files.\n", .{ path, ui.errorString(e) }),
+     };
+-    defer f.close();
++    defer f.close(io);
+ 
+     var line_buf: [4096]u8 = undefined;
+-    var line_rd = util.LineReader.init(f, &line_buf);
++    var line_rd = f.readerStreaming(io, &line_buf);
+ 
+     while (true) {
+-        const line_ = (line_rd.read() catch |e|
+-            ui.die("Error reading from {s}: {s}\nRun with --ignore-config to skip reading config files.\n", .{ path, ui.errorString(e) })
++        const line_ = (line_rd.interface.takeDelimiter('\n') catch |e|
++            ui.die("Error reading from {s}: {s}\nRun with --ignore-config to skip reading config files.\n", .{ path, ui.errorString(line_rd.err orelse e) })
+         ) orelse break;
+ 
+         var argc: usize = 0;
+@@ -348,12 +351,12 @@ fn tryReadArgsFile(path: [:0]const u8) void {
+             line = line[1..];
+         }
+         if (line.len == 0 or line[0] == '#') continue;
+-        if (std.mem.indexOfAny(u8, line, " \t=")) |i| {
+-            arglist[argc] = allocator.dupeZ(u8, line[0..i]) catch unreachable;
++        if (std.mem.findAny(u8, line, " \t=")) |i| {
++            arglist[argc] = allocator.dupeSentinel(u8, line[0..i], 0) catch unreachable;
+             argc += 1;
+-            line = std.mem.trimLeft(u8, line[i+1..], &std.ascii.whitespace);
++            line = std.mem.trimStart(u8, line[i+1..], &std.ascii.whitespace);
+         }
+-        arglist[argc] = allocator.dupeZ(u8, line) catch unreachable;
++        arglist[argc] = allocator.dupeSentinel(u8, line, 0) catch unreachable;
+         argc += 1;
+ 
+         var args = Args.init(arglist[0..argc]);
+@@ -371,12 +374,12 @@ fn tryReadArgsFile(path: [:0]const u8) void {
+ }
+ 
+ fn version() noreturn {
+-    stdout.writeAll("ncdu " ++ program_version ++ "\n") catch {};
++    stdout.writeStreamingAll(io, "ncdu " ++ program_version ++ "\n") catch {};
+     std.process.exit(0);
+ }
+ 
+ fn help() noreturn {
+-    stdout.writeAll(
++    stdout.writeStreamingAll(io,
+     \\ncdu <options> <directory>
+     \\
+     \\Mode selection:
+@@ -435,12 +438,12 @@ fn help() noreturn {
+ 
+ 
+ fn readExcludeFile(path: [:0]const u8) !void {
+-    const f = try std.fs.cwd().openFileZ(path, .{});
+-    defer f.close();
++    const f = try std.Io.Dir.cwd().openFile(io, path, .{});
++    defer f.close(io);
+ 
+     var line_buf: [4096]u8 = undefined;
+-    var line_rd = util.LineReader.init(f, &line_buf);
+-    while (try line_rd.read()) |line| {
++    var line_rd = f.readerStreaming(io, &line_buf);
++    while (line_rd.interface.takeDelimiter('\n') catch |e| return line_rd.err orelse e) |line| {
+         if (line.len > 0)
+             exclude.addPattern(line);
+     }
+@@ -449,21 +452,24 @@ fn readExcludeFile(path: [:0]const u8) !void {
+ fn readImport(path: [:0]const u8) !void {
+     const fd =
+         if (std.mem.eql(u8, "-", path)) stdin
+-        else try std.fs.cwd().openFileZ(path, .{});
+-    errdefer fd.close();
++        else try std.Io.Dir.cwd().openFile(io, path, .{});
++    errdefer fd.close(io);
+ 
+     var buf: [8]u8 = undefined;
+-    if (8 != try fd.readAll(&buf)) return error.EndOfStream;
++    var reader = fd.readerStreaming(io, &.{});
++    reader.interface.readSliceAll(&buf) catch |e| return reader.err orelse e;
+     if (std.mem.eql(u8, &buf, bin_export.SIGNATURE)) {
+         try bin_reader.open(fd);
+         config.binreader = true;
+     } else {
+         json_import.import(fd, &buf);
+-        fd.close();
++        fd.close(io);
+     }
+ }
+ 
+-pub fn main() void {
++pub fn main(init: std.process.Init) void {
++    io = init.io;
++    environ = init.minimal.environ;
+     ui.main_thread = std.Thread.getCurrentId();
+ 
+     // Grab thousands_sep from the current C locale.
+@@ -477,7 +483,7 @@ pub fn main() void {
+     }
+ 
+     const loadConf = blk: {
+-        var args = std.process.ArgIteratorPosix.init();
++        var args = init.minimal.args.iterate();
+         while (args.next()) |a|
+             if (std.mem.eql(u8, a, "--ignore-config"))
+                 break :blk false;
+@@ -487,11 +493,11 @@ pub fn main() void {
+     if (loadConf) {
+         tryReadArgsFile("/etc/ncdu.conf");
+ 
+-        if (std.posix.getenvZ("XDG_CONFIG_HOME")) |p| {
++        if (environ.getPosix("XDG_CONFIG_HOME")) |p| {
+             const path = std.fs.path.joinZ(allocator, &.{p, "ncdu", "config"}) catch unreachable;
+             defer allocator.free(path);
+             tryReadArgsFile(path);
+-        } else if (std.posix.getenvZ("HOME")) |p| {
++        } else if (environ.getPosix("HOME")) |p| {
+             const path = std.fs.path.joinZ(allocator, &.{p, ".config", "ncdu", "config"}) catch unreachable;
+             defer allocator.free(path);
+             tryReadArgsFile(path);
+@@ -504,25 +510,24 @@ pub fn main() void {
+     var export_bin: ?[:0]const u8 = null;
+     var quit_after_scan = false;
+     {
+-        const arglist = std.process.argsAlloc(allocator) catch unreachable;
+-        defer std.process.argsFree(allocator, arglist);
++        const arglist = init.minimal.args.toSlice(init.arena.allocator()) catch unreachable;
+         var args = Args.init(arglist);
+         _ = args.next() catch unreachable; // program name
+         while (args.next() catch unreachable) |opt| {
+             if (!opt.opt) {
+                 // XXX: ncdu 1.x doesn't error, it just silently ignores all but the last argument.
+                 if (scan_dir != null) ui.die("Multiple directories given, see ncdu -h for help.\n", .{});
+-                scan_dir = allocator.dupeZ(u8, opt.val) catch unreachable;
++                scan_dir = allocator.dupeSentinel(u8, opt.val, 0) catch unreachable;
+                 continue;
+             }
+             if (opt.is("-h") or opt.is("-?") or opt.is("--help")) help()
+             else if (opt.is("-v") or opt.is("-V") or opt.is("--version")) version()
+             else if (opt.is("-o") and (export_json != null or export_bin != null)) ui.die("The -o flag can only be given once.\n", .{})
+-            else if (opt.is("-o")) export_json = allocator.dupeZ(u8, args.arg() catch unreachable) catch unreachable
++            else if (opt.is("-o")) export_json = allocator.dupeSentinel(u8, args.arg() catch unreachable, 0) catch unreachable
+             else if (opt.is("-O") and (export_json != null or export_bin != null)) ui.die("The -O flag can only be given once.\n", .{})
+-            else if (opt.is("-O")) export_bin = allocator.dupeZ(u8, args.arg() catch unreachable) catch unreachable
++            else if (opt.is("-O")) export_bin = allocator.dupeSentinel(u8, args.arg() catch unreachable, 0) catch unreachable
+             else if (opt.is("-f") and import_file != null) ui.die("The -f flag can only be given once.\n", .{})
+-            else if (opt.is("-f")) import_file = allocator.dupeZ(u8, args.arg() catch unreachable) catch unreachable
++            else if (opt.is("-f")) import_file = allocator.dupeSentinel(u8, args.arg() catch unreachable, 0) catch unreachable
+             else if (opt.is("--ignore-config")) {}
+             else if (opt.is("--quit-after-scan")) quit_after_scan = true // undocumented feature to help with benchmarking scan/import
+             else if (argConfig(&args, opt, false)) |_| {}
+@@ -535,8 +540,8 @@ pub fn main() void {
+     if (@import("builtin").os.tag != .linux and config.exclude_kernfs)
+         ui.die("The --exclude-kernfs flag is currently only supported on Linux.\n", .{});
+ 
+-    const out_tty = stdout.isTty();
+-    const in_tty = stdin.isTty();
++    const out_tty = stdout.isTty(io) catch false;
++    const in_tty = stdin.isTty(io) catch false;
+     if (config.scan_ui == null) {
+         if (export_json orelse export_bin) |f| {
+             if (!out_tty or std.mem.eql(u8, f, "-")) config.scan_ui = .none
+@@ -547,20 +552,20 @@ pub fn main() void {
+         ui.die("Standard input is not a TTY. Did you mean to import a file using '-f -'?\n", .{});
+     config.nc_tty = !in_tty or (if (export_json orelse export_bin) |f| std.mem.eql(u8, f, "-") else false);
+ 
+-    event_delay_timer = std.time.Timer.start() catch unreachable;
++    event_delay_time = std.Io.Clock.awake.now(io);
+     defer ui.deinit();
+ 
+     if (export_json) |f| {
+         const file =
+             if (std.mem.eql(u8, f, "-")) stdout
+-            else std.fs.cwd().createFileZ(f, .{})
++            else std.Io.Dir.cwd().createFile(io, f, .{})
+                  catch |e| ui.die("Error opening export file: {s}.\n", .{ui.errorString(e)});
+         json_export.setupOutput(file);
+         sink.global.sink = .json;
+     } else if (export_bin) |f| {
+         const file =
+             if (std.mem.eql(u8, f, "-")) stdout
+-            else std.fs.cwd().createFileZ(f, .{})
++            else std.Io.Dir.cwd().createFile(io, f, .{})
+                  catch |e| ui.die("Error opening export file: {s}.\n", .{ui.errorString(e)});
+         bin_export.setupOutput(file);
+         sink.global.sink = .bin;
+@@ -574,7 +579,7 @@ pub fn main() void {
+     } else {
+         var buf: [std.fs.max_path_bytes+1]u8 = @splat(0);
+         const path =
+-            if (std.posix.realpathZ(scan_dir orelse ".", buf[0..buf.len-1])) |p| buf[0..p.len:0]
++            if (std.Io.Dir.cwd().realPathFile(io, scan_dir orelse ".", buf[0..buf.len-1])) |len| buf[0..len:0]
+             else |_| (scan_dir orelse ".");
+         scan.scan(path) catch |e| ui.die("Error opening directory: {s}.\n", .{ui.errorString(e)});
+     }
+@@ -596,7 +601,7 @@ pub fn main() void {
+                 defer full_path.deinit(allocator);
+                 mem_sink.global.root.?.fmtPath(allocator, true, &full_path);
+                 scan.scan(util.arrayListBufZ(&full_path, allocator)) catch {
+-                    sink.global.last_error = allocator.dupeZ(u8, full_path.items) catch unreachable;
++                    sink.global.last_error = allocator.dupeSentinel(u8, full_path.items, 0) catch unreachable;
+                     sink.global.state = .err;
+                     while (state == .refresh) handleEvent(true, true);
+                 };
+@@ -604,8 +609,8 @@ pub fn main() void {
+                 browser.loadDir(0);
+             },
+             .shell => {
+-                const shell = std.posix.getenvZ("NCDU_SHELL") orelse std.posix.getenvZ("SHELL") orelse "/bin/sh";
+-                var env = std.process.getEnvMap(allocator) catch unreachable;
++                const shell = environ.getPosix("NCDU_SHELL") orelse environ.getPosix("SHELL") orelse "/bin/sh";
++                var env = environ.createMap(allocator) catch unreachable;
+                 defer env.deinit();
+                 ui.runCmd(&.{shell}, browser.dir_path, &env, false);
+                 state = .browse;
+@@ -622,14 +627,14 @@ pub fn main() void {
+     }
+ }
+ 
+-pub var event_delay_timer: std.time.Timer = undefined;
++pub var event_delay_time: std.Io.Timestamp = undefined;
+ 
+ // Draw the screen and handle the next input event.
+ // In non-blocking mode, screen drawing is rate-limited to keep this function fast.
+ pub fn handleEvent(block: bool, force_draw: bool) void {
+     while (ui.oom_threads.load(.monotonic) > 0) ui.oom();
+ 
+-    if (block or force_draw or event_delay_timer.read() > config.update_delay) {
++    if (block or force_draw or std.Io.Clock.awake.now(io).nanoseconds - event_delay_time.nanoseconds > config.update_delay) {
+         if (ui.inited) _ = c.erase();
+         switch (state) {
+             .scan, .refresh => sink.draw(),
+@@ -638,7 +643,7 @@ pub fn handleEvent(block: bool, force_draw: bool) void {
+             .shell => unreachable,
+         }
+         if (ui.inited) _ = c.refresh();
+-        event_delay_timer.reset();
++        event_delay_time = std.Io.Clock.awake.now(io);
+     }
+     if (!ui.inited) {
+         std.debug.assert(!block);
+diff --git a/src/mem_sink.zig b/src/mem_sink.zig
+index 37b0ece..9973fb7 100644
+--- a/src/mem_sink.zig
++++ b/src/mem_sink.zig
+@@ -28,8 +28,8 @@ pub fn statToEntry(stat: *const sink.Stat, e: *model.Entry, parent: *model.Dir)
+         l.parent = parent;
+         l.ino = stat.ino;
+         l.pack.nlink = stat.nlink;
+-        model.inodes.lock.lock();
+-        defer model.inodes.lock.unlock();
++        model.inodes.lock.lockUncancelable(main.io);
++        defer model.inodes.lock.unlock(main.io);
+         l.addLink();
+     }
+     if (e.ext()) |ext| ext.* = stat.ext;
+@@ -49,7 +49,7 @@ pub const Dir = struct {
+     items: u32 = 0,
+     mtime: u64 = 0,
+     suberr: bool = false,
+-    lock: std.Thread.Mutex = .{},
++    lock: std.Io.Mutex = .init,
+ 
+     const Map = std.HashMap(*model.Entry, void, HashContext, 80);
+ 
+@@ -161,8 +161,8 @@ pub const Dir = struct {
+ 
+         // Add own counts to parent
+         if (parent) |p| {
+-            p.lock.lock();
+-            defer p.lock.unlock();
++            p.lock.lockUncancelable(main.io);
++            defer p.lock.unlock(main.io);
+             p.blocks +|= self.dir.entry.pack.blocks - self.own_blocks;
+             p.bytes +|= self.dir.entry.size - self.own_bytes;
+             p.items +|= self.dir.items;
+diff --git a/src/model.zig b/src/model.zig
+index b428d24..d4411bd 100644
+--- a/src/model.zig
++++ b/src/model.zig
+@@ -109,8 +109,7 @@ pub const Entry = extern struct {
+     fn alloc(comptime T: type, allocator: std.mem.Allocator, etype: EType, isext: bool, ename: []const u8) *Entry {
+         const size = (if (isext) @as(usize, @sizeOf(Ext)) else 0) + @sizeOf(T) + ename.len + 1;
+         var ptr = blk: while (true) {
+-            const alignment = if (@typeInfo(@TypeOf(std.mem.Allocator.allocWithOptions)).@"fn".params[3].type == ?u29) 1 else std.mem.Alignment.@"1";
+-            if (allocator.allocWithOptions(u8, size, alignment, null)) |p| break :blk p
++            if (allocator.allocWithOptions(u8, size, .@"1", null)) |p| break :blk p
+             else |_| {}
+             ui.oom();
+         };
+@@ -211,7 +210,7 @@ pub const Dir = extern struct {
+     // (Old C habits die hard)
+     name: [0]u8 = undefined,
+ 
+-    pub const Packed = packed struct {
++    pub const Packed = packed struct(u32) {
+         // Indexes into the global 'devices.list' array
+         dev: DevId = 0,
+         err: bool = false,
+@@ -350,15 +349,15 @@ pub const Ext = extern struct {
+ // List of st_dev entries. Those are typically 64bits, but that's quite a waste
+ // of space when a typical scan won't cover many unique devices.
+ pub const devices = struct {
+-    var lock = std.Thread.Mutex{};
++    var lock: std.Io.Mutex = .init;
+     // id -> dev
+     pub var list: std.ArrayListUnmanaged(u64) = .empty;
+     // dev -> id
+     var lookup = std.AutoHashMap(u64, DevId).init(main.allocator);
+ 
+     pub fn getId(dev: u64) DevId {
+-        lock.lock();
+-        defer lock.unlock();
++        lock.lockUncancelable(main.io);
++        defer lock.unlock(main.io);
+         const d = lookup.getOrPut(dev) catch unreachable;
+         if (!d.found_existing) {
+             if (list.items.len >= std.math.maxInt(DevId)) ui.die("Maximum number of device identifiers exceeded.\n", .{});
+@@ -386,7 +385,7 @@ pub const inodes = struct {
+     var uncounted = std.HashMap(*Link, void, HashContext, 80).init(main.allocator);
+     var uncounted_full = true; // start with true for the initial scan
+ 
+-    pub var lock = std.Thread.Mutex{};
++    pub var lock: std.Io.Mutex = .init;
+ 
+     const HashContext = struct {
+         pub fn hash(_: @This(), l: *Link) u64 {
+diff --git a/src/scan.zig b/src/scan.zig
+index d98bf73..a0d7162 100644
+--- a/src/scan.zig
++++ b/src/scan.zig
+@@ -8,13 +8,13 @@ const model = @import("model.zig");
+ const sink = @import("sink.zig");
+ const ui = @import("ui.zig");
+ const exclude = @import("exclude.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ 
+ // This function only works on Linux
+-fn isKernfs(dir: std.fs.Dir) bool {
++fn isKernfs(dir: std.Io.Dir) bool {
+     var buf: c.struct_statfs = undefined;
+-    if (c.fstatfs(dir.fd, &buf) != 0) return false; // silently ignoring errors isn't too nice.
++    if (c.fstatfs(dir.handle, &buf) != 0) return false; // silently ignoring errors isn't too nice.
+     const iskern = switch (util.castTruncate(u32, buf.f_type)) {
+         // These numbers are documented in the Linux 'statfs(2)' man page, so I assume they're stable.
+         0x42494e4d, // BINFMTFS_MAGIC
+@@ -46,10 +46,10 @@ fn truncate(comptime T: type, comptime field: anytype, x: anytype) std.meta.fiel
+ }
+ 
+ 
+-pub fn statAt(parent: std.fs.Dir, name: [:0]const u8, follow: bool, symlink: ?*bool) !sink.Stat {
+-    // std.posix.fstatatZ() in Zig 0.14 is not suitable due to https://github.com/ziglang/zig/issues/23463
+-    var stat: std.c.Stat = undefined;
+-    if (std.c.fstatat(parent.fd, name, &stat, if (follow) 0 else std.c.AT.SYMLINK_NOFOLLOW) != 0) {
++pub fn statAt(parent: std.Io.Dir, name: [:0]const u8, follow: bool, symlink: ?*bool) !sink.Stat {
++    // Translate both the function and struct from libc headers; std.c.fstatat is unavailable on Linux.
++    var stat: c.struct_stat = undefined;
++    if (c.fstatat(parent.handle, name, &stat, if (follow) 0 else std.c.AT.SYMLINK_NOFOLLOW) != 0) {
+         return switch (std.c._errno().*) {
+             @intFromEnum(std.c.E.NOENT) => error.FileNotFound,
+             @intFromEnum(std.c.E.NAMETOOLONG) => error.NameTooLong,
+@@ -58,18 +58,18 @@ pub fn statAt(parent: std.fs.Dir, name: [:0]const u8, follow: bool, symlink: ?*b
+             else => error.Unexpected,
+         };
+     }
+-    if (symlink) |s| s.* = std.c.S.ISLNK(stat.mode);
++    if (symlink) |s| s.* = std.c.S.ISLNK(stat.st_mode);
+     return sink.Stat{
+         .etype =
+-            if (std.c.S.ISDIR(stat.mode)) .dir
+-            else if (stat.nlink > 1) .link
+-            else if (!std.c.S.ISREG(stat.mode)) .nonreg
++            if (std.c.S.ISDIR(stat.st_mode)) .dir
++            else if (stat.st_nlink > 1) .link
++            else if (!std.c.S.ISREG(stat.st_mode)) .nonreg
+             else .reg,
+-        .blocks = clamp(sink.Stat, .blocks, stat.blocks),
+-        .size = clamp(sink.Stat, .size, stat.size),
+-        .dev = truncate(sink.Stat, .dev, stat.dev),
+-        .ino = truncate(sink.Stat, .ino, stat.ino),
+-        .nlink = clamp(sink.Stat, .nlink, stat.nlink),
++        .blocks = clamp(sink.Stat, .blocks, stat.st_blocks),
++        .size = clamp(sink.Stat, .size, stat.st_size),
++        .dev = truncate(sink.Stat, .dev, stat.st_dev),
++        .ino = truncate(sink.Stat, .ino, stat.st_ino),
++        .nlink = clamp(sink.Stat, .nlink, stat.st_nlink),
+         .ext = .{
+             .pack = .{
+                 .hasmtime = true,
+@@ -77,22 +77,55 @@ pub fn statAt(parent: std.fs.Dir, name: [:0]const u8, follow: bool, symlink: ?*b
+                 .hasgid = true,
+                 .hasmode = true,
+             },
+-            .mtime = clamp(model.Ext, .mtime, stat.mtime().sec),
+-            .uid = truncate(model.Ext, .uid, stat.uid),
+-            .gid = truncate(model.Ext, .gid, stat.gid),
+-            .mode = truncate(model.Ext, .mode, stat.mode),
++            .mtime = clamp(model.Ext, .mtime, c.ncdu_stat_mtime(&stat)),
++            .uid = truncate(model.Ext, .uid, stat.st_uid),
++            .gid = truncate(model.Ext, .gid, stat.st_gid),
++            .mode = truncate(model.Ext, .mode, stat.st_mode),
+         },
+     };
+ }
+ 
++test "statAt preserves file metadata and symlink follow semantics" {
++    const testing = std.testing;
++    var tmp = testing.tmpDir(.{});
++    defer tmp.cleanup();
++    const file = try tmp.dir.createFile(testing.io, "target", .{});
++    defer file.close(testing.io);
++    try file.writeStreamingAll(testing.io, "payload");
++    try file.setTimestamps(testing.io, .{ .modify_timestamp = .{ .new = .fromNanoseconds(1700000000 * std.time.ns_per_s) } });
++    try tmp.dir.symLink(testing.io, "target", "link", .{});
++
++    var is_link: bool = undefined;
++    const regular = try statAt(tmp.dir, "target", false, &is_link);
++    try testing.expect(!is_link);
++    try testing.expectEqual(model.EType.reg, regular.etype);
++    try testing.expectEqual(@as(u64, 7), regular.size);
++    try testing.expectEqual(@as(u64, 1700000000), regular.ext.mtime);
++
++    const link = try statAt(tmp.dir, "link", false, &is_link);
++    try testing.expect(is_link);
++    try testing.expectEqual(model.EType.nonreg, link.etype);
++    try testing.expectEqual(@as(u64, 6), link.size);
++
++    const followed = try statAt(tmp.dir, "link", true, &is_link);
++    try testing.expect(!is_link);
++    try testing.expectEqual(model.EType.reg, followed.etype);
++    try testing.expectEqual(regular.ino, followed.ino);
++    try testing.expectEqual(regular.size, followed.size);
++    try testing.expectEqual(regular.ext.mtime, followed.ext.mtime);
++
++    try testing.expectError(error.FileNotFound, statAt(tmp.dir, "missing", false, null));
++}
++
+ 
+-fn isCacheDir(dir: std.fs.Dir) bool {
++fn isCacheDir(dir: std.Io.Dir) bool {
+     const sig = "Signature: 8a477f597d28d172789f06886806bc55";
+-    const f = dir.openFileZ("CACHEDIR.TAG", .{}) catch return false;
+-    defer f.close();
++    const f = dir.openFile(main.io, "CACHEDIR.TAG", .{}) catch return false;
++    defer f.close(main.io);
+     var buf: [sig.len]u8 = undefined;
+-    const len = f.readAll(&buf) catch return false;
+-    return len == sig.len and std.mem.eql(u8, &buf, sig);
++    var reader = f.readerStreaming(main.io, &.{});
++    reader.interface.readSliceAll(&buf) catch return false;
++    return std.mem.eql(u8, &buf, sig);
+ }
+ 
+ 
+@@ -107,8 +140,8 @@ const State = struct {
+     // impossible for me to predict how that ends up affecting performance.
+     queue: [QUEUE_SIZE]*Dir = undefined,
+     queue_len: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
+-    queue_lock: std.Thread.Mutex = .{},
+-    queue_cond: std.Thread.Condition = .{},
++    queue_lock: std.Io.Mutex = .init,
++    queue_cond: std.Io.Condition = .init,
+ 
+     threads: []Thread,
+     waiting: usize = 0,
+@@ -121,28 +154,28 @@ const State = struct {
+     fn tryPush(self: *State, d: *Dir) bool {
+         if (self.queue_len.load(.acquire) == QUEUE_SIZE) return false;
+         {
+-            self.queue_lock.lock();
+-            defer self.queue_lock.unlock();
++            self.queue_lock.lockUncancelable(main.io);
++            defer self.queue_lock.unlock(main.io);
+             if (self.queue_len.load(.monotonic) == QUEUE_SIZE) return false;
+             const slot = self.queue_len.fetchAdd(1, .monotonic);
+             self.queue[slot] = d;
+         }
+-        self.queue_cond.signal();
++        self.queue_cond.signal(main.io);
+         return true;
+     }
+ 
+     // Blocks while the queue is empty, returns null when all threads are blocking.
+     fn waitPop(self: *State) ?*Dir {
+-        self.queue_lock.lock();
+-        defer self.queue_lock.unlock();
++        self.queue_lock.lockUncancelable(main.io);
++        defer self.queue_lock.unlock(main.io);
+ 
+         self.waiting += 1;
+         while (self.queue_len.load(.monotonic) == 0) {
+             if (self.waiting == self.threads.len) {
+-                self.queue_cond.broadcast();
++                self.queue_cond.broadcast(main.io);
+                 return null;
+             }
+-            self.queue_cond.wait(&self.queue_lock);
++            self.queue_cond.waitUncancelable(main.io, &self.queue_lock);
+         }
+         self.waiting -= 1;
+ 
+@@ -154,13 +187,13 @@ const State = struct {
+ 
+ 
+ const Dir = struct {
+-    fd: std.fs.Dir,
++    fd: std.Io.Dir,
+     dev: u64,
+     pat: exclude.Patterns,
+-    it: std.fs.Dir.Iterator,
++    it: std.Io.Dir.Iterator,
+     sink: *sink.Dir,
+ 
+-    fn create(fd: std.fs.Dir, dev: u64, pat: exclude.Patterns, s: *sink.Dir) *Dir {
++    fn create(fd: std.Io.Dir, dev: u64, pat: exclude.Patterns, s: *sink.Dir) *Dir {
+         const d = main.allocator.create(Dir) catch unreachable;
+         d.* = .{
+             .fd = fd,
+@@ -174,7 +207,7 @@ const Dir = struct {
+ 
+     fn destroy(d: *Dir, t: *Thread) void {
+         d.pat.deinit();
+-        d.fd.close();
++        d.fd.close(main.io);
+         d.sink.unref(t.sink);
+         main.allocator.destroy(d);
+     }
+@@ -239,7 +272,7 @@ const Thread = struct {
+             return;
+         }
+ 
+-        var edir = dir.fd.openDirZ(name, .{ .no_follow = true, .iterate = true }) catch {
++        var edir = dir.fd.openDir(main.io, name, .{ .follow_symlinks = false, .iterate = true }) catch {
+             const s = dir.sink.addDir(t.sink, name, &stat);
+             s.setReadError(t.sink);
+             s.unref(t.sink);
+@@ -251,14 +284,14 @@ const Thread = struct {
+             and stat.dev != dir.dev
+             and isKernfs(edir)
+         ) {
+-            edir.close();
++            edir.close(main.io);
+             dir.sink.addSpecial(t.sink, name, .kernfs);
+             return;
+         }
+ 
+         if (main.config.exclude_caches and isCacheDir(edir)) {
+             dir.sink.addSpecial(t.sink, name, .pattern);
+-            edir.close();
++            edir.close(main.io);
+             return;
+         }
+ 
+@@ -279,7 +312,7 @@ const Thread = struct {
+                 t.sink.setDir(d.sink);
+                 if (t.thread_num == 0) main.handleEvent(false, false);
+ 
+-                const entry = d.it.next() catch blk: {
++                const entry = d.it.next(main.io) catch blk: {
+                     dir.sink.setReadError(t.sink);
+                     break :blk null;
+                 };
+@@ -299,8 +332,8 @@ pub fn scan(path: [:0]const u8) !void {
+     defer sink.done();
+ 
+     var symlink: bool = undefined;
+-    const stat = try statAt(std.fs.cwd(), path, true, &symlink);
+-    const fd = try std.fs.cwd().openDirZ(path, .{ .iterate = true });
++    const stat = try statAt(std.Io.Dir.cwd(), path, true, &symlink);
++    const fd = try std.Io.Dir.cwd().openDir(main.io, path, .{ .iterate = true });
+ 
+     var state = State{
+         .threads = main.allocator.alloc(Thread, main.config.threads) catch unreachable,
+diff --git a/src/sink.zig b/src/sink.zig
+index 71e95cd..b881aee 100644
+--- a/src/sink.zig
++++ b/src/sink.zig
+@@ -86,8 +86,8 @@ pub const Dir = struct {
+             .bin => |*b| b.addSpecial(&t.sink.bin, name, sp),
+         }
+         if (sp == .err) {
+-            global.last_error_lock.lock();
+-            defer global.last_error_lock.unlock();
++            global.last_error_lock.lockUncancelable(main.io);
++            defer global.last_error_lock.unlock(main.io);
+             if (global.last_error) |p| main.allocator.free(p);
+             const p = d.path();
+             global.last_error = std.fs.path.joinZ(main.allocator, &.{ p, name }) catch unreachable;
+@@ -133,8 +133,8 @@ pub const Dir = struct {
+             .json => |*j| j.setReadError(),
+             .bin => |*b| b.setReadError(),
+         }
+-        global.last_error_lock.lock();
+-        defer global.last_error_lock.unlock();
++        global.last_error_lock.lockUncancelable(main.io);
++        defer global.last_error_lock.unlock(main.io);
+         if (global.last_error) |p| main.allocator.free(p);
+         global.last_error = d.path();
+     }
+@@ -180,7 +180,7 @@ pub const Dir = struct {
+ 
+ pub const Thread = struct {
+     current_dir: ?*Dir = null,
+-    lock: std.Thread.Mutex = .{},
++    lock: std.Io.Mutex = .init,
+     // On 32-bit architectures, bytes_seen is protected by the above mutex instead.
+     bytes_seen: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+     files_seen: std.atomic.Value(u32) = std.atomic.Value(u32).init(0),
+@@ -194,8 +194,8 @@ pub const Thread = struct {
+     fn addBytes(t: *Thread, bytes: u64) void {
+         if (@bitSizeOf(usize) >= 64) _ = t.bytes_seen.fetchAdd(bytes, .monotonic)
+         else {
+-            t.lock.lock();
+-            defer t.lock.unlock();
++            t.lock.lockUncancelable(main.io);
++            defer t.lock.unlock(main.io);
+             t.bytes_seen.raw += bytes;
+         }
+     }
+@@ -203,15 +203,15 @@ pub const Thread = struct {
+     fn getBytes(t: *Thread) u64 {
+         if (@bitSizeOf(usize) >= 64) return t.bytes_seen.load(.monotonic)
+         else {
+-            t.lock.lock();
+-            defer t.lock.unlock();
++            t.lock.lockUncancelable(main.io);
++            defer t.lock.unlock(main.io);
+             return t.bytes_seen.raw;
+         }
+     }
+ 
+     pub fn setDir(t: *Thread, d: ?*Dir) void {
+-        t.lock.lock();
+-        defer t.lock.unlock();
++        t.lock.lockUncancelable(main.io);
++        defer t.lock.unlock(main.io);
+         t.current_dir = d;
+     }
+ };
+@@ -223,7 +223,7 @@ pub const global = struct {
+     pub var sink: enum { json, mem, bin } = .mem;
+ 
+     pub var last_error: ?[:0]u8 = null;
+-    var last_error_lock = std.Thread.Mutex{};
++    var last_error_lock: std.Io.Mutex = .init;
+     var need_confirm_quit = false;
+ };
+ 
+@@ -292,16 +292,15 @@ fn drawConsole() void {
+         var ansi: ?bool = null;
+         var lines_written: usize = 0;
+     };
+-    const stderr = if (@hasDecl(std.io, "getStdErr")) std.io.getStdErr() else std.fs.File.stderr();
++    const stderr = std.Io.File.stderr();
+     const ansi = st.ansi orelse blk: {
+-        const t = stderr.supportsAnsiEscapeCodes();
++        const t = stderr.supportsAnsiEscapeCodes(main.io) catch false;
+         st.ansi = t;
+         break :blk t;
+     };
+ 
+     var buf: [4096]u8 = undefined;
+-    var strm = std.io.fixedBufferStream(buf[0..]);
+-    var wr = strm.writer();
++    var wr: std.Io.Writer = .fixed(&buf);
+     while (ansi and st.lines_written > 0) {
+         wr.writeAll("\x1b[1F\x1b[2K") catch {};
+         st.lines_written -= 1;
+@@ -327,8 +326,8 @@ fn drawConsole() void {
+ 
+         for (global.threads, 0..) |*t, i| {
+             const dir = blk: {
+-                t.lock.lock();
+-                defer t.lock.unlock();
++                t.lock.lockUncancelable(main.io);
++                defer t.lock.unlock(main.io);
+                 break :blk if (t.current_dir) |d| d.path() else null;
+             };
+             wr.print("  #{}: {s}\n", .{i+1, ui.shorten(ui.toUtf8(dir orelse "(waiting)"), 73)}) catch {};
+@@ -337,7 +336,7 @@ fn drawConsole() void {
+         }
+     }
+ 
+-    stderr.writeAll(strm.getWritten()) catch {};
++    stderr.writeStreamingAll(main.io, wr.buffered()) catch {};
+ }
+ 
+ 
+@@ -369,8 +368,8 @@ fn drawProgress() void {
+         box.move(3+@as(u32, @intCast(i)), 4);
+         const dir = blk: {
+             const t = &global.threads[i];
+-            t.lock.lock();
+-            defer t.lock.unlock();
++            t.lock.lockUncancelable(main.io);
++            defer t.lock.unlock(main.io);
+             break :blk if (t.current_dir) |d| d.path() else null;
+         };
+         ui.addstr(ui.shorten(ui.toUtf8(dir orelse "(waiting)"), width -| 6));
+@@ -378,8 +377,8 @@ fn drawProgress() void {
+     }
+ 
+     blk: {
+-        global.last_error_lock.lock();
+-        defer global.last_error_lock.unlock();
++        global.last_error_lock.lockUncancelable(main.io);
++        defer global.last_error_lock.unlock(main.io);
+         const err = global.last_error orelse break :blk;
+         box.move(4 + numthreads, 2);
+         ui.style(.bold);
+diff --git a/src/ui.zig b/src/ui.zig
+index 1436b6e..4e0e06e 100644
+--- a/src/ui.zig
++++ b/src/ui.zig
+@@ -6,7 +6,7 @@
+ const std = @import("std");
+ const main = @import("main.zig");
+ const util = @import("util.zig");
+-const c = @import("c.zig").c;
++const c = @import("c");
+ 
+ pub var inited: bool = false;
+ pub var main_thread: std.Thread.Id = undefined;
+@@ -26,8 +26,6 @@ pub fn quit() noreturn {
+     std.process.exit(0);
+ }
+ 
+-const sleep = if (@hasDecl(std.time, "sleep")) std.time.sleep else std.Thread.sleep;
+-
+ // Should be called when malloc fails. Will show a message to the user, wait
+ // for a second and return to give it another try.
+ // Glitch: this function may be called while we're in the process of drawing
+@@ -43,12 +41,12 @@ pub fn oom() void {
+         const haveui = inited;
+         deinit();
+         std.debug.print("\x1b7\x1b[JOut of memory, trying again in 1 second. Hit Ctrl-C to abort.\x1b8", .{});
+-        sleep(std.time.ns_per_s);
++        std.Io.sleep(main.io, .fromSeconds(1), .awake) catch unreachable;
+         if (haveui)
+             init();
+     } else {
+         _ = oom_threads.fetchAdd(1, .monotonic);
+-        sleep(std.time.ns_per_s);
++        std.Io.sleep(main.io, .fromSeconds(1), .awake) catch unreachable;
+         _ = oom_threads.fetchSub(1, .monotonic);
+     }
+ }
+@@ -113,7 +111,8 @@ pub fn toUtf8(in: [:0]const u8) [:0]const u8 {
+                 } else |_| {}
+             }
+         } else |_| {}
+-        to_utf8_buf.writer(main.allocator).print("\\x{X:0>2}", .{in[i]}) catch unreachable;
++        const digits = "0123456789ABCDEF";
++        to_utf8_buf.appendSlice(main.allocator, &.{ '\\', 'x', digits[in[i] >> 4], digits[in[i] & 15] }) catch unreachable;
+         i += 1;
+     }
+     return util.arrayListBufZ(&to_utf8_buf, main.allocator);
+@@ -280,21 +279,13 @@ const styles = [_]StyleDef{
+ };
+ 
+ pub const Style = lbl: {
+-    var fields: [styles.len]std.builtin.Type.EnumField = undefined;
+-    for (&fields, styles, 0..) |*field, s, i| {
+-        field.* = .{
+-            .name = s.name,
+-            .value = i,
+-        };
++    var names: [styles.len][:0]const u8 = undefined;
++    var values: [styles.len]u8 = undefined;
++    for (styles, 0..) |s, i| {
++        names[i] = s.name;
++        values[i] = @intCast(i);
+     }
+-    break :lbl @Type(.{
+-        .@"enum" = .{
+-            .tag_type = u8,
+-            .fields = &fields,
+-            .decls = &[_]std.builtin.Type.Declaration{},
+-            .is_exhaustive = true,
+-        }
+-    });
++    break :lbl @Enum(u8, .exhaustive, &names, &values);
+ };
+ 
+ const ui = @This();
+@@ -392,7 +383,7 @@ pub fn addstr(s: [:0]const u8) void {
+ // Not to be used for strings that may end up >256 bytes.
+ pub fn addprint(comptime fmt: []const u8, args: anytype) void {
+     var buf: [256:0]u8 = undefined;
+-    const s = std.fmt.bufPrintZ(&buf, fmt, args) catch unreachable;
++    const s = std.fmt.bufPrintSentinel(&buf, fmt, args, 0) catch unreachable;
+     addstr(s);
+ }
+ 
+@@ -633,7 +624,7 @@ pub fn getch(block: bool) i32 {
+         }
+         if (ch == c.ERR) {
+             if (!block) return 0;
+-            sleep(10*std.time.ns_per_ms);
++            std.Io.sleep(main.io, .fromMilliseconds(10), .awake) catch unreachable;
+             continue;
+         }
+         return ch;
+@@ -643,16 +634,12 @@ pub fn getch(block: bool) i32 {
+ }
+ 
+ fn waitInput() void {
+-    if (@hasDecl(std.io, "getStdIn")) {
+-        std.io.getStdIn().reader().skipUntilDelimiterOrEof('\n') catch unreachable;
+-    } else {
+-        var buf: [512]u8 = undefined;
+-        var rd = std.fs.File.stdin().reader(&buf);
+-        _ = rd.interface.discardDelimiterExclusive('\n') catch unreachable;
+-    }
++    var buf: [512]u8 = undefined;
++    var rd = std.Io.File.stdin().readerStreaming(main.io, &buf);
++    _ = rd.interface.discardDelimiterExclusive('\n') catch unreachable;
+ }
+ 
+-pub fn runCmd(cmd: []const []const u8, cwd: ?[]const u8, env: *std.process.EnvMap, reporterr: bool) void {
++pub fn runCmd(cmd: []const []const u8, cwd: ?[]const u8, env: *std.process.Environ.Map, reporterr: bool) void {
+     deinit();
+     defer init();
+ 
+@@ -666,24 +653,30 @@ pub fn runCmd(cmd: []const []const u8, cwd: ?[]const u8, env: *std.process.EnvMa
+     else
+         env.put("NCDU_LEVEL", "1") catch unreachable;
+ 
+-    var child = std.process.Child.init(cmd, main.allocator);
+-    child.cwd = cwd;
+-    child.env_map = env;
++    const result: anyerror!std.process.Child.Term = blk: {
++        var child = std.process.spawn(main.io, .{
++            .argv = cmd,
++            .cwd = if (cwd) |path| .{ .path = path } else .inherit,
++            .environ_map = env,
++        }) catch |e| break :blk e;
++        defer child.kill(main.io);
++        break :blk child.wait(main.io);
++    };
+ 
+-    const term = child.spawnAndWait() catch |e| blk: {
++    const term = result catch |e| blk: {
+         std.debug.print("Error running command: {s}\n\nPress enter to continue.\n", .{ ui.errorString(e) });
+         waitInput();
+-        break :blk std.process.Child.Term{ .Exited = 0 };
++        break :blk std.process.Child.Term{ .exited = 0 };
+     };
+ 
+     const n = switch (term) {
+-        .Exited  => "error",
+-        .Signal  => "signal",
+-        .Stopped => "stopped",
+-        .Unknown => "unknown",
++        .exited  => "error",
++        .signal  => "signal",
++        .stopped => "stopped",
++        .unknown => "unknown",
+     };
+-    const v = switch (term) { inline else => |v| v };
+-    if (term != .Exited or (reporterr and v != 0)) {
++    const v: u32 = switch (term) { .exited => |v| v, .signal, .stopped => |v| @intFromEnum(v), .unknown => |v| v };
++    if (term != .exited or (reporterr and v != 0)) {
+         std.debug.print("\nCommand returned with {s} code {}.\nPress enter to continue.\n", .{ n, v });
+         waitInput();
+     }
+diff --git a/src/util.zig b/src/util.zig
+index 607dfb5..32e5e80 100644
+--- a/src/util.zig
++++ b/src/util.zig
+@@ -2,7 +2,8 @@
+ // SPDX-License-Identifier: MIT
+ 
+ const std = @import("std");
+-const c = @import("c.zig").c;
++const c = @import("c");
++const main = @import("main.zig");
+ 
+ // Cast any integer type to the target type, clamping the value to the supported maximum if necessary.
+ pub fn castClamp(comptime T: type, x: anytype) T {
+@@ -20,7 +21,7 @@ pub fn castClamp(comptime T: type, x: anytype) T {
+ pub fn castTruncate(comptime T: type, x: anytype) T {
+     const Ti = @typeInfo(T).int;
+     const Xi = @typeInfo(@TypeOf(x)).int;
+-    const nx: std.meta.Int(Ti.signedness, Xi.bits) = @bitCast(x);
++    const nx: @Int(Ti.signedness, Xi.bits) = @bitCast(x);
+     return if (Xi.bits > Ti.bits) @truncate(nx) else nx;
+ }
+ 
+@@ -40,7 +41,7 @@ pub fn arrayListBufZ(buf: *std.ArrayListUnmanaged(u8), alloc: std.mem.Allocator)
+ 
+ // Format an integer as right-aligned '###.#'.
+ // Pretty much equivalent to:
+-//   std.fmt.bufPrintZ(.., "{d:>5.1}", @floatFromInt(n)/10.0);
++//   std.fmt.bufPrintSentinel(.., "{d:>5.1}", @floatFromInt(n)/10.0, 0);
+ // Except this function doesn't pull in large float formatting tables.
+ pub fn fmt5dec(n: u14) [5:0]u8 {
+     std.debug.assert(n <= 9999);
+@@ -174,16 +175,16 @@ test "strnatcmp" {
+ 
+ 
+ pub fn expanduser(path: []const u8, alloc: std.mem.Allocator) ![:0]u8 {
+-    if (path.len == 0 or path[0] != '~') return alloc.dupeZ(u8, path);
++    if (path.len == 0 or path[0] != '~') return alloc.dupeSentinel(u8, path, 0);
+ 
+-    const len = std.mem.indexOfScalar(u8, path, '/') orelse path.len;
++    const len = std.mem.findScalar(u8, path, '/') orelse path.len;
+     const home_raw = blk: {
+         const pwd = pwd: {
+             if (len == 1) {
+-                if (std.posix.getenvZ("HOME")) |p| break :blk p;
++                if (main.environ.getPosix("HOME")) |p| break :blk p;
+                 break :pwd c.getpwuid(c.getuid());
+             } else {
+-                const name = try alloc.dupeZ(u8, path[1..len]);
++                const name = try alloc.dupeSentinel(u8, path[1..len], 0);
+                 defer alloc.free(name);
+                 break :pwd c.getpwnam(name.ptr);
+             }
+@@ -191,59 +192,12 @@ pub fn expanduser(path: []const u8, alloc: std.mem.Allocator) ![:0]u8 {
+         if (pwd != null)
+             if (@as(*c.struct_passwd, pwd).pw_dir) |p|
+                 break :blk std.mem.span(p);
+-        return alloc.dupeZ(u8, path);
++        return alloc.dupeSentinel(u8, path, 0);
+     };
+-    const home = std.mem.trimRight(u8, home_raw, "/");
++    const home = std.mem.trimEnd(u8, home_raw, "/");
+ 
+-    if (home.len == 0 and path.len == len) return alloc.dupeZ(u8, "/");
++    if (home.len == 0 and path.len == len) return alloc.dupeSentinel(u8, "/", 0);
+     return try std.mem.concatWithSentinel(alloc, u8, &.{ home, path[len..] }, 0);
+ }
+ 
+ 
+-// Silly abstraction to read a file one line at a time. Only exists to help
+-// with supporting both Zig 0.14 and 0.15, can be removed once 0.14 support is
+-// dropped.
+-pub const LineReader = if (@hasDecl(std.io, "bufferedReader")) struct {
+-    rd: std.io.BufferedReader(4096, std.fs.File.Reader),
+-    fbs: std.io.FixedBufferStream([]u8),
+-
+-    pub fn init(f: std.fs.File, buf: []u8) @This() {
+-        return .{
+-            .rd = std.io.bufferedReader(f.reader()),
+-            .fbs = std.io.fixedBufferStream(buf),
+-        };
+-    }
+-
+-    pub fn read(s: *@This()) !?[]u8 {
+-        s.fbs.reset();
+-        s.rd.reader().streamUntilDelimiter(s.fbs.writer(), '\n', s.fbs.buffer.len) catch |err| switch (err) {
+-            error.EndOfStream => if (s.fbs.getPos() catch unreachable == 0) return null,
+-            else => |e| return e,
+-        };
+-        return s.fbs.getWritten();
+-    }
+-
+-} else struct {
+-    rd: std.fs.File.Reader,
+-
+-    pub fn init(f: std.fs.File, buf: []u8) @This() {
+-        return .{ .rd = f.readerStreaming(buf) };
+-    }
+-
+-    pub fn read(s: *@This()) !?[]u8 {
+-        // Can't use takeDelimiter() because that's not available in 0.15.1,
+-        // Can't use takeDelimiterExclusive() because that changed behavior in 0.15.2.
+-        const r = &s.rd.interface;
+-        const result = r.peekDelimiterInclusive('\n') catch |err| switch (err) {
+-            error.EndOfStream => {
+-                const remaining = r.buffer[r.seek..r.end];
+-                if (remaining.len == 0) return null;
+-                r.toss(remaining.len);
+-                return remaining;
+-            },
+-            else => |e| return e,
+-        };
+-        r.toss(result.len);
+-        return result[0 .. result.len - 1];
+-    }
+-};
+diff --git a/src/c.h b/src/c.h
+new file mode 100644
+index 0000000..6c5d06b
+--- /dev/null
++++ b/src/c.h
+@@ -0,0 +1,29 @@
++// SPDX-FileCopyrightText: Yorhel <projects@yorhel.nl>
++// SPDX-License-Identifier: MIT
++
++#ifndef _DEFAULT_SOURCE
++#define _DEFAULT_SOURCE 1
++#endif
++#ifndef _XOPEN_SOURCE
++#define _XOPEN_SOURCE 700
++#endif
++#include <stdio.h>
++#include <string.h>
++#include <time.h>
++#include <wchar.h>
++#include <locale.h>
++#include <fnmatch.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <pwd.h>
++#ifdef __linux__
++#include <sys/vfs.h>
++#endif
++#include <curses.h>
++#include <zstd.h>
++
++// st_mtime expands to the platform-specific seconds field of struct stat.
++static inline time_t ncdu_stat_mtime(const struct stat *st) {
++    return st->st_mtime;
++}
