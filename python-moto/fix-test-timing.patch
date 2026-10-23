@@ -10,9 +10,9 @@
  
 +# Match the test clock so parameters cannot expire between collection and execution.
 +@freeze_time("2024-01-01 00:00:00.123456")
- def pytest_parametrize_test_create_get_schedule__with_start_date() -> list[
-     tuple[datetime, datetime]
- ]:
+ def pytest_parametrize_test_create_get_schedule__with_start_date() -> list[datetime]:
+     now = utcnow()
+     timedelta_kwargs = {"days": 1, "hours": 1, "weeks": 1}
 --- a/tests/test_scheduler/test_scheduler.py
 +++ b/tests/test_scheduler/test_scheduler.py
 @@ -3,6 +3,7 @@
@@ -24,11 +24,11 @@
  from moto import mock_aws
  from moto.core import DEFAULT_ACCOUNT_ID
 @@ -241,6 +242,7 @@
-     "start_date,expected_start_date",
+     "start_date",
      pytest_parametrize_test_create_get_schedule__with_start_date(),
  )
 +@freeze_time("2024-01-01 00:00:00.123456")
- def test_create_get_schedule__with_start_date(start_date, expected_start_date):
+ def test_create_get_schedule__with_start_date(start_date):
      # Act
      client = boto3.client("scheduler", region_name="eu-west-1")
 --- a/tests/test_stepfunctions/parser/test_stepfunctions_idempotency.py
