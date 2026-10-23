@@ -1,0 +1,15 @@
+--- a/third_party/wasm2c/wasm2c/wasm-rt.h
++++ b/third_party/wasm2c/wasm2c/wasm-rt.h
+@@ -158,9 +158,11 @@
+  *
+  * FORCE_READ_STRATEGY --- either the compiler should be a gcc/clang-like
+  * compiler or the embedder must permit a non-conforming setting (allow dead
+- * read elimination from linear memory)
++ * read elimination from linear memory). Baseline RISC-V must use bounds checks
++ * because SIMD_FORCE_READ requires vector registers.
+  */
+ #if UINTPTR_MAX > 0xffffffff && WASM_RT_USE_MMAP &&      \
++    (!defined(__riscv) || defined(__riscv_vector)) &&   \
+     (WASM_RT_NONCONFORMING_ALLOW_OOB_READ_ELIMINATION || \
+      defined(__GNUC__) || defined(__clang__))
+ #define WASM_RT_GUARD_PAGES_SUPPORTED 1
