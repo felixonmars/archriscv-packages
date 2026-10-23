@@ -12,7 +12,7 @@
 + #endif
 --- a/scripts/build/codegen.ts
 +++ b/scripts/build/codegen.ts
-@@ -96,7 +96,7 @@
+@@ -91,7 +91,7 @@
            : cfg.os === "freebsd"
              ? "freebsd"
              : "linux";
@@ -32,7 +32,7 @@
  export type Abi = "gnu" | "musl" | "android";
  export type BuildType = "Debug" | "Release" | "RelWithDebInfo" | "MinSizeRel";
  /** `full` builds bun. `codegen` runs the code generators and nothing else; it resolves a {@link CodegenConfig}, not a {@link Config}. */
-@@ -80,6 +80,7 @@
+@@ -88,6 +88,7 @@
    unix: boolean;
    x64: boolean;
    arm64: boolean;
@@ -40,7 +40,7 @@
 
    /**
     * What's running the build. Differs from os/arch/windows (target) in a
-@@ -532,9 +533,11 @@
+@@ -543,9 +544,11 @@
        ? "x64"
        : a === "arm64"
          ? "aarch64"
@@ -55,7 +55,7 @@
 
    return { os, arch, exeSuffix: os === "windows" ? ".exe" : "" };
  }
-@@ -586,7 +589,7 @@
+@@ -597,7 +600,7 @@
    const env = process.env.LINUX_GLIBC_SYSROOT;
    if (env && looksValid(env)) return env;
    const candidate = locations.glibcSysroot[arch];
@@ -64,7 +64,7 @@
  }
  
  /**
-@@ -599,7 +602,7 @@
+@@ -610,7 +613,7 @@
    const env = process.env.LINUX_MUSL_SYSROOT;
    if (env && looksValid(env)) return env;
    const candidate = locations.muslSysroot[arch];
@@ -73,7 +73,7 @@
  }
  
  /**
-@@ -885,6 +888,7 @@
+@@ -899,6 +902,7 @@
    Config,
    | "host"
    | "os"
@@ -81,7 +81,7 @@
    | "abi"
    | "x64"
    | "debug"
-@@ -913,7 +917,7 @@
+@@ -928,7 +932,7 @@
    const arch = partial.arch ?? host.arch;
    const { linux, darwin, windows, freebsd, darwinCross, buildType, release, ci, buildkite, asan, ...base } =
      resolveBase(partial, host, os, arch, toolchain);
@@ -90,7 +90,7 @@
  }
 
  export function resolveConfig(partial: PartialConfig, toolchain: Toolchain): Config {
-@@ -964,6 +968,7 @@
+@@ -980,6 +984,7 @@
    const unix = linux || darwin || freebsd;
    const x64 = arch === "x64";
    const arm64 = arch === "aarch64";
@@ -98,7 +98,7 @@
    // Windows target on a non-Windows host (clang-cl + lld-link + xwin
    // sysroot). See the cross block further down.
 
-@@ -1041,8 +1046,8 @@
+@@ -1061,8 +1066,8 @@
    const staticLibatomic = partial.staticLibatomic ?? true;
 
    // TinyCC: off on Android (no upstream bionic support; FFI cc() falls back
@@ -108,8 +108,8 @@
 +  const tinycc = partial.tinycc ?? !(abi === "android" || freebsd || riscv64);
 
    const valgrind = partial.valgrind ?? false;
-   // Default follows asan: on for local debug (Linux / arm64 macOS) and CI
-@@ -1136,7 +1141,7 @@
+   const hardened = partial.hardened ?? false;
+@@ -1162,7 +1167,7 @@
    // and the libstdc++ ABI matches the WebKit prebuilt. musl uses an
    // alpine-derived sysroot. Local dev without a sysroot builds native.
    if (linux && abi !== "android" && crossTarget === undefined) {
@@ -118,7 +118,7 @@
      const hostAbi = host.os === "linux" ? detectLinuxAbi() : undefined;
      const isCross = arch !== host.arch || abi !== hostAbi;
      if (abi === "musl") {
-@@ -1276,6 +1281,7 @@
+@@ -1301,6 +1306,7 @@
      unix,
      x64,
      arm64,
@@ -142,19 +142,19 @@
      return {
 --- a/scripts/build/deps/mimalloc.ts
 +++ b/scripts/build/deps/mimalloc.ts
-@@ -24,6 +24,8 @@
+@@ -24,7 +24,7 @@
      commit: MIMALLOC_COMMIT,
    }),
 
-+  patches: ["patches/mimalloc/atomic-pause.patch"],
-+
+-  patches: ["patches/mimalloc/new-oom-hook.patch"],
++  patches: ["patches/mimalloc/new-oom-hook.patch", "patches/mimalloc/atomic-pause.patch"],
+ 
    build: cfg => {
      // ─── Override behavior (global malloc replacement) ───
-     //   ASAN:    OFF — ASAN interceptors must see the real malloc.
 --- a/scripts/build/deps/webkit.ts
 +++ b/scripts/build/deps/webkit.ts
-@@ -345,6 +345,19 @@
-       ...(cfg.assertions && cfg.release ? { ENABLE_ASSERTS: "ON" } : {}),
+@@ -357,6 +357,19 @@
+       ...(cfg.fuzzilli ? { ENABLE_FUZZILLI: "ON" } : {}),
      };
 
 +    if (cfg.riscv64) {
@@ -201,7 +201,7 @@
      flag: "-mcpu=apple-m1",
      when: c => c.darwin && c.arm64,
      desc: "Target Apple M1 (works on all Apple Silicon)",
-@@ -881,6 +886,11 @@
+@@ -898,6 +903,11 @@
  // ═══════════════════════════════════════════════════════════════════════════
 
  export const linkerFlags: Flag[] = [
@@ -213,7 +213,7 @@
    // ─── Sanitizers ───
    {
      flag: "-fsanitize=address",
-@@ -1276,7 +1286,7 @@
+@@ -1293,7 +1303,7 @@
        "_dl_find_object",
        "posix_spawn_file_actions_addchdir_np",
      ].map(s => `-Wl,--wrap=${s}`),
@@ -339,7 +339,7 @@
  };
 --- a/src/bun_core/lib.rs
 +++ b/src/bun_core/lib.rs
-@@ -2958,7 +2958,13 @@
+@@ -2988,7 +2988,13 @@
          // return-address slot at `[fp + PC_OFFSET]` is always mapped.
          unsafe { *((fp + debug::PC_OFFSET) as *const usize) }
      }
@@ -442,7 +442,7 @@
                  b'M'
 --- a/src/install_types/resolver_hooks.rs
 +++ b/src/install_types/resolver_hooks.rs
-@@ -910,6 +910,7 @@
+@@ -926,6 +926,7 @@
      pub(crate) const S390X: u16 = 1 << 9;
      pub(crate) const X32: u16 = 1 << 10;
      pub(crate) const X64: u16 = 1 << 11;
@@ -450,7 +450,7 @@
 
      pub const ALL_VALUE: u16 = Self::ARM
          | Self::ARM64
-@@ -921,12 +922,15 @@
+@@ -937,12 +938,15 @@
          | Self::S390
          | Self::S390X
          | Self::X32
@@ -466,8 +466,8 @@
 +    pub const CURRENT: Self = Self(Self::RISCV64);
 
      #[inline]
-     pub const fn none() -> Self {
-@@ -954,6 +958,7 @@
+     pub fn is_match(self, target: Self) -> bool {
+@@ -962,6 +966,7 @@
      b"arm" => ARM, b"ppc" => PPC, b"x32" => X32, b"x64" => X64,
      b"ia32" => IA32, b"mips" => MIPS, b"s390" => S390,
      b"arm64" => ARM64, b"ppc64" => PPC64, b"s390x" => S390X, b"mipsel" => MIPSEL,
@@ -486,7 +486,7 @@
          ? "LE"
          : $bundleError("TODO: endianness");
      },
-@@ -142,7 +142,9 @@
+@@ -159,7 +159,9 @@
            ? process.platform === "freebsd"
              ? "amd64"
              : "x86_64"
@@ -499,7 +499,7 @@
      get EOL() {
 --- a/src/jsc/bindings/BunProcess.cpp
 +++ b/src/jsc/bindings/BunProcess.cpp
-@@ -207,6 +207,8 @@
+@@ -205,6 +205,8 @@
      return JSC::jsString(vm, makeAtomString("x64"_s));
  #elif CPU(ARM64)
      return JSC::jsString(vm, makeAtomString("arm64"_s));
@@ -508,7 +508,7 @@
  #else
  #error "Unknown architecture"
  #endif
-@@ -2931,6 +2933,9 @@
+@@ -2987,6 +2989,9 @@
  #elif CPU(ARM64)
      putDirectNamed(vm, variables, "host_arch"_s, JSC::jsString(vm, String("arm64"_s)));
      putDirectNamed(vm, variables, "target_arch"_s, JSC::jsString(vm, String("arm64"_s)));
@@ -585,7 +585,7 @@
  #endif
 --- a/src/jsc/bindings/NodeVMScript.cpp
 +++ b/src/jsc/bindings/NodeVMScript.cpp
-@@ -11,6 +11,7 @@
+@@ -10,6 +10,7 @@
  #include "JavaScriptCore/JSWeakMapInlines.h"
  #include "JavaScriptCore/ProgramCodeBlock.h"
  #include "JavaScriptCore/SourceCodeKey.h"
@@ -593,27 +593,9 @@
 
  #include "NodeVMScriptFetcher.h"
  #include "../vm/NodeVMRunTermination.h"
-@@ -195,6 +196,7 @@
-                 codeBlock = JSC::ProgramCodeBlock::create(vm, executable, unlinkedBlock, jsScope);
-                 RETURN_IF_EXCEPTION(scope, {});
-             }
-+#if ENABLE(JIT)
-             JSC::CompilationResult compilationResult = JIT::compileSync(vm, codeBlock, JITCompilationEffort::JITCompilationCanFail);
-             if (compilationResult != JSC::CompilationResult::CompilationFailed) {
-                 executable->installCode(codeBlock);
-@@ -202,6 +204,9 @@
-             } else {
-                 script->cachedDataRejected(TriState::True);
-             }
-+#else
-+            script->cachedDataRejected(TriState::True);
-+#endif
-         }
-     } else if (script->options().produceCachedData)
-         script->cacheBytecode();
 --- a/src/jsc/bindings/webcore/SerializedScriptValue.cpp
 +++ b/src/jsc/bindings/webcore/SerializedScriptValue.cpp
-@@ -2593,12 +2593,13 @@
+@@ -2597,12 +2597,13 @@
          ptr += length * sizeof(char16_t);
  #else
          std::span<char16_t> characters;
@@ -642,7 +624,7 @@
  #define _GNU_SOURCE
 --- a/src/jsc/modules/BunJSCModule.h
 +++ b/src/jsc/modules/BunJSCModule.h
-@@ -609,7 +609,11 @@
+@@ -614,7 +614,11 @@
  JSC_DEFINE_HOST_FUNCTION(functionTotalCompileTime,
      (JSGlobalObject*, CallFrame*))
  {
@@ -656,7 +638,7 @@
  JSC_DECLARE_HOST_FUNCTION(functionGetProtectedObjects);
 --- a/src/options_types/compile_target.rs
 +++ b/src/options_types/compile_target.rs
-@@ -434,6 +434,7 @@
+@@ -438,6 +438,7 @@
          let arch: &'static [u8] = match self.arch {
              Architecture::X64 => b"\"x64\"",
              Architecture::Arm64 => b"\"arm64\"",
@@ -708,7 +690,7 @@
      };
 --- a/src/runtime/ffi/ffi_body.rs
 +++ b/src/runtime/ffi/ffi_body.rs
-@@ -586,6 +586,27 @@
+@@ -592,6 +592,27 @@
                          .set(bun_core::ZBox::from_vec_with_nul(b"/usr/lib64".to_vec()));
                  }
              }
@@ -748,7 +730,7 @@
      }
 --- a/src/windows_sys/externs.rs
 +++ b/src/windows_sys/externs.rs
-@@ -1663,6 +1663,7 @@
+@@ -1676,6 +1676,7 @@
  /// reservation is the OS thread-block pointer — is guaranteed by the Windows
  /// ABI for every thread, so there is no caller-side obligation. The deref
  /// obligation lives with the caller of the returned `*mut TEB`.
@@ -756,7 +738,7 @@
  #[inline(always)]
  pub fn teb() -> *mut TEB {
      #[cfg(target_arch = "x86_64")]
-@@ -1689,6 +1690,7 @@
+@@ -1702,6 +1703,7 @@
  /// by the OS/CRT behind Rust's back (`SetStdHandle`, debugger toggling
  /// `BeingDebugged`, …). Materializing a `&'static` to it would be UB under
  /// Rust's aliasing rules. Callers must read fields through raw-pointer deref.
@@ -927,3 +909,58 @@
                  #[allow(unused_variables, clippy::missing_safety_doc)]
                  pub(super) unsafe extern "C" fn $name($($arg: $ty),*) $(-> $ret)? {
                      unreachable!(concat!(
+--- a/src/jsc/bindings/highway_strings.cpp
++++ b/src/jsc/bindings/highway_strings.cpp
+@@ -307,6 +307,19 @@
+     return count;
+ }
+ 
++template<class D, class M>
++static HWY_INLINE uint64_t StringMaskBits(D d, M mask)
++{
++#if HWY_MAX_BYTES > 64
++    // These capped masks fit in 64 bits even on scalable-vector targets.
++    uint64_t bits = 0;
++    hn::StoreMaskBits(d, mask, reinterpret_cast<uint8_t*>(&bits));
++    return bits;
++#else
++    return hn::BitsFromMask(d, mask);
++#endif
++}
++
+ // Writes the offset of the byte after each `\n` of the 64 bytes at `block`, which are at `pos` in
+ // the text, to `out`. Returns the end of what it wrote.
+ static HWY_INLINE uint32_t* LineStartsOfBlock(const uint8_t* HWY_RESTRICT block, size_t pos, uint32_t* HWY_RESTRICT out)
+@@ -317,7 +330,7 @@
+ 
+     uint64_t newlines = 0;
+     for (size_t i = 0; i < 64; i += N) {
+-        newlines |= hn::BitsFromMask(d, hn::Eq(hn::LoadU(d, block + i), vec_newline)) << i;
++        newlines |= StringMaskBits(d, hn::Eq(hn::LoadU(d, block + i), vec_newline)) << i;
+     }
+     const uint32_t after = static_cast<uint32_t>(pos) + 1;
+     while (newlines != 0) {
+@@ -860,9 +873,9 @@
+         const auto name_or_blank = hn::And(hn::TableLookupBytes(name_or_blank_by_upper, upper), hn::TableLookupBytes(name_or_blank_by_lower, lower));
+         const auto stop = hn::And(hn::TableLookupBytes(string_stop_by_upper, upper), hn::TableLookupBytes(string_stop_by_lower, lower));
+         // No class has the sign bit, and x86 before AVX-512 only compares signed bytes.
+-        name |= hn::BitsFromMask(di, hn::Gt(hn::BitCast(di, name_or_blank), vec_blank_bits)) << i;
+-        neither |= hn::BitsFromMask(d, hn::Eq(name_or_blank, vec_zero)) << i;
+-        plain |= hn::BitsFromMask(d, hn::Eq(stop, vec_zero)) << i;
++        name |= StringMaskBits(di, hn::Gt(hn::BitCast(di, name_or_blank), vec_blank_bits)) << i;
++        neither |= StringMaskBits(d, hn::Eq(name_or_blank, vec_zero)) << i;
++        plain |= StringMaskBits(d, hn::Eq(stop, vec_zero)) << i;
+     }
+     const uint64_t not_identifier = ~name;
+     const uint64_t not_blank = name | neither;
+--- a/bun.lock
++++ b/bun.lock
+@@ -59,7 +59,7 @@
+ 
+     "@esbuild/linux-ppc64": ["@esbuild/linux-ppc64@0.21.5", "", { "os": "linux", "cpu": "ppc64" }, "sha512-1hHV/Z4OEfMwpLO8rp7CvlhBDnjsC3CttJXIhBi+5Aj5r+MBvy4egg7wCbe//hSsT+RvDAG7s81tAvpL2XAE4w=="],
+ 
+-    "@esbuild/linux-riscv64": ["@esbuild/linux-riscv64@0.21.5", "", { "os": "linux", "cpu": "none" }, "sha512-2HdXDMd9GMgTGrPWnJzP2ALSokE/0O5HhTUvWIbD3YdjME8JwvSCnNGBnTThKGEB91OZhzrJ4qIIxk/SBmyDDA=="],
++    "@esbuild/linux-riscv64": ["@esbuild/linux-riscv64@0.21.5", "", { "os": "linux", "cpu": "riscv64" }, "sha512-2HdXDMd9GMgTGrPWnJzP2ALSokE/0O5HhTUvWIbD3YdjME8JwvSCnNGBnTThKGEB91OZhzrJ4qIIxk/SBmyDDA=="],
+ 
+     "@esbuild/linux-s390x": ["@esbuild/linux-s390x@0.21.5", "", { "os": "linux", "cpu": "s390x" }, "sha512-zus5sxzqBJD3eXxwvjN1yQkRepANgxE9lgOW2qLnmr8ikMTphkjgXu1HR01K4FJg8h1kEEDAqDcZQtbrRnB41A=="],
+ 
