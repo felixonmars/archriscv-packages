@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -33,6 +33,10 @@ prepare() {
+@@ -33,12 +33,20 @@
    cd vault
    sed -i 's|/etc/vault.d/vault.hcl|/etc/vault.hcl|g' .release/linux/package/usr/lib/systemd/system/vault.service
    sed -i 's|/etc/vault.d/vault.env|/etc/default/vault|g' .release/linux/package/usr/lib/systemd/system/vault.service
@@ -8,6 +8,27 @@
 +  go mod edit -replace go.etcd.io/bbolt=github.com/etcd-io/bbolt@v1.3.7
 +  go mod edit -replace github.com/boltdb/bolt=go.etcd.io/bbolt@v1.3.7
 +  go mod tidy
++
++  cd ui
++  # Use packaged Node.js; upstream does not provide a riscv64 runtime.
++  npm pkg set --force devEngines.runtime.onFail=ignore
  }
  
  build() {
+   mkdir -p "${srcdir}/vault/http/web_ui"
+   cd "${srcdir}/vault/ui"
+-  pnpm build
++  npm exec --yes --package="${srcdir}/pnpm-10.22.0.tgz" -- pnpm build
+ 
+   cd "${srcdir}/vault"
+   export CGO_CPPFLAGS="${CPPFLAGS}"
+@@ -74,3 +82,9 @@
+     install -Dm644 "${file}" "${pkgdir}/usr/share/doc/${pkgname}/${file}"
+   done
+ }
++
++makedepends=(${makedepends[@]/nodejs-lts-jod/nodejs-lts-krypton})
++makedepends=(${makedepends[@]/pnpm})
++source+=('https://registry.npmjs.org/pnpm/-/pnpm-10.22.0.tgz')
++sha512sums+=('bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c')
++noextract+=('pnpm-10.22.0.tgz')
