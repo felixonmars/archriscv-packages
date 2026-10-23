@@ -1,0 +1,24 @@
+--- a/imageio/plugins/pillow.py
++++ b/imageio/plugins/pillow.py
+@@ -444,6 +444,9 @@
+         for frame in ndimage:
+             if mode is None:
+                 pil_frame = Image.fromarray(frame)
++            elif mode == "I;16":
++                # Pillow 13 rejects changing the inferred data type in fromarray.
++                pil_frame = Image.fromarray(frame).convert(mode)
+             else:
+                 pil_frame = Image.fromarray(frame, mode=mode)
+             if "bits" in kwargs:
+--- a/imageio/plugins/pillow_legacy.py
++++ b/imageio/plugins/pillow_legacy.py
+@@ -821,6 +821,9 @@
+             image_shape = (arr.shape[1], arr.shape[0])
+             im = Image.frombytes(mode, image_shape, array_buffer)
+         return im
++    elif mode == "I;16":
++        # Pillow 13 rejects changing the inferred data type in fromarray.
++        return Image.fromarray(arr).convert(mode)
+     else:
+         return Image.fromarray(arr, mode)
+ 
