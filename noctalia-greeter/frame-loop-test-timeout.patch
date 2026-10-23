@@ -1,0 +1,24 @@
+--- a/meson.build
++++ b/meson.build
+@@ -499,7 +499,7 @@
+     noctalia_greeter_compositor_executable,
+     greeter_frame_loop_test,
+   ],
+-  timeout: 30,
++  timeout: 120,
+ )
+ 
+ wallpaper_program_pixel_test = executable(
+--- a/tests/greeter_frame_loop_test.cpp
++++ b/tests/greeter_frame_loop_test.cpp
+@@ -111,8 +111,9 @@
+     // must keep prepareFrame() and the callback/commit cycle running.
+     animations->animate(0.0f, 1.0f, 60000.0f, Easing::Linear, [&](float) { ++updates; }, nullptr, &owner);
+     window.setSceneReady(true);
++    // The first software-rendered frame can take over five seconds on riscv64.
+     require(
+-        dispatchUntil(client, 5s, [&]() { return updates >= 4; }),
++        dispatchUntil(client, 30s, [&]() { return updates >= 4; }),
+         "animation stalled without input or an unrelated commit"
+     );
+     animations->cancelForOwner(&owner);
