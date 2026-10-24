@@ -1,0 +1,14 @@
+--- a/src/testdir/test_terminal3.vim
++++ b/src/testdir/test_terminal3.vim
+@@ -1451,8 +1451,9 @@
+   CheckUnix
+   CheckExecutable cat
+ 
+-  " The escape sequence and the output must arrive in one burst
+-  call writefile(["\<Esc>[8;50000;200t"] + repeat(['x'], 3000), 'Xtermsize', 'D')
++  " The escape sequence and the output must arrive in one burst.
++  " Two columns suffice to test the row limit without costly wide-screen scrolls.
++  call writefile(["\<Esc>[8;50000;2t"] + repeat(['x'], 3000), 'Xtermsize', 'D')
+ 
+   let buf = term_start(['cat', 'Xtermsize'], #{term_rows: 20})
+   call WaitForAssert({-> assert_equal('finished', term_getstatus(buf))})
