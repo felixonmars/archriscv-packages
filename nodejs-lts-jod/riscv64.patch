@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -32,6 +32,15 @@
+@@ -31,6 +31,18 @@
  
  prepare() {
    cd node-v${pkgver}
@@ -11,12 +11,15 @@
 +  patch -Np1 -i ../v8-riscv-word32-zero.patch
 +  # Fix inverted floating-point branches in V8's RISC-V backend.
 +  patch -Np1 -i ../v8-riscv-float-branch.patch
-+  # Allow slow watch restarts, Sv39 Wasm, and expected closed-pipe errors.
++  # Allow slow watch tests, Sv39 Wasm, and expected closed-pipe errors.
 +  patch -Np1 -i ../test-resource-limits.patch
++  # Batch nested async-context tests to avoid serial subprocess timeouts.
++  # https://github.com/nodejs/node/commit/70c04c7fd8630397a4062de1ca2e834fa2a5fad0
++  patch -Np1 -i ../test-async-context-frame.patch
    # Update ICU tests https://github.com/nodejs/node/pull/60523
    patch -Np1 -i ../update-icu-tests.patch
  }
-@@ -81,7 +90,8 @@
+@@ -81,7 +93,8 @@
    # https://github.com/nodejs/node/issues/63914
    rm test/parallel/test-snapshot-reproducible.js
  
@@ -26,7 +29,7 @@
  }
  
  package() {
-@@ -90,3 +100,12 @@
+@@ -90,3 +103,14 @@
    make DESTDIR="${pkgdir}" install
    install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
  }
@@ -34,8 +37,10 @@
 +source+=(v8-riscv-word32-compare.patch
 +         v8-riscv-word32-zero.patch
 +         v8-riscv-float-branch.patch
-+         test-resource-limits.patch)
++         test-resource-limits.patch
++         test-async-context-frame.patch)
 +sha256sums+=('1b12913fa8dc965815751629773d91bc3c9c9844e7dc7a7d982b73b756fd0342'
 +             'a208e39a506ae4e4b6eeba2435d706092d28992aa83d9b245888ea4cac39a3c0'
 +             '7ea4fb5985fcf5c5a1ecc07f71ce1ae0147f173ba3576b45098e83dcf4fe06fc'
-+             '3f459ab8e8345cc1e7e18fab6bbe3aa7cdedd06a95b0952ec076bf114c07a28f')
++             '77171e0bef4395a6a4d73ab8e679ae2f436f551ef3c6880e661601a6b6ac014f'
++             'ea559311142bffc9b7c74c99552fc565e390464269d0e786686640c076e8f778')
