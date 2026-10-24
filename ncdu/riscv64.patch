@@ -1,0 +1,60 @@
+--- a/PKGBUILD
++++ b/PKGBUILD
+@@ -8,23 +8,33 @@
+ 
+ pkgname=ncdu
+ pkgver=2.9.2
+-pkgrel=1
++pkgrel=2
+ pkgdesc='Disk usage analyzer with an ncurses interface'
+ url='https://dev.yorhel.nl/ncdu'
+ license=('MIT')
+ depends=(
+   'ncurses'
+-  'glibc'
++  # Match ncurses' GLIBC_2.42 requirement and the build()/check() targets.
++  'glibc>=2.42'
+   'zstd'
+ )
+-makedepends=('zig')
++# The compatibility patch targets the released Zig 0.16 API.
++makedepends=('zig>=0.16' 'zig<0.17')
+ arch=('x86_64')
+-source=("https://dev.yorhel.nl/download/${pkgname}-${pkgver}.tar.gz"{,.asc})
++source=("https://dev.yorhel.nl/download/${pkgname}-${pkgver}.tar.gz"{,.asc}
++        "riscv-zig0.16.patch")
+ sha256sums=('e91135281cb66569f2ca4c0bac277246991e7e52524c0ca8cba3de5c8e81cec9'
+-            'SKIP')
++            'SKIP'
++            'eb5bb102034a592e6727f0b67c0a2a59d1d022fb8fb5c22f6b2ebd4b46765f4c')
+ b2sums=('d63e5f4e73afe5802b67f6c42598b4841c0cdb5abe42eead9c8814448d1aedb905d22bf9286594b0d3255d9e0f3611ff4355fa3b2c76eb6562499697c1b00183'
+-        'SKIP')
++        'SKIP'
++        'dea411dea11228a3438b1917ef2eb24b1c8b963a53bdc6c626b97081f8f761266f37a18e3e38ed6df619f21e2afd4985213c57a80afe4f9b4503b7aa8c837b46')
+ validpgpkeys=('74460D32B80810EBA9AFA2E962394C698C2739FA') # Yoran Heling <projects@yorhel.nl>
++
++prepare() {
++  cd "${pkgname}-${pkgver}"
++  patch -Np1 -E -i "${srcdir}/riscv-zig0.16.patch"
++}
+ 
+ build() {
+   cd "${pkgname}-${pkgver}"
+@@ -36,7 +46,7 @@
+     --search-prefix /usr \
+     --release=safe \
+     --build-id=sha1 \
+-    -Dtarget=native-linux.6.6-gnu.2.40 \
++    -Dtarget=native-linux.6.6-gnu.2.42 \
+     -Dcpu=baseline \
+     -Dpie=true
+ }
+@@ -51,7 +61,7 @@
+     --search-prefix /usr \
+     --release=safe \
+     --build-id=sha1 \
+-    -Dtarget=native-linux.6.6-gnu.2.40 \
++    -Dtarget=native-linux.6.6-gnu.2.42 \
+     -Dcpu=baseline \
+     -Dpie=true
+ }
