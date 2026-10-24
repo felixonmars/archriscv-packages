@@ -1,0 +1,25 @@
+--- a/crates/biome_cli/src/commands/upgrade.rs
++++ b/crates/biome_cli/src/commands/upgrade.rs
+@@ -522,11 +522,11 @@
+ 
+     #[test]
+     fn installs_latest_release_from_github() {
++        // The server returns mock bytes, so its release target can be independent of the host.
+         let base_url = start_http_server(|path, base_url| match path {
+             "/latest.txt" => Some(b"2.5.15\n".to_vec()),
+             "/repos/biomejs/biome/releases/tags/%40biomejs%2Fbiome%402.5.15" => {
+-                let target = release_target().unwrap();
+-                let asset = release_asset_identifier(&target);
++                let asset = release_asset_identifier("linux-x64");
+                 Some(
+                     format!(
+                         r#"{{
+@@ -552,7 +552,7 @@
+ 
+         let status = install_release(
+             &base_url,
+-            &release_target().unwrap(),
++            "linux-x64",
+             "2.5.0",
+             &latest_version,
+             &install_path,
