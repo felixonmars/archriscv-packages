@@ -1,0 +1,16 @@
+--- a/tests/kgx-test-gtk-utils.c
++++ b/tests/kgx-test-gtk-utils.c
+@@ -142,10 +142,12 @@
+ 
+   gtk_window_present (GTK_WINDOW (window));
+ 
+-  paintable = gtk_widget_paintable_new (widget);
++  paintable = gtk_widget_paintable_new (NULL);
+   g_signal_connect (paintable,
+                     "invalidate-contents", G_CALLBACK (invalidate_contents),
+                     data);
++  /* Setting the widget emits the initial invalidation synchronously. */
++  gtk_widget_paintable_set_widget (GTK_WIDGET_PAINTABLE (paintable), widget);
+ 
+   while (!data->done) {
+     g_main_context_iteration (NULL, TRUE);
