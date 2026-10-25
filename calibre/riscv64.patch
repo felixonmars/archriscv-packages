@@ -1,16 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -119,6 +119,9 @@
+@@ -119,6 +119,15 @@
  
  	# espeak-ng headers do not provide espeak_TextToPhonemesWithTerminator
  	patch -Np1 -i ../tts-piper-remove-withterminator.patch
 +
 +	# Relax test deadlines that are too short for riscv64 builders.
 +	patch -Np1 -i ../relax-slow-test-timeouts.patch
++
++	# Avoid temporary-table locks during restricted full-text searches.
++	patch -Np1 -i ../fts-search-without-temp-table.patch
++
++	# Keep parallel test workers from reading partially written cached books.
++	patch -Np1 -i ../atomic-polish-test-books.patch
  }
  
  build() {
-@@ -138,7 +141,9 @@
+@@ -138,7 +147,9 @@
  check() {
  	cd "$_archive"
  	export LANG='en_US.UTF-8'
@@ -21,10 +27,14 @@
  	python setup.py test_rs
  }
  
-@@ -164,3 +169,6 @@
+@@ -164,3 +175,10 @@
  		python -O -m compileall -d "${_destdir}" "${_file}"
  	done < <(find "$pkgdir/usr/lib/" -name '*.py' -print0)
  }
 +
-+source+=(relax-slow-test-timeouts.patch)
-+sha256sums+=('bbad21a25525c6169f893d4eb407495c13f3668ee884b045f30d2f8f3c232007')
++source+=(relax-slow-test-timeouts.patch
++         fts-search-without-temp-table.patch
++         atomic-polish-test-books.patch)
++sha256sums+=('bbad21a25525c6169f893d4eb407495c13f3668ee884b045f30d2f8f3c232007'
++             '7bb5a4ec6360d273a4b4927b84dd5e97f70be10064fc5ff3cf448188768b213c'
++             '53099222757a61fd63fb9235b67f9572fc47463cfa45b4f488c33c1314a10350')

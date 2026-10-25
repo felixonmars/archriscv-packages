@@ -1,0 +1,15 @@
+--- a/src/calibre/ebooks/oeb/polish/tests/base.py
++++ b/src/calibre/ebooks/oeb/polish/tests/base.py
+@@ -45,7 +45,11 @@
+ def build_book(src, dest, args=()):
+     from calibre.ebooks.conversion.cli import main
+ 
+-    main(['ebook-convert', src, dest, '-vv'] + list(args))
++    # Other workers can consider the cache fresh as soon as its file exists.
++    with TemporaryDirectory(dir=os.path.dirname(dest)) as tdir:
++        output = os.path.join(tdir, os.path.basename(dest))
++        main(['ebook-convert', src, output, '-vv'] + list(args))
++        os.replace(output, dest)
+ 
+ 
+ def add_resources(raw, rmap):

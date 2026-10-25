@@ -1,0 +1,43 @@
+--- a/src/calibre/db/fts/connect.py
++++ b/src/calibre/db/fts/connect.py
+@@ -6,7 +6,6 @@
+ import os
+ import sys
+ from contextlib import suppress
+-from itertools import count
+ from threading import Lock
+ 
+ import apsw
+@@ -29,7 +28,6 @@
+         self.dbref = dbref
+         self.pool = Pool(dbref)
+         self.init_lock = Lock()
+-        self.temp_table_counter = count()
+ 
+     def initialize(self, conn):
+         needs_dirty = False
+@@ -180,21 +178,17 @@
+         query += f' JOIN {fts_table} ON fts_db.books_text.id = {fts_table}.rowid'
+         query += ' WHERE '
+         conn = self.get_connection()
+-        temp_table_name = ''
+         if restrict_to_book_ids:
+             if len(restrict_to_book_ids) == 1:
+                 only_book = int(next(iter(restrict_to_book_ids)))
+                 query += f' fts_db.books_text.book == {only_book} AND '
+             else:
+-                temp_table_name = f'fts_restrict_search_{next(self.temp_table_counter)}'
+-                conn.execute(f'CREATE TABLE temp.{temp_table_name}(x INTEGER)')
+-                conn.executemany(f'INSERT INTO temp.{temp_table_name} VALUES (?)', tuple((x,) for x in restrict_to_book_ids))
+-                query += f' fts_db.books_text.book IN temp.{temp_table_name} AND '
++                # Avoid DROP TABLE locking and the SQL parameter limit for large selections.
++                book_ids = ','.join(str(int(x)) for x in restrict_to_book_ids)
++                query += f' fts_db.books_text.book IN ({book_ids}) AND '
+         query += f' "{fts_table}" MATCH ?'
+         data.append(fts_engine_query)
+         query += f' ORDER BY {fts_table}.rank '
+-        if temp_table_name:
+-            query += f'; DROP TABLE temp.{temp_table_name}'
+         try:
+             for record in conn.execute(query, tuple(data)):
+                 result = {
