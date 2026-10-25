@@ -1,0 +1,24 @@
+--- a/wsutil/process_lookup-linux.c
++++ b/wsutil/process_lookup-linux.c
+@@ -325,8 +325,20 @@
+ 
+             if (nlh->nlmsg_seq != state->diag_seq)
+                 continue;
+-            if (nlh->nlmsg_type == NLMSG_DONE)
++            if (nlh->nlmsg_type == NLMSG_DONE) {
++                /* Failed dumps report their error here, e.g. without udp_diag. */
++                const int *error = (const int *)NLMSG_DATA(nlh);
++
++                if (nlh->nlmsg_len < NLMSG_LENGTH(sizeof *error)) {
++                    errno = EIO;
++                    return false;
++                }
++                if (*error != 0) {
++                    errno = -*error;
++                    return false;
++                }
+                 return true;
++            }
+             if (nlh->nlmsg_type == NLMSG_ERROR) {
+                 const struct nlmsgerr *nlerr = (const struct nlmsgerr *)NLMSG_DATA(nlh);
+ 
