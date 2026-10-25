@@ -1,0 +1,44 @@
+--- a/tests/test-window.c
++++ b/tests/test-window.c
+@@ -157,6 +157,11 @@
+   gtk_window_maximize (GTK_WINDOW (window));
+   kgx_test_flush_widget (GTK_WIDGET (window));
+ 
++  /* A draw does not guarantee the compositor has applied the state change. */
++  while (!gtk_window_is_maximized (GTK_WINDOW (window))) {
++    g_main_context_iteration (NULL, TRUE);
++  }
++
+   g_assert_true (gtk_window_is_maximized (GTK_WINDOW (window)));
+ 
+   g_object_get (window, "floating", &floating, NULL);
+@@ -230,6 +235,9 @@
+   kgx_expect_property_notify (window, "translucent");
+   gtk_window_maximize (GTK_WINDOW (window));
+   kgx_test_flush_widget (GTK_WIDGET (window));
++  while (!gtk_window_is_maximized (GTK_WINDOW (window))) {
++    g_main_context_iteration (NULL, TRUE);
++  }
+   g_assert_true (gtk_window_is_maximized (GTK_WINDOW (window)));
+   kgx_assert_expected_notifies (window);
+ 
+@@ -244,6 +252,9 @@
+   kgx_expect_property_notify (window, "translucent");
+   gtk_window_unmaximize (GTK_WINDOW (window));
+   kgx_test_flush_widget (GTK_WIDGET (window));
++  while (gtk_window_is_maximized (GTK_WINDOW (window))) {
++    g_main_context_iteration (NULL, TRUE);
++  }
+   g_assert_false (gtk_window_is_maximized (GTK_WINDOW (window)));
+   kgx_assert_expected_notifies (window);
+ 
+@@ -267,6 +278,9 @@
+   kgx_expect_property_not_notify (window, "translucent");
+   gtk_window_maximize (GTK_WINDOW (window));
+   kgx_test_flush_widget (GTK_WIDGET (window));
++  while (!gtk_window_is_maximized (GTK_WINDOW (window))) {
++    g_main_context_iteration (NULL, TRUE);
++  }
+   kgx_assert_expected_notifies (window);
+ 
+   gtk_window_destroy (GTK_WINDOW (window));
