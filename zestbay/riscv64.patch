@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -40,6 +40,14 @@
+ 
+ prepare() {
++  # C char is unsigned on RISC-V; backport the lilv UI callback fix.
++  patch -Np1 -d lilv-0.2.4 -i "$srcdir/lilv-c-char.patch"
++
+   cd "$pkgname"
+ 
++  patch -Np1 -i "$srcdir/zestbay-c-char.patch"
++
++  echo -e "\n[patch.crates-io]\nlilv = { path = '../lilv-0.2.4' }" >> Cargo.toml
++  cargo update -p lilv
++
+   # download dependencies
+   cargo fetch --locked --target host-tuple
+@@ -66,2 +74,12 @@
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++source+=("lilv-0.2.4.tar.gz::https://static.crates.io/crates/lilv/lilv-0.2.4.crate"
++         "lilv-c-char.patch::https://github.com/wmedrano/lilv-rs/commit/195f0ce41f858b2499118a30916f8c3e8c3d5478.patch"
++         "zestbay-c-char.patch")
++sha512sums+=('316d43f789e3a4031e3069f60c9b87db50775af00e2cf54895c470ad021ed7c184c4db5a3cf3c24799e712ed551efce1aa8add838001bde247d8e34b719779c8'
++             '994b8edcf9e1839da63a90cc7c450d9a57ee80cb9a70cd1142d3e2783570a7929b203f0206509a4a0f051f06d2a5201dadd25c4dd283fc1b1c85176661244a77'
++             '73f66c8f7fe3f00bf1bcff2d0e1d876bc284291e4f03ecd7b04de834b7fce0eb43eab71386528be73e0d3073c6ca582bca3b74e58bae67b0d1f044f5ec751670')
++b2sums+=('c87b6168b09763e1fed25b88ddaec531092e72120cd4ad0069b4a48d2d99327b96d4451cd3f4bd76bc186ae8740ffadc2de9cd7725c52f911a94f9d9a2a0cd55'
++         'bdc392d8b87a5c95b7a310a4f728604b86c7e96097ae9203fbad7af30c95ef768b16fdebd5f7c6e7c05105e9b78681ac95e07c5e4d64d78f0d917d62f191c662'
++         '4b6353874c78c66619f1a0df5bfc0a1f8af09a3f5b43c1797df62ecba2b21b9b82e0327002c42d3f735846515bf4cb3ea82d5f9c7005a12341a6fdc514ceae88')
