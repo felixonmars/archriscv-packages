@@ -1,0 +1,14 @@
+--- a/test/parallel/test-http2-forget-closed-streams.js
++++ b/test/parallel/test-http2-forget-closed-streams.js
+@@ -33,8 +33,9 @@
+   }));
+ }));
+ 
+-server.listen(0, common.mustCall(() => {
+-  const client = http2.connect(`http://localhost:${server.address().port}`);
++// Use one address so family autoselection cannot create an unused session.
++server.listen(0, '127.0.0.1', common.mustCall(() => {
++  const client = http2.connect(`http://127.0.0.1:${server.address().port}`);
+ 
+   function next(i) {
+     if (i === 10000) {

@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -63,6 +63,46 @@
+@@ -63,6 +63,49 @@
    # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
    CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -42,12 +42,15 @@
 +  # https://github.com/nodejs/node/commit/381b962d2174beff0f8e42347994f43c64990e56
 +  patch -Np1 -i ../fix-watch-mode-timeout.patch
 +
++  # Keep family autoselection from creating an unused HTTP/2 test session.
++  patch -Np1 -i ../fix-http2-single-session.patch
++
 +  # Ten WPT workers can exhaust the Wasm address space available on Sv39.
 +  sed -i 's/concurrency = Math.min(10, concurrency);/concurrency = Math.min(2, concurrency);/' test/common/wpt.js
  }
  
  build() {
-@@ -107,7 +147,9 @@
+@@ -107,7 +150,9 @@
    rm test/parallel/test-http2-reset-flood.js
    rm test/parallel/test-tls-ocsp-callback.js
  
@@ -58,7 +61,7 @@
  }
  
  package() {
-@@ -116,3 +158,21 @@
+@@ -116,3 +161,23 @@
    make DESTDIR="$pkgdir" install
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
@@ -71,7 +74,8 @@
 +         "fix-wasm-i32-stack-loads.patch"
 +         "fix-sparkplug-runtime-argument.patch"
 +         "fix-inspector-async-hook-setup.patch::https://github.com/nodejs/node/commit/4cd4701f69c010dad0f4c48bc342a0abf7e92fe5.patch"
-+         "fix-watch-mode-timeout.patch")
++         "fix-watch-mode-timeout.patch"
++         "fix-http2-single-session.patch")
 +b2sums+=('4717b78b17b63195ee6c4f3b989e52aa6cabb2ed565945371774d643faa235f14fd315df5eac2800709b95b5e6ba889d60410f6242e11873a995e2a78e37d5cc'
 +         'fc115df5c010588b446bcded60d2debec9d67cb84acd201594c4f27b8542eaf55b2f20b8f7ac5b994518032c046e81e0be24bc39e23c9e156091569a617b580e'
 +         '77aea04aa568cff2572a46709b83811f4bd5b7e93ecdcbe9e3213f4db4f496bdcbcc235a2bbf475a95fd0e561ef67efcb7fcaa0e1631a5d9d288faae5a8f8681'
@@ -79,4 +83,5 @@
 +         '0265cc552fd5d1b7c42451f4390124a65cd9ced822448a5be319f919a7d3dc382420c9e02d76285b52f55060d7b60b33e0778346e2c035a44ec538a586f45998'
 +         '37daf2e2db252b326d74e068aa920d6917af19d5ba0c961902d5b02ff0eaf4afe739d46c424b653a6b356d6be0aecd655c6865123c5784ada0d0a1e2fa6710ae'
 +         '08aab549b053969374997215b5baaa9a137a370a8222fb7bff8b557ae4f7aa4a1234160a49e52aa165a3f7aae8e2909c8c23f6dcc9c7b5d825603c8e4a527bc6'
-+         '0df2f5a789a4d6b11c395f478f5ea484a170f922f97e1e53fde46f633bfc03eb19d8c3510850b3e254a08877259342ee9046467add4ff61418452b362c938626')
++         '0df2f5a789a4d6b11c395f478f5ea484a170f922f97e1e53fde46f633bfc03eb19d8c3510850b3e254a08877259342ee9046467add4ff61418452b362c938626'
++         '43e7a31a46f8c7ae5e9cb2b4d1813bebcf815d82b8814c75e364b348ee85576b2fa649af3ce9c491b2176156bd02838a876c6e77642c5157afc558cb186fa0d7')
