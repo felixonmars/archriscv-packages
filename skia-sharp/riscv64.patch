@@ -1,15 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -43,6 +43,8 @@ pkgver() {
-   git describe --tags | sed 's/^v//; s/-preview.*//'
+@@ -46,8 +46,11 @@
+   done
+ 
+   pushd externals/skia
++  # The bundled GN and Ninja downloaders do not support riscv64.
++  : > bin/fetch-gn
+   python tools/git-sync-deps
+-  python bin/fetch-ninja
++  # Header generation invokes GN through this bundled path.
++  ln -sf /usr/bin/gn bin/gn
+   popd
  }
  
-+makedepends+=(ninja gn)
-+
- prepare() {
-   cd SkiaSharp
-   for submodule in externals/{depot_tools,skia}; do
-@@ -75,9 +77,9 @@ build(){
+@@ -69,9 +72,9 @@
      extra_ldflags+="\"${ldflag}\","
    done
  
@@ -21,12 +25,18 @@
              cc=\"clang\" \
              cxx=\"clang++\" \
              extra_cflags=[${extra_cflags}] \
-@@ -94,7 +96,7 @@ build(){
+@@ -95,7 +98,7 @@
              is_debug=false \
              is_official_build=true \
-             linux_soname_version=\"${_major}.${_minor}.${_release}\""
+             linux_soname_version=\"${_minor}.${_patch}.0\""
 -  ninja -C out
 +  /usr/bin/ninja -C out
  }
  
  package() {
+@@ -104,3 +107,5 @@
+   ln -s libSkiaSharp.so.${_minor} "${pkgdir}"/usr/lib/libSkiaSharp.so
+   install -Dm 644 SkiaSharp/LICENSE.md -t "${pkgdir}"/usr/share/licenses/${pkgname}/
+ }
++
++makedepends+=(ninja gn)
