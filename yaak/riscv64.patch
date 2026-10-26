@@ -1,0 +1,77 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -67,7 +67,28 @@
+ }
+ 
+ prepare() {
+-    cd "${pkgname}-${pkgver}"
++    cd rolldown-1.2.9
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++    cd "${srcdir}/lightningcss-1.33.0"
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++    cd "${srcdir}/tailwindcss-4.3.3"
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++
++    cd "${srcdir}/${pkgname}-${pkgver}"
++    # Vite+ publishes neither a riscv64 binding nor its advertised WASI fallback.
++    # Use the Vite/Vitest tools it wraps, preserving the workspace test suite.
++    sed -i 's|npm:@voidzero-dev/vite-plus-core@\^0.3.3|8.3.0|g' \
++        package.json apps/*/package.json
++    npm pkg delete devDependencies.vite-plus --workspaces --include-workspace-root
++    npm pkg delete scripts.prepare
++    npm pkg set overrides.rolldown=1.2.9 overrides.lightningcss=1.33.0
++    find apps plugins plugins-external -name package.json -exec sed -i \
++        -e 's/vp build/vite build/g' -e 's/vp test/vitest/g' {} +
++    find . -type f \( -name '*.ts' -o -name '*.tsx' \) -exec sed -i \
++        -e 's|"vite-plus/test"|"vitest"|g' \
++        -e 's|"vite-plus/client"|"vite/client"|g' \
++        -e 's|"vite-plus"|"vite"|g' {} +
++    npm install --package-lock-only --ignore-scripts
+ 
+     # Avoid downloading Node.js and Protoc
+     echo "console.log('Skipped NodeJS download for Arch Linux');" > scripts/vendor-node.cjs
+@@ -84,10 +105,31 @@
+ }
+ 
+ build() {
+-    cd "${pkgname}-${pkgver}"
++    # These frontend dependencies also omit native riscv64 bindings from npm.
++    cd rolldown-1.2.9
++    CFLAGS="${CFLAGS} -ffat-lto-objects" \
++        cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++    cd "${srcdir}/lightningcss-1.33.0"
++    cargo build --frozen --release -p lightningcss_node --target riscv64gc-unknown-linux-gnu
++    cd "${srcdir}/tailwindcss-4.3.3"
++    cargo build --frozen --release -p tailwind-oxide --target riscv64gc-unknown-linux-gnu
++
++    cd "${srcdir}/${pkgname}-${pkgver}"
++    install -m755 ../rolldown-1.2.9/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
++        node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
++    install -m755 ../lightningcss-1.33.0/target/riscv64gc-unknown-linux-gnu/release/liblightningcss_node.so \
++        node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++    install -m755 ../tailwindcss-4.3.3/target/riscv64gc-unknown-linux-gnu/release/libtailwind_oxide.so \
++        node_modules/@tailwindcss/oxide/tailwindcss-oxide.linux-riscv64-gnu.node
+     _setup_env
+ 
+     npm run replace-version
++    # npm omits a riscv64 Yaak CLI; bootstrap it before building plugins.
++    # Only the build command is needed, so it can embed an empty plugin directory.
++    npm run build --workspace @yaakapp-internal/plugin-runtime
++    mkdir -p crates-tauri/${_appname}/vendored/plugins
++    cargo build --locked --release -p yaak-cli --bin yaak
++    install -m755 target/release/yaak node_modules/@yaakapp/cli/yaak
+     pushd crates-tauri/${_appname}
+     npx tauri build
+     popd
+@@ -137,3 +179,11 @@
+ 
+     install -Dm644 "LICENSE" -t "${pkgdir}/usr/share/licenses/${pkgname}"
+ }
++
++makedepends+=(cmake)
++source+=('rolldown-1.2.9.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.9.tar.gz'
++         'lightningcss-1.33.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.33.0.tar.gz'
++         'tailwindcss-4.3.3.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.3.tar.gz')
++sha256sums+=('26e83e84c6383aa61ce2cb6e09d1a8562f62b4e895269c75d6757a428d238e6f'
++             '3197aa5188b66d0d1e5026cbc8b65c4c0c53fdc949f9ed497fe75df2d13f722a'
++             'e702ce2493505287e8f6cab2dd1e0c14f154e57c296854d4ded38bde5da2be6e')
