@@ -1,30 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -68,6 +68,17 @@
- source=("https://github.com/pydata/xarray/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
- b2sums=('dd919a79a037e3bc4282dc822a808c742939974717e65b766e288acc4b586d090ef55e0913589041a57342f420e2bdd8030eab403efdf13938fadd1c02b0a1fc')
+@@ -75,2 +75,9 @@
  
-+source+=(numpy-nat.patch datetime-bounds.patch)
-+b2sums+=('bd5bf6f553ef3216dc30a0dce035cf2b5c8b15055910b8cae5a4820cdf9b085c92a0395b8c07c23eac34f0c78e36fc8009e9713434cbcadb2cd93e3b4e818e7f'
-+         'c23aed3371fa1cb99341f383b512ca7267025e412d00dc081f5b780914bd6192c4ff886b8f7e88176e641c88b08ca20f8518db064ac09aed6bd31a3d78785687')
-+
 +prepare() {
 +  cd ${pkgname#python-}-$pkgver
-+  # https://github.com/pydata/xarray/pull/11340
-+  patch -Np1 -i "$srcdir/numpy-nat.patch"
 +  patch -Np1 -i "$srcdir/datetime-bounds.patch"
++  # https://github.com/pydata/xarray/pull/11648
++  patch -Np1 -i "$srcdir/default-write-engine.patch"
 +}
 +
  build() {
-   cd ${pkgname#python-}-$pkgver
-   python -m build --wheel --skip-dependency-check --no-isolation
-@@ -80,6 +91,9 @@
-     -n=auto
-     -W=ignore::pytest.PytestDeprecationWarning
- 
-+    # pandas < 3 triggers this NumPy 2.5 warning when creating timedeltas.
-+    -W="default:The 'generic' unit for NumPy timedelta is deprecated:DeprecationWarning"
+@@ -120 +127,5 @@
+ }
 +
-     # Segfaults with python-h5py installed
-     --deselect=xarray/tests/test_backends.py::TestDask::test_save_mfdataset_compute_false_roundtrip
- 
++source+=(datetime-bounds.patch default-write-engine.patch)
++b2sums+=('c23aed3371fa1cb99341f383b512ca7267025e412d00dc081f5b780914bd6192c4ff886b8f7e88176e641c88b08ca20f8518db064ac09aed6bd31a3d78785687'
++         '736facc36fff571365606c13ce3707edb0f6bf29e103b7ed52a8b042c1a0038dea208b833860f1b2c0f39cb13ae88ceaec529abab956755f18ddb1298211e8bc')
