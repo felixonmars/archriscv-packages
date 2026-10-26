@@ -1,0 +1,60 @@
+--- a/libwild/src/linker_plugins.rs
++++ b/libwild/src/linker_plugins.rs
+@@ -885,7 +885,7 @@
+     plugin_identifier: *const c_char,
+     plugin_version: *const c_char,
+     _minimal_version: c_int,
+-    _maximal_version: c_int,
++    maximal_version: c_int,
+     _linker_identifier: *mut *const c_char,
+     _linker_version: *mut *const c_char,
+ ) -> c_int {
+@@ -899,7 +899,9 @@
+         VERSION_INFO.replace(Some(version_info));
+     }
+ 
+-    API_VERSION as c_int
++    // GCC disables plugin locking on RISC-V and only offers API 0. Our
++    // with_callbacks method already serializes calls into the plugin.
++    (API_VERSION as c_int).min(maximal_version)
+ }
+ 
+ extern "C" fn unsupported_api_version() -> Status {
+--- a/libwild/src/save_dir.rs
++++ b/libwild/src/save_dir.rs
+@@ -442,9 +442,11 @@
+                             // We don't want to prevent the save-dir mechanism from working just
+                             // because we failed to parse a linker script, so in case of failure, we
+                             // fall through to just copying the file as-is.
++                            // Parent symlinks are preserved in the save directory, so relative
++                            // paths must start at the script's physical location (e.g. /usr/lib).
+                             if let Ok(updated_bytes) = make_linker_script_relative(
+                                 &data,
+-                                source_path,
++                                &std::fs::canonicalize(source_path)?,
+                                 parsed_args.sysroot(),
+                             ) {
+                                 std::fs::write(dest_path, updated_bytes)?;
+--- a/wild/tests/integration_tests.rs
++++ b/wild/tests/integration_tests.rs
+@@ -1022,7 +1022,19 @@
+ ) -> Result {
+     let mut command = Command::new("wasmtime");
+     command.arg("run");
+-    command.args(["-W", "threads,shared-memory"]);
++    let info = WasmModuleInfo::parse(wasm_file)?;
++    let shared_memory = info
++        .memories
++        .iter()
++        .chain(info.memory_imports.iter().map(|(_, _, memory)| memory))
++        .any(|memory| memory.shared);
++    if shared_memory {
++        // Pulley does not support threads or shared memory; use the native backend.
++        command.args(["-W", "threads,shared-memory"]);
++    } else {
++        // Cranelift cannot execute Wasm SIMD on RISC-V hosts without the V extension.
++        command.args(["--target", "pulley64"]);
++    }
+     if let Some(func) = invoke {
+         command.arg("--invoke").arg(func);
+     }
