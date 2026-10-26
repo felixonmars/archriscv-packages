@@ -1,0 +1,22 @@
+--- a/src/camel/camel-internet-address.c
++++ b/src/camel/camel-internet-address.c
+@@ -419,7 +419,7 @@
+ 
+ 	*at_pos = -1;
+ 	for (pos = 0; address[pos]; pos++) {
+-		all_ascii = all_ascii && address[pos] > 0;
++		all_ascii = all_ascii && (guchar) address[pos] <= 0x7f;
+ 		if (*at_pos == -1 && address[pos] == '@') {
+ 			*at_pos = pos;
+ 			all_ascii = TRUE;
+--- a/src/camel/camel-string-utils.c
++++ b/src/camel/camel-string-utils.c
+@@ -380,7 +380,7 @@
+ 		return TRUE;
+ 
+ 	for (ii = 0; str[ii]; ii++) {
+-		if (str[ii] < 0)
++		if ((guchar) str[ii] > 0x7f)
+ 			break;
+ 	}
+ 

@@ -1,19 +1,33 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -67,6 +67,9 @@
+@@ -67,6 +67,15 @@
  
  prepare() {
    cd $pkgbase
 +
 +  # Allow more time for the four-thread summary save/reload stress test.
 +  patch -Np1 -i ../increase-stress-test-timeout.patch
++
++  # Detect non-ASCII bytes even when char is unsigned.
++  patch -Np1 -i ../fix-ascii-check.patch
++
++  # Correct an invalid hour rejected by libical 4.
++  patch -Np1 -i ../correct-test-time.patch
  }
  
  build() {
-@@ -157,3 +160,6 @@
+@@ -157,3 +166,14 @@
  }
  
  # vim:set sw=2 sts=-1 et:
 +
-+source+=(increase-stress-test-timeout.patch)
-+b2sums+=('6941ae2d24d1353aac30435a177a113c65e98e45569c579399284e227afc4f42b059ba1bd27915d2591b4bb18415df0706122c0282522ea2ef00e1dd72ca46d1')
++source+=(
++  increase-stress-test-timeout.patch
++  fix-ascii-check.patch
++  "correct-test-time.patch::https://gitlab.gnome.org/GNOME/evolution-data-server/-/commit/49e45fb51b37b95e9f45ed02188bedbbae8b18dd.patch"
++)
++b2sums+=(
++  'c11ed3d0b016ea68c584dd42d1495b8ba1c746431aa95132e993d3e8e3c66ac2613dab96aaeb9c6a3e0147a8b92e8ac88e11792e0e790a078b6a578ee9c5d9a2'
++  '81c4f821f6da1c25eabd67c17eb3e5bbbd0b8226295ad8d1660ebcac4f02851d69622cd2cd9e79a1d6925f84391eabc9ae4aab7e48fcf1f3063a668123fbcffe'
++  '4d90445ba33a7b94a7abeb364d260d1133ee9cf0253a12b1d304f140c16688d1e34e17f04a715d969a7bf2cd0cc27c0f463eed80cac9ba679df10085d60afd3f'
++)
