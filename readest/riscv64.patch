@@ -1,17 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -19,7 +19,9 @@
+@@ -19,7 +19,11 @@
  prepare() {
    cd $pkgname
    git submodule update --init --recursive
 -  pnpm install
++  # The pinned pnpm release has no riscv64 native binary.
++  printf '\npmOnFail: ignore\n' >> pnpm-workspace.yaml
 +  sed -i 's/^  workerd: true/  workerd: false/' pnpm-workspace.yaml
 +  sed -i '/"build":/s/next build/next build --webpack/' apps/$pkgname-app/package.json
 +  SENTRYCLI_SKIP_DOWNLOAD=1 pnpm install
    pnpm --filter @readest/readest-app setup-vendors
    # Disable updater artifacts in tauri.conf.json
    # Otherwise it will try to sign the built package with developer's GPG key which is unnecessary,
-@@ -31,8 +33,15 @@
+@@ -31,8 +35,15 @@
  }
  
  build() {
@@ -28,7 +30,7 @@
  }
  
  package() {
-@@ -41,3 +50,8 @@
+@@ -41,3 +52,8 @@
    mv "$pkgdir"/usr/share/applications/{$_Packagename,com.bilingify.readest}.desktop
    install -Dm644 data/metainfo/appdata.xml "$pkgdir"/usr/share/metainfo/com.bilingify.readest.appdata.xml
  }
