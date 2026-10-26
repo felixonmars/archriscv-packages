@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,12 +20,21 @@
+ 
+ export TORNADO_EXTENSION=1
+ 
++prepare() {
++  cd tornado
++  # Allow TLS to reach the trigger handler before the request timeout on riscv64.
++  # Match upstream's 0.5-second allowance for Windows and emulation.
++  sed -i '/def test_request_timeout/,/^$/s/timeout = 0\.1$/timeout = 0.5/' tornado/test/simple_httpclient_test.py
++}
++
+ build() {
+   cd tornado
+   python -m build --wheel --no-isolation
+ }
+ 
+ check() {
++  # SSL write tests exceed the default five-second timeout on riscv64.
++  export ASYNC_TEST_TIMEOUT=30
+   cd tornado
+   python -m venv --system-site-packages --without-pip "$srcdir/venv"
+   "$srcdir/venv/bin/python" -m installer dist/*.whl
