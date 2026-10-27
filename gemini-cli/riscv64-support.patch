@@ -124,3 +124,125 @@
 -  });
 +  }, 180000);
  });
+--- a/packages/cli/src/test-utils/async.ts
++++ b/packages/cli/src/test-utils/async.ts
+@@ -14,7 +14,7 @@
+ // for React state updates.
+ export async function waitFor(
+   assertion: () => void | Promise<void>,
+-  { timeout = 2000, interval = 50 } = {},
++  { timeout = 30000, interval = 50 } = {},
+ ): Promise<void> {
+   const startTime = Date.now();
+ 
+--- a/packages/cli/src/ui/components/shared/ScrollableList.test.tsx
++++ b/packages/cli/src/ui/components/shared/ScrollableList.test.tsx
+@@ -199,7 +199,7 @@
+     await act(async () => {
+       result.unmount();
+     });
+-  });
++  }, 180000);
+ 
+   it('should display sticky header when scrolled past the item', async () => {
+     let listRef: ScrollableListRef<Item> | null = null;
+@@ -627,7 +627,7 @@
+       () => {
+         expect(listRef?.getScrollState()?.scrollTop).toBe(2);
+       },
+-      { timeout: 1000 },
++      { timeout: 30000 },
+     );
+ 
+     result!.unmount();
+--- a/packages/cli/src/ui/components/shared/text-buffer.test.ts
++++ b/packages/cli/src/ui/components/shared/text-buffer.test.ts
+@@ -2475,7 +2475,7 @@
+       expect(resultText).not.toContain('\x1B[0m');
+       expect(resultText).toContain('red text');
+       expect(resultText).toContain('green text');
+-    });
++    }, 180000);
+ 
+     it('should not strip popular emojis', async () => {
+       const { result } = await renderHook(() => useTextBuffer({ viewport }));
+--- a/packages/cli/src/ui/components/FooterConfigDialog.test.tsx
++++ b/packages/cli/src/ui/components/FooterConfigDialog.test.tsx
+@@ -139,7 +139,7 @@
+     });
+ 
+     await expect(renderResult).toMatchSvgSnapshot();
+-  });
++  }, 180000);
+ 
+   it('shows an empty preview when all items are deselected', async () => {
+     const settings = createMockSettings();
+@@ -165,9 +165,9 @@
+         expect(output).not.toContain('~/project/path');
+         expect(output).not.toContain('docker');
+       },
+-      { timeout: 2000 },
++      { timeout: 30000 },
+     );
+-  });
++  }, 180000);
+ 
+   it('moves item correctly after trying to move up at the top', async () => {
+     const settings = createMockSettings();
+@@ -260,5 +260,5 @@
+     });
+ 
+     await expect(renderResult).toMatchSvgSnapshot();
+-  });
++  }, 180000);
+ });
+--- a/packages/cli/src/ui/components/InputPrompt.test.tsx
++++ b/packages/cli/src/ui/components/InputPrompt.test.tsx
+@@ -2385,7 +2385,7 @@
+       });
+ 
+       unmount();
+-    });
++    }, 180000);
+   });
+ 
+   describe('multiline rendering', () => {
+@@ -3874,8 +3874,14 @@
+       });
+ 
+       // Simulate double-click WAY to the right on the first line
+-      await simulateClick(90, 2);
+-      await simulateClick(90, 2);
++      // Rendering between clicks can exceed the real double-click interval.
++      const clock = vi.spyOn(Date, 'now').mockReturnValue(1000);
++      try {
++        await simulateClick(90, 2);
++        await simulateClick(90, 2);
++      } finally {
++        clock.mockRestore();
++      }
+ 
+       // Verify it is NOW collapsed
+       await waitFor(() => {
+--- a/packages/sdk/src/tool.integration.test.ts
++++ b/packages/sdk/src/tool.integration.test.ts
+@@ -57,7 +57,7 @@
+       .join('');
+ 
+     expect(responseText).toContain('8');
+-  }, 20000);
++  }, 60000);
+ 
+   it('handles ModelVisibleError correctly', async () => {
+     const goldenFile = getGoldenPath('tool-error-recovery');
+--- a/packages/vscode-ide-companion/src/ide-server.test.ts
++++ b/packages/vscode-ide-companion/src/ide-server.test.ts
+@@ -432,7 +432,7 @@
+         'resolved',
+       );
+       expect(mockLog).toHaveBeenCalledWith('IDE server shut down');
+-    });
++    }, 30000);
+ 
+     it('should close sessions, clear keep-alive, and clean up on stop()', async () => {
+       const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
