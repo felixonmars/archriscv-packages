@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -121,7 +121,7 @@
+@@ -132,7 +132,7 @@
  
  if (( _manual_clone )); then
    source[0]=fetch-chromium-release
@@ -9,7 +9,7 @@
    makedepends+=('python-httplib2' 'python-pyparsing' 'python-six' 'npm' 'rsync')
  fi
  
-@@ -191,6 +191,12 @@
+@@ -205,14 +205,16 @@
    # runtime -- this allows signing into Chromium without baked-in values
    patch -Np1 -i ../use-oauth2-client-switches-as-default.patch
  
@@ -17,12 +17,19 @@
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
 +  patch -Np0 -i ../Debian-fix-rust-linking.patch
-+  patch -Np1 -i ../dawn-add-riscv64-cipd-platform.patch
 +
    # Upstream fixes
  
    # Fixes from Gentoo
-@@ -247,13 +253,14 @@
+   patch -Np1 -i ../chromium-138-nodejs-version-check.patch
+ 
+-  # Allow libclang_rt.builtins from compiler-rt >= 16 to be used
+-  patch -Np1 -i ../compiler-rt-adjust-paths.patch
+-
+   # Increase _FORTIFY_SOURCE level to match Arch's default flags
+   patch -Np1 -i ../increase-fortify-level.patch
+ 
+@@ -268,15 +270,19 @@
    mkdir -p third_party/node/linux/node-linux-x64/bin \
             third_party/jdk/current/bin \
             third_party/rust-toolchain/bin \
@@ -38,21 +45,24 @@
 -    ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
    fi
  
++  # Let V8 metagen fall back to system GN instead of the bundled x86_64 binary.
++  rm -f buildtools/linux64/gn
++
    # remove x86_64 binary and use our own
-@@ -475,4 +482,15 @@
+   rm -f third_party/gperf/cipd/bin/gperf
+   ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
+@@ -511,4 +517,13 @@
    install -Dvm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
 +source+=(swiftshader-use-llvm16.patch
 +         riscv-sandbox.patch
 +         Debian-fix-rust-linking.patch
-+         DEPS-remove-native-binaries.diff
-+         dawn-add-riscv64-cipd-platform.patch)
++         DEPS-remove-native-binaries.diff)
 +sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+             '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821'
-+             '41deb67bbffe54dab32415693c3db56b0cc532aecd0481dba7f2abb48e01bec3'
-+             '1c4f34675ed826bff5eff7ee8a3d3004c2a7842072b931526f26debd040b96bb'
-+             'c4b8214f01b53cab07c8bdbb9eb2ee73493b677da531c9cb7badc51ac6edfd7f')
++             'c7b09bddcadbd341c47c4ec90176a1437efcb32f19e10f2ce7f490fe485e9e81'
++             '3bdbff7bf9e831ee5f6005fb5e9e6743fc1c8f8a2492f7e2fe692b64aa29ad50'
++             '1c4f34675ed826bff5eff7ee8a3d3004c2a7842072b931526f26debd040b96bb')
 +
  # vim:set ts=2 sw=2 et:
 --- fetch-chromium-release

@@ -1,6 +1,6 @@
 --- build/toolchain/gcc_toolchain.gni
 +++ build/toolchain/gcc_toolchain.gni
-@@ -468,7 +468,12 @@
+@@ -469,7 +469,12 @@
          # TODO(40208899): See if it adding --detach for local builds helps.
          link_command += "\"-Wl,--separate-debug-file=$sofile_with_symbols\" -Wl,--no-detach "
        }
@@ -14,21 +14,21 @@
  
        # Generate a map file to be used for binary size analysis.
        # Map file adds ~10% to the link time on a z620.
-@@ -586,7 +591,12 @@
+@@ -587,7 +592,12 @@
          # TODO(40208899): See if it adding --detach for local builds helps.
-         command += "\"-Wl,--separate-debug-file=$sofile_with_symbols\" -Wl,--no-detach "
+         link_command += "\"-Wl,--separate-debug-file=$sofile_with_symbols\" -Wl,--no-detach "
        }
--      command += "@\"$rspfile\" {{rlibs}}"
+-      link_command += "@\"$rspfile\" {{rlibs}}"
 +      if (target_cpu == "riscv64") {
 +        # Work around linker failures due to Rust libraries and whole-archive.
-+        command += "-Wl,--start-group @\"$rspfile\" {{rlibs}} -Wl,--end-group"
++        link_command += "-Wl,--start-group @\"$rspfile\" {{rlibs}} -Wl,--end-group"
 +      } else {
-+        command += "@\"$rspfile\" {{rlibs}}"
++        link_command += "@\"$rspfile\" {{rlibs}}"
 +      }
  
-       if (defined(invoker.strip) && !use_mold_separate_debug_file) {
-         strip_command =
-@@ -664,7 +674,11 @@
+       # Generate a map file to be used for binary size analysis.
+       # Map file adds ~10% to the link time on a z620.
+@@ -680,7 +690,11 @@
        # We need to specify link groups, at least, for single pass linkers. I.e.
        # Rust libraries are alpha-sorted instead of by dependencies so they fail
        # to link if not properly ordered or grouped.
