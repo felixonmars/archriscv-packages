@@ -1,0 +1,17 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -58,6 +58,14 @@
+   exporter/opentelemetry-exporter-otlp-proto-http
+ )
+ 
++prepare() {
++  cd opentelemetry-python
++  # Allow slow gRPC calls while retaining the retry-delay lower bound.
++  # https://github.com/open-telemetry/opentelemetry-python/pull/5666
++  sed -i '/def test_retry_info_is_respected/,/metrics_data =/s/assertAlmostEqual(after - before, 1, delta=0\.5)/assertTrue(0.5 <= after - before <= 3)/' \
++    exporter/opentelemetry-exporter-otlp-proto-grpc/tests/test_otlp_exporter_mixin.py
++}
++
+ build() {
+   local component
+   for component in "${_components[@]}"; do
