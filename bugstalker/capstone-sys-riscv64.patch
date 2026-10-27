@@ -1,0 +1,34 @@
+Backport the enum ABI fix to the pinned capstone-sys dependency.
+https://github.com/capstone-rust/capstone-rs/commit/7c89f3328687cf43538438010ed402499d589fb3
+
+--- a/build.rs
++++ b/build.rs
+@@ -240,7 +240,7 @@
+     out_impl_path: PathBuf,
+ ) {
+     let mut builder = bindgen::Builder::default()
+-        .rust_target(bindgen::RustTarget::Stable_1_19)
++        .rust_target(bindgen::RustTarget::Stable_1_28)
+         .size_t_is_usize(true)
+         .use_core()
+         .ctypes_prefix("libc")
+--- a/pre_generated/capstone.rs
++++ b/pre_generated/capstone.rs
+@@ -169,7 +169,7 @@
+         self.0 &= rhs.0;
+     }
+ }
+-#[repr(C)]
++#[repr(transparent)]
+ #[doc = " Mode type"]
+ #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+ pub struct cs_mode(pub libc::c_uint);
+@@ -312,7 +312,7 @@
+         self.0 &= rhs.0;
+     }
+ }
+-#[repr(C)]
++#[repr(transparent)]
+ #[doc = " Common instruction operand access types - to be consistent across all architectures."]
+ #[doc = " It is possible to combine access types, for example: CS_AC_READ | CS_AC_WRITE"]
+ #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]

@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,9 @@
+ prepare() {
+   mv "$_pkgname-$pkgver" "$pkgname-$pkgver"
+   cd "$pkgname-$pkgver"
++  patch -Np1 -i "$srcdir/riscv64-support.patch"
++  patch -Np1 -d ../thread_db-0.1.4 -i "$srcdir/thread-db-riscv64.patch"
++  patch -Np1 -d ../capstone-sys-0.15.0 -i "$srcdir/capstone-sys-riscv64.patch"
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+ 
+@@ -39,3 +42,15 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++pkgdesc="Rust debugger for Linux"
++source+=("thread_db-0.1.4.tar.gz::https://static.crates.io/crates/thread_db/thread_db-0.1.4.crate"
++         "riscv64-support.patch"
++         "thread-db-riscv64.patch"
++         "capstone-sys-0.15.0.tar.gz::https://static.crates.io/crates/capstone-sys/capstone-sys-0.15.0.crate"
++         "capstone-sys-riscv64.patch")
++sha512sums+=('30dc01168a593fd4cc9ab5d9d2539fd5e4658489e1eb374b8d4120aec06ac25470f43fb7950025199d954314f6739626eff215b5aed1a2afba0e9ddd339aefac'
++             '02448ad9617126a08082219a8ec8e7d47bcf57a1b3c72882e323c91d0bfe03eaf3ec70544086c372e8c40e456052a864edf5a936ef0f4f4fb691d022c3573ce8'
++             '790a27008dee07c004c87a5c333a1b99b11041efe814033b99d10e6a81e3717ffa317e4c6d34cca26216d97beb99f574dea44f1fadc90b70422de7449fed0809'
++             '1f05877e8757259f8c9b2959f8d1eab1c27f04c9314e7493c5ba3528706c9bcd8cca4efc0355feb1820c9164a3b38bfaaa3419e3b7ff15f94e524ac5879897e2'
++             '1573e95b475492755d2acf26f9b75e4e73bb6a61f7a411dae1964917a6241a93d405048011083b8a93253a025af6deffeb3ffbd21a0a6f69cd965b0b2583963f')
