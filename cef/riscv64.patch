@@ -1,6 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -201,6 +201,13 @@
+@@ -173,9 +173,6 @@
+   # Fixes from Gentoo
+   patch -Np1 -i ../chromium-138-nodejs-version-check.patch
+ 
+-  # Allow libclang_rt.builtins from compiler-rt >= 16 to be used
+-  patch -Np1 -i ../compiler-rt-adjust-paths.patch
+-
+   # Increase _FORTIFY_SOURCE level to match Arch's default flags
+   patch -Np1 -i ../increase-fortify-level.patch
+ 
+@@ -240,6 +237,13 @@
    # CEF: Remove libxml_visibility patch (fails with system libxml2)
    patch -Np1 -i ../cef-no-libxml-visibility-patch.patch
  
@@ -14,7 +24,7 @@
    # CEF: Override clang_exe to use system clang
    echo 'clang_exe = "clang"' >>cef/tools/clang_util.py
  
-@@ -211,7 +218,8 @@
+@@ -250,7 +254,8 @@
      third_party/jdk/current/bin \
      third_party/rust-toolchain/bin \
      third_party/dawn/tools/golang/linux-amd64/bin \
@@ -24,7 +34,7 @@
  
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
    ln -s /usr/bin/node third_party/node/linux/node-linux-arm64/bin/
-@@ -219,6 +227,7 @@
+@@ -258,6 +263,7 @@
    ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
    ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
    ln -s /usr/bin/go third_party/dawn/tools/golang/linux-arm64/bin/
@@ -32,7 +42,7 @@
  
    # remove x86_64 binary and use our own
    rm -f third_party/gperf/cipd/bin/gperf
-@@ -352,6 +361,9 @@
+@@ -395,6 +401,9 @@
    if [[ $CARCH == "aarch64" ]]; then
      export GN_DEFINES+=' target_cpu="arm64"'
      export GN_OUT_CONFIGS="Release_GN_arm64"
@@ -42,7 +52,7 @@
    else
      export GN_OUT_CONFIGS="Release_GN_x64"
    fi
-@@ -383,8 +395,8 @@
+@@ -426,8 +435,8 @@
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS/}
  
@@ -53,7 +63,7 @@
      CFLAGS="${CFLAGS/-march=*([^ ]) }"
      CXXFLAGS="${CXXFLAGS/-march=*([^ ]) }"
    fi
-@@ -394,6 +406,8 @@
+@@ -437,6 +446,8 @@
  
    if [[ $CARCH == "aarch64" ]]; then
      ninja -C out/Release_GN_arm64 libcef chrome_sandbox
@@ -62,7 +72,7 @@
    else
      ninja -C out/Release_GN_x64 libcef chrome_sandbox
    fi
-@@ -401,6 +415,8 @@
+@@ -444,6 +455,8 @@
    # Build the CEF binary distribution
    if [[ $CARCH == "aarch64" ]]; then
      local _distrib_arch_flag="--arm64-build"
@@ -71,7 +81,7 @@
    else
      local _distrib_arch_flag="--x64-build"
    fi
-@@ -443,4 +459,11 @@
+@@ -486,4 +499,11 @@
    install -Dm644 ../chromium-$_chromium_ver/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-CHROMIUM"
  }
  
