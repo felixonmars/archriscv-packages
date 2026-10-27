@@ -1,0 +1,75 @@
+--- a/src/globalshortcuts.cpp
++++ b/src/globalshortcuts.cpp
+@@ -16,6 +16,7 @@
+ #include "main.h"
+ #include "utils/common.h"
+ // KDE
++#ifdef WITH_KGLOBALACCEL
+ #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+ #include <KGlobalAccelD/kglobalaccel_interface.h>
+ #include <KGlobalAccelD/kglobalacceld.h>
+@@ -23,6 +24,7 @@
+ #include <KGlobalAccel/private/kglobalaccel_interface.h>
+ #include <KGlobalAccel/private/kglobalacceld.h>
+ #endif
++#endif
+ // Qt
+ #include <QAction>
+ // system
+@@ -122,6 +124,7 @@
+ 
+ void GlobalShortcutsManager::init()
+ {
++#ifdef WITH_KGLOBALACCEL
+     if (kwinApp()->shouldUseWaylandForCompositing()) {
+         qputenv("KGLOBALACCELD_PLATFORM", QByteArrayLiteral("org.kde.kwin"));
+         m_kglobalAccel = std::make_unique<KGlobalAccelD>();
+@@ -132,6 +135,7 @@
+             qCDebug(KWIN_CORE) << "KGlobalAcceld inited";
+         }
+     }
++#endif
+ }
+ 
+ void GlobalShortcutsManager::objectDeleted(QObject *object)
+@@ -216,6 +220,7 @@
+ 
+ bool GlobalShortcutsManager::processKey(Qt::KeyboardModifiers mods, int keyQt)
+ {
++#ifdef WITH_KGLOBALACCEL
+     if (m_kglobalAccelInterface) {
+         if (!keyQt && !mods) {
+             return false;
+@@ -247,17 +252,20 @@
+             }
+         }
+     }
++#endif
+     return false;
+ }
+ 
+ bool GlobalShortcutsManager::processKeyRelease(Qt::KeyboardModifiers mods, int keyQt)
+ {
++#ifdef WITH_KGLOBALACCEL
+     if (m_kglobalAccelInterface) {
+         QMetaObject::invokeMethod(m_kglobalAccelInterface,
+                                   "checkKeyReleased",
+                                   Qt::DirectConnection,
+                                   Q_ARG(int, int(mods) | keyQt));
+     }
++#endif
+     return false;
+ }
+ 
+--- a/src/globalshortcuts.h
++++ b/src/globalshortcuts.h
+@@ -123,7 +123,9 @@
+ 
+     QVector<GlobalShortcut> m_shortcuts;
+ 
++#ifdef WITH_KGLOBALACCEL
+     std::unique_ptr<KGlobalAccelD> m_kglobalAccel;
++#endif
+     KGlobalAccelInterface *m_kglobalAccelInterface = nullptr;
+     std::unique_ptr<GestureRecognizer> m_touchpadGestureRecognizer;
+     std::unique_ptr<GestureRecognizer> m_touchscreenGestureRecognizer;
