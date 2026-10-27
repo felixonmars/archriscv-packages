@@ -9,7 +9,7 @@
          https://gitlab.com/Matt.Jolly/chromium-patches/-/archive/$_gcc_patches/chromium-patches-$_gcc_patches.tar.bz2
          # Chromium
          chromium-138-nodejs-version-check.patch
-@@ -500,8 +500,7 @@
+@@ -498,8 +498,7 @@
      -s src/third_party/skia --header src/skia/ext/skia_commit_hash.h
    src/build/util/lastchange.py \
      -s src/third_party/dawn --revision src/gpu/webgpu/DAWN_VERSION
@@ -19,7 +19,7 @@
  
    # https://gitlab.archlinux.org/archlinux/packaging/packages/electron32/-/issues/1
    src/third_party/node/update_npm_deps
-@@ -514,7 +513,8 @@
+@@ -512,7 +511,8 @@
  
    pushd src
    pushd electron
@@ -29,27 +29,28 @@
    popd
  
    echo "Applying local patches..."
-@@ -580,23 +580,23 @@
+@@ -529,9 +529,6 @@
+   # Fixes from Gentoo
+   patch -Np1 -i ../chromium-138-nodejs-version-check.patch
+ 
+-  # Allow libclang_rt.builtins from compiler-rt >= 16 to be used
+-  patch -Np1 -i ../compiler-rt-adjust-paths.patch
+-
+   # Increase _FORTIFY_SOURCE level to match Arch's default flags
+   patch -Np1 -i ../increase-fortify-level.patch
+ 
+@@ -578,6 +575,9 @@
    # some thin archive members ("/43/"); the helper chokes on it.
    patch -Np1 -i ../chromium-152-fix-resource-allowlist-parse.patch
  
 +  # Recognize riscv64 when Dawn selects the Go toolchain.
 +  patch -Np1 -i "$srcdir/dawn-cipd-riscv64.patch" -d third_party/dawn
 +
-   # Link to system tools required by the build
-   mkdir -p third_party/node/linux/node-linux-x64/bin \
-            third_party/rust-toolchain/bin \
-            third_party/jdk/current/bin \
-            third_party/gperf/cipd/bin \
--           third_party/dawn/tools/golang/linux-amd64/bin
-+           third_party/dawn/tools/golang/linux-riscv64/bin
- 
-   ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
-   ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
-   ln -s /usr/bin/java third_party/jdk/current/bin/
-   ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
--  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
-+  ln -s /usr/bin/go third_party/dawn/tools/golang/linux-riscv64/bin/
+   # map CARCH to GOARCH
+   local goarch
+   case "${CARCH}" in
+@@ -600,9 +600,6 @@
+   ln -s /usr/bin/go third_party/dawn/tools/golang/linux-${goarch}/bin/
  
    # Electron specific fixes
 -  #  fix: use GTK UI theme for Linux message boxes #52238
@@ -58,7 +59,7 @@
    patch -Np1 -i "${srcdir}/jinja-python-3.10.patch" -d "third_party/electron_node/tools/inspector_protocol/jinja2"
    patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
  
-@@ -656,6 +656,7 @@
+@@ -662,6 +659,7 @@
      'use_system_libffi=true'
      'enable_hangout_services_extension=true'
      'enable_widevine=false'
@@ -66,7 +67,7 @@
      'use_qt5=false'
      'use_qt6=true'
      'moc_qt6_path="/usr/lib/qt6"'
-@@ -714,9 +715,9 @@
+@@ -720,9 +718,9 @@
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
  
@@ -79,7 +80,7 @@
      # Having an arch setting in the C(XX)FLAGS overrides those
      # and causes compilation failure
      CFLAGS="${CFLAGS/-march=*([^ ]) }"
-@@ -747,3 +748,7 @@
+@@ -753,3 +751,7 @@
    install -Dm644 src/electron/default_app/icon.png \
            "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
  }
