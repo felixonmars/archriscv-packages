@@ -1,0 +1,139 @@
+Use the Linux RISC-V regset API for libthread_db callbacks.
+https://github.com/bminor/glibc/blob/master/sysdeps/riscv/nptl/tls.h
+
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -86,7 +86,7 @@
+ 
+     /// Returns process thread with lwpid == pid.
+     /// If thread not exists returns generic `TdErr::Err` (unfortunately this behavior is set in thread_db impl).
+-    #[cfg(target_arch = "x86_64")]
++    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+     pub fn get_thread(&self, pid: Pid) -> Result<Thread> {
+         unsafe {
+             let mut handle: TdThrHandle = MaybeUninit::zeroed().assume_init();
+--- a/src/proc_service.rs
++++ b/src/proc_service.rs
+@@ -1,5 +1,7 @@
+ use crate::ffi::{ProcHandle, PsAddr};
++#[cfg(target_arch = "x86_64")]
+ use nix::errno::Errno::ESRCH;
++#[cfg(target_arch = "x86_64")]
+ use nix::libc::user_regs_struct;
+ use nix::unistd::Pid;
+ use nix::{libc, sys};
+@@ -129,6 +131,7 @@
+     write((*handle).pid, ps_addr, addr, size).into()
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ #[no_mangle]
+ pub unsafe extern "C" fn ps_lgetregs(
+     _handle: *mut ProcHandle,
+@@ -144,6 +147,7 @@
+     }
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ #[no_mangle]
+ pub unsafe extern "C" fn ps_lsetregs(
+     _handle: *mut ProcHandle,
+@@ -154,6 +158,7 @@
+     sys::ptrace::setregs(Pid::from_raw(lwpid), *registers).into()
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ #[no_mangle]
+ pub unsafe extern "C" fn ps_lgetfpregs(
+     _handle: *mut ProcHandle,
+@@ -166,6 +171,7 @@
+     }
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ #[no_mangle]
+ pub unsafe extern "C" fn ps_lsetfpregs(
+     _handle: *mut ProcHandle,
+@@ -178,6 +184,68 @@
+     }
+ }
+ 
++// RISC-V implements GETREGSET/SETREGSET instead of the legacy ptrace requests.
++// glibc's DB_THREAD_SELF reads tp at offset 4 * 8 in NT_PRSTATUS.
++#[cfg(target_arch = "riscv64")]
++unsafe fn riscv_regset(
++    lwpid: libc::pid_t,
++    request: libc::c_uint,
++    note: usize,
++    registers: *mut c_void,
++    len: usize,
++) -> PsErr {
++    let mut iov = libc::iovec {
++        iov_base: registers,
++        iov_len: len,
++    };
++    if libc::ptrace(request, lwpid, note, &mut iov as *mut libc::iovec) == -1 || iov.iov_len != len
++    {
++        PsErr::Err
++    } else {
++        PsErr::Ok
++    }
++}
++
++#[cfg(target_arch = "riscv64")]
++#[no_mangle]
++pub unsafe extern "C" fn ps_lgetregs(
++    _handle: *mut ProcHandle,
++    lwpid: libc::pid_t,
++    registers: *mut c_void,
++) -> PsErr {
++    riscv_regset(lwpid, libc::PTRACE_GETREGSET, 1, registers, 32 * 8)
++}
++
++#[cfg(target_arch = "riscv64")]
++#[no_mangle]
++pub unsafe extern "C" fn ps_lsetregs(
++    _handle: *mut ProcHandle,
++    lwpid: libc::pid_t,
++    registers: *mut c_void,
++) -> PsErr {
++    riscv_regset(lwpid, libc::PTRACE_SETREGSET, 1, registers, 32 * 8)
++}
++
++#[cfg(target_arch = "riscv64")]
++#[no_mangle]
++pub unsafe extern "C" fn ps_lgetfpregs(
++    _handle: *mut ProcHandle,
++    lwpid: libc::pid_t,
++    registers: *mut c_void,
++) -> PsErr {
++    riscv_regset(lwpid, libc::PTRACE_GETREGSET, 2, registers, 33 * 8)
++}
++
++#[cfg(target_arch = "riscv64")]
++#[no_mangle]
++pub unsafe extern "C" fn ps_lsetfpregs(
++    _handle: *mut ProcHandle,
++    lwpid: libc::pid_t,
++    registers: *mut c_void,
++) -> PsErr {
++    riscv_regset(lwpid, libc::PTRACE_SETREGSET, 2, registers, 33 * 8)
++}
++
+ #[no_mangle]
+ pub unsafe extern "C" fn ps_pglobal_lookup(
+     handle: *mut ProcHandle,
+--- a/src/ffi.rs
++++ b/src/ffi.rs
+@@ -219,6 +219,11 @@
+     let mut symbols = HashMap::new();
+ 
+     let bin_data = fs::read(lib_path)?;
++    // The dynamic loader can keep ld.so.cache mapped alongside its ELF objects.
++    // Such data mappings do not contribute symbols to libthread_db.
++    if !bin_data.starts_with(b"\x7fELF") {
++        return Ok(symbols);
++    }
+     let binary = object::File::parse(&*bin_data)
+         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+ 

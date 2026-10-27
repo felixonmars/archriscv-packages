@@ -1,0 +1,2242 @@
+RISC-V port for BugStalker v0.4.9.
+https://github.com/godzie44/BugStalker/issues/79
+https://github.com/riscv-non-isa/riscv-elf-psabi-doc
+
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -290,8 +290,6 @@
+ [[package]]
+ name = "capstone-sys"
+ version = "0.15.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2e7f651d5ec4c2a2e6c508f2c8032655003cd728ec85663e9796616990e25b5a"
+ dependencies = [
+  "cc",
+  "libc",
+@@ -2324,8 +2322,6 @@
+ [[package]]
+ name = "thread_db"
+ version = "0.1.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9eae126af06e76a1a169642a2e5e1be6f726015ebddbb0ab07cf15140c1f5d53"
+ dependencies = [
+  "dlopen",
+  "dlopen_derive",
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -52,7 +52,7 @@
+ uuid = { version = "1.19.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+ os_pipe = "1.2.3"
+ proc-maps = "0.3.2"
+-thread_db = "0.1.4"
++thread_db = { path = "../thread_db-0.1.4" }
+ smallvec = "1.15.1"
+ rand = "0.8.5"
+ ctrlc = "3.5.1"
+@@ -89,6 +89,9 @@
+ [dev-dependencies]
+ serial_test = "3.2.0"
+ 
++[patch.crates-io]
++capstone-sys = { path = "../capstone-sys-0.15.0" }
++
+ [features]
+ default = []
+ nightly = []
+--- a/README.md
++++ b/README.md
+@@ -5,7 +5,11 @@
+     <br>
+ </p>
+ 
+-> Modern debugger for Linux x86-64. Written in Rust for Rust programs.
++> Modern debugger for Linux x86-64 and RISC-V (RV64GC). Written in Rust for Rust programs.
++
++The RISC-V backend uses software instruction stepping. Hardware watchpoints and
++async stepping commands that require them are unavailable on Linux RISC-V.
++LR/SC atomic sequences are stepped as a unit to preserve their reservation.
+ 
+ <h4 align="center">
+   <a href="https://godzie44.github.io/BugStalker/docs/overview">Documentation</a> |
+--- a/build.rs
++++ b/build.rs
+@@ -1,7 +1,10 @@
+ fn main() {
+-    if !(cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") && cfg!(target_env = "gnu")) {
++    if !(cfg!(target_os = "linux")
++        && cfg!(any(target_arch = "x86_64", target_arch = "riscv64"))
++        && cfg!(target_env = "gnu"))
++    {
+         panic!(
+-            "{} only works with linux using glibc on x86_64",
++            "{} only works with linux using glibc on x86_64 or riscv64",
+             env!("CARGO_PKG_NAME")
+         );
+     }
+--- a/src/dap/yadap/session/control.rs
++++ b/src/dap/yadap/session/control.rs
+@@ -744,8 +744,11 @@
+             let _ = dbg.set_thread_into_focus_by_pid(pid);
+         }
+ 
+-        dbg.set_register_value("rip", addr as u64)
+-            .context("goto: set rip")?;
++        dbg.set_register_value(
++            &crate::debugger::register::Register::PC.to_string(),
++            addr as u64,
++        )
++        .context("goto: set program counter")?;
+         let _ = dbg.set_frame_into_focus(0);
+ 
+         self.send_success(req)?;
+--- a/src/dap/yadap/session/frame.rs
++++ b/src/dap/yadap/session/frame.rs
+@@ -193,8 +193,11 @@
+             return self.send_err(req, "restartFrame: function start address is unavailable");
+         };
+ 
+-        dbg.set_register_value("rip", start_ip.as_u64())
+-            .context("restartFrame: set rip")?;
++        dbg.set_register_value(
++            &crate::debugger::register::Register::PC.to_string(),
++            start_ip.as_u64(),
++        )
++        .context("restartFrame: set program counter")?;
+         let _ = dbg.set_frame_into_focus(0);
+ 
+         self.send_success(req)?;
+--- a/src/dap/yadap/session/init.rs
++++ b/src/dap/yadap/session/init.rs
+@@ -44,7 +44,7 @@
+             "supportsSourceRequest": true,
+             "supportsFunctionBreakpoints": true,
+             "supportsInstructionBreakpoints": true,
+-            "supportsDataBreakpoints": true,
++            "supportsDataBreakpoints": cfg!(target_arch = "x86_64"),
+             "supportsConditionalBreakpoints": true,
+             "supportsHitConditionalBreakpoints": true,
+             "supportsLogPoints": true,
+--- a/src/dap/yadap/session/source.rs
++++ b/src/dap/yadap/session/source.rs
+@@ -2,7 +2,6 @@
+ use crate::dap::yadap::sourcemap::SourceMap;
+ use crate::debugger;
+ use anyhow::{Context, anyhow};
+-use capstone::prelude::*;
+ use serde_json::json;
+ use std::time::{Duration, Instant};
+ 
+@@ -356,11 +355,7 @@
+     instruction_count: usize,
+     timeout: Duration,
+ ) -> anyhow::Result<Vec<DisasmInstruction>> {
+-    let cs = Capstone::new()
+-        .x86()
+-        .mode(arch::x86::ArchMode::Mode64)
+-        .syntax(arch::x86::ArchSyntax::Att)
+-        .build()
++    let cs = debugger::architecture::disassembler()
+         .map_err(|err| anyhow!("disassemble: init capstone: {err}"))?;
+     let max_len = 16usize;
+     let read_len = instruction_count.saturating_mul(max_len).max(max_len);
+@@ -415,11 +410,7 @@
+     let len = end_addr - start_addr;
+     let max_len = 0x10000usize;
+     let read_len = len.min(max_len);
+-    let cs = Capstone::new()
+-        .x86()
+-        .mode(arch::x86::ArchMode::Mode64)
+-        .syntax(arch::x86::ArchSyntax::Att)
+-        .build()
++    let cs = debugger::architecture::disassembler()
+         .map_err(|err| anyhow!("disassemble: init capstone: {err}"))?;
+     let start = Instant::now();
+     let bytes = dbg
+--- a/src/debugger/architecture/riscv64.rs
++++ b/src/debugger/architecture/riscv64.rs
+@@ -0,0 +1,484 @@
++//! Software stepping for RV64GC. Linux does not implement PTRACE_SINGLESTEP.
++use crate::debugger::{
++    Error,
++    breakpoint::Breakpoint,
++    read_memory_by_pid,
++    register::{Register, RegisterMap},
++};
++use nix::{errno::Errno, unistd::Pid};
++
++fn signed(value: u32, bits: u32) -> i64 {
++    ((value << (32 - bits)) as i32 >> (32 - bits)) as i64
++}
++
++#[derive(Clone, Copy, Debug)]
++struct Instruction(u32);
++
++impl Instruction {
++    fn read(pid: Pid, pc: u64) -> Result<Self, Error> {
++        let low = read_memory_by_pid(pid, pc as usize, 2).map_err(Error::Ptrace)?;
++        let low = u16::from_le_bytes([low[0], low[1]]) as u32;
++        if low & 3 != 3 {
++            return Ok(Self(low));
++        }
++        if low & 0x1f == 0x1f {
++            return Err(Error::UnsupportedArchitectureFeature(
++                "stepping instructions longer than 32 bits",
++            ));
++        }
++        let high = read_memory_by_pid(pid, pc as usize + 2, 2).map_err(Error::Ptrace)?;
++        Ok(Self(
++            low | ((u16::from_le_bytes([high[0], high[1]]) as u32) << 16),
++        ))
++    }
++
++    fn len(self) -> u64 {
++        if self.0 & 3 == 3 { 4 } else { 2 }
++    }
++
++    // A direct control transfer's displacement, including compressed branches.
++    fn displacement(self) -> Option<i64> {
++        let i = self.0;
++        if self.len() == 2 {
++            match i & 0xe003 {
++                0xa001 => Some(signed(
++                    ((i >> 12 & 1) << 11)
++                        | ((i >> 11 & 1) << 4)
++                        | ((i >> 9 & 3) << 8)
++                        | ((i >> 8 & 1) << 10)
++                        | ((i >> 7 & 1) << 6)
++                        | ((i >> 6 & 1) << 7)
++                        | ((i >> 3 & 7) << 1)
++                        | ((i >> 2 & 1) << 5),
++                    12,
++                )),
++                0xc001 | 0xe001 => Some(signed(
++                    ((i >> 12 & 1) << 8)
++                        | ((i >> 10 & 3) << 3)
++                        | ((i >> 5 & 3) << 6)
++                        | ((i >> 3 & 3) << 1)
++                        | ((i >> 2 & 1) << 5),
++                    9,
++                )),
++                _ => None,
++            }
++        } else {
++            match i & 0x7f {
++                0x6f => Some(signed(
++                    ((i >> 31) << 20)
++                        | ((i >> 12 & 0xff) << 12)
++                        | ((i >> 20 & 1) << 11)
++                        | ((i >> 21 & 0x3ff) << 1),
++                    21,
++                )),
++                0x63 => Some(signed(
++                    ((i >> 31) << 12)
++                        | ((i >> 7 & 1) << 11)
++                        | ((i >> 25 & 0x3f) << 5)
++                        | ((i >> 8 & 0xf) << 1),
++                    13,
++                )),
++                _ => None,
++            }
++        }
++    }
++
++    fn next(self, pc: u64, reg: impl Fn(u32) -> u64) -> Result<u64, Error> {
++        let i = self.0;
++        let sequential = pc.wrapping_add(self.len());
++        if self.len() == 2 {
++            return Ok(match i & 0xe003 {
++                0xa001 => pc.wrapping_add_signed(self.displacement().unwrap()), // c.j
++                0xc001 | 0xe001 => {
++                    let zero = reg(8 + (i >> 7 & 7)) == 0;
++                    if zero == (i & 0xe000 == 0xc000) {
++                        pc.wrapping_add_signed(self.displacement().unwrap())
++                    } else {
++                        sequential
++                    }
++                }
++                // c.jr and c.jalr; exclude c.ebreak (rs1 == 0).
++                0x8002 if i & 0x7c == 0 && i >> 7 & 31 != 0 => reg(i >> 7 & 31) & !1,
++                _ => sequential,
++            });
++        }
++        Ok(match i & 0x7f {
++            0x6f => pc.wrapping_add_signed(self.displacement().unwrap()),
++            0x67 if i >> 12 & 7 == 0 => {
++                reg(i >> 15 & 31).wrapping_add_signed(signed(i >> 20, 12)) & !1
++            }
++            0x63 => {
++                let a = reg(i >> 15 & 31);
++                let b = reg(i >> 20 & 31);
++                let taken = match i >> 12 & 7 {
++                    0 => a == b,
++                    1 => a != b,
++                    4 => (a as i64) < (b as i64),
++                    5 => (a as i64) >= (b as i64),
++                    6 => a < b,
++                    7 => a >= b,
++                    _ => {
++                        return Err(Error::UnsupportedArchitectureFeature(
++                            "reserved RISC-V branch encoding",
++                        ));
++                    }
++                };
++                if taken {
++                    pc.wrapping_add_signed(self.displacement().unwrap())
++                } else {
++                    sequential
++                }
++            }
++            _ => sequential,
++        })
++    }
++
++    fn link_register(self) -> Option<u32> {
++        let i = self.0;
++        if self.len() == 4 && matches!(i & 0x7f, 0x6f | 0x67) {
++            Some(i >> 7 & 31)
++        } else if i & 0xf07f == 0x9002 && i >> 7 & 31 != 0 {
++            Some(1) // c.jalr
++        } else {
++            None
++        }
++    }
++}
++
++// Breaking between LR and SC destroys the reservation on a context switch.
++// Execute the constrained sequence as a unit, trapping on each possible exit.
++fn atomic_targets(
++    pc: u64,
++    first: Instruction,
++    mut read: impl FnMut(u64) -> Result<Instruction, Error>,
++) -> Result<Option<Vec<u64>>, Error> {
++    if first.0 & 0xf9f0_007f != 0x1000_002f {
++        return Ok(None);
++    }
++    let mut address = pc + 4;
++    let mut exits = vec![];
++    for _ in 1..16 {
++        let insn = read(address)?;
++        if insn.0 & 0xf800_007f == 0x1800_002f && insn.0 & 0x000f_f000 == first.0 & 0x000f_f000 {
++            let end = address + 4;
++            exits.retain(|&target| target >= end);
++            exits.push(end);
++            exits.sort_unstable();
++            exits.dedup();
++            return Ok(Some(exits));
++        }
++        if let Some(offset) = insn.displacement() {
++            if offset <= 0 {
++                break;
++            }
++            exits.push(address.wrapping_add_signed(offset));
++        } else {
++            let allowed = if insn.len() == 4 {
++                matches!(insn.0 & 0x7f, 0x13 | 0x1b | 0x33 | 0x3b | 0x37 | 0x17)
++                    && !(matches!(insn.0 & 0x7f, 0x33 | 0x3b) && insn.0 >> 25 & 1 != 0)
++            } else {
++                // Compressed integer arithmetic, excluding loads/stores and indirect jumps.
++                matches!(
++                    insn.0 & 0xe003,
++                    0x0001 | 0x2001 | 0x4001 | 0x6001 | 0x8001 | 0x0002
++                ) || (insn.0 & 0xe003 == 0x8002 && insn.0 & 0x7c != 0)
++            };
++            if !allowed {
++                break;
++            }
++        }
++        address += insn.len();
++    }
++    Err(Error::UnsupportedArchitectureFeature(
++        "stepping an unconstrained RISC-V LR/SC sequence",
++    ))
++}
++
++/// Empty targets mean a self-branch was emulated without overwriting its instruction.
++pub fn step_targets(pid: Pid) -> Result<Vec<u64>, Error> {
++    let mut regs = RegisterMap::current(pid)?;
++    let pc = regs.value(Register::PC);
++    let instruction = Instruction::read(pid, pc)?;
++    if let Some(targets) = atomic_targets(pc, instruction, |p| Instruction::read(pid, p))? {
++        return Ok(targets);
++    }
++    let next = if instruction.0 == 0x73 && regs.value(Register::A7) == 139 {
++        // Linux rt_sigframe: siginfo (128 bytes), ucontext prefix (176 bytes), saved PC.
++        let bytes = read_memory_by_pid(pid, regs.value(Register::SP) as usize + 304, 8)
++            .map_err(Error::Ptrace)?;
++        u64::from_le_bytes(bytes.try_into().expect("saved PC size"))
++    } else {
++        instruction.next(pc, |r| regs.integer(r))?
++    };
++    if next == pc {
++        if instruction.displacement().is_none()
++            && instruction.link_register().is_none()
++            && !(instruction.len() == 2 && instruction.0 & 0xf07f == 0x8002)
++        {
++            return Err(Error::UnsupportedArchitectureFeature(
++                "stepping a syscall returning to itself",
++            ));
++        }
++        if let Some(link) = instruction.link_register() {
++            regs.update(
++                Register::from_repr(link as u16).unwrap(),
++                pc + instruction.len(),
++            );
++            regs.persist(pid)?;
++        }
++        return Ok(vec![]);
++    }
++    Ok(vec![next])
++}
++
++pub struct StepBreakpoints(Vec<Breakpoint>);
++
++impl StepBreakpoints {
++    pub fn install(pid: Pid, targets: &[u64], active: &[&Breakpoint]) -> Result<Self, Error> {
++        let mut points = Self(vec![]);
++        for &target in targets {
++            if active
++                .iter()
++                .any(|b| b.is_enabled() && b.addr.as_u64() == target)
++            {
++                continue;
++            }
++            let point = Breakpoint::new_temporary("", target.into(), pid);
++            point.enable()?;
++            points.0.push(point);
++        }
++        Ok(points)
++    }
++
++    pub fn restore(&mut self) -> Result<(), Error> {
++        let mut errors = vec![];
++        for point in self.0.drain(..).rev() {
++            if let Err(error) = point.disable() {
++                if !matches!(error, Error::Ptrace(Errno::ESRCH)) {
++                    errors.push(error);
++                }
++            }
++        }
++        if errors.is_empty() {
++            Ok(())
++        } else {
++            Err(Error::MultipleErrors(errors))
++        }
++    }
++
++    pub fn discard(&mut self) {
++        self.0.clear();
++    }
++
++    pub fn restore_through(&mut self, pid: Pid) {
++        // A thread may exit while stepping; another stopped thread can restore shared text.
++        for point in &mut self.0 {
++            point.pid = pid;
++        }
++    }
++}
++
++impl Drop for StepBreakpoints {
++    fn drop(&mut self) {
++        if let Err(error) = self.restore() {
++            log::error!("restore stepping breakpoints: {error}");
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn branches_and_compressed_control_flow() {
++        assert_eq!(Instruction(0x008000ef).next(0x1000, |_| 0).unwrap(), 0x1008); // jal ra,+8
++        assert_eq!(
++            Instruction(0xffd08067).next(0x1000, |_| 0x2004).unwrap(),
++            0x2000
++        ); // jalr -3(ra)
++        assert_eq!(Instruction(0xfe000ee3).next(0x1000, |_| 0).unwrap(), 0x0ffc); // beq zero,zero,-4
++        assert_eq!(Instruction(0xa009).next(0x1000, |_| 0).unwrap(), 0x1002); // c.j +2
++        assert_eq!(Instruction(0xbffd).next(0x1000, |_| 0).unwrap(), 0x0ffe); // c.j -2
++        assert_eq!(Instruction(0xc011).next(0x1000, |_| 0).unwrap(), 0x1004); // c.beqz s0,+4
++        assert_eq!(Instruction(0xc011).next(0x1000, |_| 1).unwrap(), 0x1002);
++        assert_eq!(
++            Instruction(0x8082).next(0x1000, |_| 0x2001).unwrap(),
++            0x2000
++        ); // c.jr ra
++        assert_eq!(Instruction(0x9082).link_register(), Some(1));
++        assert_eq!(Instruction(0x9002).link_register(), None); // c.ebreak
++        assert_eq!(Instruction(0x0001).len(), 2);
++        assert_eq!(Instruction(0x00000013).len(), 4);
++    }
++
++    #[test]
++    fn signed_and_unsigned_branches_differ() {
++        let registers = |r| if r == 1 { u64::MAX } else { 1 };
++        assert_eq!(
++            Instruction(0x0020c463).next(0x1000, registers).unwrap(),
++            0x1008
++        ); // blt ra,sp,+8
++        assert_eq!(
++            Instruction(0x0020e463).next(0x1000, registers).unwrap(),
++            0x1004
++        ); // bltu ra,sp,+8
++    }
++
++    #[test]
++    fn atomic_sequence_has_no_interior_breakpoints() {
++        let code = [0x100535af, 0x00b61663, 0x18c536af]; // lr.d; bne +12; sc.d
++        let targets = atomic_targets(0x1000, Instruction(code[0]), |pc| {
++            Ok(Instruction(code[((pc - 0x1000) / 4) as usize]))
++        })
++        .unwrap()
++        .unwrap();
++        assert_eq!(targets, vec![0x100c, 0x1010]);
++    }
++
++    #[test]
++    #[serial_test::serial]
++    fn native_compressed_atomic_step_and_page_boundary() {
++        use nix::{
++            libc,
++            sys::{
++                ptrace,
++                signal::Signal,
++                wait::{WaitStatus, waitpid},
++            },
++            unistd::{ForkResult, fork},
++        };
++        use std::ptr;
++
++        struct Child(Pid);
++        impl Drop for Child {
++            fn drop(&mut self) {
++                unsafe {
++                    libc::kill(self.0.as_raw(), libc::SIGKILL);
++                }
++                let _ = waitpid(self.0, None);
++            }
++        }
++        struct Mapping(*mut libc::c_void, usize);
++        impl Drop for Mapping {
++            fn drop(&mut self) {
++                unsafe {
++                    libc::munmap(self.0, self.1);
++                }
++            }
++        }
++
++        let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize };
++        let memory = unsafe {
++            libc::mmap(
++                ptr::null_mut(),
++                2 * page,
++                libc::PROT_READ | libc::PROT_WRITE | libc::PROT_EXEC,
++                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
++                -1,
++                0,
++            )
++        };
++        assert_ne!(memory, libc::MAP_FAILED);
++        let mapping = Mapping(memory, 2 * page);
++        let address = memory as usize;
++        unsafe {
++            // c.addi a0,1; c.nop, and a return at the very end of the mapped page.
++            ptr::copy_nonoverlapping([0x05u8, 0x05, 0x01, 0x00].as_ptr(), memory.cast(), 4);
++            // lr.d a1,(a0); addi a1,a1,1; sc.d a2,a1,(a0).
++            let atomic = [0x100535afu32, 0x00158593, 0x18b5362f];
++            ptr::copy_nonoverlapping(atomic.as_ptr().cast::<u8>(), (address + 16) as *mut u8, 12);
++            ptr::copy_nonoverlapping([0x82u8, 0x80].as_ptr(), (address + page - 2) as *mut u8, 2);
++            assert_eq!(
++                libc::mprotect((address + page) as *mut _, page, libc::PROT_NONE),
++                0
++            );
++        }
++        let pid = match unsafe { fork().unwrap() } {
++            ForkResult::Child => unsafe {
++                // Only async-signal-safe operations between fork and the parent's ptrace control.
++                // Ptrace can read PROT_NONE pages, so leave this page unmapped in the tracee.
++                if libc::munmap((address + page) as *mut _, page) != 0 {
++                    libc::_exit(1);
++                }
++                if libc::ptrace(
++                    libc::PTRACE_TRACEME,
++                    0,
++                    ptr::null_mut::<libc::c_void>(),
++                    ptr::null_mut::<libc::c_void>(),
++                ) == -1
++                {
++                    libc::_exit(1);
++                }
++                libc::raise(libc::SIGSTOP);
++                libc::_exit(0);
++            },
++            ForkResult::Parent { child } => child,
++        };
++        let child = Child(pid);
++        assert_eq!(
++            waitpid(pid, None).unwrap(),
++            WaitStatus::Stopped(pid, Signal::SIGSTOP)
++        );
++        let mut boundary =
++            StepBreakpoints::install(pid, &[(address + page - 2) as u64], &[]).unwrap();
++        assert_eq!(
++            read_memory_by_pid(pid, address + page - 2, 2).unwrap(),
++            super::super::BREAKPOINT
++        );
++        boundary.restore().unwrap();
++        let mut regs = RegisterMap::current(pid).unwrap();
++        regs.update(Register::PC, (address + page - 2) as u64);
++        regs.update(Register::Ra, address as u64);
++        regs.update(Register::A0, 0);
++        regs.persist(pid).unwrap();
++        for expected in [address, address + 2] {
++            let targets = step_targets(pid).unwrap();
++            assert_eq!(targets, vec![expected as u64]);
++            let mut breakpoints = StepBreakpoints::install(pid, &targets, &[]).unwrap();
++            ptrace::cont(pid, None).unwrap();
++            assert_eq!(
++                waitpid(pid, None).unwrap(),
++                WaitStatus::Stopped(pid, Signal::SIGTRAP)
++            );
++            assert_eq!(
++                RegisterMap::current(pid).unwrap().value(Register::PC),
++                expected as u64
++            );
++            breakpoints.restore().unwrap();
++        }
++        assert_eq!(RegisterMap::current(pid).unwrap().value(Register::A0), 1);
++        assert_eq!(
++            read_memory_by_pid(pid, address, 4).unwrap(),
++            [0x05, 0x05, 0x01, 0x00]
++        );
++        assert_eq!(
++            read_memory_by_pid(pid, address + page - 2, 2).unwrap(),
++            [0x82, 0x80]
++        );
++        for _ in 0..10 {
++            let mut regs = RegisterMap::current(pid).unwrap();
++            regs.update(Register::PC, (address + 16) as u64);
++            regs.update(Register::A0, (address + 64) as u64);
++            regs.persist(pid).unwrap();
++            let targets = step_targets(pid).unwrap();
++            assert_eq!(targets, vec![(address + 28) as u64]);
++            let mut breakpoints = StepBreakpoints::install(pid, &targets, &[]).unwrap();
++            ptrace::cont(pid, None).unwrap();
++            assert_eq!(
++                waitpid(pid, None).unwrap(),
++                WaitStatus::Stopped(pid, Signal::SIGTRAP)
++            );
++            breakpoints.restore().unwrap();
++            if RegisterMap::current(pid).unwrap().value(Register::A2) == 0 {
++                break;
++            }
++        }
++        assert_eq!(
++            read_memory_by_pid(pid, address + 64, 8).unwrap(),
++            1u64.to_le_bytes()
++        );
++        drop(child);
++        drop(mapping);
++    }
++}
+--- a/src/debugger/architecture.rs
++++ b/src/debugger/architecture.rs
+@@ -0,0 +1,66 @@
++//! Native instruction-set details shared by the debugger and its front ends.
++use capstone::prelude::*;
++use nix::{sys::ptrace, unistd::Pid};
++use std::ffi::c_void;
++
++#[cfg(target_arch = "riscv64")]
++pub(super) mod riscv64;
++
++#[cfg(target_arch = "x86_64")]
++pub const BREAKPOINT: [u8; 1] = [0xcc];
++// riscv64gc includes C; a two-byte trap also fits compressed instructions.
++#[cfg(target_arch = "riscv64")]
++pub const BREAKPOINT: [u8; 2] = [0x02, 0x90];
++
++pub fn disassembler() -> Result<Capstone, capstone::Error> {
++    #[cfg(target_arch = "x86_64")]
++    let builder = Capstone::new()
++        .x86()
++        .mode(arch::x86::ArchMode::Mode64)
++        .syntax(arch::x86::ArchSyntax::Att);
++    #[cfg(target_arch = "riscv64")]
++    let builder = Capstone::new()
++        .riscv()
++        .mode(arch::riscv::ArchMode::RiscV64)
++        .extra_mode([arch::riscv::ArchExtraMode::RiscVC].into_iter());
++    builder.build()
++}
++
++#[cfg(test)]
++mod tests {
++    #[test]
++    fn native_disassembler_initializes() {
++        let cs = super::disassembler().unwrap();
++        #[cfg(target_arch = "riscv64")]
++        let code = [0x05, 0x05, 0x13, 0x05, 0x15, 0x00]; // c.addi a0,1; addi a0,a0,1
++        #[cfg(target_arch = "x86_64")]
++        let code = [0x90, 0x90];
++        let instructions = cs.disasm_all(&code, 0x1000).unwrap();
++        assert_eq!(instructions.len(), 2);
++        assert_eq!(instructions[0].address(), 0x1000);
++        #[cfg(target_arch = "riscv64")]
++        assert_eq!(instructions[1].address(), 0x1002);
++    }
++}
++
++/// Modify only the requested bytes, including at the end of a mapped page.
++pub fn write_bytes(pid: Pid, address: usize, bytes: &[u8]) -> nix::Result<()> {
++    let mut written = 0;
++    while written < bytes.len() {
++        let current = address + written;
++        let aligned = current & !(size_of::<usize>() - 1);
++        let offset = current - aligned;
++        let count = (size_of::<usize>() - offset).min(bytes.len() - written);
++        let mut word = ptrace::read(pid, aligned as *mut c_void)?.to_ne_bytes();
++        word[offset..offset + count].copy_from_slice(&bytes[written..written + count]);
++        unsafe {
++            ptrace::write(
++                pid,
++                aligned as *mut c_void,
++                usize::from_ne_bytes(word) as *mut c_void,
++            )?;
++        }
++        written += count;
++    }
++    Ok(())
++}
+--- a/src/debugger/breakpoint.rs
++++ b/src/debugger/breakpoint.rs
+@@ -5,8 +5,6 @@
+ use crate::debugger::debugee::dwarf::unit::PlaceDescriptorOwned;
+ use crate::debugger::error::Error;
+ use crate::debugger::error::Error::{NoDebugInformation, NoSuitablePlace, PlaceNotFound};
+-use nix::libc::c_void;
+-use nix::sys;
+ use nix::unistd::Pid;
+ use std::borrow::Cow;
+ use std::cell::Cell;
+@@ -553,7 +551,7 @@
+     number: u32,
+     /// Place information, None if brkpt is a temporary or entry point
+     place: Option<PlaceDescriptorOwned>,
+-    pub saved_data: Cell<u8>,
++    pub saved_data: Cell<[u8; super::architecture::BREAKPOINT.len()]>,
+     enabled: Cell<bool>,
+     r#type: BrkptType,
+     pub debug_info_file: PathBuf,
+@@ -566,8 +564,6 @@
+ }
+ 
+ impl Breakpoint {
+-    const INT3: u64 = 0xCC_u64;
+-
+     #[inline(always)]
+     fn new_inner(
+         addr: RelocatedAddress,
+@@ -766,26 +762,28 @@
+     }
+ 
+     pub fn enable(&self) -> Result<(), Error> {
+-        let addr = self.addr.as_usize() as *mut c_void;
+-        let data = sys::ptrace::read(self.pid, addr).map_err(Error::Ptrace)?;
+-        self.saved_data.set((data & 0xff) as u8);
+-        let data_with_pb = (data & !0xff) as u64 | Self::INT3;
+-        unsafe {
+-            sys::ptrace::write(self.pid, addr, data_with_pb as *mut c_void)
+-                .map_err(Error::Ptrace)?;
+-        }
++        let data = super::read_memory_by_pid(
++            self.pid,
++            self.addr.as_usize(),
++            super::architecture::BREAKPOINT.len(),
++        )
++        .map_err(Error::Ptrace)?;
++        self.saved_data
++            .set(data.try_into().expect("breakpoint instruction size"));
++        super::architecture::write_bytes(
++            self.pid,
++            self.addr.as_usize(),
++            &super::architecture::BREAKPOINT,
++        )
++        .map_err(Error::Ptrace)?;
+         self.enabled.set(true);
+ 
+         Ok(())
+     }
+ 
+     pub fn disable(&self) -> Result<(), Error> {
+-        let addr = self.addr.as_usize() as *mut c_void;
+-        let data = sys::ptrace::read(self.pid, addr).map_err(Error::Ptrace)? as u64;
+-        let restored: u64 = (data & !0xff) | self.saved_data.get() as u64;
+-        unsafe {
+-            sys::ptrace::write(self.pid, addr, restored as *mut c_void).map_err(Error::Ptrace)?;
+-        }
++        super::architecture::write_bytes(self.pid, self.addr.as_usize(), &self.saved_data.get())
++            .map_err(Error::Ptrace)?;
+         self.enabled.set(false);
+ 
+         Ok(())
+--- a/src/debugger/call/mod.rs
++++ b/src/debugger/call/mod.rs
+@@ -1,5 +1,7 @@
+ mod cache;
+ pub mod fmt;
++#[cfg(target_arch = "riscv64")]
++mod riscv64;
+ pub use cache::CallCache;
+ 
+ use super::{
+@@ -10,12 +12,14 @@
+     utils::PopIf,
+     variable::dqe::Literal,
+ };
++#[cfg(target_arch = "x86_64")]
++use crate::debugger::utils;
+ use crate::{
+     debugger::{
+         FunctionInfo,
+         context::gcx,
+         debugee::dwarf::unit::die_ref::{FatDieRef, Function},
+-        read_memory_by_pid, utils,
++        read_memory_by_pid,
+     },
+     disable_when_not_stared, weak_error,
+ };
+@@ -27,8 +31,10 @@
+ pub enum CallError {
+     #[error("Invalid argument count, expect {0}, got {1}")]
+     InvalidArgumentCount(usize, usize),
+-    #[error("At most 6 8-byte arguments allowed at this moment")]
++    #[error("Too many register arguments for the target ABI")]
+     TooManyArguments,
++    #[error("Function call stopped before completing: {0:?}")]
++    UnexpectedStop(WaitStatus),
+     #[error("`{0}` literal type are not supported")]
+     UnsupportedLiteral(&'static str),
+     #[error("Type of argument {0} is unknown")]
+@@ -149,7 +155,27 @@
+                 }
+             };
+ 
+-            (u64::from_le_bytes(bytes), RegType::General)
++            let value = u64::from_le_bytes(bytes);
++            #[cfg(target_arch = "riscv64")]
++            let value = {
++                // The psABI widens narrow integers to 32 bits by signedness,
++                // then sign-extends the 32-bit result to XLEN, including u32.
++                let bits = scalar_type.byte_size.unwrap_or(8) * 8;
++                let value = if bits > 0
++                    && bits < 64
++                    && matches!(encoding, gimli::DW_ATE_signed | gimli::DW_ATE_signed_char)
++                {
++                    ((value << (64 - bits)) as i64 >> (64 - bits)) as u64
++                } else {
++                    value
++                };
++                if bits <= 32 {
++                    (value as u32 as i32 as i64) as u64
++                } else {
++                    value
++                }
++            };
++            (value, RegType::General)
+         }
+         Literal::Float(_) => return Err(CallError::UnsupportedLiteral("float")),
+         Literal::Address(addr) => {
+@@ -177,6 +203,7 @@
+ }
+ 
+ /// Map argument to the register according to System V AMD64 ABI.
++#[cfg(target_arch = "x86_64")]
+ fn get_reg_for_no(no: usize, reg_type: RegType) -> Register {
+     match (no, reg_type) {
+         (0, RegType::General) => Register::Rdi,
+@@ -189,6 +216,28 @@
+     }
+ }
+ 
++#[cfg(target_arch = "riscv64")]
++fn get_reg_for_no(no: usize, reg_type: RegType) -> Register {
++    match reg_type {
++        RegType::General => [
++            Register::A0,
++            Register::A1,
++            Register::A2,
++            Register::A3,
++            Register::A4,
++            Register::A5,
++            Register::A6,
++            Register::A7,
++        ][no],
++        _ => unreachable!("unsupported floating-point argument"),
++    }
++}
++
++#[cfg(target_arch = "x86_64")]
++const MAX_ARGUMENTS: usize = 6;
++#[cfg(target_arch = "riscv64")]
++const MAX_ARGUMENTS: usize = 8;
++
+ impl CallArgs {
+     fn new(literals: &[Literal], fn_params: &[Rc<ComplexType>]) -> Result<Self, CallError> {
+         if literals.len() != fn_params.len() {
+@@ -198,7 +247,7 @@
+             ));
+         }
+ 
+-        if literals.len() > 6 {
++        if literals.len() > MAX_ARGUMENTS {
+             return Err(CallError::TooManyArguments);
+         }
+ 
+@@ -213,10 +262,7 @@
+ 
+     /// Fill registers with arguments.
+     fn prepare_registers(self, reg_map: &mut RegisterMap) {
+-        debug_assert!(
+-            self.0.len() < 7,
+-            "only 6 6-byte arguments allowed at this moment"
+-        );
++        debug_assert!(self.0.len() <= MAX_ARGUMENTS);
+         for (idx, (val, reg_type)) in self.0.iter().enumerate() {
+             reg_map.update(get_reg_for_no(idx, *reg_type), *val);
+         }
+@@ -271,6 +317,7 @@
+ 
+ struct CallHelper;
+ 
++#[cfg(target_arch = "x86_64")]
+ impl CallHelper {
+     fn call_fn(ccx: &CallContext, rip: u64, fn_addr: u64, args: CallArgs) -> Result<(), Error> {
+         // new text:
+--- a/src/debugger/call/riscv64.rs
++++ b/src/debugger/call/riscv64.rs
+@@ -0,0 +1,88 @@
++use super::*;
++use crate::debugger::architecture::write_bytes;
++
++impl CallHelper {
++    fn wait_at(ccx: &CallContext, pc: u64) -> Result<(), Error> {
++        let status = nix::sys::wait::waitpid(ccx.pid, None).map_err(Error::Waitpid)?;
++        if status != WaitStatus::Stopped(ccx.pid, Signal::SIGTRAP)
++            || RegisterMap::current(ccx.pid)?.value(Register::PC) != pc
++        {
++            return Err(CallError::UnexpectedStop(status).into());
++        }
++        Ok(())
++    }
++
++    fn syscall(ccx: &CallContext, number: u64, args: &[u64]) -> Result<u64, Error> {
++        // ecall; ebreak. The kernel returns to the second instruction.
++        write_bytes(
++            ccx.pid,
++            ccx.pc.as_usize(),
++            &[0x73, 0, 0, 0, 0x73, 0, 0x10, 0],
++        )
++        .map_err(Error::Ptrace)?;
++        let mut regs = ccx.regs.clone();
++        regs.update(Register::PC, ccx.pc.as_u64());
++        regs.update(Register::A7, number);
++        for (index, &value) in args.iter().enumerate() {
++            regs.update(get_reg_for_no(index, RegType::General), value);
++        }
++        regs.persist(ccx.pid)?;
++        sys::ptrace::cont(ccx.pid, None).map_err(Error::Ptrace)?;
++        Self::wait_at(ccx, ccx.pc.as_u64() + 4)?;
++        Ok(RegisterMap::current(ccx.pid)?.value(Register::A0))
++    }
++
++    pub(super) fn mmap(ccx: &CallContext) -> Result<u64, Error> {
++        let size = unsafe { nix::libc::sysconf(nix::libc::_SC_PAGESIZE) as u64 };
++        let prot = (nix::libc::PROT_READ | nix::libc::PROT_WRITE | nix::libc::PROT_EXEC) as u64;
++        let flags = (nix::libc::MAP_PRIVATE | nix::libc::MAP_ANONYMOUS) as u64;
++        let address = Self::syscall(
++            ccx,
++            nix::libc::SYS_mmap as u64,
++            &[0, size, prot, flags, u64::MAX, 0],
++        )?;
++        if (-4095..0).contains(&(address as i64)) {
++            return Err(CallError::Mmap.into());
++        }
++        debug_assert!(crate::debugger::utils::region_exist(ccx.pid, address)?);
++        Ok(address)
++    }
++
++    pub(super) fn munmap(ccx: &CallContext, address: u64) -> Result<(), Error> {
++        let size = unsafe { nix::libc::sysconf(nix::libc::_SC_PAGESIZE) as u64 };
++        if Self::syscall(ccx, nix::libc::SYS_munmap as u64, &[address, size])? != 0 {
++            return Err(CallError::Munmap.into());
++        }
++        debug_assert!(crate::debugger::utils::region_non_exist(ccx.pid, address)?);
++        Ok(())
++    }
++
++    pub(super) fn jump(ccx: &CallContext, address: u64) -> Result<(), Error> {
++        let mut regs = ccx.regs.clone();
++        regs.update(Register::PC, address);
++        regs.persist(ccx.pid)
++    }
++
++    pub(super) fn call_fn(
++        ccx: &CallContext,
++        pc: u64,
++        address: u64,
++        args: CallArgs,
++    ) -> Result<(), Error> {
++        // jalr ra, 0(t0); ebreak. ra points at the trap when the callee returns.
++        write_bytes(
++            ccx.pid,
++            pc as usize,
++            &[0xe7, 0x80, 0x02, 0, 0x73, 0, 0x10, 0],
++        )
++        .map_err(Error::Ptrace)?;
++        let mut regs = ccx.regs.clone();
++        args.prepare_registers(&mut regs);
++        regs.update(Register::T0, address);
++        regs.update(Register::PC, pc);
++        regs.update(Register::SP, regs.value(Register::SP) & !15);
++        regs.persist(ccx.pid)?;
++        sys::ptrace::cont(ccx.pid, None).map_err(Error::Ptrace)?;
++        Self::wait_at(ccx, pc + 4)
++    }
++}
+--- a/src/debugger/debugee/disasm.rs
++++ b/src/debugger/debugee/disasm.rs
+@@ -31,12 +31,7 @@
+     /// Create a new [`Disassembler`].
+     pub fn new() -> Result<Self, Error> {
+         Ok(Self {
+-            cs: Capstone::new()
+-                .x86()
+-                .mode(arch::x86::ArchMode::Mode64)
+-                .syntax(arch::x86::ArchSyntax::Att)
+-                .build()
+-                .map_err(Error::DisAsmInit)?,
++            cs: crate::debugger::architecture::disassembler().map_err(Error::DisAsmInit)?,
+             cache: RefCell::new(LruCache::new(NonZeroUsize::new(1000).expect("infallible"))),
+         })
+     }
+@@ -78,7 +73,9 @@
+                 .filter(|brkpt| brkpt.addr >= fn_reloc_pc_start && brkpt.addr <= fn_reloc_pc_end)
+                 .for_each(|brkpt| {
+                     let byte_idx = usize::from(brkpt.addr) - usize::from(fn_reloc_pc_start);
+-                    text[byte_idx] = brkpt.saved_data.get();
++                    let saved = brkpt.saved_data.get();
++                    let count = saved.len().min(text.len() - byte_idx);
++                    text[byte_idx..byte_idx + count].copy_from_slice(&saved[..count]);
+                 });
+ 
+             let instructions = self
+--- a/src/debugger/debugee/dwarf/unwind.rs
++++ b/src/debugger/debugee/dwarf/unwind.rs
+@@ -247,7 +247,7 @@
+         ecx: &ExplorationContext,
+     ) -> Result<Option<Self>, Error> {
+         let mut next_frame_registers: DwarfRegisterMap = previous_ucx.registers;
+-        let sp_register = Register::Rsp
++        let sp_register = Register::SP
+             .dwarf_register()
+             .expect("stack pointer register must map to dwarf register");
+         next_frame_registers.update(sp_register, previous_ucx.cfa.into());
+--- a/src/debugger/debugee/tracee.rs
++++ b/src/debugger/debugee/tracee.rs
+@@ -67,6 +67,7 @@
+     }
+ 
+     /// Move the stopped tracee process forward by a single instruction step.
++    #[cfg(target_arch = "x86_64")]
+     pub fn step(&self, sig: Option<Signal>) -> Result<(), Error> {
+         sys::ptrace::step(self.pid, sig).map_err(Ptrace)
+     }
+@@ -110,13 +111,13 @@
+     /// Get current program counter value.
+     pub fn pc(&self) -> Result<RelocatedAddress, Error> {
+         RegisterMap::current(self.pid)
+-            .map(|reg_map| RelocatedAddress::from(reg_map.value(Register::Rip)))
++            .map(|reg_map| RelocatedAddress::from(reg_map.value(Register::PC)))
+     }
+ 
+     /// Set new program counter value.
+     pub fn set_pc(&self, value: u64) -> Result<(), Error> {
+         let mut map = RegisterMap::current(self.pid)?;
+-        map.update(Register::Rip, value);
++        map.update(Register::PC, value);
+         map.persist(self.pid)
+     }
+ 
+--- a/src/debugger/debugee/tracer.rs
++++ b/src/debugger/debugee/tracer.rs
+@@ -10,7 +10,9 @@
+ use log::{debug, warn};
+ use nix::errno::Errno;
+ use nix::libc::pid_t;
+-use nix::sys::signal::{SIGSTOP, Signal};
++#[cfg(target_arch = "x86_64")]
++use nix::sys::signal::SIGSTOP;
++use nix::sys::signal::Signal;
+ use nix::sys::wait::{WaitStatus, waitpid};
+ use nix::unistd::Pid;
+ use nix::{libc, sys};
+@@ -409,27 +411,47 @@
+                         code::TRAP_BRKPT | code::SI_KERNEL => {
+                             let current_pc = {
+                                 let tracee = self.tracee_ctl.tracee_ensure(pid);
+-                                tracee.set_pc(tracee.pc()?.as_u64() - 1)?;
+-                                tracee.pc()?
++                                #[cfg(target_arch = "x86_64")]
++                                let pc = RelocatedAddress::from(tracee.pc()?.as_u64() - 1);
++                                #[cfg(target_arch = "riscv64")]
++                                let pc = tracee.pc()?;
++                                pc
+                             };
+ 
+                             let mb_hit_brkpt = tcx
+                                 .breakpoints
+                                 .iter()
+                                 .find(|brkpt| brkpt.addr == current_pc);
+-                            debug_assert!(
+-                                mb_hit_brkpt.is_some(),
+-                                "the interrupt caught but the breakpoint was not found"
+-                            );
+                             let Some(&brkpt) = mb_hit_brkpt else {
+-                                return Ok(None);
++                                // An application can execute its own trap instruction.
++                                // Only debugger breakpoints may be consumed silently.
++                                self.tracee_ctl
++                                    .tracee_ensure_mut(pid)
++                                    .set_stop(StopType::SignalStop(signal));
++                                self.inject_signal_queue.push_back((pid, signal));
++                                self.group_stop_interrupt(tcx, pid)?;
++                                return Ok(Some(StopReason::SignalStop(pid, signal)));
+                             };
++                            #[cfg(target_arch = "x86_64")]
++                            self.tracee_ctl
++                                .tracee_ensure(pid)
++                                .set_pc(current_pc.as_u64())?;
++
++                            #[cfg(target_arch = "riscv64")]
++                            {
++                                self.tracee_ctl
++                                    .tracee_ensure_mut(pid)
++                                    .set_stop(StopType::Interrupt);
++                                self.group_stop_interrupt(tcx, pid)?;
++                            }
+ 
+                             let has_tmp_breakpoints = tcx
+                                 .breakpoints
+                                 .iter()
+                                 .any(|b| b.is_temporary() | b.is_temporary_async());
+-                            if has_tmp_breakpoints {
++                            // Leave concurrent hits stopped until the outer group stop completes.
++                            // Software stepping patches shared text and needs every thread stopped.
++                            if has_tmp_breakpoints && !self.group_stop_in_progress() {
+                                 let temporary_hit = brkpt.is_temporary() && pid == brkpt.pid;
+                                 let temporary_async_hit = brkpt.is_temporary_async();
+                                 let watchpoint_hit = brkpt.is_wp_companion();
+@@ -525,6 +547,7 @@
+     /// A [`StopReason::SignalStop`] returned if step interrupt causes tracee in a signal-stop.
+     /// A [`StopReason::Watchpoint`] returned if step interrupt causes hardware breakpoint is hit.
+     /// Error returned otherwise.
++    #[cfg(target_arch = "x86_64")]
+     pub fn single_step(
+         &mut self,
+         tcx: TraceContext,
+@@ -626,4 +649,96 @@
+         };
+         Ok(reason)
+     }
++
++    #[cfg(target_arch = "riscv64")]
++    pub fn single_step(
++        &mut self,
++        tcx: TraceContext,
++        pid: Pid,
++    ) -> Result<Option<StopReason>, Error> {
++        use crate::debugger::architecture::riscv64::{StepBreakpoints, step_targets};
++
++        // Other threads share the patched text and must not hit our temporary traps.
++        self.tracee_ctl
++            .tracee_ensure_mut(pid)
++            .set_stop(StopType::Interrupt);
++        self.group_stop_interrupt(tcx, pid)?;
++        let targets = step_targets(pid)?;
++        if targets.is_empty() {
++            return Ok(None);
++        }
++        let mut points = StepBreakpoints::install(pid, &targets, tcx.breakpoints)?;
++        let result = (|| {
++            self.tracee_ctl.tracee_ensure_mut(pid).r#continue(None)?;
++            loop {
++                let status = self.tracee_ctl.tracee_ensure(pid).wait_one()?;
++                if let WaitStatus::Stopped(_, Signal::SIGTRAP) = status {
++                    let info = sys::ptrace::getsiginfo(pid).map_err(Ptrace)?;
++                    let pc = self.tracee_ctl.tracee_ensure(pid).pc()?;
++                    if matches!(info.si_code, code::TRAP_BRKPT | code::SI_KERNEL)
++                        && targets.contains(&pc.as_u64())
++                    {
++                        self.tracee_ctl
++                            .tracee_ensure_mut(pid)
++                            .set_stop(StopType::Interrupt);
++                        let breakpoint = tcx.breakpoints.iter().find(|b| b.addr == pc);
++                        if let Some(BrkptType::WatchpointCompanion(wps)) =
++                            breakpoint.map(|b| b.r#type())
++                        {
++                            return Ok(Some(StopReason::Watchpoint(
++                                pid,
++                                pc,
++                                WatchpointHitType::EndOfScope(wps.clone()),
++                            )));
++                        }
++                        return Ok(None);
++                    }
++                }
++                if matches!(
++                    status,
++                    WaitStatus::PtraceEvent(_, _, libc::PTRACE_EVENT_EXEC)
++                ) {
++                    // exec replaced the address space; old bytes must never be written into it.
++                    points.discard();
++                    return self.apply_new_status(tcx, status);
++                }
++                if matches!(
++                    status,
++                    WaitStatus::PtraceEvent(_, _, libc::PTRACE_EVENT_EXIT)
++                ) {
++                    let exit = sys::ptrace::getevent(pid).map_err(Ptrace)? as i32;
++                    self.apply_new_status(tcx, status)?;
++                    return Err(ProcessExit(libc::WEXITSTATUS(exit)));
++                }
++                if let WaitStatus::Exited(_, code) = status {
++                    self.apply_new_status(tcx, status)?;
++                    return Err(ProcessExit(code));
++                }
++                let stop = self.apply_new_status(tcx, status)?;
++                match stop {
++                    Some(StopReason::SignalStop(_, signal)) if QUIET_SIGNALS.contains(&signal) => {
++                        self.inject_signal_queue.pop_back();
++                        self.tracee_ctl
++                            .tracee_ensure_mut(pid)
++                            .r#continue(Some(signal))?;
++                    }
++                    Some(_) => return Ok(stop),
++                    None => {
++                        if matches!(
++                            status,
++                            WaitStatus::PtraceEvent(_, _, libc::PTRACE_EVENT_STOP)
++                        ) {
++                            return Ok(None);
++                        }
++                        self.tracee_ctl.tracee_ensure_mut(pid).r#continue(None)?;
++                    }
++                }
++            }
++        })();
++        if let Some(tracee) = self.tracee_ctl.tracee_iter().find(|t| t.is_stopped()) {
++            points.restore_through(tracee.pid);
++        }
++        points.restore()?;
++        result
++    }
+ }
+--- a/src/debugger/error.rs
++++ b/src/debugger/error.rs
+@@ -15,6 +15,8 @@
+     // --------------------------------- generic errors --------------------------------------------
+     #[error("debugee already run")]
+     AlreadyRun,
++    #[error("{0} is not supported on this architecture")]
++    UnsupportedArchitectureFeature(&'static str),
+     #[error(transparent)]
+     IO(#[from] std::io::Error),
+     #[error(transparent)]
+@@ -182,6 +184,7 @@
+     pub fn is_fatal(&self) -> bool {
+         match self {
+             Error::AlreadyRun => false,
++            Error::UnsupportedArchitectureFeature(_) => false,
+             Error::IO(_) => false,
+             Error::Utf8(_) => false,
+             Error::FromUtf8(_) => false,
+--- a/src/debugger/mod.rs
++++ b/src/debugger/mod.rs
+@@ -1,4 +1,5 @@
+ pub mod address;
++pub(crate) mod architecture;
+ pub mod r#async;
+ mod breakpoint;
+ pub mod call;
+@@ -1100,7 +1101,7 @@
+     ///
+     /// # Arguments
+     ///
+-    /// * `register_name`: x86-64 register name (ex: `rip`)
++    /// * `register_name`: native register name (for example, `rip` or `pc`)
+     pub fn get_register_value(&self, register_name: &str) -> Result<u64, Error> {
+         disable_when_not_stared!(self);
+ 
+@@ -1138,7 +1139,7 @@
+     ///
+     /// # Arguments
+     ///
+-    /// * `register_name`: x86-64 register name (ex: `rip`)
++    /// * `register_name`: native register name (for example, `rip` or `pc`)
+     /// * `val`: 8 bite value
+     pub fn set_register_value(&self, register_name: &str, val: u64) -> Result<(), Error> {
+         disable_when_not_stared!(self);
+@@ -1310,18 +1311,17 @@
+ 
+ /// Read N bytes from `PID` process.
+ pub fn read_memory_by_pid(pid: Pid, addr: usize, read_n: usize) -> Result<Vec<u8>, nix::Error> {
+-    let mut read_reminder = read_n as isize;
+     let mut result = Vec::with_capacity(read_n);
+-
+-    let single_read_size = mem::size_of::<c_long>();
+-
+-    let mut addr = addr as *mut c_long;
+-    while read_reminder > 0 {
+-        let value = sys::ptrace::read(pid, addr as *mut c_void)?;
+-        result.extend(value.to_ne_bytes().into_iter().take(read_reminder as usize));
+-
+-        read_reminder -= single_read_size as isize;
+-        addr = unsafe { addr.offset(1) };
++    let word_size = mem::size_of::<c_long>();
++    while result.len() < read_n {
++        let current = addr + result.len();
++        let aligned = current & !(word_size - 1);
++        let offset = current - aligned;
++        let count = (word_size - offset).min(read_n - result.len());
++        // A compressed instruction may occupy the last two bytes of a mapping.
++        // PEEKDATA must not read past that mapping just to return a partial word.
++        let value = sys::ptrace::read(pid, aligned as *mut c_void)?.to_ne_bytes();
++        result.extend_from_slice(&value[offset..offset + count]);
+     }
+ 
+     debug_assert!(result.len() == read_n);
+--- a/src/debugger/register/riscv64.rs
++++ b/src/debugger/register/riscv64.rs
+@@ -0,0 +1,269 @@
++//! Linux RISC-V regsets and the RISC-V psABI DWARF register numbering.
++use super::DwarfRegisterMap;
++use crate::debugger::Error;
++use nix::{errno::Errno, libc, unistd::Pid};
++use smallvec::smallvec;
++use std::mem::size_of_val;
++use strum::IntoEnumIterator;
++use strum_macros::{Display, EnumIter, EnumString, FromRepr};
++
++#[repr(u16)]
++#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, EnumString, Display, EnumIter, FromRepr)]
++pub enum Register {
++    #[strum(to_string = "zero", serialize = "x0")]
++    Zero = 0,
++    #[strum(to_string = "ra", serialize = "x1")]
++    Ra = 1,
++    #[strum(to_string = "sp", serialize = "x2")]
++    Sp = 2,
++    #[strum(to_string = "gp", serialize = "x3")]
++    Gp = 3,
++    #[strum(to_string = "tp", serialize = "x4")]
++    Tp = 4,
++    #[strum(to_string = "t0", serialize = "x5")]
++    T0 = 5,
++    #[strum(to_string = "t1", serialize = "x6")]
++    T1 = 6,
++    #[strum(to_string = "t2", serialize = "x7")]
++    T2 = 7,
++    #[strum(to_string = "s0", serialize = "x8", serialize = "fp")]
++    S0 = 8,
++    #[strum(to_string = "s1", serialize = "x9")]
++    S1 = 9,
++    #[strum(to_string = "a0", serialize = "x10")]
++    A0 = 10,
++    #[strum(to_string = "a1", serialize = "x11")]
++    A1 = 11,
++    #[strum(to_string = "a2", serialize = "x12")]
++    A2 = 12,
++    #[strum(to_string = "a3", serialize = "x13")]
++    A3 = 13,
++    #[strum(to_string = "a4", serialize = "x14")]
++    A4 = 14,
++    #[strum(to_string = "a5", serialize = "x15")]
++    A5 = 15,
++    #[strum(to_string = "a6", serialize = "x16")]
++    A6 = 16,
++    #[strum(to_string = "a7", serialize = "x17")]
++    A7 = 17,
++    #[strum(to_string = "s2", serialize = "x18")]
++    S2 = 18,
++    #[strum(to_string = "s3", serialize = "x19")]
++    S3 = 19,
++    #[strum(to_string = "s4", serialize = "x20")]
++    S4 = 20,
++    #[strum(to_string = "s5", serialize = "x21")]
++    S5 = 21,
++    #[strum(to_string = "s6", serialize = "x22")]
++    S6 = 22,
++    #[strum(to_string = "s7", serialize = "x23")]
++    S7 = 23,
++    #[strum(to_string = "s8", serialize = "x24")]
++    S8 = 24,
++    #[strum(to_string = "s9", serialize = "x25")]
++    S9 = 25,
++    #[strum(to_string = "s10", serialize = "x26")]
++    S10 = 26,
++    #[strum(to_string = "s11", serialize = "x27")]
++    S11 = 27,
++    #[strum(to_string = "t3", serialize = "x28")]
++    T3 = 28,
++    #[strum(to_string = "t4", serialize = "x29")]
++    T4 = 29,
++    #[strum(to_string = "t5", serialize = "x30")]
++    T5 = 30,
++    #[strum(to_string = "t6", serialize = "x31")]
++    T6 = 31,
++    #[strum(to_string = "ft0", serialize = "f0")]
++    Ft0 = 32,
++    #[strum(to_string = "ft1", serialize = "f1")]
++    Ft1 = 33,
++    #[strum(to_string = "ft2", serialize = "f2")]
++    Ft2 = 34,
++    #[strum(to_string = "ft3", serialize = "f3")]
++    Ft3 = 35,
++    #[strum(to_string = "ft4", serialize = "f4")]
++    Ft4 = 36,
++    #[strum(to_string = "ft5", serialize = "f5")]
++    Ft5 = 37,
++    #[strum(to_string = "ft6", serialize = "f6")]
++    Ft6 = 38,
++    #[strum(to_string = "ft7", serialize = "f7")]
++    Ft7 = 39,
++    #[strum(to_string = "fs0", serialize = "f8")]
++    Fs0 = 40,
++    #[strum(to_string = "fs1", serialize = "f9")]
++    Fs1 = 41,
++    #[strum(to_string = "fa0", serialize = "f10")]
++    Fa0 = 42,
++    #[strum(to_string = "fa1", serialize = "f11")]
++    Fa1 = 43,
++    #[strum(to_string = "fa2", serialize = "f12")]
++    Fa2 = 44,
++    #[strum(to_string = "fa3", serialize = "f13")]
++    Fa3 = 45,
++    #[strum(to_string = "fa4", serialize = "f14")]
++    Fa4 = 46,
++    #[strum(to_string = "fa5", serialize = "f15")]
++    Fa5 = 47,
++    #[strum(to_string = "fa6", serialize = "f16")]
++    Fa6 = 48,
++    #[strum(to_string = "fa7", serialize = "f17")]
++    Fa7 = 49,
++    #[strum(to_string = "fs2", serialize = "f18")]
++    Fs2 = 50,
++    #[strum(to_string = "fs3", serialize = "f19")]
++    Fs3 = 51,
++    #[strum(to_string = "fs4", serialize = "f20")]
++    Fs4 = 52,
++    #[strum(to_string = "fs5", serialize = "f21")]
++    Fs5 = 53,
++    #[strum(to_string = "fs6", serialize = "f22")]
++    Fs6 = 54,
++    #[strum(to_string = "fs7", serialize = "f23")]
++    Fs7 = 55,
++    #[strum(to_string = "fs8", serialize = "f24")]
++    Fs8 = 56,
++    #[strum(to_string = "fs9", serialize = "f25")]
++    Fs9 = 57,
++    #[strum(to_string = "fs10", serialize = "f26")]
++    Fs10 = 58,
++    #[strum(to_string = "fs11", serialize = "f27")]
++    Fs11 = 59,
++    #[strum(to_string = "ft8", serialize = "f28")]
++    Ft8 = 60,
++    #[strum(to_string = "ft9", serialize = "f29")]
++    Ft9 = 61,
++    #[strum(to_string = "ft10", serialize = "f30")]
++    Ft10 = 62,
++    #[strum(to_string = "ft11", serialize = "f31")]
++    Ft11 = 63,
++    #[strum(serialize = "pc")]
++    Pc = 64,
++    #[strum(serialize = "fcsr")]
++    Fcsr = 65,
++}
++
++impl Register {
++    pub const PC: Self = Self::Pc;
++    pub const SP: Self = Self::Sp;
++
++    pub fn dwarf_register(self) -> Option<gimli::Register> {
++        match self {
++            Self::Pc | Self::Fcsr => None,
++            _ => Some(gimli::Register(self as u16)),
++        }
++    }
++}
++
++impl From<gimli::Register> for Register {
++    fn from(value: gimli::Register) -> Self {
++        Self::from_repr(value.0).expect("unknown RISC-V DWARF register")
++    }
++}
++
++#[derive(Debug, Clone)]
++pub struct RegisterMap {
++    // NT_PRSTATUS starts with PC, followed by x1 through x31. x0 is not stored.
++    general: [u64; 32],
++    // Linux's __riscv_d_ext_state: 32 FP registers, fcsr and trailing padding.
++    floating: [u64; 33],
++}
++
++fn regset(pid: Pid, request: libc::c_uint, note: usize, data: &mut [u64]) -> Result<(), Error> {
++    let mut iov = libc::iovec {
++        iov_base: data.as_mut_ptr().cast(),
++        iov_len: size_of_val(data),
++    };
++    let result = unsafe { libc::ptrace(request, pid.as_raw(), note, &mut iov as *mut libc::iovec) };
++    Errno::result(result).map_err(Error::Ptrace)?;
++    if iov.iov_len != size_of_val(data) {
++        return Err(Error::Ptrace(Errno::EIO));
++    }
++    Ok(())
++}
++
++impl RegisterMap {
++    pub fn current(pid: Pid) -> Result<Self, Error> {
++        let mut map = Self {
++            general: [0; 32],
++            floating: [0; 33],
++        };
++        regset(pid, libc::PTRACE_GETREGSET, 1, &mut map.general)?; // NT_PRSTATUS
++        regset(pid, libc::PTRACE_GETREGSET, 2, &mut map.floating)?; // NT_PRFPREG
++        Ok(map)
++    }
++
++    pub fn value(&self, register: impl Into<Register>) -> u64 {
++        match register.into() {
++            Register::Zero => 0,
++            Register::Pc => self.general[0],
++            Register::Fcsr => self.floating[32] & 0xffff_ffff,
++            reg if (reg as usize) < 32 => self.general[reg as usize],
++            reg => self.floating[reg as usize - 32],
++        }
++    }
++
++    pub fn update(&mut self, register: impl Into<Register>, value: u64) {
++        match register.into() {
++            Register::Zero => {}
++            Register::Pc => self.general[0] = value,
++            Register::Fcsr => self.floating[32] = value & 0xffff_ffff,
++            reg if (reg as usize) < 32 => self.general[reg as usize] = value,
++            reg => self.floating[reg as usize - 32] = value,
++        }
++    }
++
++    pub fn persist(mut self, pid: Pid) -> Result<(), Error> {
++        regset(pid, libc::PTRACE_SETREGSET, 2, &mut self.floating)?;
++        regset(pid, libc::PTRACE_SETREGSET, 1, &mut self.general)
++    }
++
++    pub(crate) fn integer(&self, number: u32) -> u64 {
++        if number == 0 {
++            0
++        } else {
++            self.general[number as usize]
++        }
++    }
++}
++
++impl From<RegisterMap> for DwarfRegisterMap {
++    fn from(map: RegisterMap) -> Self {
++        let mut values = smallvec![None; 0x80];
++        for register in Register::iter() {
++            if let Some(dwarf) = register.dwarf_register() {
++                values[dwarf.0 as usize] = Some(map.value(register));
++            }
++        }
++        Self(values)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn linux_and_dwarf_register_layouts() {
++        let mut map = RegisterMap {
++            general: [0; 32],
++            floating: [0; 33],
++        };
++        map.update(Register::PC, 0x1000);
++        map.update(Register::Zero, 99);
++        map.update(Register::Ra, 0x2000);
++        map.update(Register::Sp, 0x3000);
++        map.update(Register::Fa0, 42);
++        assert_eq!(map.general[0], 0x1000);
++        assert_eq!(map.general[1], 0x2000);
++        assert_eq!(map.value(Register::Zero), 0);
++        assert_eq!("x10".parse::<Register>().unwrap(), Register::A0);
++        assert_eq!("fp".parse::<Register>().unwrap(), Register::S0);
++        let dwarf: DwarfRegisterMap = map.into();
++        assert_eq!(dwarf.value(gimli::Register(0)).unwrap(), 0);
++        assert_eq!(dwarf.value(gimli::Register(1)).unwrap(), 0x2000);
++        assert_eq!(dwarf.value(gimli::Register(2)).unwrap(), 0x3000);
++        assert_eq!(dwarf.value(gimli::Register(42)).unwrap(), 42);
++    }
++}
+--- a/src/debugger/register.rs
++++ b/src/debugger/register.rs
+@@ -1,15 +1,31 @@
+ use crate::debugger::error::Error;
+-use crate::debugger::error::Error::{Ptrace, RegisterNotFound};
++#[cfg(target_arch = "x86_64")]
++use crate::debugger::error::Error::Ptrace;
++use crate::debugger::error::Error::RegisterNotFound;
++#[cfg(target_arch = "x86_64")]
+ use gimli::Register as DwarfRegister;
++#[cfg(target_arch = "x86_64")]
+ use nix::libc::user_regs_struct;
++#[cfg(target_arch = "x86_64")]
+ use nix::sys;
++#[cfg(target_arch = "x86_64")]
+ use nix::unistd::Pid;
+-use smallvec::{SmallVec, smallvec};
++use smallvec::SmallVec;
++#[cfg(target_arch = "x86_64")]
++use smallvec::smallvec;
++#[cfg(target_arch = "x86_64")]
+ use strum_macros::Display;
++#[cfg(target_arch = "x86_64")]
+ use strum_macros::EnumString;
+ 
++#[cfg(target_arch = "riscv64")]
++mod riscv64;
++#[cfg(target_arch = "riscv64")]
++pub use riscv64::{Register, RegisterMap};
++
+ /// x86_64 registers.
+-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, EnumString, Display)]
++#[cfg(target_arch = "x86_64")]
++#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, EnumString, Display, strum_macros::EnumIter)]
+ #[strum(serialize_all = "snake_case")]
+ pub enum Register {
+     Rax,
+@@ -41,7 +57,11 @@
+     Es,
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ impl Register {
++    pub const PC: Self = Self::Rip;
++    pub const SP: Self = Self::Rsp;
++
+     pub fn dwarf_register(self) -> Option<DwarfRegister> {
+         let register = match self {
+             Register::Rax => 0,
+@@ -76,6 +96,7 @@
+     }
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ impl From<gimli::Register> for Register {
+     fn from(value: gimli::Register) -> Self {
+         match value.0 as i32 {
+@@ -114,6 +135,7 @@
+ }
+ 
+ /// x86_64 register values.
++#[cfg(target_arch = "x86_64")]
+ #[derive(Debug, Clone)]
+ pub struct RegisterMap {
+     rax: u64,
+@@ -145,6 +167,7 @@
+     es: u64,
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ impl From<user_regs_struct> for RegisterMap {
+     fn from(value: user_regs_struct) -> Self {
+         Self {
+@@ -179,6 +202,7 @@
+     }
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ impl From<RegisterMap> for user_regs_struct {
+     fn from(reg_map: RegisterMap) -> user_regs_struct {
+         user_regs_struct {
+@@ -213,6 +237,7 @@
+     }
+ }
+ 
++#[cfg(target_arch = "x86_64")]
+ impl RegisterMap {
+     /// Return current register values for selected thread.
+     ///
+@@ -310,7 +335,7 @@
+     }
+ }
+ 
+-/// x86_64 register values, using DWARF register number as index.
++/// Register values, using DWARF register number as index.
+ #[derive(Debug, Clone)]
+ pub struct DwarfRegisterMap(SmallVec<[Option<u64>; 0x80]>);
+ 
+@@ -355,6 +380,7 @@
+ 
+ /// Mapping dwarf registers to machine registers.
+ /// See https://docs.rs/gimli/0.13.0/gimli/struct.UnwindTableRow.html#method.register
++#[cfg(target_arch = "x86_64")]
+ impl From<RegisterMap> for DwarfRegisterMap {
+     fn from(map: RegisterMap) -> Self {
+         let mut dwarf_map = smallvec![None; 0x80];
+@@ -390,13 +416,18 @@
+ 
+ pub mod debug {
+     use crate::debugger::Error;
++    #[cfg(target_arch = "x86_64")]
+     use crate::debugger::Error::Ptrace;
+     use bit_field::BitField;
++    #[cfg(target_arch = "x86_64")]
+     use nix::sys;
++    #[cfg(target_arch = "x86_64")]
+     use nix::sys::ptrace::AddressType;
+     use nix::unistd::Pid;
++    #[cfg(target_arch = "x86_64")]
+     use std::ffi::c_void;
+     use std::fmt::{Display, Formatter};
++    #[cfg(target_arch = "x86_64")]
+     use std::mem::offset_of;
+     use strum_macros::FromRepr;
+ 
+@@ -559,6 +590,7 @@
+         /// # Arguments
+         ///
+         /// * `pid`: thread id for which state is loaded
++        #[cfg(target_arch = "x86_64")]
+         pub fn current(pid: Pid) -> Result<Self, Error> {
+             use nix::libc::user;
+ 
+@@ -584,6 +616,7 @@
+         /// # Arguments
+         ///
+         /// * `pid`: thread id into which registers data is saved
++        #[cfg(target_arch = "x86_64")]
+         pub fn sync(&self, pid: Pid) -> Result<(), Error> {
+             fn set_dr(pid: Pid, num: usize, data: usize) -> Result<(), Error> {
+                 let offset = offset_of!(nix::libc::user, u_debugreg);
+@@ -601,6 +634,21 @@
+             set_dr(pid, 7, self.dr7.0)?;
+             Ok(())
+         }
++
++        // Linux RISC-V exposes general/FP regsets, but no hardware watchpoint API.
++        #[cfg(target_arch = "riscv64")]
++        pub fn current(_pid: Pid) -> Result<Self, Error> {
++            Err(Error::UnsupportedArchitectureFeature(
++                "hardware watchpoints",
++            ))
++        }
++
++        #[cfg(target_arch = "riscv64")]
++        pub fn sync(&self, _pid: Pid) -> Result<(), Error> {
++            Err(Error::UnsupportedArchitectureFeature(
++                "hardware watchpoints",
++            ))
++        }
+     }
+ 
+     /// Specifies the breakpoint condition for a corresponding breakpoint.
+--- a/src/debugger/variable/value/specialization/hashbrown.rs
++++ b/src/debugger/variable/value/specialization/hashbrown.rs
+@@ -2,6 +2,12 @@
+ use fallible_iterator::FallibleIterator;
+ use nix::unistd::Pid;
+ 
++#[cfg(target_arch = "x86_64")]
++const GROUP_WIDTH: usize = 16;
++// hashbrown uses its usize-sized generic control group on RV64.
++#[cfg(target_arch = "riscv64")]
++const GROUP_WIDTH: usize = 8;
++
+ /// A bit mask which contains the result of a Match operation on a Group and allows iterating through them.
+ #[derive(Copy, Clone, PartialEq, Debug)]
+ pub struct BitMask(u16);
+@@ -10,7 +16,7 @@
+     const BITMASK_STRIDE: usize = 1;
+ 
+     fn invert(self) -> Self {
+-        BitMask(self.0 ^ 0xffff_u16)
++        BitMask(self.0 ^ (u16::MAX >> (16 - GROUP_WIDTH)))
+     }
+ 
+     pub fn remove_lowest_bit(self) -> Self {
+@@ -34,16 +40,16 @@
+     }
+ }
+ 
+-struct GroupReflection([u8; 16]);
++struct GroupReflection([u8; GROUP_WIDTH]);
+ 
+ impl GroupReflection {
+     fn width() -> usize {
+-        16
++        GROUP_WIDTH
+     }
+ 
+     /// Load group of control bytes from debugee process.
+     fn load(pid: Pid, ptr: *const u8) -> Result<Self, nix::Error> {
+-        let mut data: [u8; 16] = Default::default();
++        let mut data: [u8; GROUP_WIDTH] = Default::default();
+         data.copy_from_slice(&debugger::read_memory_by_pid(
+             pid,
+             ptr as usize,
+@@ -185,7 +191,7 @@
+     #[test]
+     fn test_group_match_empty_or_deleted() {
+         for _ in 0..100 {
+-            let mut data = [0u8; 16];
++            let mut data = [0u8; GROUP_WIDTH];
+             for i in &mut data {
+                 *i = rand::random::<u8>();
+             }
+@@ -193,12 +199,33 @@
+             let group = GroupReflection(data);
+             let mask = group.match_empty_or_deleted();
+ 
++            #[cfg(target_arch = "x86_64")]
+             let expected = unsafe {
+                 let vec = core::arch::x86_64::_mm_loadu_si128(data.as_ptr() as *const _);
+                 BitMask(core::arch::x86_64::_mm_movemask_epi8(vec) as u16)
+             };
++            #[cfg(target_arch = "riscv64")]
++            let expected = BitMask(
++                data.iter()
++                    .enumerate()
++                    .filter(|(_, byte)| **byte >= 128)
++                    .map(|(index, _)| 1u16 << index)
++                    .sum(),
++            );
+ 
+             assert_eq!(mask, expected);
+         }
+     }
++
++    #[test]
++    fn generic_group_mask_does_not_visit_padding_buckets() {
++        let full = GroupReflection([0; GROUP_WIDTH])
++            .match_empty_or_deleted()
++            .invert();
++        assert_eq!(full.0.count_ones() as usize, GROUP_WIDTH);
++        let empty = GroupReflection([0xff; GROUP_WIDTH])
++            .match_empty_or_deleted()
++            .invert();
++        assert_eq!(empty.lowest_set_bit(), None);
++    }
+ }
+--- a/src/ui/command/register.rs
++++ b/src/ui/command/register.rs
+@@ -3,6 +3,7 @@
+ use crate::ui::command;
+ use crate::ui::command::CommandError;
+ use register::Register as Reg;
++use strum::IntoEnumIterator;
+ 
+ #[derive(Debug, Clone, PartialEq)]
+ pub enum Command {
+@@ -30,42 +31,11 @@
+     pub fn handle(self, cmd: &Command) -> command::CommandResult<ExecutionResult> {
+         match cmd {
+             Command::Info => {
+-                let registers_to_dump = &[
+-                    Reg::Rax,
+-                    Reg::Rbx,
+-                    Reg::Rcx,
+-                    Reg::Rdx,
+-                    Reg::Rdi,
+-                    Reg::Rsi,
+-                    Reg::Rbp,
+-                    Reg::Rsp,
+-                    Reg::R8,
+-                    Reg::R9,
+-                    Reg::R10,
+-                    Reg::R11,
+-                    Reg::R12,
+-                    Reg::R13,
+-                    Reg::R14,
+-                    Reg::R15,
+-                    Reg::Rip,
+-                    Reg::Eflags,
+-                    Reg::Cs,
+-                    Reg::OrigRax,
+-                    Reg::FsBase,
+-                    Reg::GsBase,
+-                    Reg::Fs,
+-                    Reg::Gs,
+-                    Reg::Ss,
+-                    Reg::Ds,
+-                    Reg::Es,
+-                ];
+-
+                 let register_map = RegisterMap::current(self.dbg.ecx().pid_on_focus())
+                     .map_err(CommandError::Handle)?;
+ 
+-                Ok(registers_to_dump
+-                    .iter()
+-                    .map(|&r| RegisterValue {
++                Ok(Reg::iter()
++                    .map(|r| RegisterValue {
+                         register_name: r.to_string(),
+                         value: register_map.value(r),
+                     })
+--- a/src/ui/generic/help.rs
++++ b/src/ui/generic/help.rs
+@@ -371,29 +371,29 @@
+ 
+ pub const HELP_REGISTER: &str = "\
+ \x1b[32;1mreg, register\x1b[0m
+-Read, write, or view debugged program registers (x86_64 registers support).
++Read, write, or view debugged program registers.
+ 
+ Available subcommands:
+-register read <reg_name> - print value of register by name (x86_64 register name in lowercase)
++register read <reg_name> - print value of register by name (native register name in lowercase)
+ register write <reg_name> <value> - set new value to register by name
+ register info - print list of registers with it values
+ ";
+ 
+ pub const HELP_REGISTER_READ_SUBCOMMAND: &str = "\
+ \x1b[32;1mregister read <reg_name>\x1b[0m
+-Read debugged program registers (x86_64 registers support).
+-(x86_64 register name in lowercase)
++Read debugged program registers.
++(native register name in lowercase)
+ ";
+ 
+ pub const HELP_REGISTER_WRITE_SUBCOMMAND: &str = "\
+ \x1b[32;1mregister write <reg_name> <value>\x1b[0m
+-Write debugged program registers (x86_64 registers support).
+-(x86_64 register name in lowercase)
++Write debugged program registers.
++(native register name in lowercase)
+ ";
+ 
+ pub const HELP_REGISTER_INFO_SUBCOMMAND: &str = "\
+ \x1b[32;1mregister info\x1b[0m
+-Print debugged program registers with it values (x86_64 registers support).
++Print debugged program registers with their values.
+ ";
+ 
+ pub const HELP_THREAD: &str = "\
+--- a/tests/debugger/io.rs
++++ b/tests/debugger/io.rs
+@@ -22,9 +22,10 @@
+ 
+     debugger.start_debugee().unwrap();
+ 
+-    debugger.set_register_value("rip", 0x55555555BD20).unwrap();
++    let pc = bugstalker::debugger::register::Register::PC.to_string();
++    debugger.set_register_value(&pc, 0x55555555BD20).unwrap();
+ 
+-    let val = debugger.get_register_value("rip");
++    let val = debugger.get_register_value(&pc);
+     assert_eq!(val.unwrap(), 0x55555555BD20);
+ 
+     mem::drop(debugger);
+--- a/tests/debugger/main.rs
++++ b/tests/debugger/main.rs
+@@ -112,7 +112,7 @@
+ 
+     let sp = RegisterMap::current(debugee_pid)
+         .unwrap()
+-        .value(Register::Rsp);
++        .value(Register::SP);
+ 
+     debugger.continue_debugee().unwrap();
+     let frame_info = debugger.frame_info().unwrap();
+@@ -140,14 +140,17 @@
+     debugger.start_debugee().unwrap();
+     assert_eq!(info.line.take(), Some(5));
+ 
+-    // there is only info about return address (dwarf reg 16) in .debug_info section
+-    // so assert it with the built-in unwinder provided address
++    // Compare the architecture's return-address register with the unwinder.
+     let pc = debugger.ecx().location().pc;
+     let frame = debugger.frame_info().unwrap();
+     let registers = debugger.current_thread_registers_at_pc(pc).unwrap();
+-    let ip_register = Register::Rip
++    #[cfg(target_arch = "x86_64")]
++    let return_register = Register::Rip;
++    #[cfg(target_arch = "riscv64")]
++    let return_register = Register::Ra;
++    let ip_register = return_register
+         .dwarf_register()
+-        .expect("instruction pointer register must map to dwarf register");
++        .expect("return-address register must map to dwarf register");
+     assert_eq!(
+         u64::from(frame.return_addr.unwrap()),
+         registers.value(ip_register).unwrap()
+--- a/tests/debugger/variables.rs
++++ b/tests/debugger/variables.rs
+@@ -3172,7 +3172,9 @@
+     let builder = DebuggerBuilder::new().with_hooks(TestHooks::new(info.clone()));
+     let mut debugger = builder.build(process).unwrap();
+ 
+-    debugger.set_breakpoint_at_fn("debug_fmt_args").unwrap();
++    // LLVM's RISC-V prologue has a gap in arg2's DWARF location; both arguments
++    // have recorded locations at the second statement.
++    debugger.set_breakpoint_at_line("vars.rs", 646).unwrap();
+ 
+     debugger.start_debugee().unwrap();
+ 
+--- a/tests/debugger/watchpoint.rs
++++ b/tests/debugger/watchpoint.rs
+@@ -54,6 +54,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_watchpoint_works() {
+     let process = prepare_debugee_process(VARS_APP, &[]);
+     let debugee_pid = process.pid();
+@@ -130,6 +134,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_watchpoint_global_var() {
+     let process = prepare_debugee_process(CALCULATIONS_APP, &[]);
+     let debugee_pid = process.pid();
+@@ -162,6 +170,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_max_watchpoint_count() {
+     let process = prepare_debugee_process(CALCULATIONS_APP, &[]);
+     let debugee_pid = process.pid();
+@@ -205,6 +217,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_watchpoint_remove_and_continue() {
+     // 1) set 2 watchpoint with same scope end and same companion breakpoints
+     // 2) remove one of watchpoint
+@@ -244,6 +260,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_watchpoint_global_var_multithread() {
+     let process = prepare_debugee_process(CALCULATIONS_APP, &[]);
+     let debugee_pid = process.pid();
+@@ -288,6 +308,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_watchpoint_local_var_multithread() {
+     let process = prepare_debugee_process(CALCULATIONS_APP, &[]);
+     let debugee_pid = process.pid();
+@@ -319,6 +343,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_max_watchpoint_count_at_address() {
+     let process = prepare_debugee_process(CALCULATIONS_APP, &[]);
+     let debugee_pid = process.pid();
+@@ -378,6 +406,10 @@
+ 
+ #[test]
+ #[serial]
++#[cfg_attr(
++    target_arch = "riscv64",
++    ignore = "Linux RISC-V has no ptrace hardware watchpoint API"
++)]
+ fn test_watchpoint_argument() {
+     let process = prepare_debugee_process(CALCULATIONS_APP, &[]);
+     let debugee_pid = process.pid();
+--- a/tests/integration/test_async.py
++++ b/tests/integration/test_async.py
+@@ -1,4 +1,5 @@
+ import unittest
++import platform
+ from helper import Debugger
+ import socket
+ import threading
+@@ -95,6 +96,7 @@
+                 '#1 sleep future, sleeping'
+             )
+             
++    @unittest.skipIf(platform.machine() == 'riscv64', 'Async stepping requires hardware watchpoints')
+     def test_step_over(self):
+         """Do async step over until future ends"""
+         
+@@ -111,6 +113,7 @@
+             self.debugger.cmd_re('async next', r'Task id: \d', r'34 }')
+             self.debugger.cmd_re('async next', r'Task #\d completed, stopped')
+ 
++    @unittest.skipIf(platform.machine() == 'riscv64', 'Async stepping requires hardware watchpoints')
+     def test_step_out(self):
+         """Do async step out"""
+         
+--- a/tests/integration/test_call.py
++++ b/tests/integration/test_call.py
+@@ -86,11 +86,12 @@
+         """Test argd command"""
+         self.debugger = Debugger(path='./examples/target/debug/vars')
+ 
+-        self.debugger.cmd('break vars.rs:645')
++        # Both arguments have DWARF locations after the RISC-V prologue.
++        self.debugger.cmd('break vars.rs:646')
+         self.debugger.cmd('run', 'Hit breakpoint 1')
+         
+         self.debugger.cmd(
+             'argd all', 
+             '"one"', 
+             '["two", "three"]', 
+-        )
+\ No newline at end of file
++        )
+--- a/tests/integration/test_command.py
++++ b/tests/integration/test_command.py
+@@ -1,4 +1,5 @@
+ import unittest
++import platform
+ from helper import Debugger
+ 
+ 
+@@ -51,29 +52,18 @@
+ 
+     def test_write_register(self):
+         """Register writes (by moving pc counter into program start)"""
+-        # determine program start and main ret addresses first
+-        self.debugger.cmd('break hello_world.rs:4', 'New breakpoint')
+-        self.debugger.cmd('break hello_world.rs:10', 'New breakpoint')
++        # Stay within the same stack frame; epilogue sizes depend on the ISA.
++        self.debugger.cmd('break hello_world.rs:5', 'New breakpoint')
++        self.debugger.cmd('break hello_world.rs:9', 'New breakpoint')
+         self.debugger.cmd('run')
+ 
+-        start_addr = self.debugger.search_in_output(r'Hit breakpoint 1 at .*0x(.*):')
+-        start_addr = "0x" + start_addr[:14]
+-        self.assertNotEqual(start_addr, "")
+-        self.debugger.cmd('continue')
+-        addr = self.debugger.search_in_output(r'Hit breakpoint 2 at .*0x(.*):')
+-        addr = "0x" + addr[:14]
+-        self.assertNotEqual(addr, "")
+-        self.debugger.cmd('q')
+-
+-        # assume that address of ret instruction at 1 byte offset
+-        addr_as_integer = int(addr, 16) + 1
+-        ret_addr = hex(addr_as_integer)
+-
+-        # respawn debugger and move pc counter
+-        self.debugger = Debugger(path='./examples/target/debug/hello_world')
+-        self.debugger.cmd(f'break {ret_addr}', 'New breakpoint')
+-        self.debugger.cmd('run', 'Hello, world!', 'bye!')
+-        self.debugger.cmd(f'register write rip {start_addr}')
++        start_addr = self.debugger.search_in_output(r'Hit breakpoint 1 at .*0x([0-9A-Fa-f]+):')
++        self.assertIsNotNone(start_addr)
++        self.debugger.cmd('continue', 'Hello, world!', 'Hit breakpoint 2')
++        self.debugger.cmd('break remove 1', 'Removed breakpoint')
++        self.debugger.cmd('break remove 2', 'Removed breakpoint')
++        pc = 'pc' if platform.machine() == 'riscv64' else 'rip'
++        self.debugger.cmd(f'register write {pc} 0x{start_addr}')
+         self.debugger.cmd('continue', 'Hello, world!', 'bye!')
+ 
+     @staticmethod
+@@ -224,12 +214,13 @@
+ 
+     def test_disasm(self):
+         """View function disassembled code"""
++        mnemonic = 'addi' if platform.machine() == 'riscv64' else 'mov'
+         self.debugger.cmd('break main', 'New breakpoint')
+         self.debugger.cmd('run')
+-        self.debugger.cmd('source asm', 'Assembler code for function hello_world::main', 'mov')
++        self.debugger.cmd('source asm', 'Assembler code for function hello_world::main', mnemonic)
+         self.debugger.cmd('break myprint', 'New breakpoint')
+         self.debugger.cmd('continue')
+-        self.debugger.cmd('source asm', 'Assembler code for function hello_world::myprint', 'mov')
++        self.debugger.cmd('source asm', 'Assembler code for function hello_world::myprint', mnemonic)
+ 
+     def test_source_fn(self):
+         """View function source code"""
+@@ -336,6 +327,10 @@
+         debugger.cmd('end')
+ 
+         # set trigger for watchpoint 2
++        if platform.machine() == 'riscv64':
++            debugger.cmd('watch int16', 'hardware watchpoints is not supported on this architecture')
++            debugger.cmd('c', 'f32 = f32(1.1)', 'f64 = f64(1.2)')
++            return
+         debugger.cmd('watch int16', 'New watchpoint 1')
+         debugger.cmd('trigger w 1')
+         debugger.cmd('backtrace')
+--- a/tests/integration/test_multithread.py
++++ b/tests/integration/test_multithread.py
+@@ -106,5 +106,9 @@
+         # switch to another thread
+         self.debugger.cmd('thread switch 2', 'Thread #2 brought into focus')
+         self.debugger.cmd('thread current', '#2 thread id')
+-        self.debugger.cmd('frame switch 2', 'switch to #2')
++        # The number of libc frames above sum1 differs across architectures.
++        self.debugger.cmd('backtrace')
++        frame = self.debugger.search_in_output(r'#(\d+) .* - mt::sum1 at', line_cnt=100)
++        self.assertIsNotNone(frame)
++        self.debugger.cmd(f'frame switch {frame}', f'switch to #{frame}')
+         self.debugger.cmd('var locals', 'sum3_jh = JoinHandle<i32> {')
+--- a/tests/integration/test_watchpoint.py
++++ b/tests/integration/test_watchpoint.py
+@@ -1,4 +1,5 @@
+ import unittest
++import platform
+ from helper import Debugger
+ 
+ 
+@@ -6,8 +7,18 @@
+     """Test watchpoint"""
+ 
+     def setUp(self):
++        if platform.machine() == 'riscv64' and self._testMethodName not in (
++            'test_watchpoint_at_undefined_value', 'test_watchpoint_unsupported',
++        ):
++            self.skipTest('Linux RISC-V has no ptrace hardware watchpoint API')
+         self.debugger = Debugger(path='./examples/target/debug/calculations')
+ 
++    @unittest.skipUnless(platform.machine() == 'riscv64', 'RISC-V capability check')
++    def test_watchpoint_unsupported(self):
++        self.debugger.cmd('break calculations.rs:20', 'New breakpoint')
++        self.debugger.cmd('run', 'Hit breakpoint 1')
++        self.debugger.cmd('watch c', 'hardware watchpoints is not supported on this architecture')
++
+     def test_watchpoint(self):
+         """Add a new watchpoint and check it works"""
+         self.debugger.cmd('break calculations.rs:20', 'New breakpoint')
