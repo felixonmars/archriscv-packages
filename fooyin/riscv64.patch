@@ -1,16 +1,18 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -57,2 +57,7 @@
+@@ -61,2 +61,9 @@
  
 +prepare() {
-+  cd "$pkgname"
-+  patch -Np1 -i "$srcdir/plugin-bundle-tests.patch"
++  # Test discovery exceeds CMake's five-second default on riscv64 builders.
++  sed -i 's/gtest_discover_tests(${name})/gtest_discover_tests(${name} DISCOVERY_TIMEOUT 60)/' "$pkgname/tests/CMakeLists.txt"
++  # Plugin bundles support only x86_64 and ARM64.
++  patch -Np1 -d "$pkgname" -i "$srcdir/plugin-bundle-tests.patch"
 +}
 +
  build() {
-@@ -82 +87,5 @@
+@@ -86 +93,5 @@
  }
 +
-+source+=('plugin-bundle-tests.patch')
-+sha512sums+=('8845d09f223d539196b53e3c7d5c9a7e6caa85fc573da2ecd532e0b6b9919cc6e03ca785ccf278c5764c83dfceea4e25a9511d158810a70a5b353cdd6751c4f7')
-+b2sums+=('5d627bb8ae60e8be2fa0454a40654115bbc5f42e6196a5a2f12497be8382bcd75093a50359b59dea7d5909712daab771fc353c348cfdab1f8a9f58fb6743704e')
++source+=("plugin-bundle-tests.patch::https://github.com/fooyin/fooyin/commit/12b32d2c467f4351516ae066c1204b8867df4e94.patch?full_index=1")
++sha512sums+=('538c4cfbb614788b29ba7f73845594a38a0fad028631cf273144f2887d9cc924a21e83614150ef48c08e7743e9d58332a038cf0acd98a3ac1422ef28855ef254')
++b2sums+=('ef9404fdface52c97e49caeaa2cfe763a7622116677f9445715eca976bb06dff960faafaae9f4c450c2d511c83d1b8b76820b72beae03280bc6e9bcb2bab7d92')
