@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -44,6 +44,10 @@
+   patch -p1 -i ../gcc-16.patch
+ # Disable kglobalaccel, doesn't build with Plasma 6.5
+   patch -p1 -i ../disable-kglobalaccel.patch
++  # Plasma 6.8 removed the private interface used by the disabled plugin.
++  patch -p1 -i ../disable-kglobalaccel-interface.patch
++  # Adapt to the lock state API removed in Plasma 6.8.
++  patch -p1 -i ../kscreenlocker-6.8.patch
+ }
+ 
+ build() {
+@@ -65,3 +69,8 @@
+   cd "$srcdir/dde-kwin"
+   DESTDIR="$pkgdir" ninja install
+ }
++
++source+=(disable-kglobalaccel-interface.patch
++         kscreenlocker-6.8.patch)
++sha512sums+=('4f75b97f7c90609556173debf46f296c3cdbe1fd657232b8371b7ce289b9ab02e6f434d0ca451039eb30aa6909d1fc9f2385371c028008e8489d733d834cae8e'
++             '06c301f81bd22d38dc74df0198bbd314545a035160850d331f74c284f69858bea1e578b42feca265e46ead248de6b3919d69f2163291274dfc17993db1a8c27f')

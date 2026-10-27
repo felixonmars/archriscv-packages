@@ -1,0 +1,69 @@
+Adapted from https://invent.kde.org/plasma/kwin/-/commit/b216a68e889a861d750bca5eb9203f9b42ff8119
+
+--- a/src/wayland_server.cpp
++++ b/src/wayland_server.cpp
+@@ -885,8 +885,6 @@
+         }
+         ScreenLocker::KSldApp::self()->setWaylandFd(clientFd);
+ 
+-        new LockScreenPresentationWatcher(this);
+-
+         const QVector<SeatInterface *> seatIfaces = m_display->seats();
+         for (auto *seat : seatIfaces) {
+             connect(seat, &KWaylandServer::SeatInterface::timestampChanged,
+@@ -1114,7 +1112,7 @@
+     if (!hasScreenLockerIntegration()) {
+         return false;
+     }
+-    return ScreenLocker::KSldApp::self()->lockState() == ScreenLocker::KSldApp::Locked || ScreenLocker::KSldApp::self()->lockState() == ScreenLocker::KSldApp::AcquiringLock;
++    return ScreenLocker::KSldApp::self()->lockState() == ScreenLocker::KSldApp::Locked;
+ #else
+     return false;
+ #endif
+@@ -1212,28 +1210,4 @@
+     return QString();
+ }
+ 
+-#if KWIN_BUILD_SCREENLOCKER
+-WaylandServer::LockScreenPresentationWatcher::LockScreenPresentationWatcher(WaylandServer *server)
+-{
+-    connect(server, &WaylandServer::windowAdded, this, [this](Window *window) {
+-        if (window->isLockScreen()) {
+-            // only signal lockScreenShown once all outputs have been presented at least once
+-            connect(window->output()->renderLoop(), &RenderLoop::framePresented, this, [this, windowGuard = QPointer(window)]() {
+-                // window might be destroyed before a frame is presented, so it's wrapped in QPointer
+-                if (windowGuard) {
+-                    m_signaledOutputs << windowGuard->output();
+-                    if (m_signaledOutputs.size() == workspace()->outputs().size()) {
+-                        ScreenLocker::KSldApp::self()->lockScreenShown();
+-                        delete this;
+-                    }
+-                }
+-            });
+-        }
+-    });
+-    QTimer::singleShot(1000, this, [this]() {
+-        ScreenLocker::KSldApp::self()->lockScreenShown();
+-        delete this;
+-    });
+-}
+-#endif
+ }
+--- a/src/wayland_server.h
++++ b/src/wayland_server.h
+@@ -318,15 +318,6 @@
+     void handleOutputDisabled(Output *output);
+     quint16 createClientId(KWaylandServer::ClientConnection *c);
+ 
+-    class LockScreenPresentationWatcher : public QObject
+-    {
+-    public:
+-        LockScreenPresentationWatcher(WaylandServer *server);
+-
+-    private:
+-        QSet<Output *> m_signaledOutputs;
+-    };
+-
+     KWaylandServer::Display *m_display = nullptr;
+     KWaylandServer::CompositorInterface *m_compositor = nullptr;
+     KWaylandServer::SeatInterface *m_seat = nullptr;
