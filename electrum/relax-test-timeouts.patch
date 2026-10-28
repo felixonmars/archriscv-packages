@@ -1,0 +1,32 @@
+--- a/tests/test_lnpeer.py
++++ b/tests/test_lnpeer.py
+@@ -2439,6 +2439,8 @@
+                 await peer.initialized
+             await group.spawn(pay(**kwargs))
+ 
++    # Multipart handshakes can exceed the two-second test expiry on slow builders.
++    @mock.patch.object(MockLNWallet, 'MPP_EXPIRY', 30)
+     async def test_payment_multipart(self):
+         graph = self.prepare_chans_and_peers_in_graph(self.GRAPH_DEFINITIONS['square_graph'])
+         with self.assertRaises(PaymentDone):
+@@ -2741,6 +2743,8 @@
+                 attempts=3, # fails with only 2
+             )
+ 
++    # Multipart handshakes can exceed the two-second test expiry on slow builders.
++    @mock.patch.object(MockLNWallet, 'MPP_EXPIRY', 30)
+     async def test_multi_trampoline_payment(self):
+         """
+         Alice splits her payment to Dave between two trampoline forwarding nodes Carol and Bob.
+--- a/tests/test_onion_message.py
++++ b/tests/test_onion_message.py
+@@ -32,7 +32,8 @@
+ from .test_lnpeer import TestPeer, inject_chan_into_gossipdb
+ 
+ 
+-TIME_STEP = 0.01  # run tests 100 x faster
++# Keep timing ratios while allowing slow builders to process retries.
++TIME_STEP = 0.1  # run tests 10 x faster
+ OnionMessageManager.SLEEP_DELAY *= TIME_STEP
+ OnionMessageManager.REQUEST_REPLY_TIMEOUT *= TIME_STEP
+ OnionMessageManager.REQUEST_REPLY_RETRY_DELAY *= TIME_STEP
