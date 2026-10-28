@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -65,7 +65,24 @@
+     sed -i -E "/${_exclude_arch}/d" build.gradle.kts
+ 
+     pushd webui
+-    pnpm install --frozen-lockfile
++    # Use WASM bindings where upstream does not publish riscv64 binaries.
++    cat >> pnpm-workspace.yaml <<'EOF'
++supportedArchitectures:
++  cpu: [current, wasm32]
++overrides:
++  lightningcss@1.33.0: npm:lightningcss-wasm@1.33.0
++  # Match each binding's emnapi prerelease; newer runtimes break initWorker.
++  '@rolldown/binding-wasm32-wasi@1.2.3>@napi-rs/wasm-runtime': 1.2.2
++  '@rolldown/binding-wasm32-wasi@1.2.14>@napi-rs/wasm-runtime': 1.2.5
++packageExtensions:
++  'rolldown@1.2.3':
++    dependencies:
++      '@rolldown/binding-wasm32-wasi': 1.2.3
++  'rolldown@1.2.14':
++    dependencies:
++      '@rolldown/binding-wasm32-wasi': 1.2.14
++EOF
++    pnpm install --no-frozen-lockfile
+     popd
+ }
+ 
