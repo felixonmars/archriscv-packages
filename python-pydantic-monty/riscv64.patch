@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,23 @@
+ 
+ prepare() {
+   cd monty
++  # CSV setup can exhaust 50 ms before the replay timeout is exercised on riscv64.
++  sed -i '/fn csv_dict_reader_replay_counts_toward_time_limit()/,/^}/ {
++    s/from_millis(50)/from_millis(500)/
++  }' crates/monty/tests/file_error_paths.rs
++  # Allow slower execution while keeping the sleep longer than its time budget.
++  sed -i '/fn sandbox_sleep_waits_without_spending_execution_time()/,/^}/ {
++    s/time\.sleep(0\.05)/time.sleep(0.5)/
++    s/from_millis(20)/from_millis(200)/
++    s/from_millis(50)/from_millis(500)/
++  }' crates/monty/tests/os_policy.rs
++  # RISC-V uses unsigned plain char, so CPython reports this non-ASCII
++  # format directive differently from the test's signed-char expectation.
++  sed -i "1i # /// monty\n# xfail = ['cpython']\n# ///" \
++    crates/monty/test_cases/bytes__percent_format.py
++  # These debug datatests exceed the upstream 15-second limit on riscv64.
++  sed -i 's/Duration::from_secs(15)/Duration::from_secs(60)/' \
++    crates/monty-datatest/src/main.rs
+   # pytest 9.1 deprecates generators passed to parametrize.
+   sed -i 's/find_examples(\*paths)/list(find_examples(*paths))/' \
+     crates/monty-python/tests/test_readme_examples.py
