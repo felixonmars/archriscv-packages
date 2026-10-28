@@ -1,0 +1,12 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -117,6 +117,9 @@
+ prepare() {
+   cd $pkgname
+ 
++  # Allow the lock-contention test more CPU time on riscv64 (upstream #18430, #19929).
++  sed -i 's/test_timeout(5, cpu_time=True)/test_timeout(15, cpu_time=True)/' tests/handlers/test_worker_lock.py
++
+   # Work around xmlschema + zope.interface incompatibility (FS#1 python-xmlschema)
+   sed -i 's/except ImportError:/except (ImportError, AttributeError):/' tests/handlers/test_saml.py
+ 
