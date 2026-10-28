@@ -1,0 +1,31 @@
+--- a/crates/prek/src/languages/golang/installer.rs
++++ b/crates/prek/src/languages/golang/installer.rs
+@@ -214,6 +214,7 @@
+             Architecture::S390x => "s390x",
+             Architecture::Powerpc => "ppc64",
+             Architecture::Powerpc64le => "ppc64le",
++            Architecture::Riscv64(_) => "riscv64",
+             _ => anyhow::bail!("Unsupported architecture"),
+         };
+         let os = match HOST.operating_system {
+--- a/crates/prek/tests/languages/ruby.rs
++++ b/crates/prek/tests/languages/ruby.rs
+@@ -188,7 +188,8 @@
+     "});
+     context.git().add(".");
+ 
+-    #[cfg(target_os = "windows")]
++    // rv-ruby does not publish RISC-V binaries either.
++    #[cfg(any(target_os = "windows", target_arch = "riscv64"))]
+     cmd_snapshot!(context, context.run().arg("-v"), @r"
+     success: false
+     exit_code: 2
+@@ -202,7 +203,7 @@
+     Please install Ruby manually.
+     ");
+ 
+-    #[cfg(not(target_os = "windows"))]
++    #[cfg(not(any(target_os = "windows", target_arch = "riscv64")))]
+     cmd_snapshot!(context, context.run().arg("-v"), @r"
+     success: false
+     exit_code: 2
