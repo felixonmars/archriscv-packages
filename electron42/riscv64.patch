@@ -36,7 +36,17 @@
    # https://crbug.com/893950
    sed -i -e 's/\<xmlMalloc\>/malloc/' -e 's/\<xmlFree\>/free/' \
           -e '1i #include <cstdlib>' \
-@@ -550,9 +553,6 @@
+@@ -507,9 +510,6 @@
+   # Fixes from Gentoo
+   patch -Np1 -i ../chromium-138-nodejs-version-check.patch
+ 
+-  # Allow libclang_rt.builtins from compiler-rt >= 16 to be used
+-  patch -Np1 -i ../compiler-rt-adjust-paths.patch
+-
+   # Increase _FORTIFY_SOURCE level to match Arch's default flags
+   patch -Np1 -i ../increase-fortify-level.patch
+ 
+@@ -550,9 +550,6 @@
    ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
  
    # Electron specific fixes
@@ -46,7 +56,7 @@
    patch -Np1 -i "${srcdir}/jinja-python-3.10.patch" -d "third_party/electron_node/tools/inspector_protocol/jinja2"
    patch -Np1 -i "${srcdir}/use-system-libraries-in-node.patch"
  
-@@ -612,6 +612,7 @@
+@@ -612,6 +609,7 @@
      'use_system_libffi=true'
      'enable_hangout_services_extension=true'
      'enable_widevine=false'
@@ -54,7 +64,7 @@
      'use_qt5=false'
      'use_qt6=true'
      'moc_qt6_path="/usr/lib/qt6"'
-@@ -670,9 +671,9 @@
+@@ -670,9 +668,9 @@
    # https://crbug.com/957519#c122
    CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS}
  
@@ -67,7 +77,7 @@
      # Having an arch setting in the C(XX)FLAGS overrides those
      # and causes compilation failure
      CFLAGS="${CFLAGS/-march=*([^ ]) }"
-@@ -703,3 +704,7 @@
+@@ -703,3 +701,7 @@
    install -Dm644 src/electron/default_app/icon.png \
            "${pkgdir}/usr/share/pixmaps/${pkgname}.png"  # hicolor has no 1024x1024
  }
