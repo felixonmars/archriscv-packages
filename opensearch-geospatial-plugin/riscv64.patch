@@ -1,0 +1,14 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -28,7 +28,10 @@
+   export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
+   export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
+   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
+-  ./gradlew build \
++  # integTest downloads an OpenSearch archive that upstream does not publish for riscv64.
++  # Limit concurrent test JVMs to avoid worker connection timeouts on riscv64.
++  ./gradlew build --max-workers=2 \
++    --exclude-task ":integTest" \
+     --exclude-task ":jacocoTestReport" \
+     --exclude-task ":jacocoTestCoverageVerification"
+ }
