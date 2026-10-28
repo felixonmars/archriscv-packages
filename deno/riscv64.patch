@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,17 +22,21 @@
+@@ -22,17 +22,24 @@
  
  prepare() {
 +  # Fix incomplete libuv bindings with Clang 22: https://github.com/rust-lang/rust-bindgen/pull/3278
@@ -10,6 +10,9 @@
    git config -f .gitmodules submodule.v8.shallow true
    git submodule update --init --recursive
  
++  # Allow WASM trap branches beyond JAL's 1 MiB range.
++  sed -i 's/__ b(zone()->New<OutOfLineTrap>/__ Branch(zone()->New<OutOfLineTrap>/' v8/src/compiler/backend/riscv/code-generator-riscv.cc
++
 +  # Native riscv64 builds do not need Chromium's Debian sysroots.
 +  sed -i '/if target_arch == "riscv64"/,/^  }$/ s/if target_os == "linux" {/if target_os == "linux" \&\& env::var("TARGET") != env::var("HOST") {/' build.rs
 +
@@ -25,7 +28,7 @@
 +  echo "libuv-sys-lite = { path = '../libuv-sys-lite-1.48.4' }" >> Cargo.toml
    # Keep the V8 backend while disabling Deno's self-upgrade and vendored zlib-ng.
    sed -i \
-@@ -98,2 +102,5 @@
+@@ -98,2 +105,5 @@
    install -Dm644 LICENSE.md -t "$pkgdir"/usr/share/licenses/$pkgname/
  }
 +
