@@ -1,6 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -29,6 +29,7 @@
+@@ -23,12 +23,14 @@
+   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
+   # :doctest requires python 3.7
+   # :sql:build and :integ-test (reaper) require JDK 14
+-  ./gradlew build \
++  # Limit concurrent test JVMs to avoid worker connection timeouts on riscv64.
++  ./gradlew build --max-workers=2 \
+     --exclude-task ":doctest:bootstrap" \
+     --exclude-task ":doctest:stopOpenSearch" \
      --exclude-task ":doctest:doctest" \
      --exclude-task ":jacocoTestReport" \
      --exclude-task ":sql:build" \
