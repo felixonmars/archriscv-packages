@@ -1,0 +1,30 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -24,6 +24,8 @@
+ 
+ prepare() {
+ 	cd "${_pkgname}"
++	patch -Np1 -i "${srcdir}/console-quiet-timeout.patch"
++	patch -Np1 -i "${srcdir}/panic-navigation.patch"
+ 	./bootstrap
+ }
+ 
+@@ -37,7 +39,8 @@
+ 	cd "${_pkgname}"
+ 	# Boot the pinned firmware rather than have make check download the latest
+ 	ln -sfn "${srcdir}/edk2-ovmf-bins" edk2-ovmf-bins
+-	make check
++	# Allow slow QEMU boots without running a VM for every build job.
++	LIMINE_CHECK_SLOWDOWN=8 make -j4 check
+ }
+ 
+ package() {
+@@ -45,3 +48,8 @@
+   	make DESTDIR="${pkgdir}" install
+ 	install -Dm 644 COPYING "${pkgdir}/usr/share/licenses/${pkgname}/COPYING"
+ }
++
++source+=('console-quiet-timeout.patch'
++         'panic-navigation.patch')
++sha256sums+=('f384e6caeae32fa4330fef9798993210198b731d0a855b3c01b37a04380da4f0'
++            'bf82028e934e1451ac739c3d509b7e1d7085056c7e58fb117545f88f0a8e7b20')

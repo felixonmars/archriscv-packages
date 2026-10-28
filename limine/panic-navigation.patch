@@ -1,0 +1,13 @@
+--- a/checks/cases/_common.py
++++ b/checks/cases/_common.py
+@@ -190,7 +190,9 @@
+     msgs = []
+     for i in range(count):
+         t.wait_text(m, 'ARROWS', timeout)
+-        m.press('home', *['down'] * i, delay=0.05)
++        # Let QEMU release each key (held for 100 ms by default) and the
++        # firmware consume it before the next press on slow hosts.
++        m.press('home', *['down'] * i, delay=0.15 * t.port.timeout_scale)
+         m.press('ret')
+         msgs.append(wait_panic(t, m, timeout)[0])
+         m.press('ret')
