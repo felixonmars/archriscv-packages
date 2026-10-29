@@ -1,3 +1,16 @@
+--- a/v8/src/execution/riscv/frame-constants-riscv.h
++++ b/v8/src/execution/riscv/frame-constants-riscv.h
+@@ -39,6 +39,10 @@
+       kNumberOfSavedGpParamRegs + kNumberOfSavedFpParamRegs;
+   static constexpr int kInstanceSpillOffset =
+       TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
++  // We then spill floating-point param regs and finally ra. Offset computation:
++  // 1 for the instance, and counting each floating-point reg as one slot.
++  static constexpr int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(
++      1 + kNumberOfSavedGpParamRegs + kNumberOfSavedFpParamRegs);
+   static constexpr int kParameterSpillsOffset[] = {
+       TYPED_FRAME_PUSHED_VALUE_OFFSET(1), TYPED_FRAME_PUSHED_VALUE_OFFSET(2),
+       TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(4),
 --- a/v8/src/codegen/riscv/assembler-riscv.cc
 +++ b/v8/src/codegen/riscv/assembler-riscv.cc
 @@ -1364,13 +1364,7 @@
