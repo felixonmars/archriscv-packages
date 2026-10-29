@@ -1,16 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,19 +41,43 @@
+@@ -41,19 +41,37 @@
  	sed -i "s/1.0.0-local/$pkgver/" "apps/app-frontend/package.json"
  	sed -i "s/1.0.0-local/$pkgver/" "Cargo.lock"
  
-+	node <<'EOF'
-+const fs = require('node:fs');
-+const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-+manifest.pnpm.onlyBuiltDependencies = manifest.pnpm.onlyBuiltDependencies.filter(
-+	dependency => !['@sentry/cli', 'workerd'].includes(dependency));
-+fs.writeFileSync('package.json', JSON.stringify(manifest, null, '\t') + '\n');
-+EOF
++	sed -i "/^  '@sentry\\/cli':/s/true/false/; /^  workerd:/s/true/false/" pnpm-workspace.yaml
 +	sed -i 's|pnpm turbo run build --filter=@modrinth/app-frontend|pnpm -w i18n:coverage \&\& pnpm -r --filter=@modrinth/app-frontend... run build|' apps/app/tauri.conf.json
 +
  	# needed to find node-gyp
@@ -46,13 +40,12 @@
  
  	export NODE_PATH='/usr/lib/node_modules'
  	export TURBO_TELEMETRY_DISABLED=1
-@@ -70,3 +94,10 @@
+@@ -70,3 +88,9 @@
  	install -Dm644 apps/app/icons/128x128.png "$pkgdir/usr/share/icons/hicolor/128x128/apps/modrinth-app.png"
  	install -Dm644 apps/app/icons/icon.png "$pkgdir/usr/share/icons/hicolor/256x256@2/apps/modrinth-app.png"
  }
 +
-+makedepends=("${makedepends[@]/java-environment>=17/jdk17-openjdk}")
-+makedepends+=(cmake)
++makedepends+=(cmake jdk17-openjdk)
 +source+=("rolldown-1.0.0-rc.12.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.0.0-rc.12.tar.gz"
 +	"lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz")
 +sha256sums+=('7d5884aec0ced4d994f1a34a6e831a46373b97dd15f7f074f68c04a1fda0450c'
