@@ -1,8 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -52,7 +52,20 @@
- prepare() {
-   patch -d codex-rust-v$pkgver/codex-rs -Np1 \
+@@ -54,3 +54,17 @@
      -i "$srcdir/voice-system-libraries.patch"
 +  install -dm755 "v8-$_v8ver/third_party/icu/common"
 +  base64 -d "$srcdir/v8-icu-$_v8_icu_commit-icudtl.dat.base64" \
@@ -11,17 +9,16 @@
 +    > "v8-$_v8ver/third_party/icu/common/icudtb.dat"
 +
 +  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-skip-rust-toolchain-download.patch"
++  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-cppgc-alignment.patch"
 +
    cd codex-rust-v$pkgver/codex-rs
 +  patch -Np1 -d .. -i "$srcdir/codex-landlock-riscv64-seccomp.patch"
 +  patch -Np1 -d .. -i "$srcdir/codex-code-mode-protocol-respect-PROTOC.patch"
-+  sed -i "/^\[patch\.crates-io\]$/a v8 = { path = \"../../v8-$_v8ver\" }" Cargo.toml
++  sed -i "s|^v8 = { git = .*|v8 = { path = \"../../v8-$_v8ver\" }|" Cargo.toml
 +  cargo update -p v8
 +
-   cargo fetch --target "$(rustc --print host-tuple)"
- }
- 
-@@ -60,14 +73,37 @@
+   # Update the locked bindings for OpenSSL 4: https://github.com/rust-openssl/rust-openssl/pull/2591
+@@ -62,14 +76,37 @@
    cd codex-rust-v$pkgver/codex-rs
    # Used for dynamic linking
    export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
@@ -61,7 +58,7 @@
    cargo build --frozen --release \
                --bin codex \
                --bin codex-code-mode-host \
-@@ -136,3 +172,22 @@
+@@ -138,3 +175,24 @@
  }
  
  # vim:set ts=2 sw=2 et:
@@ -72,6 +69,7 @@
 +  "v8-$_v8ver.tar.gz::https://static.crates.io/crates/v8/v8-$_v8ver.crate"
 +  "v8-icu-$_v8_icu_commit-icudtl.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtl.dat?format=TEXT"
 +  "v8-icu-$_v8_icu_commit-icudtb.dat.base64::https://chromium.googlesource.com/chromium/deps/icu.git/+/$_v8_icu_commit/common/icudtb.dat?format=TEXT"
++  "v8-cppgc-alignment.patch::https://github.com/seanh-oai/rusty_v8/compare/2768994f664e8a6e3aba27503606c58339136e2a...350c5a859a9b3c84ab8701b3ad51e3b7699b30c0.diff"
 +  codex-code-mode-protocol-respect-PROTOC.patch
 +  v8-skip-rust-toolchain-download.patch
 +  codex-landlock-riscv64-seccomp.patch
@@ -81,6 +79,7 @@
 +        'ca3327c5040e3e2a8ae6d20a924a5f352c833a8e1c8180b8daf6c08ee909d22d47c80b02fd1b93fdfedddd8d45df98c7bfaa7e4a5e3a7a4abfebe6aa96b6bff8'
 +        '66460acab0495aaa4e91d912327723e3ee7387e53abb67b259571230dd2296c22c1b7a5bda5eb6a623fced6801dacb03954302b7432dca203f3c66302ba3fbdd'
 +        '02b95ad32bdaf78e263b6e83966606fb4ce9b3e7505cd86eb60785dd392988334c8657b346b7eb9cc1988318973c80914c79dc67ea336a5828da8cc45eeecd2b'
++        '203c047aeb50b574dbf12c604dbf34c74adeb68852c494f4302d9d0c1491cd6fc45ec4a32a607470064b41daeed95502c6b4bfc4febf74fa917cf56398499d31'
 +        'ce0fe425b6085168268ad5e917f12e0fcd40639348db07f0b230e4a8968122d0c604601cb03977a76eff8e111b2cd7207bfd0c43ee524a7ab30b569bdc5e64fa'
 +        'e153db828c57fcc76ba7bb9f1676ca7cdd3b86257a117af597aa9847fec32e3e65506a11531f708aa39b3c5b4e210144a5dbed2b859a2ecb7e87825fcc9d5fed'
 +        '435bb90de4dfd654170901910496ff01af2af3aaf352692a1a050b3a3654d93ecc0e935d60a7398af680b21ce2ef1adf4fd7139350aa9181102430512a55108c')
