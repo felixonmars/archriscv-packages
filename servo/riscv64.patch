@@ -1,0 +1,31 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -41,6 +41,7 @@
+ _srcenv() {
+ 	cd "$pkgname"
+ 	export CARGO_HOME="$srcdir"
++	export MAKE="$srcdir/make-riscv64"
+ 	export CARGO_PROFILE_RELEASE_DEBUG=2
+ 	export CARGO_PROFILE_RELEASE_STRIP=false
+ 	export CARGO_PROFILE_RELEASE_LTO=thin
+@@ -52,15 +53,19 @@
+ }
+ 
+ prepare() {
++	install -Dm755 "$startdir/make-riscv64" "$srcdir/make-riscv64"
+ 	_srcenv
+ 	echo 'export PATH=$PATH:/opt/servo' > "$pkgname.sh"
+ 	echo 'setenv PATH ${PATH}:/opt/servo' > "$pkgname.csh"
++	sed -i '/^pyrefly /d' python/requirements.txt
++	uv lock
+ 	cargo fetch --locked --target host-tuple
+ }
+ 
+ build() {
+ 	_srcenv
+-	./mach build --release
++	uv sync --frozen
++	uv run --no-sync python mach build --release
+ }
+ 
+ package() {
