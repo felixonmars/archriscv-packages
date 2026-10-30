@@ -10,22 +10,7 @@
    # depends
    dcmtk
    double-conversion
-@@ -48,6 +46,14 @@
-   done
- }
- 
-+prepare() {
-+  cd ${pkgbase^^}-$pkgver
-+  # SWIG 4.5 removed the Python 2 integer API compatibility macros.
-+  sed -i 's/\bPyInt_/PyLong_/g' \
-+    Wrapping/Generators/Python/PyBase/pyBase.i \
-+    Modules/Bridge/NumPy/include/itkPy{Buffer,VectorContainer,Vnl}.hxx
-+}
-+
- build() {
-   local cmake_options=(
-     -B build
-@@ -64,8 +70,10 @@
+@@ -72,8 +70,10 @@
      -DCMAKE_SKIP_INSTALL_RPATH=ON
      -DCMAKE_SKIP_RPATH=ON
      -DITK_BUILD_DEFAULT_MODULES=ON
@@ -37,7 +22,17 @@
      -DITK_USE_SYSTEM_CASTXML=ON
      -DITK_USE_SYSTEM_DCMTK=ON
      -DITK_USE_SYSTEM_DOUBLECONVERSION=ON
-@@ -120,6 +128,7 @@
+@@ -119,6 +119,9 @@
+     -DModule_MorphologicalContourInterpolation=ON
+     -DModule_SimpleITKFilters=ON
+   )
++  # The Python wrapper build exhausts memory when Ninja runs many jobs in parallel.
++  export CMAKE_BUILD_PARALLEL_LEVEL=2
++
+   cmake "${cmake_options[@]}"
+   cmake --build build
+ }
+@@ -128,6 +131,7 @@
      dcmtk
      double-conversion
      expat libexpat.so
