@@ -1,16 +1,27 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -54,2 +54,3 @@
-   patch -Np1 -i "${srcdir}"/aws-lc-rs.patch
-+  patch -Np1 -i "${srcdir}"/riscv64-support.patch
+@@ -43,6 +43,8 @@
+ prepare() {
+   cd ${pkgname}
  
-@@ -75,3 +76,5 @@
++  patch -Np1 -i "${srcdir}"/riscv64-support.patch
++
+   export RUSTUP_TOOLCHAIN=stable
+   cargo fetch --locked --target host-tuple
+ }
+@@ -63,7 +65,9 @@
+   # need base >= 4.19 (GHC >= 9.8) and a pre-populated Cabal package index.
+   # Lua and Ruby snapshots hard-code 5.4 and 3.4, respectively.
    # Hiding system Node removes /usr/bin from PATH, also hiding Git on Arch.
 +  # Deno 1.46.3 has no upstream RISC-V binary for the checksum policy test.
    cargo nextest run --locked --workspace --no-fail-fast -- \
 +    --skip deno::checksum_policy \
      --skip check_signed_commit_hook_verifies_ssh_signatures \
-@@ -115 +118,5 @@
+     --skip coursier::additional_dependencies \
+     --skip coursier::local_pre_commit_channel_is_ignored \
+@@ -103,3 +107,7 @@
+   # license
+   install -Dm644 -t "${pkgdir}"/usr/share/licenses/${pkgname} LICENSE
  }
 +
 +checkdepends+=(bun deno go)
