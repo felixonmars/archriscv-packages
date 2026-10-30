@@ -1,8 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -80,4 +80,14 @@
+@@ -80,4 +80,15 @@
  
 +prepare() {
++  patch -d "$srcdir/$_name" -Np1 -i "$srcdir/test-timing.patch"
 +  cd "$srcdir"/rolldown-1.2.11
 +  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
 +}
@@ -15,7 +16,7 @@
 +  cd "$srcdir"
 +
    # initialize corepack
-@@ -91,3 +101,14 @@
+@@ -91,3 +102,14 @@
    cd "$srcdir"/$_name/frontend
 -  yarn install --immutable
 +  sed -i \
@@ -31,9 +32,11 @@
 +  install -m755 "$srcdir"/rolldown-1.2.11/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
 +    node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
  
-@@ -163 +184,5 @@
+@@ -163 +185,7 @@
  }
 +
 +makedepends+=(rust cmake)
-+source+=('rolldown-1.2.11.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.11.tar.gz')
-+b2sums+=('bd3e3768363ead6b800598b763a9fc9807723e689fffd7d303da254b54e022e9def8225cc0a9f15f48a6d94b56317016054049127418d0db3f81e32a504cab09')
++source+=('rolldown-1.2.11.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.11.tar.gz'
++         'test-timing.patch')
++b2sums+=('bd3e3768363ead6b800598b763a9fc9807723e689fffd7d303da254b54e022e9def8225cc0a9f15f48a6d94b56317016054049127418d0db3f81e32a504cab09'
++         'c7e7726d87f7acbc4756d790e8491be92f49068ffb8971de6ed7ff89efbbff972781a97a07ed405b8a2ea7dadacbce36e762efd20058a922004cf65baa80abb9')
