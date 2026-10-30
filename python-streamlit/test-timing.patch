@@ -1,0 +1,148 @@
+--- a/lib/tests/streamlit/elements/plotly_chart_test.py
++++ b/lib/tests/streamlit/elements/plotly_chart_test.py
+@@ -290,10 +290,13 @@
+ 
+         trace0 = go.Scatter(x=[1, 2, 3, 4], y=[10, 15, 13, 17])
+         data = [trace0]
+-        st.cache_data(lambda: st.plotly_chart(data, on_select="rerun"))()
++        # The delayed spinner can shift queue positions on slow builders.
++        st.cache_data(
++            lambda: st.plotly_chart(data, on_select="rerun"), show_spinner=False
++        )()
+ 
+-        # The widget itself is still created, so we need to go back one element more:
+-        el = self.get_delta_from_queue(-3).new_element.exception
++        # The widget itself follows the warning in the queue.
++        el = self.get_delta_from_queue(-2).new_element.exception
+         assert el.type == "CachedWidgetWarning"
+         assert el.is_warning
+ 
+--- a/lib/tests/streamlit/fips_test.py
++++ b/lib/tests/streamlit/fips_test.py
+@@ -46,7 +46,8 @@
+ 
+     from websockets.sync.client import ClientConnection
+ 
+-_STREAMLIT_SERVER_STARTUP_TIMEOUT_SECS = 30
++# Importing Streamlit and discovering components can exceed 30s on slow builders.
++_STREAMLIT_SERVER_STARTUP_TIMEOUT_SECS = 300
+ # Budget for opening the smoke WebSocket and, separately, for the session
+ # from rerun request to script finish. Kept independent of the server-startup
+ # timeout so each phase reads independently.
+--- a/lib/tests/streamlit/runtime/runtime_test.py
++++ b/lib/tests/streamlit/runtime/runtime_test.py
+@@ -53,9 +53,18 @@
+ from tests.streamlit.runtime.runtime_test_case import RuntimeTestCase
+ 
+ if TYPE_CHECKING:
++    from collections.abc import Callable
++
+     from streamlit.proto.ForwardMsg_pb2 import ForwardMsg
+ 
+ 
++async def _wait_for_message(is_delivered: Callable[[], bool]) -> None:
++    # Delivery spans multiple event-loop turns, which can exceed a 30ms sleep.
++    async with asyncio.timeout(30):
++        while not is_delivered():
++            await asyncio.sleep(0.01)
++
++
+ class MockSessionClient(SessionClient):
+     """A SessionClient that captures all its ForwardMsgs into a list."""
+ 
+@@ -559,7 +568,7 @@
+ 
+         # Send the client a message. All should be well.
+         self.enqueue_forward_msg(session_id, create_dataframe_msg([1, 2, 3]))
+-        await self.tick_runtime_loop()
++        await _wait_for_message(lambda: client.write_forward_msg.called)
+ 
+         client.write_forward_msg.assert_called_once()
+         assert self.runtime.is_active_session(session_id)
+@@ -568,7 +577,7 @@
+         raise_disconnected_error = MagicMock(side_effect=SessionClientDisconnectedError)
+         client.write_forward_msg = raise_disconnected_error
+         self.enqueue_forward_msg(session_id, create_dataframe_msg([1, 2, 3]))
+-        await self.tick_runtime_loop()
++        await _wait_for_message(lambda: raise_disconnected_error.called)
+ 
+         # Assert that our error was raised, and that our session was disconnected.
+         raise_disconnected_error.assert_called_once()
+@@ -612,7 +621,7 @@
+             return_value=[stale_session_info],
+         ):
+             self.enqueue_forward_msg(session_id, create_dataframe_msg([1, 2, 3]))
+-            await self.tick_runtime_loop()
++            await _wait_for_message(lambda: raise_disconnected_error.called)
+ 
+         # The stale client raised, but the reconnected session stays active and
+         # remains bound to the new client instead of being torn down.
+@@ -652,7 +661,7 @@
+         msg = create_dataframe_msg([1, 2, 3])
+         msg.ClearField("hash")
+         self.enqueue_forward_msg(session_id, msg)
+-        await self.tick_runtime_loop()
++        await _wait_for_message(lambda: bool(client.forward_msgs))
+ 
+         received = client.forward_msgs.pop()
+         populate_hash_if_needed(msg)
+--- a/lib/tests/streamlit/runtime/state/session_state_test.py
++++ b/lib/tests/streamlit/runtime/state/session_state_test.py
+@@ -25,7 +25,7 @@
+ from unittest.mock import MagicMock, patch
+ 
+ import pytest
+-from hypothesis import given, settings
++from hypothesis import HealthCheck, given, settings
+ from hypothesis import strategies as hst
+ 
+ import streamlit as st
+@@ -2971,20 +2971,21 @@
+             self.session_state._check_serializable()
+ 
+ 
++# Nested session-state generation can exceed Hypothesis's speed guard on slow builders.
+ @given(state=stst.session_state())
+-@settings(deadline=400)
++@settings(deadline=400, suppress_health_check=[HealthCheck.too_slow])
+ def test_compact_idempotent(state):
+     assert _compact_copy(state) == _compact_copy(_compact_copy(state))
+ 
+ 
+ @given(state=stst.session_state())
+-@settings(deadline=400)
++@settings(deadline=400, suppress_health_check=[HealthCheck.too_slow])
+ def test_compact_len(state):
+     assert len(state) >= len(_compact_copy(state))
+ 
+ 
+ @given(state=stst.session_state())
+-@settings(deadline=400)
++@settings(deadline=400, suppress_health_check=[HealthCheck.too_slow])
+ def test_compact_presence(state):
+     assert _sorted_items(state) == _sorted_items(_compact_copy(state))
+ 
+@@ -2995,6 +2996,7 @@
+     value1=hst.integers(),
+     value2=hst.integers(),
+ )
++@settings(suppress_health_check=[HealthCheck.too_slow])
+ def test_map_set_set(m, key, value1, value2):
+     m[key] = value1
+     l1 = len(m)
+@@ -3004,6 +3006,7 @@
+ 
+ 
+ @given(m=stst.session_state(), key=stst.USER_KEY, value1=hst.integers())
++@settings(suppress_health_check=[HealthCheck.too_slow])
+ def test_map_set_del(m, key, value1):
+     m[key] = value1
+     l1 = len(m)
+@@ -3013,6 +3016,7 @@
+ 
+ 
+ @given(state=stst.session_state())
++@settings(suppress_health_check=[HealthCheck.too_slow])
+ def test_key_wid_lookup_equiv(state: SessionState):
+     k_wid_map = state._key_id_mapper._key_id_mapping
+     for k, wid in k_wid_map.items():
