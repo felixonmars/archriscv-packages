@@ -1,0 +1,14 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,6 +20,12 @@
+ 
+ prepare() {
+ 	cd "${pkgname}-${pkgver}"
++	# The invalid host makes Go resolve a DNS name before the bind fails, which can exceed one second on riscv64 builders.
++	sed -i \
++		-e 's#// Use a port that should fail to bind (negative would be invalid, use a#// Use an out-of-range port so ListenAndServe fails before binding.#' \
++		-e "/host that won't resolve to ensure listenUDP fails quickly/d" \
++		-e 's/setDnsConfig(c, "256.256.256.256", "53", true, true)/setDnsConfig(c, "127.0.0.1", "99999", true, true)/' \
++		dns_server_test.go
+ 	mkdir -p build
+ }
