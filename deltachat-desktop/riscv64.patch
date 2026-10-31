@@ -1,6 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -70,6 +70,8 @@
+@@ -58,6 +58,9 @@
+   # Set desktop name to match with the desktop file
+   npm --prefix packages/target-electron pkg set desktopName="$pkgname"
+ 
++  # The pinned pnpm release has no riscv64 native binary.
++  printf '\npmOnFail: ignore\n' >> pnpm-workspace.yaml
++
+   # Update pnpm version requirement
+   sed -i "s/\"pnpm\": \".*\"/\"pnpm\": \"^$(pnpm --version)\"/" package.json
+ 
+@@ -70,6 +73,8 @@
    done
  
    pnpm install --frozen-lockfile
@@ -9,7 +19,7 @@
  }
  
  build() {
-@@ -83,9 +85,10 @@
+@@ -83,9 +88,10 @@
  
    cd $pkgname
    export NODE_ENV=production
@@ -23,7 +33,7 @@
  }
  
  package() {
-@@ -104,7 +107,7 @@
+@@ -104,7 +110,7 @@
  
    cd $pkgname
    install -vdm 755 "$pkgdir/usr/lib/$pkgname/"
@@ -32,7 +42,7 @@
  
    # icons
    install -vDm 644 images/tray/${pkgname/-desktop/}.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
-@@ -118,3 +121,10 @@
+@@ -118,3 +124,10 @@
  
    install -vDm 644 {CHANGELOG,CONTRIBUTING,README,SECURITY}.md -t "$pkgdir/usr/share/doc/$pkgname/"
  }
@@ -40,6 +50,6 @@
 +source+=(builder-util-riscv64.patch
 +         deltachat-desktop-system-rpc.patch)
 +sha512sums+=('50bbca0a71343f06c2293cc45590943adc432e2cb53196e1d275f6660d249c3cb449ec34bb610c4eb1b687e4b59f5467a465f6221a2aeaef363d339817d6f1f9'
-+             '9551484947db2ec45c90a006253c47a6829f3d8b852507ccd05b809d3af0c86e288374a5787c959607a63aa88b8f5652c4c288fdf390b0b9878311e95334abb5')
++             '880cce69cbed1c406a530c275deb1c79cf4455528a87c735016b019a0eb4126c5f67cbaa780b159ab94f3e547f059025261b87ec8ef74b7a82246417620d1faf')
 +b2sums+=('f941e67aa4d11f423be226765d84170c637c891e73823d35bf9004a8be5d56df1bc7bd38dd0387f2fb28ea6fb17c2221842780577dd2f8cefbd9fc5d1a082d23'
-+         '140f0b58d0255937eac6491ed154a1951a3690bc974dfac5cbb020b6219aee1bc457aa8d1f0d51873a449fc409e3308efd3e9178b8e8c2b59b3f5d92c1f40f6f')
++         '62e9716aa9cef42a71e410b6fa7b7afb26333a47402cf2d343c308bd4c8b7dba12dc9c5a550564be69ae631ef4b7aca6d000116c0461356a9a988a864edfaa57')
