@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -52,7 +52,17 @@
+@@ -52,18 +52,31 @@
  	sed -i "s/\([\^ :]\)${_oldElectron[0]}/\1$_electronVersion/" package.json yarn.lock
  	sed -e "s/@ELECTRON@/$_electron/" "../${source[1]}" > $pkgname.sh
  	npm pkg set desktopName="$pkgname"
@@ -12,14 +12,19 @@
 +	local _cache_dir="$HOME/.cache/electron/$_hash"
 +	mkdir -p "$_cache_dir" && mv "/tmp/$_electron_zip" "$_cache_dir"
 +	sed -i "/packagerConfig: {/a\\    download: { checksums: { '$_electron_zip': '$_sha256' } }," forge.config.js
-+	jq ".resolutions.\"@electron/packager\" = \"patch:@electron/packager@npm%3A18.4.4#${srcdir}/electron-packager-riscv64.patch\"" package.json > package.json.new
++	jq ".resolutions.\"@electron/packager\" = \"patch:@electron/packager@npm%3A20.3.0#${srcdir}/electron-packager-riscv64.patch\"" package.json > package.json.new
 +	mv package.json.new package.json
 +	export ELECTRON_SKIP_BINARY_DOWNLOAD=1
 +	bin/yarn install
++	cargo fetch --locked --manifest-path="$srcdir/extract-zip-1.0.5/Cargo.toml"
  }
  
  build() {
-@@ -60,10 +70,8 @@
+ 	cd "$_archive"
++	# Electron's ZIP extractor does not ship a riscv64 native binding.
++	cargo build --frozen --release --manifest-path="$srcdir/extract-zip-1.0.5/Cargo.toml"
++	cp "$srcdir/extract-zip-1.0.5/target/release/libextract_zip.so" \
++		node_modules/@electron-internal/extract-zip/index.linux-riscv64-gnu.node
  	local NODE_ENV=''
  	export ZETTLR_DISABLE_UPDATE_CHECK=1
  	export BUNDLE_PANDOC=0
@@ -32,7 +37,7 @@
  }
  
  package() {
-@@ -74,6 +82,7 @@
+@@ -74,6 +87,7 @@
  	# electron-forge names the output dir linux-x64 on x86_64, linux-arm64 on aarch64
  	local _outarch=x64
  	[[ "$CARCH" == aarch64 ]] && _outarch=arm64
@@ -40,11 +45,15 @@
  	install -Dm0644 -t "$pkgdir/$_destdir/" "out/$_pkgname-linux-$_outarch/resources/app.asar"
  	cp -a "out/$_pkgname-linux-$_outarch/resources/app.asar.unpacked" "$pkgdir/$_destdir/"
  	for px in 16 24 32 48 64 96 128 256 512 1024; do
-@@ -82,3 +91,7 @@
+@@ -82,3 +96,11 @@
  	done
  	install -Dm0644 -t "$pkgdir/usr/share/mime/packages/" "../${source[2]}"
  }
 +
-+makedepends+=(zip)
-+source+=(electron-packager-riscv64.patch)
-+sha256sums+=('f35e66b817e7f25532654dcd599a33939939982062084577f43de2cf62ce3aa1')
++makedepends+=(cmake rust zip)
++# GCC LTO leaves unresolved zlib-ng symbols in the Rust native binding.
++options+=(!lto)
++source+=(electron-packager-riscv64.patch
++         'extract-zip-1.0.5.tar.gz::https://github.com/electron/extract-zip/archive/refs/tags/v1.0.5.tar.gz')
++sha256sums+=('eae49b3c96ed9f42c73874e663b5a2aeed542e8588c0b69ce6fb8170552cf0aa'
++            '37b3d9c2907c76e2f4fa3145382a712a8637848b6b5f64cbe9b07b4d1551c3f6')
