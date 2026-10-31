@@ -23,7 +23,62 @@
  from langchain_core.caches import InMemoryCache
  from langchain_core.language_models import GenericFakeChatModel
  from langchain_core.load import dumps
-@@ -144,8 +147,19 @@
+@@ -41,8 +44,19 @@
+     assert 0.00 < toc - tic < 0.10
+ 
+ 
+-async def test_rate_limit_ainvoke() -> None:
++async def test_rate_limit_ainvoke(monkeypatch: pytest.MonkeyPatch) -> None:
+     """Add rate limiter."""
++    # Model overhead must not refill the bucket between requests.
++    now = 0.0
++
++    async def sleep(delay: float) -> None:
++        nonlocal now
++        now += delay
++        await asyncio.sleep(0)
++
++    monkeypatch.setattr(rate_limiters, "time", SimpleNamespace(monotonic=lambda: now))
++    monkeypatch.setattr(rate_limiters, "asyncio", SimpleNamespace(sleep=sleep))
++
+     model = GenericFakeChatModel(
+         messages=iter(["hello", "world", "!"]),
+         rate_limiter=InMemoryRateLimiter(
+@@ -52,27 +66,12 @@
+             # At 20 requests per second we see a refresh every 0.05 seconds
+         ),
+     )
+-    tic = time.time()
+-    await model.ainvoke("foo")
+-    toc = time.time()
+-    # Should be larger than check every n seconds since the token bucket starts
+-    # with 0 tokens.
+-    assert 0.1 < toc - tic < 0.2
+-
+-    tic = time.time()
+-    await model.ainvoke("foo")
+-    toc = time.time()
+-    # The second time we call the model, we should have 1 extra token
+-    # to proceed immediately.
+-    assert toc - tic < 0.1
+-
+-    # The third time we call the model, we need to wait again for a token
+-    tic = time.time()
+-    await model.ainvoke("foo")
+-    toc = time.time()
+-    # Should be larger than check every n seconds since the token bucket starts
+-    # with 0 tokens.
+-    assert 0.1 < toc - tic < 0.2
++    # The first wait yields two tokens; the third request must wait again.
++    for expected_delay, expected_content in ((0.1, "hello"), (0.0, "world"), (0.1, "!")):
++        tic = now
++        response = await model.ainvoke("foo")
++        assert response.content == expected_content
++        assert now - tic == pytest.approx(expected_delay)
+ 
+ 
+ def test_rate_limit_batch() -> None:
+@@ -144,8 +143,19 @@
      assert 0.1 < toc - tic < 0.2
  
  
@@ -44,7 +99,7 @@
      model = GenericFakeChatModel(
          messages=iter(["hello world", "hello world", "hello world"]),
          rate_limiter=InMemoryRateLimiter(
-@@ -155,28 +169,12 @@
+@@ -155,28 +165,12 @@
              # At 20 requests per second we see a refresh every 0.05 seconds
          ),
      )
