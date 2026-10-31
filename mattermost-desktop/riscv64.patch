@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -60,14 +60,26 @@
+@@ -60,14 +60,25 @@
  	npm pkg set desktopName="$pkgname"
  	# Set path for autostart
  	sed -i "/new AutoLaunch({/a\            path: '/usr/bin/mattermost-desktop'," src/main/AutoLauncher.ts
@@ -10,7 +10,6 @@
 +	npm $_npmargs install --allow-git=all --ignore-scripts
 +	patch -Np1 -i "$srcdir/electron-builder-riscv64.patch"
 +	patch -Np1 -i "$srcdir/electron-winstaller-riscv64.patch"
-+	patch -Np2 -d node_modules/electron -i "$srcdir/electron-extract-zip-lazy.patch"
 +	mkdir -p node_modules/builder-util/node_modules/7zip-bin/linux/riscv64
 +	ln -s /usr/bin/7za node_modules/builder-util/node_modules/7zip-bin/linux/riscv64/7za
 +	npm $_npmargs rebuild --dangerously-allow-all-scripts
@@ -29,15 +28,13 @@
  }
  
  package() {
-@@ -80,3 +92,11 @@
- 	install -Dm0755 "$pkgname.sh" "$pkgdir/usr/bin/$pkgname"
- 	install -Dm0644 -t "$pkgdir/usr/share/applications/" "$srcdir/$pkgname.desktop"
+@@ -83,3 +94,9 @@
+     # Remove useless stuff
+     find "${pkgdir}"/usr/lib/mattermost-desktop/app.asar.unpacked/node_modules -type f \( -name '*\.md' -o -name '*\.txt' -o -name '\.*' -o -name 'LICENSE' \) -delete -print
  }
 +
 +makedepends+=(7zip)
 +source+=(electron-builder-riscv64.patch
-+         electron-winstaller-riscv64.patch
-+         electron-extract-zip-lazy.patch::https://github.com/electron/electron/commit/51e0d451e3afac62c1478d1b01e296b121a5dc1a.patch)
++         electron-winstaller-riscv64.patch)
 +sha256sums+=('5b8561aba9d0daa235f502f52783de4daf91cfc3fad77610bd8933d3491015e0'
-+             'b84d5b6dae0b81cb2d41438abb1d04f6acaf039565785c99f42363bb50e99ad3'
-+             '7759b4f7b28038aca692ecaaa5546e05e1bbf8bc81f423c6c3be5ff7d9dccba9')
++             'b84d5b6dae0b81cb2d41438abb1d04f6acaf039565785c99f42363bb50e99ad3')
