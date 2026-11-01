@@ -1,10 +1,12 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -65,7 +65,24 @@
+@@ -65,7 +65,26 @@
      sed -i -E "/${_exclude_arch}/d" build.gradle.kts
  
      pushd webui
 -    pnpm install --frozen-lockfile
++    # Avoid Vite's Less worker-to-main-thread timeout during WASM builds.
++    sed -i '/^export default defineConfig({$/a\  css: { preprocessorMaxWorkers: 0 },' vite.config.ts
 +    # Use WASM bindings where upstream does not publish riscv64 binaries.
 +    cat >> pnpm-workspace.yaml <<'EOF'
 +supportedArchitectures:
