@@ -1,30 +1,38 @@
-diff --git PKGBUILD PKGBUILD
-index 177151f..da8d4ca 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -11,19 +11,22 @@
- options=('!lto')
- depends=('clang21' 'lld21' 'llvm21-libs')
- makedepends=('cmake' 'llvm21')
--checkdepends=('lib32-glibc')
- source=("https://ziglang.org/download/$pkgver/zig-$pkgver.tar.xz"
-         "https://codeberg.org/ziglang/zig/commit/9df02121d0d87c17173f79d55692bed9cb65722c.patch"
--        "skip-futex2-test.patch")
-+        "skip-futex2-test.patch"
-+        "skip-link-tests.patch")
- sha256sums=('43186959edc87d5c7a1be7b7d2a25efffd22ce5807c7af99067f86f99641bfdf'
-             'cc513105cd250a107fcdefa6fed1147040f3cac4d377d545617840bd830da8d3'
--            'eb30e0eb00e6ced4c99383f0658a0351f42882e303300ed1828d162d27171cd0')
-+            'eb30e0eb00e6ced4c99383f0658a0351f42882e303300ed1828d162d27171cd0'
-+            '0debe8de8b92f4ffa589983e577017dc1401b9046de84847389376a933e1fa1f')
- 
- prepare() {
+@@ -21,6 +21,7 @@
      cd "$pkgname-$pkgver"
  
-     patch -p1 -i ../9df02121d0d87c17173f79d55692bed9cb65722c.patch
      patch -p1 -i ../skip-futex2-test.patch
-+    # Backport https://codeberg.org/ziglang/zig/commit/e7d74e49b0
-+    patch -p1 -i ../skip-link-tests.patch
++    patch -p1 -i ../maker-job-limit.patch
  }
  
  build() {
+@@ -37,7 +38,8 @@
+         ZIG_SHARED_LLVM=ON
+         ZIG_USE_LLVM_CONFIG=ON
+ 
+-        ZIG_TARGET_TRIPLE=native-linux.6.12-gnu.2.40
++        # Native builders such as aurorus still run Linux 6.6.
++        ZIG_TARGET_TRIPLE=native-linux.6.6-gnu.2.40
+         ZIG_TARGET_MCPU=baseline
+     )
+     cmake -B build "${cmake_vars[@]/#/-D}" .
+@@ -47,7 +49,9 @@
+ check() {
+     cd "$pkgname-$pkgver"
+ 
+-    ./build/stage3/bin/zig build test \
++    # Concurrent compilers deadlock on shared runtime cache manifests.
++    # https://codeberg.org/ziglang/zig/issues/37474
++    ./build/stage3/bin/zig build test -j1 \
+       -Dconfig_h=build/config.h \
+       -Dversion-string="$pkgver" \
+       -Dstatic-llvm=false \
+@@ -66,3 +70,6 @@
+     mkdir -p "$pkgdir/usr/share/doc/"
+     mv "$pkgdir/usr/doc" "$pkgdir/usr/share/doc/zig"
+ }
++
++source+=(maker-job-limit.patch)
++sha256sums+=('cfef880a54564811cead8df4731199834f131f084293b0a20a4cef29e80b9b99')
