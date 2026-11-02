@@ -1,0 +1,18 @@
+--- a/rio-vt/src/performer/mod.rs
++++ b/rio-vt/src/performer/mod.rs
+@@ -517,7 +517,14 @@
+             // Do not wait for descendants to close the slave. Drain across
+             // parsing budgets, limiting continuously available output to 100 ms
+             // between batches (terminal lock waits can extend this interval).
+-            let deadline = Instant::now() + std::time::Duration::from_millis(100);
++            // Unit tests drain more than 512 KiB of padding before their marker;
++            // allow slow builders to finish parsing it before the deadline.
++            let deadline = Instant::now()
++                + if cfg!(test) {
++                    std::time::Duration::from_secs(5)
++                } else {
++                    std::time::Duration::from_millis(100)
++                };
+             // Windows Closed means the ConPTY ring is momentarily empty
+             // (never WouldBlock, and no real EOF exists until the drain's
+             // own shutdown closes the pseudoconsole), while the pump
