@@ -1,0 +1,78 @@
+--- a/src/command/stopper_unix.go
++++ b/src/command/stopper_unix.go
+@@ -3,8 +3,11 @@
+ package command
+ 
+ import (
+-	"github.com/rs/zerolog/log"
++	"errors"
++	"os"
+ 	"syscall"
++
++	"github.com/rs/zerolog/log"
+ )
+ 
+ const (
+@@ -27,15 +30,21 @@
+ 		Bool("parentOnly", parentOnly).
+ 		Msg("Stop Unix process.")
+ 
++	var err error
+ 	if parentOnly {
+-		return c.cmd.Process.Signal(syscall.Signal(sig))
++		err = c.cmd.Process.Signal(syscall.Signal(sig))
++	} else {
++		var pgid int
++		pgid, err = syscall.Getpgid(c.Pid())
++		if err == nil {
++			err = syscall.Kill(-pgid, syscall.Signal(sig))
++		}
+ 	}
+ 
+-	pgid, err := syscall.Getpgid(c.Pid())
+-	if err == nil {
+-		return syscall.Kill(-pgid, syscall.Signal(sig))
++	// The process can exit and be reaped before its running state is updated.
++	if errors.Is(err, syscall.ESRCH) || errors.Is(err, os.ErrProcessDone) {
++		return nil
+ 	}
+-
+ 	return err
+ }
+ 
+--- /dev/null
++++ b/src/command/stopper_unix_test.go
+@@ -0,0 +1,33 @@
++//go:build !windows
++
++package command
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestStopExitedProcess(t *testing.T) {
++	for _, tc := range []struct {
++		name       string
++		parentOnly bool
++	}{
++		{name: "process group"},
++		{name: "parent only", parentOnly: true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			cmd := BuildCommand("sh", []string{"-c", "exit 0"})
++			cmd.SetCmdArgs()
++			if err := cmd.Start(); err != nil {
++				t.Fatal(err)
++			}
++			if err := cmd.Wait(); err != nil {
++				t.Fatal(err)
++			}
++			// Model a shutdown racing with the state update after Wait reaps the child.
++			if err := cmd.Stop(int(syscall.SIGTERM), tc.parentOnly); err != nil {
++				t.Fatalf("stopping an already-exited process: %v", err)
++			}
++		})
++	}
++}
