@@ -1,0 +1,12 @@
+--- a/lib/compiler/Maker.zig
++++ b/lib/compiler/Maker.zig
+@@ -581,7 +581,8 @@
+                 const n = std.fmt.parseUnsigned(u32, text, 10) catch |err|
+                     fatal("unable to parse jobs count {q}: {t}", .{ text, err });
+                 if (n < 1) fatal("number of jobs must be at least 1", .{});
+-                threaded.setAsyncLimit(.limited(n));
++                // The calling thread also runs jobs when the async limit is reached.
++                threaded.setAsyncLimit(.limited(n - 1));
+                 graph.max_jobs = n;
+             } else if (mem.eql(u8, arg, "--")) {
+                 run_args = argsRest(args, arg_i);
