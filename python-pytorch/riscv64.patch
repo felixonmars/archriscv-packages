@@ -1,44 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -21,7 +21,6 @@
-   gflags
-   glibc
-   google-glog
--  intel-oneapi-mkl
-   libgcc
-   libgomp
-   libstdc++
-@@ -48,13 +47,10 @@
- makedepends=(
-   amdsmi
-   cmake
--  cuda
--  cudnn
-   doxygen
-   git
-   hipblaslt
-   miopen-hip
--  nccl
-   ninja
-   onednn
-   pkgconfig
-@@ -69,15 +65,6 @@
-   rocprofiler
-   roctracer
-   procps-ng
--  oneccl
--  onedpl
--  level-zero-headers
--  level-zero-loader
--  intel-oneapi-common
--  intel-oneapi-dpcpp-cpp
--  intel-oneapi-mkl-sycl
--  intel-pti
--  intel-compute-runtime
-   shaderc
-   vulkan-headers
- )
-@@ -228,6 +215,9 @@
+@@ -227,6 +227,9 @@
  
    git -c protocol.file.allow=always submodule update --init --recursive
  
@@ -48,7 +10,7 @@
    # Fix cmake prefix path (FS#78665)
    patch -Np1 -i "${srcdir}"/fix_cmake_prefix_path.patch
  
-@@ -256,16 +246,12 @@
+@@ -255,16 +258,12 @@
    cd "${srcdir}"
  
    cp -r "${_pkgname}" "${_pkgname}-opt"
@@ -66,7 +28,7 @@
      sed -i '1s/^/#ifndef GLOG_USE_GLOG_EXPORT\n#define GLOG_USE_GLOG_EXPORT\n#endif\n\n/' ${_pkgname}-${_suffix}/c10/util/logging_is_google_glog.h
    done
  }
-@@ -279,7 +265,6 @@
+@@ -278,7 +277,6 @@
    # Check tools/setup_helpers/cmake.py, setup.py and CMakeLists.txt for a list of flags that can be set via env vars.
    export BUILD_TEST=OFF  # do not build tests
    export ATEN_NO_TEST=ON  # do not build ATen tests
@@ -74,7 +36,7 @@
    export BUILD_CUSTOM_PROTOBUF=OFF
    export USE_GFLAGS=ON
    export USE_GLOG=ON
-@@ -287,31 +272,13 @@
+@@ -286,31 +284,13 @@
    export USE_OBSERVERS=ON
    # export USE_SYSTEM_LIBS=ON  # experimental, not all libs present in repos
    # USE_SYSTEM_ONNX=ON does not work and onnx itself should be removed from pytorch: https://github.com/pytorch/pytorch/issues/166546#issuecomment-3463370459
@@ -108,7 +70,7 @@
  
    export ROCM_PATH=/opt/rocm
    export HIP_ROOT_DIR=/opt/rocm
-@@ -321,6 +288,8 @@
+@@ -320,6 +300,8 @@
    # https://github.com/pytorch/pytorch/issues/150187
    export USE_ROCM_CK_GEMM=OFF
    export USE_ROCM_CK_SDPA=OFF
@@ -117,7 +79,7 @@
    export USE_FBGEMM_GENAI=OFF
  
    # Compile source code for supported GPU archs in parallel (but using too many jobs is not helpful)
-@@ -332,106 +301,61 @@
+@@ -331,56 +313,34 @@
    # Fix build issues for onnx with cmake 4.0
    export CMAKE_POLICY_VERSION_MINIMUM=3.5
  
@@ -177,15 +139,10 @@
    cd "${srcdir}/${_pkgname}-rocm"
 -  echo "Building with rocm and without non-x86-64 optimizations"
 +  echo "Building with rocm and without non-riscv64 optimizations"
+ 
    # -fcf-protection is not supported by HIP, see
    # https://rocm.docs.amd.com/projects/llvm-project/en/latest/reference/rocmcc.html#support-status-of-other-clang-options
--  CXXFLAGS+=" -fcf-protection=none"
-+  # Parse libstdc++ attributes before HIP defines __noinline__.
-+  CXXFLAGS+=" -fcf-protection=none -include format"
-+  # Forced includes cannot precede fmt's C++ module declaration.
-+  export CMAKE_ARGS+=" -DFMT_MODULE=OFF"
-   _prepare
-   export USE_CUDA=0
+@@ -399,51 +359,22 @@
    export USE_CUDNN=0
    export USE_ROCM=1
    export USE_XPU=0
@@ -208,6 +165,9 @@
    # Conversion of CUDA to ROCm source files
    python tools/amd_build/build_amd.py
    python -m build --wheel --no-isolation
+-
+-  # Remove the -include fix_noinline_macro.h thing again so it's not part of the XPU build below.
+-  export CXXFLAGS="${CXXFLAGS// -include ${srcdir}\/fix_noinline_macro.h/}"
 -
 -  # Strip the problematic format-security flag that breaks SYCL CMake scripts
 -  export CFLAGS="${CFLAGS/-Werror=format-security/}"
@@ -237,7 +197,7 @@
  }
  
  _package() {
-@@ -468,7 +390,7 @@
+@@ -480,7 +411,7 @@
  }
  
  package_python-pytorch-opt() {
@@ -246,7 +206,7 @@
    conflicts=(python-pytorch)
    provides=(python-pytorch=${pkgver})
  
-@@ -507,7 +429,7 @@
+@@ -519,7 +450,7 @@
  }
  
  package_python-pytorch-opt-rocm() {
@@ -255,7 +215,7 @@
    depends+=(amdsmi rocm-hip-sdk hipblaslt rocprofiler roctracer miopen-hip onednn python-triton python-aotriton)
    conflicts=(python-pytorch)
    provides=(python-pytorch=${pkgver} python-pytorch-rocm=${pkgver})
-@@ -552,3 +474,10 @@
+@@ -564,3 +495,18 @@
  }
  
  # vim:set ts=2 sw=2 et:
@@ -264,5 +224,13 @@
 +pkgname=(${pkgname[@]/"${pkgbase}-opt-cuda"})
 +pkgname=(${pkgname[@]/"${pkgbase}-xpu"})
 +pkgname=(${pkgname[@]/"${pkgbase}-opt-xpu"})
++depends=(${depends[@]/intel-oneapi-mkl})
++makedepends=(${makedepends[@]/cuda})
++makedepends=(${makedepends[@]/cudnn})
++makedepends=(${makedepends[@]/nccl})
++makedepends=(${makedepends[@]/oneccl})
++makedepends=(${makedepends[@]/onedpl})
++makedepends=(${makedepends[@]/level-zero-*})
++makedepends=(${makedepends[@]/intel-*})
 +source+=(sleef-host-generators.patch)
 +b2sums+=('a46da41660a9c1aaf72f26c61fa937dd62785e3b69c69cd45db812d81b5041d3cb74a3db06aba0b50d8011c9a30208c76a785ebd7c206e2715d7e524ac71ff20')
