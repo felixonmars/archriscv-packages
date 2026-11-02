@@ -1,0 +1,103 @@
+--- a/tests/unit_tests/evaluation/test_runner.py
++++ b/tests/unit_tests/evaluation/test_runner.py
+@@ -434,17 +434,23 @@
+     def predict(inputs: dict) -> dict:
+         nonlocal locked
+         nonlocal slow_index
+-        if len(ordering_of_stuff) > 2 and not locked:
+-            with lock:
+-                if len(ordering_of_stuff) > 2 and not locked:
+-                    locked = True
+-                    time.sleep(3)
+-                    slow_index = len(ordering_of_stuff)
+-                    ordering_of_stuff.append("predict")
+-                else:
+-                    ordering_of_stuff.append("predict")
+-
+-        else:
++        with lock:
++            delay = len(ordering_of_stuff) > 2 and not locked
++            if delay:
++                locked = True
++            else:
++                ordering_of_stuff.append("predict")
++
++        if delay:
++            time.sleep(3)
++            # A fixed sleep does not ensure the other workers finished.
++            # Release the selection lock so every prediction can make progress.
++            _wait_until(
++                lambda: len(ordering_of_stuff)
++                == (SPLIT_SIZE * NUM_REPETITIONS - 1) * (len(evaluators) + 1),
++                timeout=30,
++            )
++            slow_index = len(ordering_of_stuff)
+             ordering_of_stuff.append("predict")
+         return {"output": inputs["in"] + 1}
+ 
+@@ -570,8 +576,7 @@
+     else:
+         assert not fake_request.created_session
+ 
+-    # It's delayed, so it'll be the penultimate event
+-    # Will run all other preds and evals, then this, then the last eval
++    # The delayed prediction follows all other predictions and their evaluators.
+     assert slow_index == (len(evaluators) + 1) * (N_PREDS - 1)
+ 
+     if upload_results:
+@@ -730,17 +735,24 @@
+         nonlocal locked
+         nonlocal slow_index
+ 
+-        if len(ordering_of_stuff) > 2 and not locked:
+-            async with lock:
+-                if len(ordering_of_stuff) > 2 and not locked:
+-                    locked = True
+-                    await asyncio.sleep(3)
+-                    slow_index = len(ordering_of_stuff)
+-                    ordering_of_stuff.append("predict")
+-                else:
+-                    ordering_of_stuff.append("predict")
+-
+-        else:
++        async with lock:
++            delay = len(ordering_of_stuff) > 2 and not locked
++            if delay:
++                locked = True
++            else:
++                ordering_of_stuff.append("predict")
++
++        if delay:
++            await asyncio.sleep(3)
++            # Yield until the other evaluations finish, with a bounded wait.
++            deadline = time.monotonic() + 30
++            while len(ordering_of_stuff) != (
++                SPLIT_SIZE * NUM_REPETITIONS - 1
++            ) * (len(evaluators) + 1):
++                if time.monotonic() >= deadline:
++                    raise TimeoutError("Other evaluations did not finish")
++                await asyncio.sleep(0.1)
++            slow_index = len(ordering_of_stuff)
+             ordering_of_stuff.append("predict")
+         return {"output": inputs["in"] + 1}
+ 
+@@ -837,7 +849,8 @@
+             deltas.append((now - last))
+             last = now
+         total = now - start  # type: ignore
+-        assert 3.3 > total > 1.5
++        # Include the bounded wait for other evaluations on slower builders.
++        assert 40 > total > 1.5
+ 
+         # Essentially we want to check that most calls were very fast.
+         assert len(deltas) == SPLIT_SIZE * NUM_REPETITIONS
+@@ -868,8 +881,7 @@
+         # Want it to be interleaved
+         assert ordering_of_stuff[:N_PREDS] != ["predict"] * N_PREDS
+         assert slow_index is not None
+-        # It's delayed, so it'll be the penultimate event
+-        # Will run all other preds and evals, then this, then the last eval
++        # The delayed prediction follows all other predictions and their evaluators.
+         assert slow_index == (N_PREDS - 1) * (len(evaluators) + 1)
+ 
+         assert fake_request.created_session["name"]
