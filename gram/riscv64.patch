@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -62,6 +62,9 @@
+ 
+ prepare() {
+ 	_srcenv
++	patch -Np1 -d .. -i "$srcdir/minidump-riscv64.patch"
++	patch -Np1 -d ../minidump-writer-0.12.0 -i "$srcdir/minidump-writer-riscv64.patch"
++	cargo update -p crash-context -p minidump-common -p minidump-writer
+ 	cargo fetch --locked --target host-tuple
+ 	export DO_STARTUP_NOTIFY="true"
+ 	export APP_ICON="gram"
+@@ -101,3 +104,12 @@
+ 	install -Dm0644 app-icon@2x.png "$pkgdir/usr/share/icons/hicolor/512x512@2/apps/$pkgname.png"
+ 	install -Dm0644 app.liten.Gram.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+ }
++
++source+=("minidump-common-0.26.1.tar.gz::https://static.crates.io/crates/minidump-common/minidump-common-0.26.1.crate"
++         "minidump-writer-0.12.0.tar.gz::https://static.crates.io/crates/minidump-writer/minidump-writer-0.12.0.crate"
++         "minidump-writer-riscv64.patch::https://github.com/hack3ric/minidump-writer/commit/da548e48906a4fd497d7d08a30757a37221004cb.patch"
++         minidump-riscv64.patch)
++sha256sums+=('2e16d10087ae9e375bad7a40e8ef5504bc08e808ccc6019067ff9de42a84570f'
++             '48ef5778fc71c10d6bac1ec6b971ba0cc4b67cd8f3f0f7689dfdaab75884082f'
++             '2cca10db2f4260c7cffc7b8b37624cb26ee37b8400ecc4c1a4a605bb980850f4'
++             '2c4bfd0ba0c5c9df40a914e82596d1c134f35c24a479f9f75b09175412d6e92a')
