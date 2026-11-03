@@ -1,23 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -13,12 +13,10 @@
-   gst-libav
-   gst-plugin-gtk
-   gst-plugin-hip
--  gst-plugin-msdk
-   gst-plugin-onnx
-   gst-plugin-opencv
-   gst-plugin-qml6
-   gst-plugin-qmlgl
--  gst-plugin-qsv
-   gst-plugin-svthevcenc
-   gst-plugin-va
-   gst-plugin-wpe
-@@ -238,6 +236,16 @@
-     echo "Applying patch $src..."
+@@ -242,6 +242,16 @@
      git apply -3 < "../$src"
    done
-+
+ 
 +  # https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/4248
 +  patch -Np0 -i "$srcdir/synaescope.patch"
 +  patch -Np0 -i "$srcdir/gl-preroll.patch"
@@ -27,10 +13,11 @@
 +  patch -Np0 -i "$srcdir/splitmux-timeout.patch"
 +  patch -Np1 -i "$srcdir/6272cd80877cf3b9a49d708ade91010775df19b8.patch"
 +  patch -Np0 -i "$srcdir/test-workarounds.patch"
++
+   cargo fetch --locked --target host-tuple \
+     --manifest-path subprojects/gst-devtools/dots-viewer/Cargo.toml
  }
- 
- build() {
-@@ -262,11 +270,13 @@
+@@ -268,11 +278,13 @@
      -D gst-plugins-bad:lcevcencoder=disabled
      -D gst-plugins-bad:magicleap=disabled
      -D gst-plugins-bad:mfx_api=oneVPL
@@ -44,19 +31,19 @@
      -D gst-plugins-bad:qt6d3d11=disabled
      -D gst-plugins-bad:svtjpegxs=disabled
      -D gst-plugins-bad:tflite=disabled
-@@ -309,9 +319,9 @@
+@@ -309,9 +321,9 @@
    export CK_TIMEOUT_MULTIPLIER=5
    export NO_AT_BRIDGE=1 GTK_A11Y=none
  
 -  # Flaky due to timeouts
 +  # Concurrent media pipelines exceed deadlines and drop frames on riscv64.
    xvfb-run -s "-nolisten local" \
--    meson test -C build --print-errorlogs -t $CK_TIMEOUT_MULTIPLIER
-+    meson test -C build --print-errorlogs -t $CK_TIMEOUT_MULTIPLIER --num-processes 1
+-    meson test -C build --no-rebuild --print-errorlogs -t $CK_TIMEOUT_MULTIPLIER
++    meson test -C build --no-rebuild --print-errorlogs -t $CK_TIMEOUT_MULTIPLIER --num-processes 1
  )
  
  _install() {
-@@ -801,12 +811,10 @@
+@@ -801,12 +813,10 @@
    optdepends=(
      'gst-plugin-gtk: gtk plugin'
      'gst-plugin-hip: hip plugin and library'
@@ -67,12 +54,14 @@
      'gst-plugin-qmlgl: qmlgl plugin'
 -    'gst-plugin-qsv: qsv plugin'
      'gst-plugin-va: va plugin'
-     'gst-plugin-wpe: wpe plugin'
+     'gst-plugin-wpe2: wpe2 plugin'
    )
-@@ -1335,4 +1343,23 @@
+@@ -1315,4 +1325,25 @@
    install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 COPYING LICENSE*
  }
  
++pkgname=(${pkgname[@]/gst-plugin-msdk})
++pkgname=(${pkgname[@]/gst-plugin-qsv})
 +source_riscv64=(
 +  synaescope.patch
 +  gl-preroll.patch
