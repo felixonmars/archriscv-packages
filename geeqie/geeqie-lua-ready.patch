@@ -11,7 +11,17 @@
  if [ -z "$XDG_CONFIG_HOME" ]
  then
  	config_home="$HOME/.config"
-@@ -44,19 +48,29 @@
+@@ -20,7 +24,8 @@
+ 	config_home="$XDG_CONFIG_HOME"
+ fi
+ 
+-lua_test_image=$(mktemp --suffix=".jpeg" "${TMPDIR:-/tmp}/geeqie.XXXXXXXXXX")
++# Keep image scanning inside isolate-test.sh's temporary home.
++lua_test_image=$(mktemp --suffix=".jpeg" "$HOME/geeqie.XXXXXXXXXX")
+ mkdir -p "$config_home/geeqie/lua/"
+ lua_test_file=$(mktemp --suffix=".lua" --tmpdir="$config_home/geeqie/lua/" lua-test-XXXXXX)
+ 
+@@ -44,19 +49,88 @@
  "
  printf  "%s" "$lua_test" > "$lua_test_file"
  
@@ -21,17 +31,40 @@
 -while [ ! -e "$config_home/geeqie/layouts" ] ;
 +# D-Bus-activated GTK helpers must see the same display as Geeqie.
 +dbus-update-activation-environment DISPLAY XAUTHORITY
-+"$geeqie_exe" &
++"$geeqie_exe" --file="$lua_test_image" &
 +geeqie_pid=$!
++tell_output="$HOME/geeqie-tell"
++tell_error="$HOME/geeqie-tell-error"
++result_output="$HOME/geeqie-lua-result"
 +
-+# The layouts directory is created before startup finishes; wait for the remote handshake.
-+attempts=0
-+while ! gdbus call --session --dest org.geeqie.Geeqie \
-+    --object-path /org/geeqie/Geeqie --method org.gtk.Actions.DescribeAll \
-+    --timeout 1 >/dev/null 2>&1
++# This cleanup function is invoked indirectly by the EXIT trap.
++# shellcheck disable=SC2329
++cleanup()
++{
++	if [ -n "${geeqie_pid:-}" ] && kill -0 "$geeqie_pid" 2>/dev/null
++	then
++		timeout --kill-after=1 10 "$geeqie_exe" --quit >/dev/null 2>&1 || true
++		kill "$geeqie_pid" 2>/dev/null || true
++		# A stuck viewer must not hide the original failure during cleanup.
++		timeout 5 tail --pid="$geeqie_pid" -f /dev/null || kill -KILL "$geeqie_pid" 2>/dev/null || true
++		wait "$geeqie_pid" 2>/dev/null || true
++	fi
++	rm -f "$lua_test_image" "$lua_test_file" "$tell_output" "$tell_error" "$result_output"
++}
++trap cleanup EXIT
++
++# Wait for the primary instance to register before sending remote commands.
++deadline=$(($(date +%s) + 300))
++until [ -d "$config_home/geeqie/layouts" ] &&
++	  timeout --kill-after=1 5 gdbus call --session --dest org.geeqie.Geeqie \
++		--object-path /org/geeqie/Geeqie --method org.gtk.Actions.DescribeAll \
++		--timeout 1 >/dev/null 2>&1
  do
-+	attempts=$((attempts + 1))
-+	if [ "$attempts" -ge 60 ]; then
++	if ! kill -0 "$geeqie_pid" 2>/dev/null; then
++		echo "Geeqie exited before becoming ready for remote commands" >&2
++		exit 1
++	fi
++	if [ "$(date +%s)" -ge "$deadline" ]; then
 +		echo "Geeqie did not become ready for remote commands" >&2
 +		exit 1
 +	fi
@@ -39,34 +72,58 @@
  done
  
 -sleep 2
--
++# Wait for the viewer to report the image opened by the primary instance.
++until timeout --kill-after=1 30 "$geeqie_exe" --tell >"$tell_output" 2>"$tell_error" &&
++	  [ "$(cat "$tell_output")" = "$lua_test_image" ]
++do
++	if ! kill -0 "$geeqie_pid" 2>/dev/null; then
++		echo "Geeqie exited before opening the test image" >&2
++		cat "$tell_error" >&2
++		exit 1
++	fi
++	if [ "$(date +%s)" -ge "$deadline" ]; then
++		echo "Geeqie did not open the test image" >&2
++		cat "$tell_error" >&2
++		exit 1
++	fi
++	sleep 1
++done
+ 
  base_lua=$(basename "$lua_test_file")
 -result=$(xvfb-run --auto-servernum "$geeqie_exe" --lua="$lua_test_image","$base_lua")
 -xvfb-run --auto-servernum "$geeqie_exe" --quit
-+result=$("$geeqie_exe" --lua="$lua_test_image","$base_lua")
-+"$geeqie_exe" --quit
-+wait "$geeqie_pid"
++if ! timeout --kill-after=1 30 "$geeqie_exe" --lua="$lua_test_image","$base_lua" >"$result_output"
++then
++	printf '%s\n' "Geeqie Lua command failed" >&2
++	exit 1
++fi
++result=$(cat "$result_output")
++if ! timeout --kill-after=1 10 "$geeqie_exe" --quit
++then
++	printf '%s\n' "Geeqie quit command failed" >&2
++	exit 1
++fi
++if ! timeout 30 tail --pid="$geeqie_pid" -f /dev/null
++then
++	printf '%s\n' "Geeqie did not exit after the quit command" >&2
++	exit 1
++fi
++if ! wait "$geeqie_pid"
++then
++	printf '%s\n' "Geeqie exited unsuccessfully" >&2
++	exit 1
++fi
++geeqie_pid=
  
  ## @FIXME Running on GitHub gives additional dbind-WARNINGs. The data required is the last n lines.
  result_tail=$(printf "%s" "$result" | tail --lines=7)
---- a/meson.build
-+++ b/meson.build
-@@ -817,7 +817,7 @@
- # Lua test
- if get_option('lua').allowed() and lua_dep.found() and xvfb.found()
-     lua_test_sh = find_program('lua-test.sh', dirs : buildauxdir, required : true)
--    test('Lua test', isolate_test_sh, args: [lua_test_sh.full_path(), geeqie_exe.full_path()], timeout: 100, suite : 'analysis')
-+    test('Lua test', isolate_test_sh, args: [lua_test_sh.full_path(), geeqie_exe.full_path()], timeout: 180, suite : 'analysis')
+@@ -66,9 +140,6 @@
+ printf "Result                              Expected\n"
+ printf '%s\n' "$result_tail" "$expected"| pr -2  --omit-header
  
-     summary({'lua' : ['Test runs:', true]}, section : 'Testing', bool_yn : true)
- else
-@@ -826,7 +826,8 @@
- 
- # Ancillary files test
- test_ancillary_files_sh = find_program('test-ancillary-files.sh', dirs : buildauxdir, required : true)
--test('Ancillary files', test_ancillary_files_sh, args: [meson.current_source_dir()], timeout: 100, suite : 'analysis')
-+# Serial lint and validation commands need more time on riscv64 builders.
-+test('Ancillary files', test_ancillary_files_sh, args: [meson.current_source_dir()], timeout: 300, suite : 'analysis')
- 
- summary({'Ancillary files' : ['Test runs:', true]}, section : 'Testing', bool_yn : true)
- 
+-rm "$lua_test_image"
+-rm "$lua_test_file"
+-
+ if [ "$result_tail" = "$expected" ]
+ then
+ 	exit 0
