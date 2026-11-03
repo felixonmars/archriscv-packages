@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -58,6 +58,14 @@
+@@ -58,6 +58,26 @@
    exporter/opentelemetry-exporter-otlp-proto-http
  )
  
@@ -9,6 +9,18 @@
 +  # Allow slow gRPC calls while retaining the retry-delay lower bound.
 +  # https://github.com/open-telemetry/opentelemetry-python/pull/5666
 +  sed -i '/def test_retry_info_is_respected/,/metrics_data =/s/assertAlmostEqual(after - before, 1, delta=0\.5)/assertTrue(0.5 <= after - before <= 3)/' \
++    exporter/opentelemetry-exporter-otlp-proto-grpc/tests/test_otlp_exporter_mixin.py
++  # Avoid collisions with fixed OTLP ports used by concurrent package checks.
++  sed -i \
++    -e '/^import threading$/i import os' \
++    -e '/    OTEL_PYTHON_SDK_INTERNAL_METRICS_ENABLED,/i\    OTEL_EXPORTER_OTLP_ENDPOINT,' \
++    -e 's/self.server.add_insecure_port("127.0.0.1:4317")/self.server_port = self.server.add_insecure_port("127.0.0.1:0")/' \
++    -e '/        self.server.start()/a\        self.server_endpoint = f"127.0.0.1:{self.server_port}"\n        self._previous_endpoint = os.environ.get(OTEL_EXPORTER_OTLP_ENDPOINT)\n        os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = f"http://{self.server_endpoint}"' \
++    -e '/        self.server.stop(None)/a\        if self._previous_endpoint is None:\n            os.environ.pop(OTEL_EXPORTER_OTLP_ENDPOINT, None)\n        else:\n            os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = self._previous_endpoint' \
++    -e '/def test_otlp_exporter_otlp_compression_/,/^    @/s/"localhost:4317"/self.server_endpoint/' \
++    -e 's/"Failed to export traces to localhost:4317,/f"Failed to export traces to {self.server_endpoint},/' \
++    -e 's/self.assertEqual(attributes\["server.address"\], "localhost")/self.assertEqual(attributes["server.address"], "127.0.0.1")/' \
++    -e 's/self.assertEqual(attributes\["server.port"\], 4317)/self.assertEqual(attributes["server.port"], self.server_port)/' \
 +    exporter/opentelemetry-exporter-otlp-proto-grpc/tests/test_otlp_exporter_mixin.py
 +}
 +
