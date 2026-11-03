@@ -1,12 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -117,6 +117,9 @@
+@@ -117,6 +117,12 @@
  prepare() {
    cd $pkgname
  
 +  # Allow the lock-contention test more CPU time on riscv64 (upstream #18430, #19929).
-+  sed -i 's/test_timeout(5, cpu_time=True)/test_timeout(15, cpu_time=True)/' tests/handlers/test_worker_lock.py
++  sed -i 's/test_timeout(5, cpu_time=True)/test_timeout(60, cpu_time=True)/' tests/handlers/test_worker_lock.py
++
++  # Keep real CPU consumption out of the simulated one-second usage test.
++  patch -Np1 -i "$srcdir/mock-phone-home-cpu.patch"
 +
    # Work around xmlschema + zope.interface incompatibility (FS#1 python-xmlschema)
    sed -i 's/except ImportError:/except (ImportError, AttributeError):/' tests/handlers/test_saml.py
  
+@@ -155,3 +161,6 @@
+   install -vDm644 "$srcdir"/sysusers-synapse.conf "$pkgdir"/usr/lib/sysusers.d/synapse.conf
+   install -vDm644 "$srcdir"/tmpfiles-synapse.conf "$pkgdir"/usr/lib/tmpfiles.d/synapse.conf
+ }
++
++source+=(mock-phone-home-cpu.patch)
++sha256sums+=('6860943fd2b2719ab564df439323ddbda3f37e87fa99d90fceadd757bd693cd6')
