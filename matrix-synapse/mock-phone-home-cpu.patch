@@ -1,0 +1,21 @@
+--- a/tests/test_phone_home.py
++++ b/tests/test_phone_home.py
+@@ -59,10 +59,14 @@
+         past_stats = [(self.hs.get_clock().time(), old_resource)]
+         stats: JsonDict = {}
+         self.reactor.advance(1)
+-        # `old_resource` has type `Mock` instead of `struct_rusage`
+-        self.get_success(
+-            phone_stats_home(self.hs, stats, past_stats)  # type: ignore[arg-type]
+-        )
++        # Use the same CPU sample so real work during the simulated second does
++        # not inflate the expected usage. Patch only this module's resource access.
++        with mock.patch("synapse.app.phone_stats_home.resource") as mock_resource:
++            mock_resource.getrusage.return_value = real_res
++            # `old_resource` has type `Mock` instead of `struct_rusage`
++            self.get_success(
++                phone_stats_home(self.hs, stats, past_stats)  # type: ignore[arg-type]
++            )
+         self.assertApproximates(stats["cpu_average"], 100, tolerance=2.5)
+ 
+ 
