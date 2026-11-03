@@ -1,0 +1,17 @@
+# https://github.com/pypa/pipenv/pull/6744
+# https://github.com/pypa/pipenv/commit/f79e8790678595429de088b837d941bece39ebe8
+--- a/tests/unit/test_manifest_cache.py
++++ b/tests/unit/test_manifest_cache.py
+@@ -648,7 +648,11 @@
+         target = cache._path_for("https://pypi.org/simple", "numpy")
+         payload = json.loads(target.read_text())
+         payload["expires_at"] = 1234  # int, not str
+-        target.write_text(json.dumps(payload))
++        # Replace the inode: the corrupt JSON can have the same size and
++        # timestamps as the original, leaving the memoized entry valid.
++        corrupted = target.with_suffix(".corrupt")
++        corrupted.write_text(json.dumps(payload))
++        corrupted.replace(target)
+ 
+         assert cache.get("https://pypi.org/simple", "numpy") is None
+ 
