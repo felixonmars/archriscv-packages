@@ -1,0 +1,118 @@
+--- a/instrumentation/opentelemetry-instrumentation-django/tests/test_middleware.py
++++ b/instrumentation/opentelemetry-instrumentation-django/tests/test_middleware.py
+@@ -5,7 +5,6 @@
+ # pylint: disable=too-many-lines
+ 
+ from sys import modules
+-from timeit import default_timer
+ from unittest.mock import Mock, patch
+ 
+ from django import VERSION, conf
+@@ -24,6 +23,7 @@
+     DjangoInstrumentor,
+     _DjangoMiddleware,
+ )
++from opentelemetry.instrumentation.django.middleware import otel_middleware
+ from opentelemetry.instrumentation.propagators import (
+     TraceResponsePropagator,
+     set_global_response_propagator,
+@@ -701,11 +701,15 @@
+             "http.flavor": "1.1",
+             "http.server_name": "testserver",
+         }
+-        start = default_timer()
+-        for _ in range(3):
+-            response = Client().get("/span_name/1234/")
+-            self.assertEqual(response.status_code, 200)
+-        duration = max(round((default_timer() - start) * 1000), 0)
++        # Measure middleware duration without client and scheduling overhead.
++        with patch.object(
++            otel_middleware,
++            "default_timer",
++            side_effect=[1.0, 1.125, 2.0, 2.125, 3.0, 3.125],
++        ):
++            for _ in range(3):
++                response = Client().get("/span_name/1234/")
++                self.assertEqual(response.status_code, 200)
+         metrics = self.get_sorted_metrics(SCOPE)
+         number_data_point_seen = False
+         histrogram_data_point_seen = False
+@@ -719,7 +723,7 @@
+                 if isinstance(point, HistogramDataPoint):
+                     self.assertEqual(point.count, 3)
+                     histrogram_data_point_seen = True
+-                    self.assertAlmostEqual(duration, point.sum, delta=100)
++                    self.assertEqual(375, point.sum)
+                     self.assertDictEqual(
+                         expected_duration_attributes,
+                         dict(point.attributes),
+@@ -750,11 +754,15 @@
+             "http.request.method": "GET",
+             "url.scheme": "http",
+         }
+-        start = default_timer()
+-        for _ in range(3):
+-            response = Client().get("/span_name/1234/")
+-            self.assertEqual(response.status_code, 200)
+-        duration_s = default_timer() - start
++        # Measure middleware duration without client and scheduling overhead.
++        with patch.object(
++            otel_middleware,
++            "default_timer",
++            side_effect=[1.0, 1.125, 2.0, 2.125, 3.0, 3.125],
++        ):
++            for _ in range(3):
++                response = Client().get("/span_name/1234/")
++                self.assertEqual(response.status_code, 200)
+         metrics = self.get_sorted_metrics(SCOPE)
+         number_data_point_seen = False
+         histrogram_data_point_seen = False
+@@ -768,7 +776,7 @@
+                 if isinstance(point, HistogramDataPoint):
+                     self.assertEqual(point.count, 3)
+                     histrogram_data_point_seen = True
+-                    self.assertAlmostEqual(duration_s, point.sum, places=1)
++                    self.assertEqual(0.375, point.sum)
+                     self.assertDictEqual(
+                         expected_duration_attributes,
+                         dict(point.attributes),
+@@ -818,12 +826,15 @@
+             "http.request.method": "GET",
+             "url.scheme": "http",
+         }
+-        start = default_timer()
+-        for _ in range(3):
+-            response = Client().get("/span_name/1234/")
+-            self.assertEqual(response.status_code, 200)
+-        duration_s = max(default_timer() - start, 0)
+-        duration = max(round(duration_s * 1000), 0)
++        # Measure middleware duration without client and scheduling overhead.
++        with patch.object(
++            otel_middleware,
++            "default_timer",
++            side_effect=[1.0, 1.125, 2.0, 2.125, 3.0, 3.125],
++        ):
++            for _ in range(3):
++                response = Client().get("/span_name/1234/")
++                self.assertEqual(response.status_code, 200)
+         metrics = self.get_sorted_metrics(SCOPE)
+         number_data_point_seen = False
+         histrogram_data_point_seen = False
+@@ -838,7 +849,7 @@
+                     self.assertEqual(point.count, 3)
+                     histrogram_data_point_seen = True
+                     if metric.name == "http.server.request.duration":
+-                        self.assertAlmostEqual(duration_s, point.sum, places=1)
++                        self.assertEqual(0.375, point.sum)
+                         self.assertDictEqual(
+                             expected_duration_attributes_new,
+                             dict(point.attributes),
+@@ -848,7 +859,7 @@
+                             HTTP_DURATION_HISTOGRAM_BUCKETS_NEW,
+                         )
+                     elif metric.name == "http.server.duration":
+-                        self.assertAlmostEqual(duration, point.sum, delta=100)
++                        self.assertEqual(375, point.sum)
+                         self.assertDictEqual(
+                             expected_duration_attributes_old,
+                             dict(point.attributes),
