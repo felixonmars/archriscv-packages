@@ -1,8 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -69,8 +69,8 @@ package() {
-   install -Dm644 "${srcdir}/${pkgname}.sysusers" "${pkgdir}/usr/lib/sysusers.d/${pkgname}.conf"
-   install -Dm644 "${srcdir}/${pkgname}.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/${pkgname}.conf"
+@@ -32,6 +32,8 @@
+ prepare() {
+   cd "${pkgname}"
+ 
++  # The pinned pnpm release has no riscv64 native binary.
++  printf '\npmOnFail: ignore\n' >> pnpm-workspace.yaml
+   pnpm i --frozen-lockfile
+ }
+ 
+@@ -65,8 +67,8 @@
+   install -Dm644 "${srcdir}/sysusers.conf" "${pkgdir}/usr/lib/sysusers.d/${pkgname}.conf"
+   install -Dm644 "${srcdir}/tmpfiles.conf" "${pkgdir}/usr/lib/tmpfiles.d/${pkgname}.conf"
  
 -  # Cleanups x86_64 specific
 -  if [ "${CARCH}" = "x86_64" ]; then
@@ -11,7 +20,7 @@
      local find_dirs=(
      -iwholename '*.github' -o
      -iwholename '*.idea' -o
-@@ -85,6 +85,7 @@ package() {
+@@ -81,6 +83,7 @@
      -iwholename '*/linux-armvy' -o
      -iwholename '*/linux-armv7' -o
      -iwholename '*/linux-arm' -o
@@ -19,9 +28,9 @@
      -iwholename '*/win32-ia32' -o
      -iwholename '*/win32-x64' -o
      -iwholename '*/darwin-x64'
-@@ -94,3 +95,5 @@ package() {
+@@ -90,3 +93,5 @@
    fi
  
  }
 +
-+makedepends+=('python')
++makedepends+=('node-gyp' 'python')
