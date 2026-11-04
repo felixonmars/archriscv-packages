@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -37,7 +37,13 @@
+ 	cargo fetch --locked --target host-tuple
+ 
+ 	cd ../cinny
++	# SWC has no riscv64 binary and its automatic WASM fallback is broken.
++	# https://github.com/swc-project/swc/pull/12064
++	npm install --package-lock-only --ignore-scripts --save-dev --save-exact \
++		@swc/wasm@1.10.7
+ 	npm ci
++	# Keep @swc/core/Visitor, which vite-plugin-top-level-await also imports.
++	printf "module.exports = require('@swc/wasm');\n" > node_modules/@swc/core/index.js
+ }
+ 
+ build() {
+@@ -51,6 +57,7 @@
+ 	case "$CARCH" in
+ 	aarch64) pkgarch="arm64" ;;
+ 	x86_64) pkgarch="amd64" ;;
++	riscv64) pkgarch="riscv64" ;;
+ 	esac
+ 
+ 	cp -a src-tauri/target/release/bundle/deb/Cinny_${pkgver}_$pkgarch/data/* "$pkgdir"
