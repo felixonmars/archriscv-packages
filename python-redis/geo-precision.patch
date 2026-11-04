@@ -1,0 +1,246 @@
+Allow server-side GEO rounding differences across architectures without
+weakening response-shape, member-name or integer geohash checks.
+Use absolute tolerances of 1e-12 degrees and 1e-8 metres.
+https://github.com/redis/redis-py/issues/899
+
+--- a/tests/test_commands.py
++++ b/tests/test_commands.py
+@@ -5994,11 +5994,17 @@
+             r,
+             r.geopos("barcelona", "place1", "place2"),
+             [
+-                (2.19093829393386841, 41.43379028184083523),
++                (
++                    2.19093829393386841,
++                    pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++                ),
+                 (2.18737632036209106, 41.40634178640635099),
+             ],
+             [
+-                [2.19093829393386841, 41.43379028184083523],
++                [
++                    2.19093829393386841,
++                    pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++                ],
+                 [2.18737632036209106, 41.40634178640635099],
+             ],
+         )
+@@ -6076,7 +6082,10 @@
+                 b"place1",
+                 0.0,
+                 3471609698139488,
+-                (2.1909382939338684, 41.433790281840835),
++                (
++                    2.1909382939338684,
++                    pytest.approx(41.433790281840835, rel=0, abs=1e-12),
++                ),
+             ],
+         ]
+ 
+@@ -6104,7 +6113,10 @@
+             "place2",
+         )
+         r.geoadd("barcelona", values)
+-        coord_tuple = (2.19093829393386841, 41.43379028184083523)
++        coord_tuple = (
++            2.19093829393386841,
++            pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++        )
+ 
+         # test a bunch of combinations to test the parse response
+         # function.
+@@ -6232,7 +6244,9 @@
+             storedist=True,
+         )
+         # instead of save the geo score, the distance is saved.
+-        assert r.zscore("places_barcelona", "place1") == 88.05060698409301
++        assert r.zscore("places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     @skip_if_server_version_lt("3.2.0")
+     def test_georadius_Issue2609(self, r):
+@@ -6285,6 +6299,11 @@
+ 
+         r.geoadd("barcelona", values)
+ 
++        coord_tuple = (
++            2.19093829393386841,
++            pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++        )
++
+         # test a bunch of combinations to test the parse response
+         # function.
+         assert r.georadius(
+@@ -6301,18 +6320,18 @@
+                 b"place1",
+                 0.0881,
+                 3471609698139488,
+-                (2.19093829393386841, 41.43379028184083523),
++                coord_tuple,
+             ]
+         ]
+ 
+         assert r.georadius(
+             "barcelona", 2.191, 41.433, 1, unit="km", withdist=True, withcoord=True
+-        ) == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
++        ) == [[b"place1", 0.0881, coord_tuple]]
+ 
+         assert r.georadius(
+             "barcelona", 2.191, 41.433, 1, unit="km", withhash=True, withcoord=True
+         ) == [
+-            [b"place1", 3471609698139488, (2.19093829393386841, 41.43379028184083523)]
++            [b"place1", 3471609698139488, coord_tuple]
+         ]
+ 
+         # test no values.
+@@ -6388,7 +6407,9 @@
+         r.geoadd("barcelona", values)
+         r.georadius("barcelona", 2.191, 41.433, 1000, store_dist="places_barcelona")
+         # instead of save the geo score, the distance is saved.
+-        assert r.zscore("places_barcelona", "place1") == 88.05060698409301
++        assert r.zscore("places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     @skip_unless_arch_bits(64)
+     @skip_if_server_version_lt("3.2.0")
+@@ -6419,7 +6440,10 @@
+                 b"place1",
+                 0.0,
+                 3471609698139488,
+-                (2.1909382939338684, 41.433790281840835),
++                (
++                    2.1909382939338684,
++                    pytest.approx(41.433790281840835, rel=0, abs=1e-12),
++                ),
+             ],
+         ]
+ 
+--- a/tests/test_asyncio/test_commands.py
++++ b/tests/test_asyncio/test_commands.py
+@@ -4618,11 +4618,17 @@
+             r,
+             await r.geopos("barcelona", "place1", "place2"),
+             [
+-                (2.19093829393386841, 41.43379028184083523),
++                (
++                    2.19093829393386841,
++                    pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++                ),
+                 (2.18737632036209106, 41.40634178640635099),
+             ],
+             [
+-                [2.19093829393386841, 41.43379028184083523],
++                [
++                    2.19093829393386841,
++                    pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++                ],
+                 [2.18737632036209106, 41.40634178640635099],
+             ],
+         )
+@@ -4683,6 +4689,11 @@
+ 
+         await r.geoadd("barcelona", values)
+ 
++        coord_tuple = (
++            2.19093829393386841,
++            pytest.approx(41.43379028184083523, rel=0, abs=1e-12),
++        )
++
+         # test a bunch of combinations to test the parse response
+         # function.
+         assert await r.georadius(
+@@ -4699,18 +4710,18 @@
+                 b"place1",
+                 0.0881,
+                 3471609698139488,
+-                (2.19093829393386841, 41.43379028184083523),
++                coord_tuple,
+             ]
+         ]
+ 
+         assert await r.georadius(
+             "barcelona", 2.191, 41.433, 1, unit="km", withdist=True, withcoord=True
+-        ) == [[b"place1", 0.0881, (2.19093829393386841, 41.43379028184083523)]]
++        ) == [[b"place1", 0.0881, coord_tuple]]
+ 
+         assert await r.georadius(
+             "barcelona", 2.191, 41.433, 1, unit="km", withhash=True, withcoord=True
+         ) == [
+-            [b"place1", 3471609698139488, (2.19093829393386841, 41.43379028184083523)]
++            [b"place1", 3471609698139488, coord_tuple]
+         ]
+ 
+         # test no values.
+@@ -4787,7 +4798,9 @@
+             "barcelona", 2.191, 41.433, 1000, store_dist="places_barcelona"
+         )
+         # instead of save the geo score, the distance is saved.
+-        assert await r.zscore("places_barcelona", "place1") == 88.05060698409301
++        assert await r.zscore("places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     @skip_unless_arch_bits(64)
+     @skip_if_server_version_lt("3.2.0")
+@@ -4818,7 +4831,10 @@
+                 b"place1",
+                 0.0,
+                 3471609698139488,
+-                (2.1909382939338684, 41.433790281840835),
++                (
++                    2.1909382939338684,
++                    pytest.approx(41.433790281840835, rel=0, abs=1e-12),
++                ),
+             ],
+         ]
+ 
+--- a/tests/test_cluster.py
++++ b/tests/test_cluster.py
+@@ -2663,7 +2663,9 @@
+             storedist=True,
+         )
+         # instead of save the geo score, the distance is saved.
+-        assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
++        assert r.zscore("{foo}places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     @skip_if_server_version_lt("3.2.0")
+     def test_cluster_georadius_store(self, r):
+@@ -2693,7 +2695,9 @@
+             "{foo}barcelona", 2.191, 41.433, 1000, store_dist="{foo}places_barcelona"
+         )
+         # instead of save the geo score, the distance is saved.
+-        assert r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
++        assert r.zscore("{foo}places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     def test_cluster_dbsize(self, r):
+         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}
+--- a/tests/test_asyncio/test_cluster.py
++++ b/tests/test_asyncio/test_cluster.py
+@@ -2546,7 +2546,9 @@
+             storedist=True,
+         )
+         # instead of save the geo score, the distance is saved.
+-        assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
++        assert await r.zscore("{foo}places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     @skip_if_server_version_lt("3.2.0")
+     async def test_cluster_georadius_store(self, r: RedisCluster) -> None:
+@@ -2576,7 +2578,9 @@
+             "{foo}barcelona", 2.191, 41.433, 1000, store_dist="{foo}places_barcelona"
+         )
+         # instead of save the geo score, the distance is saved.
+-        assert await r.zscore("{foo}places_barcelona", "place1") == 88.05060698409301
++        assert await r.zscore("{foo}places_barcelona", "place1") == pytest.approx(
++            88.05060698409301, rel=0, abs=1e-8
++        )
+ 
+     async def test_cluster_dbsize(self, r: RedisCluster) -> None:
+         d = {"a": b"1", "b": b"2", "c": b"3", "d": b"4"}

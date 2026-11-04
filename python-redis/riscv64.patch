@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -44,6 +44,8 @@
+ 
+ prepare() {
+   cd "$pkgname"
++  # Allow server-side floating-point rounding in GEO test expectations.
++  patch -Np1 -i "$srcdir/geo-precision.patch"
+   # Reconnect pooled asyncio connections closed by the server.
+   # https://github.com/redis/redis-py/pull/4260
+   git cherry-pick -n 0d2ce3b5a777ae57974b4e5f29eab71fca9b5ce8
+@@ -220,3 +222,7 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++source+=(geo-precision.patch)
++sha512sums+=('dc6503f98f46b2c48ac9301e514930ee6d9f070bfba1e96f110a9b054d1f88ef199bb1fac5b2745872e85f6b3a6450380a20d5a18690d8ea54316375a32a22c7')
++b2sums+=('31acbe82595a1b1b219f5205b9c12373dbd4b0d2264fe48bcb8324357f681cac1e0a1ed4ef3ac2c88dde9cb9ce1eaef5d2b97446237da8aa4ff48b7647ae8ecd')
