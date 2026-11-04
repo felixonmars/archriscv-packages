@@ -1,0 +1,30 @@
+--- a/cmd/gt/main_test.go
++++ b/cmd/gt/main_test.go
+@@ -33,7 +33,7 @@
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("os.Interrupt delivery is not supported by Windows processes")
+ 	}
+-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+ 	defer cancel()
+ 	binary := filepath.Join(t.TempDir(), "gt")
+ 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
+@@ -176,7 +176,7 @@
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("os.Interrupt delivery is not supported by Windows processes")
+ 	}
+-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+ 	defer cancel()
+ 	binary := filepath.Join(t.TempDir(), "gt")
+ 	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
+@@ -191,7 +191,8 @@
+ 	done := make(chan error, 1)
+ 	go func() { done <- command.Wait() }()
+ 	// Reading the token from stdin ignores the canceled context, so only a second signal ends gt.
+-	time.Sleep(time.Second)
++	// Allow startup to reach the stdin read before interrupting on slower builders.
++	time.Sleep(10 * time.Second)
+ 	require.NoError(t, command.Process.Signal(os.Interrupt))
+ 	time.Sleep(500 * time.Millisecond)
+ 	require.NoError(t, command.Process.Signal(os.Interrupt))
