@@ -1,0 +1,42 @@
+--- a/tests/global-shortcut-client/test-portal-provider.c
++++ b/tests/global-shortcut-client/test-portal-provider.c
+@@ -457,12 +457,13 @@
+         complete (f, bind_session (f, session, FALSE), FALSE, 2);
+         g_assert_cmpuint (session->closes, ==, 1);
+     }
+-    g_assert_cmpuint (f->creates->len, ==, 1);
+ 
+-    /* Nothing but the retry itself ends this wait. */
++    /* The retry may already have arrived while complete () drained D-Bus
++     * replies. Wait for it before asserting the number of requests. */
+     while (f->creates->len < 2)
+         g_main_context_iteration (NULL, TRUE);
+     barrier (f);
++    g_assert_cmpuint (f->creates->len, ==, 2);
+ 
+     Request *current = g_ptr_array_index (f->creates, 1);
+     complete (f, bind_session (f, current, FALSE), FALSE, 0);
+@@ -614,15 +615,21 @@
+         g_assert_cmpuint (session->closes, ==, 1);
+     }
+ 
++    /* A general failure retries on its own. Let that request reach the old
++     * portal so the handoff does not race the test's 50 ms retry timer. */
++    if (response == 2)
++        g_paste_test_bus_wait_for_count (&f->creates->len, 2);
++
+     f->replacement = new_server (f, &f->replacement_registration);
+     g_assert_cmpuint (g_paste_test_bus_name_call (f->replacement, "RequestName",
+                                                   g_variant_new ("(su)", PORTAL_NAME, 2u)), ==, 1);
+     barrier (f);
+-    g_assert_cmpuint (f->creates->len, ==, response == 1 ? 1 : 2);
++    g_assert_cmpuint (f->creates->len, ==, response == 1 ? 1 : 3);
+ 
+     /* A cancellation waits for a user edit; a general failure recovers on
+      * restart without needing a settings write. */
+-    Request *current = response == 1 ? grab (f, changed) : g_ptr_array_index (f->creates, 1);
++    Request *current = response == 1 ? grab (f, changed) : g_ptr_array_index (f->creates, 2);
++    g_assert_true (current->connection == f->replacement);
+     complete (f, bind_session (f, current, FALSE), FALSE, 0);
+     activate (f, current);
+     g_assert_cmpuint (f->activations, ==, 1);
