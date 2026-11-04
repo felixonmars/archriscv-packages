@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -197,6 +197,12 @@
+ 
+ prepare() {
+   cd opentelemetry-python-contrib
++  # Wait for ASGI responses, restore propagators and make metric timing deterministic.
++  patch -p1 -i "$srcdir/asgi-metric-timing.patch"
++  # Exclude client and scheduling overhead from Django metric expectations.
++  patch -p1 -i "$srcdir/django-metric-timing.patch"
++  # Allow client/server timing overhead on slower builders, following upstream #4665.
++  patch -p1 -i "$srcdir/tornado-metric-timing.patch"
+   # Update tests for Starlette's routing API and metric attributes.
+   patch -p1 -i "$srcdir/starlette-tests.patch"
+   # Disable native FastAPI telemetry in tests of the contrib instrumentor.
+@@ -931,3 +937,8 @@
+   cd opentelemetry-python-contrib/instrumentation/opentelemetry-instrumentation-wsgi
+   python -m installer --destdir="$pkgdir" dist/*.whl
+ }
++
++source+=(asgi-metric-timing.patch django-metric-timing.patch tornado-metric-timing.patch)
++sha256sums+=('ce2ecafa06a61967f0fb8282beb7adf643a210b3c1e30a762577099a7a1c7b30'
++            'c0f79c8e70fe61f32149754af2b337dc537cf8147efd12f8bf867a779e6a659f'
++            'a1477fc7a7ebea0d26c76a3a5cc4cc9cd18b76133d210d027be6aa0d9d32b093')

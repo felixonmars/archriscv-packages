@@ -1,0 +1,155 @@
+--- a/instrumentation/opentelemetry-instrumentation-asgi/tests/test_asgi_middleware.py
++++ b/instrumentation/opentelemetry-instrumentation-asgi/tests/test_asgi_middleware.py
+@@ -6,7 +6,6 @@
+ import sys
+ import time
+ import unittest
+-from timeit import default_timer
+ from unittest import mock
+ 
+ import opentelemetry.instrumentation.asgi as otel_asgi
+@@ -317,6 +316,12 @@
+         self.env_patch.stop()
+         super().tearDown()
+ 
++    async def get_all_output(self, timeout=0.01):
++        # All requests here finish, including websockets after disconnect.
++        # Wait before the base helper's 10 ms receive timeout can cancel them.
++        await self.communicator.wait(timeout=10)
++        return await super().get_all_output(timeout)
++
+     def subTest(self, msg=..., **params):
+         sub = super().subTest(msg, **params)
+         self.memory_exporter.clear()
+@@ -1024,6 +1029,7 @@
+         """Test a traceresponse header is sent when a global propagator is set."""
+ 
+         orig = get_global_response_propagator()
++        self.addCleanup(set_global_response_propagator, orig)
+         set_global_response_propagator(TraceResponsePropagator())
+ 
+         app = otel_asgi.OpenTelemetryMiddleware(simple_asgi)
+@@ -1052,8 +1058,6 @@
+             ],
+         )
+ 
+-        set_global_response_propagator(orig)
+-
+     async def test_websocket(self):
+         self.scope = {
+             "method": "GET",
+@@ -1290,6 +1294,7 @@
+         """Test a traceresponse header is set for websocket messages"""
+ 
+         orig = get_global_response_propagator()
++        self.addCleanup(set_global_response_propagator, orig)
+         set_global_response_propagator(TraceResponsePropagator())
+ 
+         self.scope = {
+@@ -1325,8 +1330,6 @@
+             ],
+         )
+ 
+-        set_global_response_propagator(orig)
+-
+     async def test_lifespan(self):
+         self.scope["type"] = "lifespan"
+         app = otel_asgi.OpenTelemetryMiddleware(simple_asgi)
+@@ -1530,9 +1533,9 @@
+     async def test_basic_metric_success(self):
+         app = otel_asgi.OpenTelemetryMiddleware(simple_asgi)
+         self.seed_app(app)
+-        start = default_timer()
+-        await self.send_default_request()
+-        duration = max(round((default_timer() - start) * 1000), 0)
++        with mock.patch.object(otel_asgi, "default_timer", side_effect=[1.0, 1.125]):
++            await self.send_default_request()
++            await self.communicator.wait()
+         await self.get_all_output()
+         expected_duration_attributes = {
+             "http.method": "GET",
+@@ -1559,7 +1562,7 @@
+                     )
+                     self.assertEqual(point.count, 1)
+                     if metric.name == "http.server.duration":
+-                        self.assertAlmostEqual(duration, point.sum, delta=30)
++                        self.assertEqual(125, point.sum)
+                     elif metric.name == "http.server.response.size":
+                         self.assertEqual(1024, point.sum)
+                     elif metric.name == "http.server.request.size":
+@@ -1582,9 +1585,9 @@
+             tracer.return_value = mock_tracer
+             app = otel_asgi.OpenTelemetryMiddleware(simple_asgi)
+             self.seed_app(app)
+-            start = default_timer()
+-            await self.send_default_request()
+-            duration = max(round((default_timer() - start) * 1000), 0)
++            with mock.patch.object(otel_asgi, "default_timer", side_effect=[1.0, 1.125]):
++                await self.send_default_request()
++                await self.communicator.wait()
+             await self.get_all_output()
+             expected_duration_attributes = {
+                 "http.method": "GET",
+@@ -1611,7 +1614,7 @@
+                         )
+                         self.assertEqual(point.count, 1)
+                         if metric.name == "http.server.duration":
+-                            self.assertAlmostEqual(duration, point.sum, delta=15)
++                            self.assertEqual(125, point.sum)
+                         elif metric.name == "http.server.response.size":
+                             self.assertEqual(1024, point.sum)
+                         elif metric.name == "http.server.request.size":
+@@ -1626,9 +1629,9 @@
+     async def test_basic_metric_success_new_semconv(self):
+         app = otel_asgi.OpenTelemetryMiddleware(simple_asgi)
+         self.seed_app(app)
+-        start = default_timer()
+-        await self.send_default_request()
+-        duration_s = max(default_timer() - start, 0)
++        with mock.patch.object(otel_asgi, "default_timer", side_effect=[1.0, 1.125]):
++            await self.send_default_request()
++            await self.communicator.wait()
+         await self.get_all_output()
+         expected_duration_attributes = {
+             "http.request.method": "GET",
+@@ -1651,7 +1654,7 @@
+                     )
+                     self.assertEqual(point.count, 1)
+                     if metric.name == "http.server.request.duration":
+-                        self.assertAlmostEqual(duration_s, point.sum, places=2)
++                        self.assertEqual(0.125, point.sum)
+                     elif metric.name == "http.server.response.body.size":
+                         self.assertEqual(1024, point.sum)
+                     elif metric.name == "http.server.request.body.size":
+@@ -1666,10 +1669,9 @@
+     async def test_basic_metric_success_both_semconv(self):
+         app = otel_asgi.OpenTelemetryMiddleware(simple_asgi)
+         self.seed_app(app)
+-        start = default_timer()
+-        await self.send_default_request()
+-        duration = max(round((default_timer() - start) * 1000), 0)
+-        duration_s = max(default_timer() - start, 0)
++        with mock.patch.object(otel_asgi, "default_timer", side_effect=[1.0, 1.125]):
++            await self.send_default_request()
++            await self.communicator.wait()
+         await self.get_all_output()
+         expected_duration_attributes_old = {
+             "http.method": "GET",
+@@ -1700,7 +1702,7 @@
+                 if isinstance(point, HistogramDataPoint):
+                     self.assertEqual(point.count, 1)
+                     if metric.name == "http.server.request.duration":
+-                        self.assertAlmostEqual(duration_s, point.sum, places=2)
++                        self.assertEqual(0.125, point.sum)
+                         self.assertDictEqual(
+                             expected_duration_attributes_new,
+                             dict(point.attributes),
+@@ -1718,7 +1720,7 @@
+                             dict(point.attributes),
+                         )
+                     elif metric.name == "http.server.duration":
+-                        self.assertAlmostEqual(duration, point.sum, delta=30)
++                        self.assertEqual(125, point.sum)
+                         self.assertDictEqual(
+                             expected_duration_attributes_old,
+                             dict(point.attributes),
