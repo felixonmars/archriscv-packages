@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -114,6 +114,12 @@
+@@ -114,6 +114,17 @@
    # Make different channels installable in parallel
    patch -Np1 -i ../0001-Install-under-remoting-name.patch
  
@@ -8,12 +8,17 @@
 +  # https://github.com/ggml-org/llama.cpp/issues/22159
 +  patch -Np1 -i ../llama-rvv-feature-detection.patch
 +
-+  patch -Np1 -i ../wasm2c-riscv64-simd-force-read.patch
++  # Preserve RLBox memory checks without requiring vector registers.
++  # https://github.com/WebAssembly/wabt/pull/2888#pullrequestreview-5588295880
++  patch -Np1 -i ../wasm2c-riscv64-bounds-check.patch
++
++  # Allow PGO child processes time to flush profiles before shutdown kills them.
++  patch -Np1 -i ../pgo-shutdown-timeout.patch
 +
    # Don't let the branding override our remoting name
    sed '/^MOZ_APP_REMOTINGNAME=/d' -i browser/branding/aurora/configure.sh
  
-@@ -155,10 +161,18 @@
+@@ -155,10 +166,18 @@
  # Features
  ac_add_options --enable-alsa
  ac_add_options --enable-jack
@@ -33,13 +38,15 @@
  }
  
  build() {
-@@ -293,3 +307,9 @@
+@@ -293,3 +312,11 @@
  }
  
  # vim:set sw=2 sts=-1 et:
 +
-+source+=(llama-rvv-feature-detection.patch wasm2c-riscv64-simd-force-read.patch)
++source+=(llama-rvv-feature-detection.patch wasm2c-riscv64-bounds-check.patch pgo-shutdown-timeout.patch)
 +sha256sums+=('14904102c58b82b15460ff8712d2b6317f5d2bab47cd0c0e428a8b131192c751'
-+            '56a455217b5665df66870664f7fbcc74580f761915fc8b681dcf437ed9c5ae81')
++            '4e7552092465fdc07799af32e7a2b7ebb85bf9659b53c7b9ba0095675d2bfd0f'
++            '47f3a4ec3a337441ba9d14e44aaa13031016fe7afa4beca9fe15a56a93a011b9')
 +b2sums+=('e5068d28fbe860c1aeebfb00276e4e77317b27cbacc4e28ae7d206828273cd6f52e93b7f117767485e82971b0a8c8b5101ebddba23ea7af9f0829fa5ab255f38'
-+        '919640b6af8d3ccec24eee823e975d798839212bd08a24ccd18bb61fb785c11bd9684822bf018b8e42a62a2f52b43a4e405b8862e9afd219afedef024fdad9df')
++        '675336258759d4282d163454a774c48661ed965d75e0be3d845e3d6b8a7da1dcc74b761f1c67afca11808387af95c853957842349cd335a392fb51339919794e'
++        '9ce9f900d0c6d65048fe0b4bf8c1987853e0826265778f540511df1cdddc3fd3c4fb9ad8c814cb0becdc4a7906905902b6bd78b865ab8029f78f9d09950e4072')

@@ -1,0 +1,14 @@
+--- a/ipc/chromium/src/chrome/common/process_watcher_posix_sigchld.cc
++++ b/ipc/chromium/src/chrome/common/process_watcher_posix_sigchld.cc
+@@ -72,8 +72,9 @@
+ // Code coverage instrumentation can be slow (especially when writing
+ // out data, which has to take a lock on the data files).
+ static constexpr int kShutdownWaitMs = 80000;
+-#elif defined(MOZ_ASAN) || defined(MOZ_TSAN)
+-// Sanitizers slow things down in some cases; see bug 1806224.
++#elif defined(MOZ_ASAN) || defined(MOZ_TSAN) || defined(MOZ_PROFILE_GENERATE)
++// Sanitizers slow things down in some cases; see bug 1806224. PGO builds also
++// need time to flush profiles before child processes are killed at shutdown.
+ static constexpr int kShutdownWaitMs = 40000;
+ #else
+ static constexpr int kShutdownWaitMs = 8000;
