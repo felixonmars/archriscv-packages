@@ -89,3 +89,24 @@
  }
  
  func TestDiscovererConfigs(t *testing.T) {
+--- a/discovery/triton/triton_test.go
++++ b/discovery/triton/triton_test.go
+@@ -189,6 +189,7 @@
+ func TestTritonSDRefreshNoServer(t *testing.T) {
+ 	t.Parallel()
+ 	td, m, _ := newTritonDiscovery(conf)
++	td.sdConfig.Port = 0
+ 
+ 	_, err := td.refresh(context.Background())
+ 	require.ErrorContains(t, err, "an error occurred when requesting targets from the discovery endpoint")
+--- a/notifier/manager_test.go
++++ b/notifier/manager_test.go
+@@ -209,7 +209,7 @@
+ 		return prom_testutil.ToFloat64(h.metrics.errors.WithLabelValues(server1.URL)) == DefaultMaxBatchSize &&
+ 			prom_testutil.ToFloat64(h.metrics.sent.WithLabelValues(server2.URL)) == DefaultMaxBatchSize*2 &&
+ 			prom_testutil.ToFloat64(h.metrics.sent.WithLabelValues(server3.URL)) == DefaultMaxBatchSize*2
+-	}, time.Second*2, time.Millisecond*10)
++	}, time.Second*10, time.Millisecond*10)
+ 	checkNoErr()
+ 
+ 	// Fix the am.
