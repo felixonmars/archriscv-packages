@@ -1,14 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,6 +35,7 @@
- 
- prepare() {
-   cd $pkgname
+@@ -41,6 +41,7 @@
+   # Mock Feishu APIs so the media test cannot leak requests into later tests.
+   # https://github.com/QwenLM/qwen-code/pull/13170
+   patch -p1 -i "$srcdir/feishu-media-test.patch"
 +  patch -Np1 -i ../riscv64-tests.patch
    # npm 12 returns pack metadata keyed by package name instead of an array.
    # https://github.com/npm/cli/pull/9247
    sed -i 's/const packs = JSON\.parse(stdout)/const packs = Object.values(JSON.parse(stdout))/' \
-@@ -65,17 +66,26 @@
+@@ -71,17 +72,26 @@
      packages/cli/src/serve/server/self-origin.test.ts
    # Upstream's ranged override currently resolves newer than package-lock.json.
    npm pkg set 'overrides.@types/react=19.2.10'
@@ -37,7 +37,7 @@
    npm run build
    npm run bundle
    local bundled=$(jq '.dependencies + .optionalDependencies | keys' package.json)
-@@ -113,7 +123,7 @@
+@@ -123,7 +133,7 @@
    npm pkg set 'workspaces[]=!packages/mobile-mcp'
    # NODE_OPTIONS gives Node's Web Storage one shared backing file; keep Vitest
    # files serial so another jsdom test cannot clear draft storage mid-test.
@@ -46,7 +46,7 @@
  }
  
  package() {
-@@ -123,3 +133,14 @@
+@@ -132,3 +142,14 @@
    install -vDm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md
    install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
  }
