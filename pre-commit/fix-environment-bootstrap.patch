@@ -1,6 +1,6 @@
 --- a/pre_commit/languages/node.py
 +++ b/pre_commit/languages/node.py
-@@ -99,6 +99,11 @@
+@@ -100,6 +100,11 @@
      cmd_output_b(*cmd)
  
      with in_env(prefix, version):
@@ -45,15 +45,18 @@
  import shutil
  import sys
  from unittest import mock
-@@ -17,6 +18,7 @@
- from pre_commit.util import cmd_output
- from pre_commit.util import cmd_output_b
- from testing.language_helpers import run_language
-+from testing.util import cwd
- from testing.util import git_commit
- from testing.util import xfailif_windows
+@@ -174,13 +175,48 @@
+         test_node_hook_system(tmp_path)
  
-@@ -158,6 +160,38 @@
+ 
+-@pytest.mark.parametrize('version', (C.DEFAULT, '18.14.0'))
++@pytest.mark.parametrize(
++    'version', (C.DEFAULT, '18.20.8' if platform.machine() == 'riscv64'
++                else '18.14.0'),
++)
+ def test_node_hook_versions(tmp_path, version):
+     _make_hello_world(tmp_path)
+     ret = run_language(tmp_path, node, 'node-hello', version=version)
      assert ret == (0, b'Hello World\n')
  
  
@@ -85,53 +88,50 @@
 +    expected.append(mock.call(prefix, (
 +        'npm', 'install', '--allow-git=root', '--install-links', '-g',
 +        'lodash',
-+    )))
++    ), env=mock.ANY))
 +    assert setup_cmd.call_args_list == expected
 +
 +
  def test_npm_install_succeeds_with_build(tmp_path):
      _make_hello_world(tmp_path)
  
-@@ -168,9 +202,19 @@
+@@ -191,9 +227,15 @@
          json.dump(contents, f)
      _make_repo(tmp_path)
  
 -    # node version chosen to be npm 11.19.0 with this particular bug
 -    ret = run_language(tmp_path, node, 'node-hello', version='26.7.0')
-+    # Keep npm 11.19.0 despite the missing Node 26.7.0 riscv64 build.
 +    if platform.machine() == 'riscv64':
 +        version = '26.0.0'
-+        tmp_path.joinpath('setup.cfg').write_text(
-+            '[nodeenv]\nwith_npm = true\nnpm = 11.19.0\n',
-+        )
 +    else:
 +        version = '26.7.0'
-+    with cwd(tmp_path):
-+        ret = run_language(tmp_path, node, 'node-hello', version=version)
++    ret = run_language(tmp_path, node, 'node-hello', version=version)
      assert ret == (0, b'Hello World\n')
-+    with node.in_env(Prefix(str(tmp_path)), version):
-+        assert cmd_output('npm', '--version')[1].strip() == '11.19.0'
++    if platform.machine() != 'riscv64':
++        with node.in_env(Prefix(str(tmp_path)), version):
++            assert cmd_output('npm', '--version')[1].strip() == '11.19.0'
  
  
  def test_node_additional_deps(tmp_path):
 --- a/tests/languages/rust_test.py
 +++ b/tests/languages/rust_test.py
-@@ -1,5 +1,7 @@
+@@ -1,6 +1,8 @@
  from __future__ import annotations
  
+ import contextlib
 +import os
 +from pathlib import Path
  from unittest import mock
  
  import pytest
-@@ -7,6 +9,7 @@
+@@ -8,6 +10,7 @@
  import pre_commit.constants as C
  from pre_commit import parse_shebang
  from pre_commit.languages import rust
 +from pre_commit.prefix import Prefix
  from pre_commit.store import _make_local_repo
  from testing.language_helpers import run_language
- from testing.util import cwd
+ 
 @@ -74,6 +77,30 @@
      assert ret == (0, b'Hello, world!\n')
  
