@@ -1,0 +1,156 @@
+--- a/ml-algorithms/build.gradle
++++ b/ml-algorithms/build.gradle
+@@ -116,6 +116,36 @@
+     version = "1.18.38"
+ }
+ 
++test {
++    filter {
++        // DJL PyTorch, ONNX Runtime and Hugging Face tokenizers have no riscv64 JNI libraries.
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.QuestionAnsweringModelTest.initModel_predict_*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.QuestionAnsweringModelTest.predict_AfterModelClosed"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.QuestionAnsweringModelTest.testPredict_With*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.QuestionAnsweringModelTest.test_QuestionAnswering_ProcessInput_ProcessOutput"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.SentenceHighlightingQAModelIT"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.SentenceHighlightingQAModelTest.testModelConfigWithSentenceHighlighting"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.question_answering.SentenceHighlightingQAModelTest.testSentenceHighlightingPrediction"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.sparse_encoding.TextEmbeddingSparseEncodingModelTest.initModel_predict_*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.sparse_encoding.TextEmbeddingSparseEncodingModelTest.predict_AfterModelClosed"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.sparse_encoding.TextEmbeddingSparseEncodingModelTest.test_SparseEncoding_Translator_*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.sparse_encoding.TextEmbeddingSparseEncodingModelTest.test_isSparseModel_DefaultValue"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.text_embedding.TextEmbeddingDenseModelTest.initModel_predict_*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.text_embedding.TextEmbeddingDenseModelTest.predict_AfterModelClosed"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.text_similarity.TextSimilarityCrossEncoderModelTest.initModel_predict_*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.text_similarity.TextSimilarityCrossEncoderModelTest.predict_AfterModelClosed"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.text_similarity.TextSimilarityCrossEncoderModelTest.test_TextSimilarity_Translator_*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.tokenize.SparseTokenizerModelTest.initModel_predict_Tokenize*"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.tokenize.SparseTokenizerModelTest.predict_AfterModelClosed"
++        excludeTestsMatching "org.opensearch.ml.engine.algorithms.tokenize.SparseTokenizerModelTest.test_Predict"
++        excludeTestsMatching "org.opensearch.ml.engine.analysis.DJLUtilsTests.testBuildHuggingFaceTokenizer_thenSuccess"
++        // These classes initialize a native tokenizer for every test.
++        excludeTestsMatching "org.opensearch.ml.engine.analysis.HFModelAnalyzerTests"
++        excludeTestsMatching "org.opensearch.ml.engine.analysis.HFModelTokenizerFactoryTests"
++        excludeTestsMatching "org.opensearch.ml.engine.analysis.HFModelTokenizerTests"
++    }
++}
++
+ configurations.all {
+     resolutionStrategy.force 'com.google.protobuf:protobuf-java:3.25.5'
+     resolutionStrategy.force 'org.apache.commons:commons-compress:1.26.0'
+--- a/ml-algorithms/src/test/java/org/opensearch/ml/engine/algorithms/remote/AwsConnectorExecutorTest.java
++++ b/ml-algorithms/src/test/java/org/opensearch/ml/engine/algorithms/remote/AwsConnectorExecutorTest.java
+@@ -14,6 +14,7 @@
+ import static org.mockito.ArgumentMatchers.anyString;
+ import static org.mockito.Mockito.doAnswer;
+ import static org.mockito.Mockito.doNothing;
++import static org.mockito.Mockito.doReturn;
+ import static org.mockito.Mockito.mock;
+ import static org.mockito.Mockito.spy;
+ import static org.mockito.Mockito.times;
+@@ -308,6 +309,9 @@
+         endecryptConnectorCredentials(connector, encryptor, true);
+         endecryptConnectorCredentials(connector, encryptor, false);
+         AwsConnectorExecutor executor = spy(new AwsConnectorExecutor(connector));
++        // Request batching must not depend on DNS or a remote service.
++        SdkAsyncHttpClient httpClient = mock(SdkAsyncHttpClient.class);
++        doReturn(httpClient).when(executor).getHttpClient();
+         executor.setConnectorPrivateIpEnabled(false);
+         executor.setConnectorTrustedPrivateEndpoints(Collections.emptyList());
+         executor.setConnectorRestrictedIpPatterns(Collections.emptyList());
+@@ -336,6 +340,7 @@
+ 
+         verify(actionListener, times(0)).onFailure(any());
+         verify(executor, times(3)).preparePayloadAndInvoke(anyString(), any(), any(), any());
++        verify(httpClient, times(3)).execute(any());
+     }
+ 
+     @Test
+@@ -884,6 +889,9 @@
+         endecryptConnectorCredentials(connector, encryptor, true);
+         endecryptConnectorCredentials(connector, encryptor, false);
+         AwsConnectorExecutor executor = spy(new AwsConnectorExecutor(connector));
++        // Retry dispatch must not depend on DNS or a remote service.
++        SdkAsyncHttpClient httpClient = mock(SdkAsyncHttpClient.class);
++        doReturn(httpClient).when(executor).getHttpClient();
+         executor.setConnectorPrivateIpEnabled(false);
+         executor.setConnectorTrustedPrivateEndpoints(Collections.emptyList());
+         executor.setConnectorRestrictedIpPatterns(Collections.emptyList());
+@@ -942,6 +950,7 @@
+ 
+         verify(executor, times(1)).invokeRemoteServiceWithRetry(any(), any(), any(), any(), any(), any());
+         verify(actionListener, times(0)).onFailure(any());
++        verify(httpClient, times(1)).execute(any());
+     }
+ 
+     @Test
+--- a/plugin/src/test/java/org/opensearch/ml/action/MLCommonsIntegTestCase.java
++++ b/plugin/src/test/java/org/opensearch/ml/action/MLCommonsIntegTestCase.java
+@@ -28,6 +28,7 @@
+ import org.opensearch.cluster.node.DiscoveryNodes;
+ import org.opensearch.common.action.ActionFuture;
+ import org.opensearch.common.settings.Settings;
++import org.opensearch.common.unit.TimeValue;
+ import org.opensearch.common.xcontent.XContentType;
+ import org.opensearch.core.common.unit.ByteSizeUnit;
+ import org.opensearch.core.common.unit.ByteSizeValue;
+@@ -142,7 +143,8 @@
+             bulkRequest.add(indexRequest);
+         }
+         bulkRequest.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+-        client().bulk(bulkRequest).actionGet(5000);
++        // Index creation and the initial refresh can exceed five seconds on slow builders.
++        client().bulk(bulkRequest).actionGet(TimeValue.timeValueMinutes(5));
+     }
+ 
+     public DataFrame irisDataFrame() {
+--- a/plugin/src/test/java/org/opensearch/ml/action/model_group/SearchModelGroupITTests.java
++++ b/plugin/src/test/java/org/opensearch/ml/action/model_group/SearchModelGroupITTests.java
+@@ -29,7 +29,8 @@
+     public ExpectedException exceptionRule = ExpectedException.none();
+ 
+     private static String modelGroupId;
+-    private static final TimeValue ACTION_TIMEOUT = TimeValue.timeValueSeconds(30);
++    // Initial model-group index creation can exceed thirty seconds on slow builders.
++    private static final TimeValue ACTION_TIMEOUT = TimeValue.timeValueMinutes(5);
+ 
+     @Override
+     protected void setupSuiteScopeCluster() throws Exception {
+--- a/plugin/src/test/java/org/opensearch/ml/action/models/SearchModelITTests.java
++++ b/plugin/src/test/java/org/opensearch/ml/action/models/SearchModelITTests.java
+@@ -7,6 +7,8 @@
+ 
+ import static org.opensearch.ml.common.settings.MLCommonsSettings.ML_COMMONS_ALLOW_MODEL_URL;
+ 
++import java.util.concurrent.TimeUnit;
++
+ import org.junit.Before;
+ import org.junit.Rule;
+ import org.junit.rules.ExpectedException;
+@@ -16,6 +18,8 @@
+ import org.opensearch.index.query.BoolQueryBuilder;
+ import org.opensearch.index.query.QueryBuilders;
+ import org.opensearch.ml.action.MLCommonsIntegTestCase;
++import org.opensearch.ml.common.MLTask;
++import org.opensearch.ml.common.MLTaskState;
+ import org.opensearch.ml.common.model.MLModelConfig;
+ import org.opensearch.ml.common.model.MLModelFormat;
+ import org.opensearch.ml.common.model.TextEmbeddingModelConfig;
+@@ -86,8 +90,16 @@
+             .description("mock model desc")
+             .build();
+         MLRegisterModelRequest registerModelRequest = new MLRegisterModelRequest(input);
+-        client().execute(MLRegisterModelAction.INSTANCE, registerModelRequest).actionGet();
+-        Thread.sleep(30000);
++        String taskId = client().execute(MLRegisterModelAction.INSTANCE, registerModelRequest).actionGet().getTaskId();
++        assertNotNull(taskId);
++        // Wait for all model chunks to be indexed before searches and cluster teardown.
++        boolean finished = waitUntil(() -> {
++            MLTaskState state = getTask(taskId).getState();
++            return state == MLTaskState.COMPLETED || state == MLTaskState.FAILED || state == MLTaskState.CANCELLED;
++        }, 5, TimeUnit.MINUTES);
++        assertTrue("Model registration did not finish within five minutes", finished);
++        MLTask task = getTask(taskId);
++        assertEquals(task.getError(), MLTaskState.COMPLETED, task.getState());
+     }
+ 
+     /**

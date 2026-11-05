@@ -1,0 +1,31 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,6 +21,10 @@
+ prepare() {
+   cd "ml-commons-${pkgver}"
+   patch -Np1 -i ../disable-failed-test.patch
++  patch -Np1 -i ../riscv64-tests.patch
++  # Validate a literal non-private address without depending on external DNS.
++  sed -i 's/api\.openai\.com/192.0.2.1/g' \
++    common/src/test/java/org/opensearch/ml/common/httpclient/MLValidatableAsyncHttpClientTests.java
+ }
+ 
+ build() {
+@@ -28,7 +32,9 @@
+   export JAVA_HOME="/usr/lib/jvm/java-${_jdkver}-openjdk"
+   export PATH="/usr/lib/jvm/java-${_jdkver}-openjdk/bin:$PATH"
+   export GRADLE_OPTS="-Dbuild.snapshot=false -Dopensearch.version=${_opensearchver}"
+-  ./gradlew build \
++  # integTest downloads an OpenSearch archive that upstream does not publish for riscv64.
++  ./gradlew build --max-workers=2 \
++    --exclude-task ":opensearch-ml-plugin:integTest" \
+     --exclude-task ":opensearch-ml-algorithms:jacocoTestReport" \
+     --exclude-task ":opensearch-ml-algorithms:jacocoTestCoverageVerification" \
+     --exclude-task ":opensearch-ml-common:jacocoTestReport" \
+@@ -45,3 +51,6 @@
+ 
+   install -Dm644 "${srcdir}/ml-commons-${pkgver}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+ }
++
++source+=(riscv64-tests.patch)
++sha256sums+=('678f0d061a2c402892a3d569a370eb80a02a6c53166173f5d204c0f214dfebee')
