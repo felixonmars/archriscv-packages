@@ -1,0 +1,36 @@
+--- a/tests/test_concurrency.py
++++ b/tests/test_concurrency.py
+@@ -406,23 +406,27 @@
+     # Above this will be a definition of work().
+     import multiprocessing
+     import os
+-    import time
+     import sys
+ 
++    def init_worker(worker_barrier):
++        global barrier
++        barrier = worker_barrier
++
+     def process_worker_main(args):
+-        # Need to pause, or the tasks go too quickly, and some processes
+-        # in the pool don't get any work, and then don't record data.
++        # Every worker must receive work, even when spawning is slow.
+         ret = work(*args)
+-        time.sleep(0.1)
++        barrier.wait()
+         return os.getpid(), ret
+ 
+     if __name__ == "__main__":      # pragma: no branch
+         # This if is on a single line so we can get 100% coverage
+         # even if we have no arguments.
+         if len(sys.argv) > 1: multiprocessing.set_start_method(sys.argv[1])
+-        pool = multiprocessing.Pool({NPROCS})
++        barrier = multiprocessing.Barrier({NPROCS}, timeout=60)
++        pool = multiprocessing.Pool({NPROCS}, initializer=init_worker, initargs=(barrier,))
+         inputs = [(x,) for x in range({UPTO})]
+-        outputs = pool.imap_unordered(process_worker_main, inputs)
++        # Each pair exercises both branches; the pairs divide evenly among workers.
++        outputs = pool.imap_unordered(process_worker_main, inputs, chunksize=2)
+         pids = set()
+         total = 0
+         for pid, sq in outputs:

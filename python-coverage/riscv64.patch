@@ -1,6 +1,14 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -23,6 +23,8 @@
+@@ -18,6 +18,7 @@
+ 
+ prepare() {
+   cd $_pkgname
++  patch -Np1 -i "$srcdir/multiprocessing-workers.patch"
+   # Pytest 9.2 requires an integer for assertion verbosity in native TOML config.
+   sed -i 's/^verbosity_assertions = "5"$/verbosity_assertions = 5/' pyproject.toml
+ }
+@@ -29,6 +30,8 @@
  
  check() {
    cd $_pkgname
@@ -9,3 +17,11 @@
    python -m venv --system-site-packages test-env
    test-env/bin/python -m installer dist/*.whl
    test-env/bin/python setup.py --quiet build_ext --inplace
+@@ -40,3 +43,7 @@
+   cd $_pkgname
+   python -m installer --destdir="$pkgdir" dist/*.whl
+ }
++
++source+=(multiprocessing-workers.patch)
++sha512sums+=('fa050f49c1bd78b8ad64fd32e309dcf5a498212140345573332e19354cd29702bb414a5de4f2cccf2a7b7a290fe52af331754018eff534d98b39f6f38ff9f8d1')
++b2sums+=('e5b239193c469a68bb4aeb6b568397d7fa0c0125c90270dd35b11b766a751cb74e824610fe75b4517b294ee3646e7a2a7a8fa0a4d6a994ee81e218bfc63b5ea2')
