@@ -1,0 +1,50 @@
+Backport the cpp-stub RV64 trampoline and instruction-cache flushes on restore.
+https://github.com/coolxv/cpp-stub/blob/54baaec5e3a9e677d662e7be550b77c9c4730820/src/stub.h
+
+--- a/tests/src/stub.h
++++ b/tests/src/stub.h
+@@ -54,6 +54,27 @@
+     #define REPLACE_NEAR(t, fn, fn_stub) REPLACE_FAR(t, fn, fn_stub)
+ #elif defined(__thumb__) || defined(_M_THUMB)
+     #error "Thumb is not supported"
++#elif defined(__riscv) && __riscv_xlen == 64
++    #define CODESIZE 24U
++    #define CODESIZE_MIN 24U
++    #define CODESIZE_MAX CODESIZE
++    // auipc t1, 0
++    // addi t1, t1, 16
++    // ld t1, 0(t1)
++    // jalr x0, t1, 0
++    // addr
++    #define REPLACE_FAR(t, fn, fn_stub)\
++        unsigned int auipc = 0x317;\
++        *(unsigned int *)(fn) = auipc;\
++        unsigned int addi = 0x1030313;\
++        *(unsigned int *)(fn + 4) = addi;\
++        unsigned int ld = 0x33303;\
++        *(unsigned int *)(fn + 8) = ld;\
++        unsigned int jalr = 0x30067;\
++        *(unsigned int *)(fn + 12) = jalr;\
++        *(unsigned long long *)(fn + 16) = (unsigned long long)fn_stub;\
++        CACHEFLUSH((char *)fn, CODESIZE);
++    #define REPLACE_NEAR(t, fn, fn_stub) REPLACE_FAR(t, fn, fn_stub)
+ #else //__i386__ _x86_64__
+     #define CODESIZE 13U
+     #define CODESIZE_MIN 5U
+@@ -126,6 +147,8 @@
+                     std::memcpy(pstub->fn, pstub->code_buf, CODESIZE_MIN);
+                 }
+ 
++                CACHEFLUSH(pstub->fn, CODESIZE);
++
+ #ifdef _WIN32
+                 VirtualProtect(pageof(pstub->fn), m_pagesize * 2, PAGE_EXECUTE_READ, &lpflOldProtect);
+ #else
+@@ -228,6 +251,7 @@
+             std::memcpy(pstub->fn, pstub->code_buf, CODESIZE_MIN);
+         }
+ 
++        CACHEFLUSH(pstub->fn, CODESIZE);
+ 
+ #ifdef _WIN32
+         if(0 == VirtualProtect(pageof(pstub->fn), m_pagesize * 2, PAGE_EXECUTE_READ, &lpflOldProtect))
