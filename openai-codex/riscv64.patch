@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -54,3 +54,17 @@
+@@ -54,3 +54,20 @@
      -i "$srcdir/voice-system-libraries.patch"
 +  install -dm755 "v8-$_v8ver/third_party/icu/common"
 +  base64 -d "$srcdir/v8-icu-$_v8_icu_commit-icudtl.dat.base64" \
@@ -11,6 +11,9 @@
 +  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-skip-rust-toolchain-download.patch"
 +  patch -Np1 -d "v8-$_v8ver" -i "$srcdir/v8-cppgc-alignment.patch"
 +
++  # Native riscv64 builds do not need Chromium's Debian sysroots.
++  sed -i '/if target_arch == "riscv64"/,/^  }$/ s/if target_os == "linux" {/if target_os == "linux" \&\& env::var("TARGET") != env::var("HOST") {/' "v8-$_v8ver/build.rs"
++
    cd codex-rust-v$pkgver/codex-rs
 +  patch -Np1 -d .. -i "$srcdir/codex-landlock-riscv64-seccomp.patch"
 +  patch -Np1 -d .. -i "$srcdir/codex-code-mode-protocol-respect-PROTOC.patch"
@@ -18,7 +21,7 @@
 +  cargo update -p v8
 +
    # Update the locked bindings for OpenSSL 4: https://github.com/rust-openssl/rust-openssl/pull/2591
-@@ -62,14 +76,37 @@
+@@ -62,14 +79,37 @@
    cd codex-rust-v$pkgver/codex-rs
    # Used for dynamic linking
    export LIBSQLITE3_SYS_USE_PKG_CONFIG=1
@@ -58,7 +61,7 @@
    cargo build --frozen --release \
                --bin codex \
                --bin codex-code-mode-host \
-@@ -138,3 +175,24 @@
+@@ -138,3 +178,24 @@
  }
  
  # vim:set ts=2 sw=2 et:
