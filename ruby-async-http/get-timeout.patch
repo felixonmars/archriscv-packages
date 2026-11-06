@@ -1,0 +1,14 @@
+--- a/fixtures/async/http/a_protocol.rb
++++ b/fixtures/async/http/a_protocol.rb
+@@ -261,6 +261,11 @@
+ 				with "using GET method" do
+ 					let(:expected) {"GET #{protocol::VERSION}"}
+ 					
++					def endpoint_options
++						# Concurrent requests need more time on slower builders.
++						super.merge(timeout: 30)
++					end
++					
+ 					it "can handle many simultaneous requests" do
+ 						duration = Async::Clock.measure do
+ 							10.times do
