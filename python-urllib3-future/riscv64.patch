@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -42,6 +42,10 @@
+   # Adapt supplied sockets and async streams to python-socks 3.
+   # https://github.com/jawah/urllib3.future/issues/437
+   patch -p1 < ../python-socks-v3.patch
++  # Keep the large TLS response test's connection alive until its reuse check.
++  patch -p1 -i "$srcdir/async-large-response-reuse.patch"
++  # Read complete request bodies before replying in the content framing tests.
++  patch -p1 -i "$srcdir/content-framing.patch"
+ }
+ 
+ build() {
+@@ -64,3 +68,7 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 LICENSE.txt -t "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++source+=(async-large-response-reuse.patch content-framing.patch)
++sha256sums+=('ce344dc982273677355d53a5e7b1fbc5fdb95e0db602cccd3202c7c76b7b6859'
++             '6b8c4ed0f15b6b212e6e1675026a1375c89af792a86521886ecbd03e025c84c4')
