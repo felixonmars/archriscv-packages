@@ -1,0 +1,26 @@
+diff --git PKGBUILD PKGBUILD
+index dc20f16..568fcce 100644
+--- PKGBUILD
++++ PKGBUILD
+@@ -50,12 +50,21 @@
+ 
+   git -c protocol.file.allow=always submodule update --init --recursive
+ 
++  # GCC 16 makes std::memory_order a scoped enum and deprecates ++ on volatile.
++  # https://github.com/amd/xdna-driver/commit/72ac6dab9f283d9000ae140fc41908fa3393bc21
++  git cherry-pick -n 72ac6dab9f283d9000ae140fc41908fa3393bc21
++
+   # Remove CPACK and thus remove definition of XRT_PLUGIN_VERSION_STRING
+   sed -i '/pkg\.cmake/d' CMake/native.cmake
+   # Remove kernel module
+   sed -i '/driver/d' src/CMakeLists.txt
+   # New warnings in GCC 15 trigger compiler error
+   find . -name "*.cmake" -exec sed -i 's/-Werror//' {} \;
++  # XRT rejects every host except aarch64/arm/mips/ppc64/x86_64 when
++  # locating the machine model. RISC-V publishes it via device tree.
++  sed -i 's/defined(__aarch64__) || defined(__arm__) || defined(__mips__)/defined(__aarch64__) || defined(__arm__) || defined(__mips__) || defined(__riscv)/' \
++    xrt/src/runtime_src/core/common/detail/linux/sysinfo.h \
++    xrt/src/runtime_src/core/edge/user/system_linux.cpp
+   # Force kernel header location
+   local kernelvar=$(</usr/src/linux/version)
+   find . -name "*.cpp" -exec sed -i "s@#include <drm/@#include </usr/lib/modules/$kernelvar/build/include/uapi/drm/@" {} \;
