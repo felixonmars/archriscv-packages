@@ -1,14 +1,14 @@
-Adapt Firecracker PR #5227 to v1.17.0 with APLIC pulses and eventfd devices.
+Adapt Firecracker PR #5227 to v1.18.0 with APLIC pulses and eventfd devices.
 https://github.com/firecracker-microvm/firecracker/pull/5227
 Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 
 --- /dev/null
 +++ b/docs/riscv64.md
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,40 @@
 +# Experimental RISC-V support
 +
 +This port adapts the RISC-V backend proposed in Firecracker PR #5227
-+(commit `910b4f40b3367f720d6508fbad8a89bd968e7078`) to the 1.17 VM and device APIs.
++(commit `910b4f40b3367f720d6508fbad8a89bd968e7078`) to the 1.18 VM and device APIs.
 +
 +The host must provide RV64 KVM virtualization and the KVM RISC-V AIA device.
 +An ordinary RISC-V machine without the hypervisor extension cannot run microVMs
@@ -31,6 +31,8 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +
 +The initial port uses VirtIO MMIO, not PCI. Snapshot save/restore, CPU register
 +modifiers, CPU-configuration dumps, SMT, VMGenID, and VMClock are not implemented.
++Nitro Enclave boot is rejected: its EIF format and guest memory map only define
++x86_64 and aarch64. Ordinary RISC-V KVM microVMs use the backend described above.
 +Unsupported snapshot and CPU-configuration operations return errors rather
 +than panicking. Architecture-independent KVM capability templates are accepted.
 +
@@ -66,20 +68,20 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
  use super::StatusCode;
  
  // The names of the members from this enum must precisely correspond (as a string) to the possible
-@@ -43,6 +43,13 @@
-             return Err(RequestError::Generic(
-                 StatusCode::BadRequest,
+@@ -45,6 +45,13 @@
                  "SendCtrlAltDel does not supported on aarch64.".to_string(),
-+            ));
-+
+             ));
+ 
 +            // SendCtrlAltDel not supported on riscv64.
 +            #[cfg(target_arch = "riscv64")]
 +            return Err(RequestError::Generic(
 +                StatusCode::BadRequest,
 +                "SendCtrlAltDel is not supported on riscv64.".to_string(),
-             ));
- 
++            ));
++
              #[cfg(target_arch = "x86_64")]
+             Ok(ParsedRequest::new_sync(VmmAction::SendCtrlAltDel))
+         }
 --- a/src/seccompiler/src/bin.rs
 +++ b/src/seccompiler/src/bin.rs
 @@ -13,7 +13,7 @@
@@ -148,7 +150,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +}
 --- a/src/vmm/Cargo.toml
 +++ b/src/vmm/Cargo.toml
-@@ -59,7 +59,7 @@
+@@ -60,7 +60,7 @@
  vmm-sys-util = { version = "0.15.0", features = ["with-serde"] }
  zerocopy = { version = "0.8.50" }
  
@@ -159,14 +161,10 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
  [dev-dependencies]
 --- a/src/vmm/src/arch/mod.rs
 +++ b/src/vmm/src/arch/mod.rs
-@@ -22,6 +22,22 @@
- pub use aarch64::vm::{KvmVm, KvmVmError, VmState};
- #[cfg(target_arch = "aarch64")]
- pub use aarch64::{
-+    ConfigurationError, arch_memory_regions, configure_system_for_boot, get_kernel_start,
-+    initrd_load_addr, layout::*, load_kernel,
-+};
-+
+@@ -26,6 +26,22 @@
+     initrd_load_addr, layout::*, load_kernel,
+ };
+ 
 +/// Module for riscv64 related functionality.
 +#[cfg(target_arch = "riscv64")]
 +pub mod riscv64;
@@ -179,9 +177,13 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +pub use riscv64::vm::{KvmVm, KvmVmError, VmState};
 +#[cfg(target_arch = "riscv64")]
 +pub use riscv64::{
-     ConfigurationError, arch_memory_regions, configure_system_for_boot, get_kernel_start,
-     initrd_load_addr, layout::*, load_kernel,
- };
++    ConfigurationError, arch_memory_regions, configure_system_for_boot, get_kernel_start,
++    initrd_load_addr, layout::*, load_kernel,
++};
++
+ /// Module for x86_64 related functionality.
+ #[cfg(target_arch = "x86_64")]
+ pub mod x86_64;
 @@ -49,7 +65,7 @@
      /// Device Type: Virtio.
      Virtio(u32),
@@ -1199,7 +1201,6 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +use crate::cpu_config::riscv64::custom_cpu_template::CustomCpuTemplate;
 +use crate::device_manager::DeviceManager;
 +use crate::initrd::InitrdConfig;
-+use crate::vmm_config::machine_config::MachineConfig;
 +use crate::vstate::memory::{Address, Bytes, GuestAddress, GuestMemoryMmap, GuestRegionType};
 +use crate::vstate::vcpu::KvmVcpuError;
 +use crate::vstate::vm::KvmVm;
@@ -1254,7 +1255,8 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +    vm: &KvmVm,
 +    device_manager: &mut DeviceManager,
 +    vcpus: &mut [Vcpu],
-+    machine_config: &MachineConfig,
++    vcpu_count: u8,
++    smt: bool,
 +    cpu_template: &CustomCpuTemplate,
 +    entry_point: EntryPoint,
 +    initrd: &Option<InitrdConfig>,
@@ -1266,8 +1268,8 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +    let cpu_config = CpuConfiguration::apply_template(cpu_config, cpu_template);
 +
 +    let vcpu_config = VcpuConfig {
-+        vcpu_count: machine_config.vcpu_count,
-+        smt: machine_config.smt,
++        vcpu_count,
++        smt,
 +        cpu_config,
 +    };
 +
@@ -1875,7 +1877,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +}
 --- a/src/vmm/src/builder.rs
 +++ b/src/vmm/src/builder.rs
-@@ -125,6 +125,9 @@
+@@ -134,6 +134,9 @@
      VcpuFdCloneError(#[from] crate::vstate::vcpu::CopyKvmFdError),
      /// Error with the KvmVm object: {0}
      KvmVm(#[from] VmError),
@@ -1885,7 +1887,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
  }
  
  /// It's convenient to automatically convert `linux_loader::cmdline::Error`s
-@@ -146,6 +149,10 @@
+@@ -168,6 +171,10 @@
      event_manager: &mut EventManager,
      seccomp_filters: &BpfThreadMap,
  ) -> Result<Arc<Mutex<Vmm>>, StartMicrovmError> {
@@ -1896,7 +1898,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      // Timestamp for measuring microVM boot duration.
      let request_ts = TimestampUs::default();
  
-@@ -298,8 +305,20 @@
+@@ -323,8 +330,20 @@
          vm_resources.serial_rate_limiter(),
      )?;
  
@@ -1919,7 +1921,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
  
      #[cfg(target_arch = "aarch64")]
      if vcpus[0].kvm_vcpu.supports_pvtime() {
-@@ -486,6 +505,9 @@
+@@ -515,6 +534,9 @@
      #[cfg(target_arch = "x86_64")]
      vm.restore_state(&microvm_state.vm_state, clock_realtime)?;
  
@@ -2141,22 +2143,22 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +}
 --- a/src/vmm/src/cpu_config/templates.rs
 +++ b/src/vmm/src/cpu_config/templates.rs
-@@ -15,6 +15,15 @@
-     pub use crate::cpu_config::aarch64::custom_cpu_template::CustomCpuTemplate;
-     pub use crate::cpu_config::aarch64::static_cpu_templates::StaticCpuTemplate;
-     pub use crate::cpu_config::aarch64::{
-+        CpuConfiguration, CpuConfigurationError as GuestConfigError, test_utils,
-+    };
-+}
-+
+@@ -19,6 +19,15 @@
+     };
+ }
+ 
 +#[cfg(target_arch = "riscv64")]
 +mod common_types {
 +    pub use crate::cpu_config::riscv64::custom_cpu_template::CustomCpuTemplate;
 +    pub use crate::cpu_config::riscv64::static_cpu_templates::StaticCpuTemplate;
 +    pub use crate::cpu_config::riscv64::{
-         CpuConfiguration, CpuConfigurationError as GuestConfigError, test_utils,
-     };
- }
++        CpuConfiguration, CpuConfigurationError as GuestConfigError, test_utils,
++    };
++}
++
+ use std::borrow::Cow;
+ use std::fmt::Debug;
+ 
 @@ -38,6 +47,9 @@
      InvalidStaticCpuTemplate(StaticCpuTemplate),
      /// The current CPU model is not permitted to apply the CPU template.
@@ -2185,7 +2187,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
  use crate::devices::pseudo::BootTimer;
  use crate::devices::virtio::device::{VirtioDevice, VirtioDeviceId, VirtioDeviceType};
  use crate::devices::virtio::transport::mmio::{IrqTrigger, MmioTransport};
-@@ -353,8 +357,8 @@
+@@ -364,8 +368,8 @@
      #[cfg(target_arch = "aarch64")]
      /// Real-Time clock on Aarch64 platforms
      pub(crate) rtc: Option<MMIODevice<RTCDevice>>,
@@ -2196,7 +2198,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      pub(crate) serial: Option<MMIODevice<SerialDevice>>,
  }
  
-@@ -393,7 +397,7 @@
+@@ -404,7 +408,7 @@
          Ok(())
      }
  
@@ -2205,7 +2207,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      /// Register an early console at the specified MMIO configuration if given as parameter,
      /// otherwise allocate a new MMIO resources for it.
      pub fn register_mmio_serial(
-@@ -440,7 +444,7 @@
+@@ -451,7 +455,7 @@
          Ok(())
      }
  
@@ -2216,7 +2218,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      /// This assumes that the device has been registered with the device manager.
 --- a/src/vmm/src/device_manager/mod.rs
 +++ b/src/vmm/src/device_manager/mod.rs
-@@ -99,7 +99,7 @@
+@@ -103,7 +103,7 @@
      #[cfg(target_arch = "aarch64")]
      /// Cmdline error
      Cmdline,
@@ -2225,7 +2227,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      /// Error creating serial device: {0}
      CreateSerial(#[from] std::io::Error),
      /// Error attach PCI device: {0}
-@@ -176,7 +176,7 @@
+@@ -167,7 +167,7 @@
      }
  
      fn serial_state(&self) -> Option<persist::SerialState> {
@@ -2234,7 +2236,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          {
              self.mmio_platform_devices.serial.as_ref().map(|device| {
                  let locked = device.inner.lock().expect("Poisoned lock");
-@@ -330,7 +330,7 @@
+@@ -324,7 +324,7 @@
          self.acpi_devices.append_aml_bytes(dsdt_data)
      }
  
@@ -2243,7 +2245,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      pub(crate) fn mmio_virtio_devices(&self) -> Option<&MMIOVirtioDevices> {
          match &self.virtio_devices {
              VirtioDevices::Mmio(mmio_devices) => Some(mmio_devices),
-@@ -382,6 +382,24 @@
+@@ -399,6 +399,24 @@
          Ok(())
      }
  
@@ -2268,7 +2270,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      /// Artificially kick VirtIO devices as if they had external events.
      pub fn kick_virtio_devices(&self) {
          info!("Artificially kick devices");
-@@ -628,7 +646,7 @@
+@@ -689,7 +707,7 @@
      PciDeviceManager(#[from] PciManagerError),
      /// Bus error: {0}
      Bus(#[from] BusError),
@@ -2338,7 +2340,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          tempfile.seek(SeekFrom::Start(0)).unwrap();
 --- a/src/vmm/src/lib.rs
 +++ b/src/vmm/src/lib.rs
-@@ -498,6 +498,11 @@
+@@ -513,6 +513,11 @@
  
      /// Saves the state of a paused Microvm.
      pub fn save_state(&mut self, vm_info: &VmInfo) -> Result<MicrovmState, MicrovmStateError> {
@@ -2350,7 +2352,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          self.check_unsnapshottable_devices()?;
  
          // We need to save device state before saving KVM state.
-@@ -513,7 +518,7 @@
+@@ -528,7 +533,7 @@
          let vcpu_states = kvm_vm.save_vcpu_states()?;
          let kvm_state = kvm_vm.kvm().save_state();
          let vm_state = {
@@ -2359,7 +2361,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
              {
                  kvm_vm
                      .save_state()
-@@ -794,6 +799,15 @@
+@@ -812,6 +817,15 @@
  
          match &self.vm {
              Vm::Kvm(kvm_vm) => {
@@ -2375,7 +2377,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
                  if source == kvm_vm.vcpus_exit_evt().as_raw_fd() && event_set == EventSet::IN {
                      // Exit event handling should never do anything more than call 'self.stop()'.
                      let _ = kvm_vm.vcpus_exit_evt().read();
-@@ -830,6 +844,10 @@
+@@ -870,6 +884,10 @@
      fn init(&mut self, ops: &mut EventOps) {
          match &self.vm {
              Vm::Kvm(kvm_vm) => {
@@ -2386,9 +2388,140 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
                  if let Err(err) = ops.add(Events::new(kvm_vm.vcpus_exit_evt(), EventSet::IN)) {
                      error!("Failed to register vmm exit event: {}", err);
                  }
+--- /dev/null
++++ b/src/vmm/src/nitro_enclave/enclave_builder_unsupported.rs
+@@ -0,0 +1,29 @@
++// SPDX-License-Identifier: Apache-2.0
++
++//! Nitro Enclaves define neither an EIF architecture flag nor a guest memory map for RISC-V.
++
++use std::sync::{Arc, Mutex};
++
++use crate::resources::VmResources;
++use crate::seccomp::BpfThreadMap;
++use crate::vmm_config::enclave::EnclaveConfig;
++use crate::vmm_config::instance_info::InstanceInfo;
++use crate::{EventManager, Vmm};
++
++/// Errors from building and booting an enclave.
++#[derive(Debug, thiserror::Error, displaydoc::Display)]
++pub enum EnclaveBuilderError {
++    /// Nitro Enclaves are not supported on RISC-V.
++    UnsupportedArchitecture,
++}
++
++/// Reject enclave boot before opening devices or allocating guest memory.
++pub fn build_and_boot_enclave(
++    _instance_info: &InstanceInfo,
++    _vm_resources: &VmResources,
++    _enclave_config: &EnclaveConfig,
++    _event_manager: &mut EventManager,
++    _seccomp_filters: &BpfThreadMap,
++) -> Result<Arc<Mutex<Vmm>>, EnclaveBuilderError> {
++    Err(EnclaveBuilderError::UnsupportedArchitecture)
++}
+--- a/src/vmm/src/nitro_enclave/enclave_vm.rs
++++ b/src/vmm/src/nitro_enclave/enclave_vm.rs
+@@ -13,14 +13,19 @@
+     GuestRegionCollectionError,
+ };
+ 
++#[cfg(not(target_arch = "riscv64"))]
+ use crate::logger::info;
+ use crate::nitro_enclave::cpu_accounting::AccountingThreads;
++#[cfg(not(target_arch = "riscv64"))]
+ use crate::nitro_enclave::eif::{EifError, EifImage};
+ use crate::nitro_enclave::info_page::InfoPage;
+ use crate::nitro_enclave::ne_ioctl::{EnclaveFd, NitroEnclavesDevFd};
+ use crate::nitro_enclave::serial_console::ConsoleReader;
++#[cfg(not(target_arch = "riscv64"))]
+ use crate::utils::{mib_to_bytes, u64_to_usize};
+-use crate::vmm_config::enclave::{EnclaveConfig, EnclaveNumaNode};
++use crate::vmm_config::enclave::EnclaveConfig;
++#[cfg(not(target_arch = "riscv64"))]
++use crate::vmm_config::enclave::EnclaveNumaNode;
+ use crate::vstate::memory::{GuestMemoryMmap, GuestRegionMmapExt, MemoryError};
+ 
+ /// Maximum vCPUs for the Nitro Enclave path.
+@@ -74,6 +79,7 @@
+     /// Failed to access the EIF destination in guest memory: {0}
+     WriteImage(GuestMemoryError),
+     /// Failed to load the EIF image: {0}
++    #[cfg(not(target_arch = "riscv64"))]
+     LoadImage(EifError),
+     /// Failed to build guest memory mapping: {0}
+     BuildGuestMemory(GuestRegionCollectionError),
+@@ -164,9 +170,11 @@
+     pub const ENCLAVE_RAM_BASE: u64 = 0;
+ 
+     /// Start of the 32-bit PCI MMIO window.
++    #[cfg(not(target_arch = "riscv64"))]
+     const PCIE_MMIO_BASE: u64 = 0x8000_0000;
+ 
+     /// Maximum low RAM size before the MMIO split is needed.
++    #[cfg(not(target_arch = "riscv64"))]
+     #[allow(clippy::cast_possible_truncation)]
+     const LOW_RAM_MAX_SIZE: usize = (Self::PCIE_MMIO_BASE - Self::ENCLAVE_RAM_BASE) as usize;
+ 
+@@ -179,6 +187,7 @@
+ 
+     /// Guest-physical base and max chunk length at cumulative `offset` bytes
+     /// into the enclave RAM, clamped so a chunk never crosses the PCI MMIO hole.
++    #[cfg(not(target_arch = "riscv64"))]
+     fn gpa_chunk_for_offset(offset: usize, remaining: usize) -> (u64, usize) {
+         if offset >= Self::LOW_RAM_MAX_SIZE {
+             let gpa = Self::HIGH_RAM_BASE + (offset - Self::LOW_RAM_MAX_SIZE) as u64;
+@@ -199,6 +208,7 @@
+     /// concatenates them in donation order, so guest node K's base is the running
+     /// sum of the prior sizes -- which is why the nodes must be in
+     /// ascending-`parent_numa` order.
++    #[cfg(not(target_arch = "riscv64"))]
+     fn split_ram_regions(numa_nodes: &[EnclaveNumaNode]) -> Vec<(GuestAddress, usize, u16)> {
+         let mut regions = Vec::new();
+         let mut offset: usize = 0;
+@@ -219,6 +229,7 @@
+     ///
+     /// `create_flags` carries every NE_ENCLAVE_*_MODE bit EXCEPT DEBUG
+     /// (DEBUG is per-launch and travels with NE_START_ENCLAVE).
++    #[cfg(not(target_arch = "riscv64"))]
+     pub fn new(
+         dev_fd: NitroEnclavesDevFd,
+         create_flags: u32,
+@@ -293,6 +304,7 @@
+     /// donated memory is retained for the enclave's lifetime (dropping would
+     /// `munmap` it): direct mode exposes it as device DMA memory, confidential
+     /// mode keeps it PROT_NONE.
++    #[cfg(not(target_arch = "riscv64"))]
+     pub fn load_and_add_memory(
+         &mut self,
+         image: &EifImage,
+@@ -513,7 +525,7 @@
+     }
+ }
+ 
+-#[cfg(test)]
++#[cfg(all(test, not(target_arch = "riscv64")))]
+ mod tests {
+     use proptest::prelude::*;
+ 
+--- a/src/vmm/src/nitro_enclave/mod.rs
++++ b/src/vmm/src/nitro_enclave/mod.rs
+@@ -2,7 +2,12 @@
+ // SPDX-License-Identifier: Apache-2.0
+ 
+ pub mod cpu_accounting;
++#[cfg(not(target_arch = "riscv64"))]
+ pub mod eif;
++#[cfg(not(target_arch = "riscv64"))]
++pub mod enclave_builder;
++#[cfg(target_arch = "riscv64")]
++#[path = "enclave_builder_unsupported.rs"]
+ pub mod enclave_builder;
+ pub mod enclave_vm;
+ pub mod info_page;
 --- a/src/vmm/src/persist.rs
 +++ b/src/vmm/src/persist.rs
-@@ -774,6 +774,8 @@
+@@ -775,6 +775,8 @@
              vm_state: vmm.vm.as_kvm().unwrap().save_state(&mpidrs).unwrap(),
              #[cfg(target_arch = "x86_64")]
              vm_state: vmm.vm.as_kvm().unwrap().save_state().unwrap(),
@@ -2399,7 +2532,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          let serialized_data = bitcode::serialize(&microvm_state).unwrap();
 --- a/src/vmm/src/resources.rs
 +++ b/src/vmm/src/resources.rs
-@@ -1450,6 +1450,8 @@
+@@ -1469,6 +1469,8 @@
              cpu_template: Some(StaticCpuTemplate::T2),
              #[cfg(target_arch = "aarch64")]
              cpu_template: Some(StaticCpuTemplate::V1N1),
@@ -2408,9 +2541,9 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
              track_dirty_pages: Some(false),
              huge_pages: Some(HugePageConfig::None),
              #[cfg(feature = "gdb")]
-@@ -1478,10 +1480,10 @@
-             Err(MachineConfigError::InvalidVcpuCount)
-         );
+@@ -1497,10 +1499,10 @@
+         aux_vm_config.vcpu_count = Some(33);
+         vm_resources.update_machine_config(&aux_vm_config).unwrap();
  
 -        // Check that SMT is not supported on aarch64, and that on x86_64 enabling it requires vcpu
 -        // count to be even.
@@ -2424,16 +2557,16 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
              Err(MachineConfigError::SmtNotSupported)
 --- a/src/vmm/src/snapshot/mod.rs
 +++ b/src/vmm/src/snapshot/mod.rs
-@@ -42,6 +42,9 @@
- 
+@@ -43,6 +43,9 @@
  #[cfg(target_arch = "aarch64")]
  const SNAPSHOT_MAGIC_ID: u64 = 0x0710_1984_AAAA_0000u64;
-+
+ 
 +#[cfg(target_arch = "riscv64")]
 +const SNAPSHOT_MAGIC_ID: u64 = 0x0710_1984_5256_0000u64;
- 
++
  /// Maximum size in bytes for snapshot deserialization to prevent DOS attacks.
  /// Snapshots contain VM state which can be large, but we set a reasonable upper bound.
+ /// This limit is 10MB which should be sufficient for any legitimate snapshot.
 --- a/src/vmm/src/test_utils/mock_resources/mod.rs
 +++ b/src/vmm/src/test_utils/mock_resources/mod.rs
 @@ -14,12 +14,63 @@
@@ -2522,7 +2655,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          None => boot_source_cfg.into(),
 --- a/src/vmm/src/vmm_config/machine_config.rs
 +++ b/src/vmm/src/vmm_config/machine_config.rs
-@@ -24,8 +24,8 @@
+@@ -21,8 +21,8 @@
      InvalidVcpuCount,
      /// Could not get the configuration of the previously installed balloon device to validate the memory size.
      InvalidVmState,
@@ -2533,7 +2666,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
      SmtNotSupported,
      /// Could not determine host kernel version when checking hugetlbfs compatibility
      KernelVersion,
-@@ -259,7 +259,7 @@
+@@ -256,7 +256,7 @@
  
          let smt = update.smt.unwrap_or(self.smt);
  
@@ -2542,7 +2675,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          if smt {
              return Err(MachineConfigError::SmtNotSupported);
          }
-@@ -284,6 +284,7 @@
+@@ -281,6 +281,7 @@
          let cpu_template = match update.cpu_template {
              None => self.cpu_template.clone(),
              Some(StaticCpuTemplate::None) => None,
@@ -2550,7 +2683,7 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
              Some(other) => Some(CpuTemplateType::Static(other)),
          };
  
-@@ -316,6 +317,8 @@
+@@ -313,6 +314,8 @@
          const TEMPLATE: StaticCpuTemplate = StaticCpuTemplate::V1N1;
          #[cfg(target_arch = "x86_64")]
          const TEMPLATE: StaticCpuTemplate = StaticCpuTemplate::T2S;
@@ -2593,11 +2726,10 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
          entry_addr.kernel_load
      }
  
-@@ -944,6 +954,19 @@
-                 &vm.kvm().optional_capabilities(),
+@@ -945,6 +955,19 @@
              )
              .expect("failed to configure vcpu");
-+
+ 
 +        #[cfg(target_arch = "riscv64")]
 +        vcpu.kvm_vcpu
 +            .configure(
@@ -2610,12 +2742,13 @@ Upstream port: 910b4f40b3367f720d6508fbad8a89bd968e7078
 +                },
 +            )
 +            .unwrap();
- 
++
          let mut seccomp_filters = get_empty_filters();
          let barrier = Arc::new(Barrier::new(2));
+         let vcpu_handle = vcpu
 --- a/src/vmm/src/vstate/vm.rs
 +++ b/src/vmm/src/vstate/vm.rs
-@@ -665,7 +665,14 @@
+@@ -692,7 +692,14 @@
  
      /// Register a device IRQ
      pub fn register_irq(&self, fd: &EventFd, gsi: u32) -> Result<(), errno::Error> {
