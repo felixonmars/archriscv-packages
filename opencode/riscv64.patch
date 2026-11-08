@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -36,7 +36,24 @@
+@@ -36,7 +36,22 @@
  
  prepare() {
    cd $pkgbase
@@ -14,9 +14,7 @@
 +  sed -i '/"@tailwindcss\/oxide-wasm32-wasi":/s/"cpu": "none"/"cpu": "riscv64"/' bun.lock
 +  bun install --ignore-scripts
 +
-+  cd "$srcdir/opentui-0.8.0"
-+  patch -Np1 -i ../opentui-translate-c.patch
-+  cd packages/native
++  cd "$srcdir/opentui-0.8.1/packages/native"
 +  bash scripts/prepare-zig-deps.sh
 +
 +  cd "$srcdir/rolldown-1.2.5"
@@ -26,7 +24,7 @@
  
    # resourcesPath points to the system electron dir, use our install dir instead
    grep -rl 'process\.resourcesPath' packages/desktop/src/main \
-@@ -44,14 +61,41 @@
+@@ -44,14 +59,41 @@
  }
  
  build() {
@@ -49,9 +47,9 @@
 +    -d 'CMAKE_ASM_FLAGS=-march=rv64gc -mabi=lp64d'
 +  cp build/koffi/linux_riscv64d/koffi.node "$srcdir/$pkgbase/packages/cli/node_modules/@opentui/core/"
 +
-+  # OpenTUI 0.8.0 needs Zig 0.16.0 and does not publish a RISC-V renderer.
-+  cd "$srcdir/opentui-0.8.0/packages/native"
-+  "$srcdir/zig-riscv64-linux-0.16.0/zig" build -Doptimize=ReleaseFast -Dlibrary-target=riscv64-linux-gnu.2.27
++  # OpenTUI 0.8.1 needs Zig 0.17.0 and does not publish a RISC-V renderer.
++  cd "$srcdir/opentui-0.8.1/packages/native"
++  "$srcdir/zig-riscv64-linux-0.17.0/zig" build -Doptimize=ReleaseFast -Dlibrary-target=riscv64-linux-gnu.2.27
 +
    # build CLI
    cd "$srcdir/$pkgbase/packages/cli"
@@ -68,7 +66,7 @@
    # build desktop, see packages/desktop/README.md and script/build.ts
    # (picks up the CLI from packages/cli/dist)
    cd "$srcdir/$pkgbase/packages/desktop"
-@@ -92,13 +136,17 @@
+@@ -92,13 +134,17 @@
      'wl-clipboard: clipboard support on Wayland'
      'xclip: clipboard support on X11'
    )
@@ -82,11 +80,11 @@
    esac
    install -vDm755 -t "$pkgdir/usr/bin" "packages/cli/dist/cli-$target/bin/opencode"
 +  install -vDm755 -t "$pkgdir/usr/lib/opencode" \
-+    "$srcdir/opentui-0.8.0/packages/native/lib/riscv64-linux-gnu.2.27/libopentui.so"
++    "$srcdir/opentui-0.8.1/packages/native/lib/riscv64-linux-gnu.2.27/libopentui.so"
  
    install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
  
-@@ -146,3 +194,22 @@
+@@ -146,3 +192,21 @@
  
    install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" ../../LICENSE
  }
@@ -95,17 +93,16 @@
 +makedepends=(${makedepends[@]/electron44})
 +makedepends+=('cmake' 'node-gyp' 'rust')
 +source+=(wasm-css.patch fix-oxide-worker-exit.patch riscv64-target.patch
-+         opentui-riscv64.patch opentui-translate-c.patch
-+         'opentui-0.8.0.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.8.0.tar.gz'
-+         'https://ziglang.org/download/0.16.0/zig-riscv64-linux-0.16.0.tar.xz'
++         opentui-riscv64.patch
++         'opentui-0.8.1.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.8.1.tar.gz'
++         'https://ziglang.org/download/0.17.0/zig-riscv64-linux-0.17.0.tar.xz'
 +         'https://registry.npmjs.org/koffi/-/koffi-3.2.1.tgz'
 +         'rolldown-1.2.5.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.5.tar.gz')
-+b2sums+=('878568572060613dd859fb98a07cd361463cf0ef2e44f888fe360f9843cded402c91056af408a8d6a7b88840da9a32ae205fb4e4c249ddbaa3d2bf4df7d1063a'
++b2sums+=('e1ca114236f96b0ae89c05e22f7f1232f8c7cc4809b2d97169dc7dbd56b199c3fc5209de0091db0789ff48712c96c6f98aa84ddb0b494272341dfd720a018572'
 +         '8ccefc948e86b53c43f77cc3f3ef3de557cd4c104a444fb0eb8b2626cfc607ae20825370ffa29eab66604514c5c76eeaa0c86d45a3b65776ac15edae374278b1'
 +         '75019ba8dc0b5db3344682e66c558e0f0ad9dce172fd9cb00f6ff35d268e527fbbffa7102d9ca5530b09b60f191e09619ffec54327b2382e59b8bc307c935f56'
-+         'e497d944e2a9308c82f909006476090775de11adce46445537c21c8dc0e06e082e52b8ec1991c41bec20d313cd575a3400a04d65644c37059f28975daf645551'
-+         '4d54f38f9756780c7e6ae60cd302c6cd062c436131cd22ae9bb44c3df3130b7cd0ee30a90c431528997e6a26764d816f87885f84790c2b62bff7a6a24cc4fb66'
-+         '8a1baeceb0c08b0194c0fb2ca8d8403b6cb7c3f33b3e4225175f9af0ba5a482dd0a619d804de2331d79b5e9a8412cebdf6647d2623465f199b414796a508466f'
-+         '09d68e6b192cc95f129f071e9083d91c921752b8f3abfc52335e5515ec628b29110433059e535abd5ab027b2f50564af15d2b002c5f2151b6d956f3f3a2df2d3'
++         'fdc8e7a75fc10e8fd48add15457392a41fd35dad5526c7ada2e6e1ff21b1fb39251a9e464a3a79d790a8afc6288555fe85ea63129e1dfbfdcfe08d9124bcc402'
++         '80cea2a0b30e4313ed24f996742c0934e4207784f323d398bb43a5c25c81aef58307c2fb51a966a4a6af451069fa8bb69f99464890dd27435935a3bce386a2e5'
++         'e6d67f44856a67f41def7de10a1b3fed8f9a0cbea15c492e568d9123615c074b2e41e47d0d4aa37da9264fc3c4386491beaec48a4171816f370e19a209d24508'
 +         'c521ab108a3d52606ab8514cd532fe7d989d50f2d6f60bca40d20858a64403e5588b0cbdf9f3727dcd298c6fcd6413b19a054d4d836c3494b6a6485929c3148b'
 +         'acc542870324851ab2f5171f56343b6d43a231917cb5c369a22ca90a2bdaf915bd5e366e58d6811a9907f5374d60fe289587d1ea3f1b196419093aad55fe7741')
