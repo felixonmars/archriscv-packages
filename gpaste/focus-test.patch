@@ -1,6 +1,6 @@
 --- a/src/ui/gpaste-ui-panel.c
 +++ b/src/ui/gpaste-ui-panel.c
-@@ -735,7 +735,8 @@
+@@ -739,7 +739,8 @@
      on_backup_name_changed (GTK_EDITABLE (entry), data);
      g_signal_connect_data (dialog, "response", G_CALLBACK (on_backup_response), data, backup_history_data_free, 0);
      adw_dialog_present (ADW_DIALOG (dialog), GTK_WIDGET (self->rootwin));
@@ -12,27 +12,27 @@
  typedef struct
 --- a/tests/ui/test-panel-history.c
 +++ b/tests/ui/test-panel-history.c
-@@ -299,10 +299,10 @@
+@@ -286,6 +286,13 @@
+     return sent_name != NULL;
  }
  
- static gboolean
--widget_mapped (gconstpointer widget,
--               gconstpointer arg G_GNUC_UNUSED)
++static gboolean
 +widget_focused (gconstpointer widget,
 +                gconstpointer arg G_GNUC_UNUSED)
- {
--    return gtk_widget_get_mapped ((GtkWidget *) widget);
++{
 +    return gtk_widget_is_focus ((GtkWidget *) widget);
- }
- 
++}
++
  /* A row handed to another item shows nothing of the one it showed, and offers
-@@ -479,10 +479,11 @@
+  * nothing on the one it now answers for until that item is read. */
+ static void
+@@ -476,10 +483,11 @@
      g_assert_true (adw_alert_dialog_get_response_enabled (dialog, "backup"));
      g_assert_false (gtk_widget_has_css_class (entry, "error"));
  
 -    /* The name has the focus, and Enter there backs up, as the text the entry
 -     * delegates to has it: Back Up answers once the dialog has closed. */
--    g_paste_test_bus_wait_until (widget_mapped, entry, NULL);
+-    g_paste_test_bus_wait_until (g_paste_test_gtk_widget_mapped, entry, NULL);
 -    g_assert_true (gtk_widget_has_focus (GTK_WIDGET (gtk_editable_get_delegate (GTK_EDITABLE (entry)))));
 +    /* The name has the focus within its window, and Enter there backs up.
 +     * Check the delegated text widget: a private Xvfb does not guarantee
