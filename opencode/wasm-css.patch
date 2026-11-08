@@ -20,7 +20,7 @@
      "solid-js": "catalog:"
    },
    "patchedDependencies": {
-+    "@opentui/core@0.8.0": "patches/opentui-riscv64.patch",
++    "@opentui/core@0.8.1": "patches/opentui-riscv64.patch",
 +    "@tailwindcss/oxide-wasm32-wasi@4.3.3": "patches/fix-oxide-worker-exit.patch",
      "@ai-sdk/openai-compatible@2.0.41": "patches/@ai-sdk%2Fopenai-compatible@2.0.41.patch",
      "@dnd-kit/dom@0.5.0": "patches/@dnd-kit%2Fdom@0.5.0.patch",
@@ -28,11 +28,11 @@
 --- a/packages/cli/script/app-assets.ts
 +++ b/packages/cli/script/app-assets.ts
 @@ -8,7 +8,7 @@
- export async function buildAppArchive(channel: string, options?: { skipBuild?: boolean }) {
+ export async function buildAppArchive(channel: string, version: string, options?: { skipBuild?: boolean }) {
    if (options?.skipBuild) return AppArchive.encode([])
    const root = path.resolve(import.meta.dirname, "../../app")
--  await $`bun run build`
-+  await $`node ${root}/node_modules/vite/bin/vite.js build`
-     .cwd(root)
-     .env({ ...process.env, OPENCODE_CHANNEL: channel, VITE_OPENCODE_SERVER_MODE: "origin" })
-   return AppArchive.encode(
+-  await $`bun run build`.cwd(root).env({
++  await $`node ${root}/node_modules/vite/bin/vite.js build`.cwd(root).env({
+     ...process.env,
+     OPENCODE_CHANNEL: channel,
+     VITE_OPENCODE_SERVER_MODE: "origin",
