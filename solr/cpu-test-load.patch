@@ -1,0 +1,111 @@
+Replace RSA-based test load with measured thread CPU time.
+Upstream introduction: https://github.com/apache/solr/pull/2595
+
+--- a/solr/core/src/java/org/apache/solr/util/TestInjection.java
++++ b/solr/core/src/java/org/apache/solr/util/TestInjection.java
+@@ -16,18 +16,13 @@
+  */
+ package org.apache.solr.util;
+ 
+-import com.google.common.util.concurrent.AtomicDouble;
+ import java.io.IOException;
+ import java.lang.invoke.MethodHandles;
++import java.lang.management.ManagementFactory;
++import java.lang.management.ThreadMXBean;
+ import java.lang.reflect.Method;
+-import java.security.KeyPair;
+-import java.security.KeyPairGenerator;
+-import java.security.NoSuchAlgorithmException;
+-import java.text.DecimalFormat;
+-import java.text.DecimalFormatSymbols;
+ import java.util.Collections;
+ import java.util.HashSet;
+-import java.util.Locale;
+ import java.util.Random;
+ import java.util.Set;
+ import java.util.Timer;
+@@ -167,20 +162,6 @@
+ 
+   public static volatile AtomicInteger cpuTimerDelayInjectedNS = null;
+ 
+-  private static final KeyPairGenerator kpg;
+-
+-  static {
+-    KeyPairGenerator generator;
+-    try {
+-      generator = KeyPairGenerator.getInstance("RSA");
+-    } catch (NoSuchAlgorithmException e) {
+-      generator = null;
+-    }
+-    kpg = generator;
+-  }
+-
+-  private static volatile AtomicDouble cpuLoadPerKey = null;
+-
+   /**
+    * Defaults to <code>false</code>, If set to <code>true</code>, then {@link
+    * #injectSkipIndexWriterCommitOnClose} will return <code>true</code>
+@@ -554,46 +535,14 @@
+     return true;
+   }
+ 
+-  public static void measureCpu() {
+-    if (kpg == null || cpuLoadPerKey != null) {
+-      return;
+-    }
+-    long start = System.nanoTime();
+-    for (int i = 0; i < 100; i++) {
+-      genKeyPairAndDiscard();
+-    }
+-    // note that this is potentially imprecise because our thread could get paused in the middle of
+-    // this, but
+-    // it should give us some notion
+-    long end = System.nanoTime();
+-    cpuLoadPerKey = new AtomicDouble((end - start) / 100.0);
+-    log.info("CPU per key = {}", cpuLoadPerKey);
+-  }
+-
+-  private static void genKeyPairAndDiscard() {
+-    kpg.initialize(1024);
+-    KeyPair kp = kpg.generateKeyPair();
+-    // avoid this getting optimized away by logging it
+-    if (log.isTraceEnabled()) {
+-      log.trace("{}", kp.getPublic());
+-    }
+-  }
+-
+   private static void wasteCpu(int nanos) {
+-    double wasteMe = nanos;
+-    double loadPerKey = cpuLoadPerKey.get();
+-    if (loadPerKey > nanos) {
+-      DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.US);
+-
+-      DecimalFormat formatter = new DecimalFormat("#,###.00", symbols);
+-      // yes this is still wasting formatting when not warn, but not important here.
+-      log.warn(
+-          "Test requests smaller simulated cpu lag than a single keypair generation actual lag is {} ns",
+-          formatter.format(loadPerKey));
+-    }
+-    do {
+-      genKeyPairAndDiscard();
+-    } while ((wasteMe = wasteMe - loadPerKey) > 0.0);
++    // A single RSA key generation can exceed the requested delay on slower CPUs.
++    // Burn actual thread CPU time so scheduling delays do not reduce the injected load.
++    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
++    long start = threadBean.getCurrentThreadCpuTime();
++    while (threadBean.getCurrentThreadCpuTime() - start < nanos) {
++      Thread.onSpinWait();
++    }
+   }
+ 
+   public static void injectCpuUseInSearcherCpuLimitCheck() {
+--- a/solr/core/src/test/org/apache/solr/search/TestCpuAllowedLimit.java
++++ b/solr/core/src/test/org/apache/solr/search/TestCpuAllowedLimit.java
+@@ -143,7 +143,6 @@
+     Number qtime = (Number) rsp.getHeader().get("QTime");
+     assertTrue("QTime expected " + qtime + " >> " + sleepMs, qtime.longValue() > sleepMs);
+     assertNull("should not have partial results", rsp.getHeader().get("partialResults"));
+-    TestInjection.measureCpu();
+     // 25 ms per 5 segments ~175ms each shard
+     TestInjection.cpuTimerDelayInjectedNS = new AtomicInteger(25_000_000);
+     // timeAllowed set, should return partial results

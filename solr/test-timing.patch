@@ -1,0 +1,58 @@
+Wait for concurrent update producers and allow slow collection creation.
+Upstream executor helper: https://github.com/apache/solr/pull/840
+Collection setup: https://github.com/apache/solr/blob/releases/solr/10.1.0/solr/cross-dc-manager/src/test/org/apache/solr/crossdc/manager/SimpleSolrIntegrationTest.java
+
+--- a/solr/solrj/src/test/org/apache/solr/client/solrj/impl/ConcurrentUpdateSolrClientTestBase.java
++++ b/solr/solrj/src/test/org/apache/solr/client/solrj/impl/ConcurrentUpdateSolrClientTestBase.java
+@@ -38,7 +38,6 @@
+ import java.util.Properties;
+ import java.util.concurrent.CopyOnWriteArrayList;
+ import java.util.concurrent.ExecutorService;
+-import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.TimeoutException;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import org.apache.solr.SolrTestCaseJ4;
+@@ -251,9 +250,8 @@
+       for (int r = 0; r < numRunnables; r++)
+         threadPool.execute(new SendDocsRunnable(String.valueOf(r), numDocs, concurrentClient));
+ 
+-      // ensure all docs are sent
+-      threadPool.awaitTermination(5, TimeUnit.SECONDS);
+-      threadPool.shutdown();
++      // Wait for producers before draining or closing the client.
++      ExecutorUtil.shutdownAndAwaitTermination(threadPool);
+ 
+       // wait until all requests are processed by CUSS
+       concurrentClient.blockUntilFinished();
+@@ -621,9 +619,8 @@
+         threadPool.execute(
+             new SendDocsRunnable(String.valueOf(r), numDocs, concurrentClient, "collection1"));
+ 
+-      // ensure all docs are sent
+-      threadPool.awaitTermination(5, TimeUnit.SECONDS);
+-      threadPool.shutdown();
++      // Wait for producers before committing their updates.
++      ExecutorUtil.shutdownAndAwaitTermination(threadPool);
+ 
+       concurrentClient.commit("collection1");
+ 
+--- a/solr/cross-dc-manager/src/test/org/apache/solr/crossdc/manager/SimpleSolrIntegrationTest.java
++++ b/solr/cross-dc-manager/src/test/org/apache/solr/crossdc/manager/SimpleSolrIntegrationTest.java
+@@ -23,6 +23,7 @@
+ import org.apache.solr.client.solrj.impl.CloudSolrClient;
+ import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+ import org.apache.solr.client.solrj.request.UpdateRequest;
++import org.apache.solr.client.solrj.response.RequestStatusState;
+ import org.apache.solr.cloud.MiniSolrCloudCluster;
+ import org.apache.solr.cloud.SolrCloudTestCase;
+ import org.apache.solr.common.SolrInputDocument;
+@@ -57,7 +58,8 @@
+ 
+     CollectionAdminRequest.Create create =
+         CollectionAdminRequest.createCollection(COLLECTION, 1, 1);
+-    cloudClient1.request(create);
++    // Core creation on slow CPUs can outlast the client's 90-second request timeout.
++    assertEquals(RequestStatusState.COMPLETED, create.processAndWait(cloudClient1, 300));
+     cluster1.waitForActiveCollection(COLLECTION, 1, 1);
+   }
+ 
