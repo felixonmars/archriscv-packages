@@ -22,3 +22,62 @@
          String downloadLinkPrefix = switch (this) {
              case IDEA_IC, IDEA_IU -> "idea";
              case PYCHARM, PYCHARM_COMMUNITY -> "python";
+--- a/buildSrc/src/main/java/org/glavo/build/transformer/IDETransformer.java
++++ b/buildSrc/src/main/java/org/glavo/build/transformer/IDETransformer.java
+@@ -115,13 +115,13 @@
+             return;
+         }
+ 
+-        var arg = "-Djna.boot.library.path=$IDE_HOME/lib/jna/" + task.getIDEBaseArch().get().normalize();
++        var arg = "-Djna.boot.library.path=$IDE_HOME/plugins/jna-plugin/lib/jna/" + task.getIDEBaseArch().get().normalize();
+ 
+         JsonArray additionalJvmArguments = additionalJvmArgumentsElement.getAsJsonArray();
+         for (int i = 0; i < additionalJvmArguments.size(); i++) {
+             JsonElement element = additionalJvmArguments.get(i);
+             if (element.getAsString().equals(arg)) {
+-                additionalJvmArguments.set(i, new JsonPrimitive("-Djna.boot.library.path=$IDE_HOME/lib/jna/" + targetArch.normalize()));
++                additionalJvmArguments.set(i, new JsonPrimitive("-Djna.boot.library.path=$IDE_HOME/plugins/jna-plugin/lib/jna/" + targetArch.normalize()));
+                 additionalJvmArguments.asList().add(i + 1, new JsonPrimitive("-Didea.filewatcher.executable.path=$IDE_HOME/bin/fsnotifier"));
+                 return;
+             }
+@@ -174,20 +174,20 @@
+         transformer.put("bin/restarter", getNativeReplacement("restarter"));
+         // transformer.put("bin/libdbm.so", getNativeReplacement("libdbm.so"));
+         transformer.put("bin/libdbm.so", new FileTransformer.FilterOut(true));
+-        transformer.put("lib/pty4j/linux/%s/libpty.so".formatted(baseArch.normalize()),
+-                getNativeReplacement("libpty.so", "lib/pty4j/linux/%s/libpty.so".formatted(targetArch.normalize())));
++        transformer.put("plugins/pty4j-plugin/lib/pty4j/linux/%s/libpty.so".formatted(baseArch.normalize()),
++                getNativeReplacement("libpty.so", "plugins/pty4j-plugin/lib/pty4j/linux/%s/libpty.so".formatted(targetArch.normalize())));
+ 
+         // https://github.com/JetBrains/intellij-community/blob/0d842e477a28255cd6d64f1663746030b634b3d9/platform/sqlite/src/org/jetbrains/sqlite/sqliteLibLoader.kt#L37
+-        transformer.put("lib/native/linux-%s/libsqliteij.so".formatted(baseArch.normalize())
+-                , getNativeReplacement("libsqliteij.so", "lib/native/linux-x86_64/libsqliteij.so"));
++        transformer.put("plugins/platform-vcs-plugin/lib/native/linux-%s/libsqliteij.so".formatted(baseArch.normalize())
++                , getNativeReplacement("libsqliteij.so", "plugins/platform-vcs-plugin/lib/native/linux-x86_64/libsqliteij.so"));
+ 
+         String jniDispatchPath = "linux-%s/libjnidispatch.so".formatted(targetArch.normalize());
+         try (var stream = Native.class.getResourceAsStream(jniDispatchPath)) {
+             if (stream == null) {
+                 throw new GradleException(jniDispatchPath + " not found");
+             }
+-            transformer.put("lib/jna/%s/libjnidispatch.so".formatted(baseArch.normalize()),
+-                    new FileTransformer.Replace(stream.readAllBytes(), "lib/jna/%s/libjnidispatch.so".formatted(targetArch.normalize())));
++            transformer.put("plugins/jna-plugin/lib/jna/%s/libjnidispatch.so".formatted(baseArch.normalize()),
++                    new FileTransformer.Replace(stream.readAllBytes(), "plugins/jna-plugin/lib/jna/%s/libjnidispatch.so".formatted(targetArch.normalize())));
+         }
+ 
+         transformer.put("product-info.json", new FileTransformer.Transform(raw -> {
+@@ -233,11 +233,11 @@
+                     var args = MutableList.from(List.of(line.substring(0, line.length() - 1).trim().split(" ")));
+                     args.insert(1, "\"-Didea.filewatcher.executable.path=$IDE_HOME/bin/fsnotifier\"");
+ 
+-                    int idx = args.indexOf("\"-Djna.boot.library.path=$IDE_HOME/lib/jna/" + baseArch.normalize() + "\"");
++                    int idx = args.indexOf("\"-Djna.boot.library.path=$IDE_HOME/plugins/jna-plugin/lib/jna/" + baseArch.normalize() + "\"");
+                     if (idx < 0) {
+                         throw new GradleException("Missing jna option");
+                     }
+-                    args.set(idx, "\"-Djna.boot.library.path=$IDE_HOME/lib/jna/" + targetArch.normalize() + "\"");
++                    args.set(idx, "\"-Djna.boot.library.path=$IDE_HOME/plugins/jna-plugin/lib/jna/" + targetArch.normalize() + "\"");
+                     args.joinTo(result, " ", "  ", " \\\n");
+                 } else {
+                     result.append(line);
