@@ -1,0 +1,16 @@
+--- a/tests/test_mpv.py
++++ b/tests/test_mpv.py
+@@ -909,10 +909,13 @@
+ 
+         self.m.loadfile(TESTVID)
+         self.m.wait_until_playing(timeout=2)
++        # Loading an external subtitle can outlast its first cue on slow builders.
++        self.m.pause = True
+         self.m.command_async('sub_add', TESTSRT, callback=callback)
+         reply = self.m.command_async('expand-text', 'test ${mute}')
+         assert reply.result() == 'test no'
+ 
++        self.m.pause = False
+         self.m.wait_for_playback()
+         handler.assert_any_call('sub-text', 'This is\na subtitle test.')
+         handler.assert_any_call('sub-text', 'This is the second subtitle line.')
