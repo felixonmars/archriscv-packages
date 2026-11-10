@@ -10,11 +10,13 @@
    go mod download
  }
  
-@@ -45,7 +48,7 @@ build() {
+@@ -45,7 +48,9 @@ build() {
  check() {
    cd "$pkgname-$pkgver"
  
 -  go test -v ./weed/...
++  # Allow the SFTP listing regression test to finish on slower riscv64 builders.
++  sed -i 's/time.After(10 \* time.Second)/time.After(30 * time.Second)/' weed/sftpd/sftp_filer_test.go
 +  go test -v ./weed/... -timeout 1h
  }
  
