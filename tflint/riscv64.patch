@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -65,9 +65,16 @@
+ 
+   go run ./plugin/stub-generator
+ 
+-  # Skip base64gzip test, broken since go 1.27
+-  # https://github.com/terraform-linters/tflint/issues/2678
+-  go test -skip 'TestFunctions/base64gzip|TestBase64Gzip' ./...
++  if [[ $CARCH == riscv64 ]]; then
++    # Live plugin tests require release assets that upstream does not publish for riscv64.
++    go test -skip 'Test_Install_withPGPSignature|Test_Install_withbuiltinPGPSignature|Test_Install_withAttestations|Test_Install_withoutAttestationsAndPGPSignature|TestFunctions/base64gzip|TestBase64Gzip' \
++      $(go list ./... | grep -Ev '/integrationtest/(init|version)$')
++    go test -run '^TestVersionTextFormat$' ./integrationtest/version
++  else
++    # Skip base64gzip test, broken since go 1.27
++    # https://github.com/terraform-linters/tflint/issues/2678
++    go test -skip 'TestFunctions/base64gzip|TestBase64Gzip' ./...
++  fi
+ }
+ 
+ package() {
