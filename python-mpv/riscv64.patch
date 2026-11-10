@@ -1,0 +1,21 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -30,6 +30,11 @@
+ b2sums=('401535f88b7214b6d370d85388f85d95fa4b4d4b72ca772dba94156b1a9dd627a1adb4b3ce657b331ab52de72b41aa83ea7ebe49baa63a63a2b0035d19dffddf')
+ validpgpkeys=(E36F75307F0A0EC2D145FF5CED7A208EEEC76F2D) # python-mpv Release Signing Key <python-mpv@jaseg.de>
+ 
++prepare() {
++  # Keep the asynchronous subtitle test from racing the first cue on slow builders.
++  patch -d "$srcdir/$pkgname" -Np1 -i "$srcdir/riscv64-test-timing.patch"
++}
++
+ build() {
+   cd $pkgname
+   python -m build --wheel --skip-dependency-check --no-isolation
+@@ -45,3 +50,6 @@
+   python -m installer --destdir="$pkgdir" dist/*.whl
+   install -Dm644 -t "$pkgdir"/usr/share/doc/$pkgname README.rst
+ }
++
++source+=('riscv64-test-timing.patch')
++b2sums+=('c4e0fc55b187a63f1da3c81550853e3854083d91e029d8b7b546c3fb856a053ac031799daaa46b425d0b35a94c9127c799acd64be188c45df2e334a852807534')
