@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,6 +31,11 @@
+ sha512sums=('8341092aa5e786f5d0b42990e99888879e703d8caf15ef9d419be517113edc283ddd5caa89780fe59ee041584b3bdebe418f90788a2884680d4bd40c548743f5')
+ b2sums=('87256ca47fb16c01e58a5dd4baa90e66989b751d9a1ea906cda997a75dfbec98685fa24602c96f577cc176286eccb28ee4822cf2070c6d4e34dea60728681491')
+ 
++prepare() {
++  cd "$pkgname-$pkgver"
++  patch -Np1 -i "$srcdir/$pkgname-check-checksums-timeout.patch"
++}
++
+ build() {
+   arch-meson $pkgname-$pkgver build
+   meson compile -C build
+@@ -44,3 +49,7 @@
+   meson install -C build --destdir "$pkgdir"
+   install -vDm 644 $pkgname-$pkgver/BSD-2-Clause.txt -t "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++source+=("$pkgname-check-checksums-timeout.patch::https://github.com/containers/composefs/commit/dc11b0898ba2594318b0208f4b7bf007d0bce746.patch")
++sha512sums+=('d97c418d11c8f1792ff5badfc569d168b1e14531945ef17fa0b8e226c535df142410a82f8fe2cc970880512ac0bf2a32a9f8791983a1393d5164d4439a09b003')
++b2sums+=('1627dbd3dc0f042ff6c853a7e180ec92c2d8a4ddce68315534651d72d71e94ac6bc471d7e9aad04c4e024a532b5902d9f25e821af9bc22fe7f4bb6b98827ae6d')
