@@ -1,0 +1,28 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,6 +20,9 @@
+ prepare() {
+   cd ${pkgname}-${pkgver}
+   patch -Np1 -i ../ncrack-nullcheck.patch
++  patch -Np1 -i ../ncrack-config-scripts.patch
++  # The bundled SSH library has its own outdated config scripts.
++  cp config.{guess,sub} opensshlib/
+ }
+ 
+ build() {
+@@ -27,6 +30,7 @@
+   CFLAGS+=' -Wno-int-conversion -Wno-implicit-function-declaration -fcommon' # https://wiki.gentoo.org/wiki/Gcc_10_porting_notes/fno_common
+   ./configure \
+     --prefix=/usr \
++    --without-zlib-version-check \
+     --without-openssl-header-check
+   make
+ }
+@@ -38,3 +42,7 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=("ncrack-config-scripts.patch::https://github.com/nmap/ncrack/commit/8f8dab5527f294f591b64777ce7fb33b8bb93ea9.patch?full_index=1")
++sha256sums+=('c06eb862bf46ad5da983e7decadaceb35ec0dc1c83a51b0f5483128ebd785f84')
++sha512sums+=('0fdf55513f4b767c9e316630ae1c05c9e55e9f6992d13bf58615c2535b6000520ab38f23e4a1030a6504896aa3d6a45b53f3bd28119f500dd3cc4916a5167a63')
