@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -33,6 +33,11 @@
+@@ -33,6 +33,13 @@
  prepare() {
  	_srcenv
  
@@ -8,6 +8,8 @@
 +	patch -Np1 -i "$srcdir/meta-test-timeout.patch"
 +	# Concurrent imports can reuse an export filename before cleanup is checked.
 +	patch -Np1 -i "$srcdir/opencode-export-tempfile.patch"
++	# Avoid overwriting descriptors owned by concurrent tests.
++	patch -Np1 -i "$srcdir/close-fds-test-fd.patch"
 +
  	# Fully lock down user
  	sed -i 's/^u /u! /' systemd/atuin-server.sysusers
@@ -21,12 +23,13 @@
  	local skipped=(
  		# Assumes things about the host that aren't true in a chroot
  		ai_session::store::tests::reproject_takes_the_capture_lock_for_this_hosts_records
-@@ -87,3 +94,8 @@
+@@ -87,3 +94,9 @@
  	install -Dm0644 -t "$pkgdir/usr/share/doc/$pkgname/" README.md "crates/$pkgname/server.toml"
  	install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE
  }
 +
 +checkdepends+=(fish zsh)
-+source+=(meta-test-timeout.patch opencode-export-tempfile.patch)
++source+=(meta-test-timeout.patch opencode-export-tempfile.patch close-fds-test-fd.patch)
 +sha256sums+=('266cbf0e8a37ec2053e5d8f9dd64dd220fb09044070e37bd05a7e8be9ac99924'
-+            '741671d10b5cb88d3ff44125785152899d15ef8ff85eb3120525df3cb7050b6e')
++            '741671d10b5cb88d3ff44125785152899d15ef8ff85eb3120525df3cb7050b6e'
++            '67ec6829b8c454c3a7c2c7ba4830f6521f2c7ecb37236dc94d2a723fb1d900e1')
