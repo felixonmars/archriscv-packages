@@ -1,0 +1,86 @@
+--- a/crates/atuin-common/src/os/unix/process/close_fds.rs
++++ b/crates/atuin-common/src/os/unix/process/close_fds.rs
+@@ -1,6 +1,6 @@
+ //! Implementation of [`super::CommandExt::close_fds`].
+ 
+-use std::os::fd::RawFd;
++use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
+ use std::os::unix::process::CommandExt as _;
+ use std::process::Command;
+ 
+@@ -94,43 +94,40 @@
+     /// A descriptor on /dev/null above the standard streams, open without close-on-exec as a shell
+     /// may leave one. Closed on drop.
+     struct InheritableFd {
+-        fd: RawFd,
++        fd: OwnedFd,
+         _exclusive: parking_lot::MutexGuard<'static, ()>,
+     }
+ 
+     impl InheritableFd {
+-        fn open(fd: RawFd) -> Self {
+-            let inheritable = Self {
+-                fd,
+-                _exclusive: INHERITABLE_FD.lock(),
+-            };
+-            raise_fd_limit_past(fd);
++        fn open(min_fd: RawFd) -> Self {
++            let exclusive = INHERITABLE_FD.lock();
++            raise_fd_limit_past(min_fd);
+             let devnull = std::fs::File::open("/dev/null").unwrap();
+-            // SAFETY: `dup2` touches no memory, and nothing in the test process owns `fd`. The
+-            // descriptor it makes is never close-on-exec.
+-            let dup = unsafe { libc::dup2(std::os::fd::AsRawFd::as_raw_fd(&devnull), fd) };
+-            assert_eq!(dup, fd, "dup2: {}", std::io::Error::last_os_error());
+-            inheritable
++            // SAFETY: `fcntl` duplicates `devnull` into an unused descriptor at or above
++            // `min_fd`; the returned descriptor is owned by this `OwnedFd` alone and has
++            // close-on-exec cleared by `F_DUPFD`.
++            let fd = unsafe { libc::fcntl(devnull.as_raw_fd(), libc::F_DUPFD, min_fd) };
++            assert!(fd >= min_fd, "fcntl(F_DUPFD): {}", std::io::Error::last_os_error());
++            // SAFETY: `fcntl(F_DUPFD)` returned a new, valid descriptor owned by this value.
++            let fd = unsafe { OwnedFd::from_raw_fd(fd) };
++            Self { fd, _exclusive: exclusive }
++        }
++
++        fn raw_fd(&self) -> RawFd {
++            self.fd.as_raw_fd()
+         }
+ 
+         /// Whether a child spawned with `setup` finds this descriptor open.
+         fn inherited_with(&self, setup: Setup) -> bool {
+             let mut test = Command::new("test");
+-            test.arg("-e").arg(format!("/dev/fd/{}", self.fd));
++            test.arg("-e").arg(format!("/dev/fd/{}", self.raw_fd()));
+             setup.apply(&mut test);
+             test.status().unwrap().success()
+         }
+     }
+ 
+-    impl Drop for InheritableFd {
+-        fn drop(&mut self) {
+-            // SAFETY: `open` dup'ed it, and nothing else owns it.
+-            unsafe { libc::close(self.fd) };
+-        }
+-    }
+-
+-    /// Raise the soft limit on open descriptors, if need be, so that `fd` can be opened: `dup2`
+-    /// fails with `EBADF` at or above it, and macOS starts at 256.
++    /// Raise the soft limit on open descriptors, if need be, so that `F_DUPFD` can allocate at or
++    /// above the requested descriptor.
+     fn raise_fd_limit_past(fd: RawFd) {
+         use rustix::process::{Resource, Rlimit, getrlimit, setrlimit};
+ 
+@@ -183,10 +180,10 @@
+     #[case::one_past_the_fallbacks_end(Setup::Fallback, FALLBACK_FD_END, true)]
+     fn the_child_inherits_a_descriptor(
+         #[case] setup: Setup,
+-        #[case] fd: RawFd,
++        #[case] min_fd: RawFd,
+         #[case] inherited: bool,
+     ) {
+-        assert_eq!(InheritableFd::open(fd).inherited_with(setup), inherited);
++        assert_eq!(InheritableFd::open(min_fd).inherited_with(setup), inherited);
+     }
+ 
+     /// Std reports a failed `exec` through a pipe in the child, which `close_fds` must leave open
