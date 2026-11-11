@@ -1,0 +1,22 @@
+--- a/src/libponyrt/sched/cpu.c
++++ b/src/libponyrt/sched/cpu.c
+@@ -496,15 +496,15 @@
+ #elif defined PLATFORM_IS_EMSCRIPTEN
+   return (uint64_t)(emscripten_get_now() * 1e6);
+ #elif defined PLATFORM_IS_RISCV
+-  uint64_t cycles;
+-  asm("rdcycle %0" : "=r"(cycles));
+-  return cycles;
++  struct timespec now;
++  clock_gettime(CLOCK_MONOTONIC, &now);
++  return ((uint64_t)now.tv_sec * 1000000000 + now.tv_nsec) * 2;
+ #endif
+ }
+ 
+ // Width, in bits, of the value ponyint_cpu_tick() returns. Every path is an
+ // effectively non-wrapping 64-bit value (rdtsc, clock_gettime nanoseconds,
+-// QueryPerformanceCounter, rdcycle, emscripten) except the AArch32 hardware
++// QueryPerformanceCounter, emscripten) except the AArch32 hardware
+ // PMU path, which returns a 32-bit PMCCNTR scaled to 38 bits and wraps every
+ // 2^38 cycles (a couple of minutes at GHz clocks). This condition must stay
+ // byte-identical to the one guarding the `pmccntr` return in
