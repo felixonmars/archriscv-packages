@@ -1,0 +1,46 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -48,19 +48,16 @@
+ }
+ 
+ build() {
+-  # binary part
+-  local cmake_opts=(
+-    -B build
+-    -S "$_reponame-$pkgver"
+-    -DCMAKE_BUILD_TYPE=None
+-    -Wno-author
++  # xdialdr executes x86-64 PE code; run its static release with native Blink.
++  (
++    cd blink-dev-98f95e8
++    # Avoid collisions between xdialdr's mappings and Blink's host mappings.
++    CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE -DNOLINEAR" ./configure
++    make o//blink/blink
+   )
+-  export LDFLAGS="$LDFLAGS -Wl,-z,common-page-size=65536,-z,max-page-size=65536" # from CMakeLists
+-  cmake "${cmake_opts[@]}"
+-  make -C build
++  install -m755 blink-dev-98f95e8/o//blink/blink xdialdr "$_reponame-$pkgver/pyxdia/pyxdia/bin/"
+ 
+   # python part
+-  mv build/src/xdialdr "$_reponame-$pkgver/pyxdia/pyxdia/bin"
+   cd "$_reponame-$pkgver/pyxdia"
+   mv ../lib/msdia140.dll pyxdia/bin
+   python -m build --wheel --no-isolation
+@@ -78,6 +75,16 @@
+   python -m installer --destdir="$pkgdir" pyxdia/dist/*.whl
+   install -Dm644 pyxdia/LICENSE.txt src/xdia/xdia.LICENSE.txt src/xdia-loader/xdialdr.LICENSE.txt \
+     -t "$pkgdir/usr/share/licenses/$pkgname" 
++  install -Dm644 "$srcdir/blink-dev-98f95e8/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/blink.LICENSE.txt"
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++license+=(ISC)
++depends+=(libunwind zlib)
++# The native strip tool cannot process the bundled x86-64 loader.
++options+=('!strip')
++source+=("xdialdr-$pkgver.tar.xz::$url/releases/download/v$pkgver/xdialdr.tar.xz"
++         "blink-dev-98f95e8.tar.gz::https://github.com/mborgerson/blink/archive/refs/tags/dev-98f95e8.tar.gz")
++b2sums+=('dbbc1e42a45ec90410682065281c775c92ff9acfafa92b3cba5d9961d22210e00762fe179e06603df8356d8347942885721d0be7ae8c45317fec11cd1e72e22f'
++         'af873985fb71a724f73aab1ab2fc0b8fb66b62355027e7f4a35ef7eeccd7ba7d8ed6ec1f413ac38a12d544904c5d1776ce4c99f45bf48fabe3b2021a6245afa1')
