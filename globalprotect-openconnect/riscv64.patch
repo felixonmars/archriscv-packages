@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -51,8 +51,11 @@
+ 
+ prepare() {
+   cd $pkgname
++  # The pinned OpenConnect commit is no longer reachable from upstream branches.
++  git -C ../openconnect-globalprotect fetch https://github.com/yuezk/openconnect.git \
++    "$(git rev-parse HEAD:crates/openconnect/deps/openconnect)"
+   git submodule init
+-  git config submodule.crates/openconnect/deps/openconnect.url ../openconnect-globalprotect
++  git config submodule.crates/openconnect/deps/openconnect.url "$srcdir/openconnect-globalprotect"
+   git config submodule.crates/openconnect/deps/libxml2.url ../libxml2
+   git -c protocol.file.allow=always submodule update \
+     crates/openconnect/deps/openconnect \
