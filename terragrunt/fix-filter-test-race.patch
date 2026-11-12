@@ -1,0 +1,12 @@
+--- a/internal/filter/evaluator_test.go
++++ b/internal/filter/evaluator_test.go
+@@ -291,7 +291,8 @@
+ 			l := log.New()
+ 			result, err := filter.Evaluate(l, filter.EvaluationContext{}, tt.filter, testComponents)
+ 			require.NoError(t, err)
+-			assert.ElementsMatch(t, tt.expected, result)
++			// Parallel evaluations change the shared components' mutex state.
++			assert.ElementsMatch(t, paths(tt.expected), paths(result))
+ 		})
+ 	}
+ }
