@@ -1,14 +1,13 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -32,9 +32,10 @@
- 	export CARGO_HOME="$srcdir"
- 	export CARGO_PROFILE_RELEASE_DEBUG=2
- 	export CARGO_PROFILE_RELEASE_STRIP=false
--	export CARGO_PROFILE_RELEASE_LTO=true
-+	export CARGO_PROFILE_RELEASE_LTO=false
- 	export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
- 	export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
-+	export RUSTFLAGS="-C code-model=large"
- 	CFLAGS+=' -ffat-lto-objects'
- 	export LIBGIT2_NO_VENDOR=1
- 	export LIBSSH2_SYS_USE_PKG_CONFIG=1
+@@ -50,2 +50,5 @@
+ 	cargo fetch --locked --target host-tuple
++	# Backport Wasmtime's PIC-safe long-range RISC-V libcall trampolines.
++	patch -d "$CARGO_HOME"/registry/src/*/wasmtime-runtime-14.0.2 -Np3 \
++		-i "$srcdir/wasmtime-riscv64-trampolines.patch"
+ }
+@@ -66 +69,4 @@
+ }
++
++source+=("wasmtime-riscv64-trampolines.patch::https://github.com/bytecodealliance/wasmtime/commit/de101ad2e8ae1c92266182741973cf4258744dd4.patch?full_index=1")
++sha256sums+=('604e14f01893f0325e04e7e6cd73dd813c0541cf07398210f1a01c72ca020d7a')
