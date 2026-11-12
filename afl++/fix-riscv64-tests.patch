@@ -1,28 +1,87 @@
---- a/test/test-bug-pass.sh
-+++ b/test/test-bug-pass.sh
-@@ -852,7 +852,10 @@
- # --- ALLOCSIZE stack-alloca: catches OOB on stack arrays.  Registers
- #     entry-block allocas (size multiple of 64 bytes, alignment 64) so
- #     the existing store oracle's shadow lookup finds them.
--AFL_QUIET=1 AFL_LLVM_BUG_ALLOCSIZE=1 "$CC" -O0 \
-+# -fno-stack-protector: isolate the ALLOCSIZE oracle from the compiler's own
-+# stack-canary, which (on macOS/arm64, unlike glibc/x86) independently aborts
-+# on this overflow and would otherwise mask what the oracle does.
-+AFL_QUIET=1 AFL_LLVM_BUG_ALLOCSIZE=1 "$CC" -O0 -fno-stack-protector \
-   "$SCRIPT_DIR/test-bug-allocsize-stack-oob.c" -o "$TMP/aso"
- set +e
- printf '\x00\x00\x00\x00' | "$TMP/aso" 2>"$TMP/aso.err"
-@@ -918,7 +921,9 @@
+--- a/test/test-bug-ijon-layout.sh
++++ b/test/test-bug-ijon-layout.sh
+@@ -10,7 +10,7 @@
+ # campaign, and asserts:
+ #  - the compiled binary runs to completion (no IJON-related abort);
+ #  - the fuzzer reports a sensible coverage map size in fuzzer_stats;
+-#  - the fuzzer collects coverage (cycles > 0).
++#  - the fuzzer collects new corpus entries.
+ set -u
  
- # Gating: AFL_LLVM_BUG_ALLOCSIZE_STACK=0 must restore pre-fix behavior.
- # Rebuild the TP source with the opt-out; OOB must slip past silently.
--AFL_QUIET=1 AFL_LLVM_BUG_ALLOCSIZE=1 AFL_LLVM_BUG_ALLOCSIZE_STACK=0 "$CC" -O0 \
-+# -fno-stack-protector: see the TP build above - without it the stack canary,
-+# not AFL, aborts the STACK=0 binary on macOS and the opt-out looks broken.
-+AFL_QUIET=1 AFL_LLVM_BUG_ALLOCSIZE=1 AFL_LLVM_BUG_ALLOCSIZE_STACK=0 "$CC" -O0 -fno-stack-protector \
-   "$SCRIPT_DIR/test-bug-allocsize-stack-oob.c" -o "$TMP/aso_off"
- set +e
- printf '\x00\x00\x00\x00' | "$TMP/aso_off" 2>"$TMP/aso_off.err"
+ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+@@ -74,7 +74,7 @@
+   exit 1
+ fi
+ 
+-# fuzzer_stats must exist and report a non-zero cycle count.
++# A short campaign can find coverage without completing a queue cycle.
+ stats="$TMP/out/default/fuzzer_stats"
+ if [ ! -s "$stats" ]; then
+   echo "[!] fuzzer_stats missing"
+@@ -82,7 +82,7 @@
+   exit 1
+ fi
+ 
+-cycles=$(awk -F: '/^cycles_done/ { gsub(/ /,"",$2); print $2 }' "$stats")
++found=$(awk -F: '/^corpus_found/ { gsub(/ /,"",$2); print $2 }' "$stats")
+ edges=$(awk -F: '/^total_edges/ { gsub(/ /,"",$2); print $2 }' "$stats")
+ cvg_pct=$(awk -F: '/^bitmap_cvg/ { gsub(/[ %]/,"",$2); print $2 }' "$stats")
+ 
+@@ -92,10 +92,10 @@
+ # When the layout was broken, IJON values would spill into the bug-map
+ # region, the fuzzer would still count them as "edges", and total_edges
+ # would mismatch. We check that:
+-#   - the fuzzer made progress (cycles >= 1),
++#   - the fuzzer made progress (new corpus entries >= 1),
+ #   - bitmap_cvg is a sensible (small) number, not 100% or 0%.
+-if [ "${cycles:-0}" -lt 1 ]; then
+-  echo "[!] cycles_done=${cycles:-?} (no progress; IJON region likely mis-addressed)"
++if [ "${found:-0}" -lt 1 ]; then
++  echo "[!] corpus_found=${found:-?} (no progress; IJON region likely mis-addressed)"
+   tail -40 "$TMP/fz.log"
+   exit 1
+ fi
+@@ -104,4 +104,4 @@
+   exit 1
+ fi
+ 
+-echo "[+] bug-pass + IJON: cycles=$cycles edges=${edges:-?} cvg=${cvg_pct}% (rc=$fz_rc)"
++echo "[+] bug-pass + IJON: found=$found edges=${edges:-?} cvg=${cvg_pct}% (rc=$fz_rc)"
+--- a/test/test-qemu-bridge.sh
++++ b/test/test-qemu-bridge.sh
+@@ -57,6 +57,11 @@
+ case "$SYS" in
+   x86_64|amd64|i686|i386|i86pc|aarch64|arm*|mips*|powerpc*|ppc*) HAVE_COMPCOV=1 ;;
+ esac
++# Match AFL_PERSISTENT_SUPPORTED in libaflqemubridge/afl_persistent.c.
++HAVE_PERSISTENT=0
++case "$SYS" in
++  x86_64|amd64|i686|i386|i86pc) HAVE_PERSISTENT=1 ;;
++esac
+ 
+ echo "[*] AFL++ QEMU bridge acceptance harness"
+ echo "[*] root=$ROOT arch=$SYS work=$WORK"
+@@ -146,7 +151,8 @@
+   int n = read(0, b, 63);
+   if (n < 1) return 1;
+   char *p = malloc(8);
+-  memcpy(p, b, (size_t)n);
++  /* RISC-V libc memcpy may use vector helpers without QASan memory hooks. */
++  for (int j = 0; j < n; j++) ((volatile char *)p)[j] = b[j];
+   int s = 0;
+   int i;
+   for (i = 0; i < 8; i++) s += p[i];
+@@ -218,7 +224,9 @@
+ 
+ echo
+ echo "[*] Test 3: persistent throughput + stability"
+-if [ ! -x "$WORK/pers" ]; then
++if [ "$HAVE_PERSISTENT" != "1" ]; then
++  record SKIP "persistent" "arch $SYS not supported for persistent mode"
++elif [ ! -x "$WORK/pers" ]; then
+   record SKIP "persistent" "could not compile persistent target"
+ else
+   PADDR=$(persistent_addr "$WORK/pers")
 --- a/test/test-qemu-mode.sh
 +++ b/test/test-qemu-mode.sh
 @@ -43,6 +43,10 @@
@@ -36,3 +95,71 @@
        $ECHO "$GREY[*] running afl-fuzz for qemu_mode AFL_ENTRYPOINT, this will take approx 6 seconds"
        {
          {
+--- a/test/test-timeout-target.c
++++ b/test/test-timeout-target.c
+@@ -1,12 +1,13 @@
+ /* test/test-timeout-target.c — target for test-timeout.sh: fast paths, a slow
+    path and a hanging path behind magic bytes. The slow path shares its exit
+    code with a fast path so the -t <msec>+ ratchet can be exercised in normal
+-   and in -C mode. The 'Q' path returns a different exit code on every second
+-   run without branching on it, so a 'Q' input reaches new coverage once and
++   and in -C mode. The 'Q' path alternates its exit code on successive visits
++   without branching on it, so a 'Q' input reaches new coverage once and
+    then fails the calibration that follows. */
+ 
+ #include <stdio.h>
+ #include <string.h>
++#include <sys/mman.h>
+ #include <unistd.h>
+ 
+ int main(int argc, char **argv) {
+@@ -15,6 +16,12 @@
+ 
+   if (argc < 2) { return 1; }
+ 
++  /* Share the counter across forkserver children; PID parity need not alternate. */
++  unsigned int *q_runs = mmap(NULL, sizeof(*q_runs), PROT_READ | PROT_WRITE,
++                              MAP_SHARED | MAP_ANONYMOUS, -1, 0);
++  if (q_runs == MAP_FAILED) { perror("mmap"); return 1; }
++  __AFL_INIT();
++
+   memset(buf, 0, sizeof(buf));
+ 
+   FILE *f = fopen(argv[1], "rb");
+@@ -31,7 +38,7 @@
+ 
+   }
+ 
+-  if (buf[0] == 'Q') { return (int)(getpid() & 1) * 9; }
++  if (buf[0] == 'Q') { return (int)((*q_runs)++ & 1) * 9; }
+ 
+   if (buf[0] == 'S') {
+ 
+--- a/test/test-timeout.sh
++++ b/test/test-timeout.sh
+@@ -205,7 +205,9 @@
+ 
+ echo "[*] test 8: coverage of an entry that failed calibration is handed back"
+ export AFL_CRASH_EXITCODE=9
+-if run_fuzz "$TMP/o8" 20 "$TMP/in" -t 100; then
++# Exercise Q through deterministic dictionary mutations within the short run.
++printf '"Q"\n' > "$TMP/reclaim.dict"
++if run_fuzz "$TMP/o8" 20 "$TMP/in" -t 100 -D -x "$TMP/reclaim.dict"; then
+   N8=$(count_starting_with "$TMP/o8" queue Q)
+   if [ "$N8" -lt 2 ]; then
+     fail "the Q path was queued $N8 time(s), its coverage was not handed back"
+--- a/test/test-value-profile.sh
++++ b/test/test-value-profile.sh
+@@ -446,10 +446,10 @@
+ EOF
+ 
+   # Count call instructions to the hooks. Match both x86 (call/callq) and
+-  # AArch64 (bl) mnemonics so this works on ELF and Mach-O targets alike.
++  # AArch64 (bl) and RISC-V (jal); do not count RISC-V blt branches as calls.
+   sites() {
+     "$OBJDUMP" -d "$1" |
+-      grep -cE '(bl|call)[a-z]*[[:space:]].*(__valueprofile_hook|__sanitizer_cov_trace_(const_)?cmp)'
++      grep -cE '(bl|call[a-z]*|jal)[[:space:]].*(__valueprofile_hook|__sanitizer_cov_trace_(const_)?cmp)'
+   }
+ 
+   # __sancov_guards section size / 4 = number of coverage points. llvm-objdump
