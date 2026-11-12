@@ -1,0 +1,228 @@
+#!/bin/bash
+set -euo pipefail
+
+_bin_dir=/usr/lib/u-boot/spacemit
+_dry_run=0
+
+usage() {
+    cat <<USAGE
+Usage: u-boot-spacemit-flash [--dry-run]
+
+Flash U-Boot firmware from $_bin_dir to the detected SpacemiT boot device.
+USAGE
+}
+
+running_in_chroot() {
+    if [[ "${SYSTEMD_IGNORE_CHROOT:-0}" == "1" ]]; then
+        return 1
+    fi
+    if [[ -e /proc/1/root ]]; then
+        local root_dev_ino proc1_root_dev_ino
+        root_dev_ino=$(stat -c '%d:%i' / 2>/dev/null) || return 0
+        proc1_root_dev_ino=$(stat -L -c '%d:%i' /proc/1/root 2>/dev/null) || return 0
+        [[ "$root_dev_ino" == "$proc1_root_dev_ino" ]] && return 1 || return 0
+    fi
+    if [[ ! -d /proc || ! -r /proc/version ]]; then
+        [[ $$ == 1 ]] && return 1 || return 0
+    fi
+    return 0
+}
+
+boot_device_from_mode() {
+    local mode=$1
+
+    case $mode in
+        emmc) echo /dev/mmcblk2 ;;
+        sdcard) echo /dev/mmcblk0 ;;
+        nor|nand)
+            if [[ -e /dev/mtdblock0 ]]; then
+                echo /dev/mtdblock0
+            fi
+            ;;
+        ufs) echo /dev/sda ;;
+    esac
+}
+
+base_device() {
+    local dev=$1
+
+    case $dev in
+        /dev/mmcblk0*) echo /dev/mmcblk0 ;;
+        /dev/mmcblk2*) echo /dev/mmcblk2 ;;
+        /dev/sda*) echo /dev/sda ;;
+        /dev/nvme0n1*) echo /dev/nvme0n1 ;;
+    esac
+}
+
+resolve_root_device() {
+    local root_spec=$1
+
+    case $root_spec in
+        UUID=*) blkid -U "${root_spec#UUID=}" 2>/dev/null || true ;;
+        /dev/*) echo "$root_spec" ;;
+    esac
+}
+
+detect_target_device() {
+    local boot_mode='' root_spec='' root='' x
+    local cmdline=()
+
+    read -r -a cmdline < /proc/cmdline
+    for x in "${cmdline[@]}"; do
+        case $x in
+            root=*) root_spec=${x#root=} ;;
+            boot_mode=*) boot_mode=${x#boot_mode=} ;;
+        esac
+    done
+
+    if [[ -n $root_spec ]]; then
+        root=$(resolve_root_device "$root_spec")
+    fi
+
+    if [[ -n $boot_mode ]]; then
+        local boot_device
+        boot_device=$(boot_device_from_mode "$boot_mode")
+        if [[ -n $boot_device && -n $root ]]; then
+            local root_base_device
+            root_base_device=$(base_device "$root")
+            if [[ $boot_device != "$root_base_device" ]]; then
+                echo "$boot_device"
+            else
+                echo "$root_base_device"
+            fi
+            return 0
+        elif [[ -n $boot_device ]]; then
+            echo "$boot_device"
+            return 0
+        else
+            echo "Unsupported boot_mode=$boot_mode" >&2
+            return 1
+        fi
+    fi
+
+    if [[ -n $root ]]; then
+        base_device "$root"
+        return 0
+    fi
+
+    echo "Unable to determine target device (missing root= or boot_mode= in cmdline)" >&2
+    return 1
+}
+
+detect_flash_layout() {
+    local target_device=$1
+    local boot_mode='' x
+    local cmdline=()
+
+    read -r -a cmdline < /proc/cmdline
+    for x in "${cmdline[@]}"; do
+        case $x in
+            boot_mode=*) boot_mode=${x#boot_mode=} ;;
+        esac
+    done
+
+    case $target_device in
+        /dev/mmcblk0|/dev/mmcblk2|/dev/sda)
+            echo "bootinfo_block.bin $target_device 1048576 1 FSBL.bin $target_device 1572864 1 env.bin $target_device 655360 1 u-boot.itb $target_device 8192 1024"
+            ;;
+        /dev/mtdblock0)
+            local bootinfo_file=bootinfo_spinor.bin
+            if [[ $boot_mode == nand ]]; then
+                bootinfo_file=bootinfo_spinand.bin
+            fi
+            echo "$bootinfo_file /dev/mtdblock0 0 1 FSBL.bin /dev/mtdblock0 131072 1 env.bin /dev/mtdblock0 655360 1 u-boot.itb /dev/mtdblock0 2112 1024"
+            ;;
+        /dev/nvme0n1)
+            if [[ -e /dev/mtdblock6 ]]; then
+                echo "bootinfo_spinor.bin /dev/mtdblock1 0 1 FSBL.bin /dev/mtdblock2 0 1 env.bin /dev/mtdblock3 0 1 u-boot.itb /dev/mtdblock6 0 1024"
+            elif [[ -e /dev/mtdblock0 ]]; then
+                echo "bootinfo_spinor.bin /dev/mtdblock0 0 1 FSBL.bin /dev/mtdblock0 131072 1 env.bin /dev/mtdblock0 655360 1 u-boot.itb /dev/mtdblock0 2112 1024"
+            else
+                echo "bootinfo_block.bin /dev/mmcblk2 1048576 1 FSBL.bin /dev/mmcblk2 1572864 1 env.bin /dev/mmcblk2 655360 1 u-boot.itb /dev/mmcblk2 2112 1024"
+            fi
+            ;;
+        *)
+            echo "Unsupported target device=$target_device" >&2
+            return 1
+            ;;
+    esac
+}
+
+flash_uboot() {
+    if ! grep -q 'Spacemit(R) X100' /proc/cpuinfo 2>/dev/null; then
+        echo "Not running on SpacemiT X100, skipping U-Boot flash."
+        return 0
+    fi
+
+    if running_in_chroot; then
+        echo "Running in chroot, skipping U-Boot flash."
+        return 0
+    fi
+
+    local target_device
+    target_device=$(detect_target_device)
+
+    local layout
+    layout=$(detect_flash_layout "$target_device")
+
+    local words=()
+    read -r -a words <<< "$layout"
+
+    local i file dev seek bs
+    for (( i = 0; i < ${#words[@]}; i += 4 )); do
+        file=${words[i]}
+        dev=${words[i + 1]}
+
+        if [[ ! -e $_bin_dir/$file ]]; then
+            echo "Missing $_bin_dir/$file" >&2
+            return 1
+        fi
+        if [[ ! -e $dev ]]; then
+            echo "Missing device $dev" >&2
+            return 1
+        fi
+    done
+
+    if (( _dry_run )); then
+        for (( i = 0; i < ${#words[@]}; i += 4 )); do
+            file=${words[i]}
+            dev=${words[i + 1]}
+            seek=${words[i + 2]}
+            bs=${words[i + 3]}
+            echo "Would flash $_bin_dir/$file to $dev at seek=$seek bs=$bs."
+        done
+        return 0
+    fi
+
+    if (( EUID != 0 )); then
+        echo "Run as root to flash U-Boot." >&2
+        return 1
+    fi
+
+    echo "Flashing U-Boot to $target_device ..."
+    for (( i = 0; i < ${#words[@]}; i += 4 )); do
+        file=${words[i]}
+        dev=${words[i + 1]}
+        seek=${words[i + 2]}
+        bs=${words[i + 3]}
+        dd if="$_bin_dir/$file" of="$dev" seek="$seek" bs="$bs" 2>/dev/null && sync
+    done
+    echo "U-Boot flash complete."
+}
+
+while (( $# )); do
+    case $1 in
+        --dry-run) _dry_run=1 ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+flash_uboot
