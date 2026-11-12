@@ -1,11 +1,25 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -28,7 +28,7 @@ b2sums=('3657e0cc266a3c49d012d4dfbc678c44168ff572935f2088d99bbef6b1363bba10d0089
+@@ -27,9 +27,12 @@
+ 
  prepare() {
    cd spotifyd-${pkgver}
-   export RUSTUP_TOOLCHAIN=stable
++  patch -Np1 -d ../aws-lc-sys-0.33.0/aws-lc -i "$srcdir/aws-lc-memchr.patch"
++  printf '\n[patch.crates-io]\naws-lc-sys = { path = "../aws-lc-sys-0.33.0" }\n' >> Cargo.toml
++
+   # Update the locked bindings for OpenSSL 4: https://github.com/Spotifyd/spotifyd/issues/1421
+   cargo update -p openssl --precise 0.10.81
 -  cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
 +  cargo fetch --locked
  }
  
  build() {
+@@ -48,3 +51,8 @@
+   rm "${pkgdir}"/usr/{.crates.toml,.crates2.json}
+   install -Dm644 -t "${pkgdir}"/usr/lib/systemd/user/ "${srcdir}"/${pkgbase}-${pkgver}/contrib/spotifyd.service
+ }
++
++source+=("aws-lc-sys-0.33.0.tar.gz::https://static.crates.io/crates/aws-lc-sys/aws-lc-sys-0.33.0.crate"
++         "aws-lc-memchr.patch::https://github.com/aws/aws-lc/commit/390b9c0d155bbd76011485dc19c755857623ea20.patch")
++b2sums+=('db978faac44549736a09bd15718f14b3ee856197595331cca7ae526cc0e6252664a2037884ea38b56accfc9ec3357e1265bc0ecec2616bb620a1528f319ea32d'
++         'ad9e34b752b3dc6d1e1ba71422ebec70d940404098fb08e5083483754b35c810ba08ed7ee91306f4733f608056e96b83e53bc855a87b013ad421a922605e9b18')
