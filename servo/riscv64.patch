@@ -8,7 +8,15 @@
  	export CARGO_PROFILE_RELEASE_DEBUG=2
  	export CARGO_PROFILE_RELEASE_STRIP=false
  	export CARGO_PROFILE_RELEASE_LTO=thin
-@@ -52,15 +53,19 @@
+@@ -48,19 +49,28 @@
+ 	export CARGO_PROFILE_RELEASE_OPT_LEVEL=3
+ 	CFLAGS+=' -fno-lto'
+ 	CXXFLAGS+=' -fno-lto'
++	# Do not override SpiderMonkey's -fno-exceptions.
++	CXXFLAGS="${CXXFLAGS//-fexceptions/}"
++	# xsum disables -Wformat, making -Werror=format-security fail with GCC.
++	CXXFLAGS+=' -Wno-error=format-security'
+ 	RUSTFLAGS+=" --remap-path-prefix $PWD=/"
  }
  
  prepare() {
@@ -17,7 +25,8 @@
  	echo 'export PATH=$PATH:/opt/servo' > "$pkgname.sh"
  	echo 'setenv PATH ${PATH}:/opt/servo' > "$pkgname.csh"
 +	sed -i '/^pyrefly /d' python/requirements.txt
-+	uv lock
++	# The locked cryptography and pyOpenSSL versions do not support OpenSSL 4.
++	uv lock --upgrade-package cryptography --upgrade-package pyopenssl
  	cargo fetch --locked --target host-tuple
  }
  
