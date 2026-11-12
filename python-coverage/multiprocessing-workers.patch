@@ -1,6 +1,6 @@
 --- a/tests/test_concurrency.py
 +++ b/tests/test_concurrency.py
-@@ -406,23 +406,27 @@
+@@ -406,21 +406,24 @@
      # Above this will be a definition of work().
      import multiprocessing
      import os
@@ -28,9 +28,5 @@
 +        barrier = multiprocessing.Barrier({NPROCS}, timeout=60)
 +        pool = multiprocessing.Pool({NPROCS}, initializer=init_worker, initargs=(barrier,))
          inputs = [(x,) for x in range({UPTO})]
--        outputs = pool.imap_unordered(process_worker_main, inputs)
-+        # Each pair exercises both branches; the pairs divide evenly among workers.
-+        outputs = pool.imap_unordered(process_worker_main, inputs, chunksize=2)
-         pids = set()
-         total = 0
-         for pid, sq in outputs:
+         # Hand out the inputs in pairs (one even, one odd), so every process
+         # that gets any work runs the same lines of work(), and combine can
