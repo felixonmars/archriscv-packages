@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -31,6 +31,18 @@
+@@ -31,6 +31,20 @@
  
  prepare() {
    cd node-v${pkgver}
@@ -16,10 +16,12 @@
 +  # Batch nested async-context tests to avoid serial subprocess timeouts.
 +  # https://github.com/nodejs/node/commit/70c04c7fd8630397a4062de1ca2e834fa2a5fad0
 +  patch -Np1 -i ../test-async-context-frame.patch
++  # Limit concurrent Wasm reservations to fit the Sv39 address space.
++  patch -Np1 -i ../test-wpt-concurrency.patch
    # Update ICU tests https://github.com/nodejs/node/pull/60523
    patch -Np1 -i ../update-icu-tests.patch
  }
-@@ -81,7 +93,8 @@
+@@ -83,7 +97,8 @@
    # https://github.com/nodejs/node/issues/63914
    rm test/parallel/test-snapshot-reproducible.js
  
@@ -29,7 +31,7 @@
  }
  
  package() {
-@@ -90,3 +103,14 @@
+@@ -92,3 +107,16 @@
    make DESTDIR="${pkgdir}" install
    install -Dm644 LICENSE -t "${pkgdir}"/usr/share/licenses/${pkgname}/
  }
@@ -38,9 +40,11 @@
 +         v8-riscv-word32-zero.patch
 +         v8-riscv-float-branch.patch
 +         test-resource-limits.patch
-+         test-async-context-frame.patch)
++         test-async-context-frame.patch
++         "test-wpt-concurrency.patch::https://github.com/nodejs/node/commit/103e558b8e69c1ad33bb3f911e717fff2e33df41.patch?full_index=1")
 +sha256sums+=('1b12913fa8dc965815751629773d91bc3c9c9844e7dc7a7d982b73b756fd0342'
 +             'a208e39a506ae4e4b6eeba2435d706092d28992aa83d9b245888ea4cac39a3c0'
 +             '7ea4fb5985fcf5c5a1ecc07f71ce1ae0147f173ba3576b45098e83dcf4fe06fc'
 +             '77171e0bef4395a6a4d73ab8e679ae2f436f551ef3c6880e661601a6b6ac014f'
-+             'ea559311142bffc9b7c74c99552fc565e390464269d0e786686640c076e8f778')
++             'ea559311142bffc9b7c74c99552fc565e390464269d0e786686640c076e8f778'
++             '16312f27359eafb2e083c7d97edeb03e36a8733fe5b8b23e24fa6dbc39538831')
