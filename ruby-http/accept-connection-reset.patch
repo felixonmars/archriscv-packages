@@ -1,0 +1,12 @@
+--- a/test/support/dummy_server.rb
++++ b/test/support/dummy_server.rb
+@@ -45,7 +45,8 @@
+     while @running
+       begin
+         client = server.accept
+-      rescue OpenSSL::SSL::SSLError
++      rescue OpenSSL::SSL::SSLError, Errno::ECONNRESET
++        # A client aborting the TLS handshake must not stop the test server.
+         next
+       end
+       Thread.new(client) { |c| handle_connection(c) }
