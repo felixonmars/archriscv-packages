@@ -1,0 +1,58 @@
+--- a/tests/integration/test_snapshot_option_update.py
++++ b/tests/integration/test_snapshot_option_update.py
+@@ -121,11 +121,12 @@
+ 
+ 
+ def test_update_failure_shows_snapshot_diff(
+-    run_testcases, testcases_updated, plugin_args_fails_xdist
++    run_testcases, testcases_updated, plugin_args
+ ):
+     testdir = run_testcases[1]
+     testdir.makepyfile(**testcases_updated)
+-    result = testdir.runpytest("-vv", *plugin_args_fails_xdist)
++    result = testdir.runpytest("-vv", *plugin_args)
++    # xdist can report failures in any order; check each diff independently.
+     result.stdout.re_match_lines(
+         (
+             r".*assert snapshot == \['this', 'will', 'not', 'match'\]",
+@@ -138,6 +139,10 @@
+             r".*  \+   'not',",
+             r".*  \+   'match',",
+             r".*    \]",
++        )
++    )
++    result.stdout.re_match_lines(
++        (
+             r".*assert \['this', 'will', 'fail'\] == snapshot",
+             r".*AssertionError: assert \[\+ received\] == \[- snapshot\]",
+             r".*    list\(\[",
+@@ -147,6 +152,10 @@
+             r".*  \+   'fail',",
+             r".*  -   'updated',",
+             r".*    \]",
++        )
++    )
++    result.stdout.re_match_lines(
++        (
+             r".*assert snapshot == \['this', 'will', 'be', 'too', 'much'\]",
+             r".*AssertionError: assert \[- snapshot\] == \[\+ received\]",
+             r".*    list\(\[",
+@@ -156,10 +165,18 @@
+             r".*  \+   'too',",
+             r".*  \+   'much',",
+             r".*    \]",
++        )
++    )
++    result.stdout.re_match_lines(
++        (
+             r".*assert snapshot == \"sing line changeling\"",
+             r".*AssertionError: assert \[- snapshot\] == \[\+ received\]",
+             r".*  - 'single line change'",
+             r".*  \+ 'sing line changeling'",
++        )
++    )
++    result.stdout.re_match_lines(
++        (
+             r".*AssertionError: assert \[- snapshot\] == \[\+ received\]",
+             r".*    '",
+             r".*      ...",
