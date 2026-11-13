@@ -1,12 +1,10 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -35,6 +35,15 @@
- source=(git+https://github.com/jupyterlab/jupyterlab#tag=v$pkgver)
- sha256sums=('67e1ad62331e3db61d2afa56d1e8163dc81002ff22ba520179cd5b629af8c923')
+@@ -37,2 +37,11 @@
  
 +prepare() {
-+  # Allow WASM frontend builds to finish before build-API requests time out.
-+  sed -i 's/request_timeout=250/request_timeout=1200/' $pkgname/jupyterlab/pytest_plugin.py
++  # Dependency installation and WASM builds exceed 20 minutes on riscv64.
++  sed -i 's/request_timeout=250/request_timeout=7200/' $pkgname/jupyterlab/pytest_plugin.py
 +
 +  cd $pkgname/jupyterlab/staging
 +  # Install Rspack's WASM fallback; 2.0.2 has no riscv64 native binding.
@@ -14,5 +12,3 @@
 +}
 +
  build() {
-   cd $pkgname
- # https://github.com/nodejs/node/issues/48444
