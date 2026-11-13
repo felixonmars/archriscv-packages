@@ -1,22 +1,22 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -80,4 +80,15 @@
- 
-+prepare() {
+@@ -82,2 +82,7 @@
+ prepare() {
 +  patch -d "$srcdir/$_name" -Np1 -i "$srcdir/test-timing.patch"
-+  cd "$srcdir"/rolldown-1.2.11
++  cd "$srcdir"/rolldown-1.2.14
 +  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
-+}
++  cd "$srcdir"
 +
- # based on https://github.com/streamlit/streamlit/blob/develop/Makefile
+   cd $_name
+@@ -89,2 +94,7 @@
  build() {
-+  cd "$srcdir"/rolldown-1.2.11
++  cd "$srcdir"/rolldown-1.2.14
 +  CFLAGS="$CFLAGS -ffat-lto-objects" \
 +    cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
 +  cd "$srcdir"
 +
    # initialize corepack
-@@ -91,3 +102,14 @@
+@@ -98,3 +108,14 @@
    cd "$srcdir"/$_name/frontend
 -  yarn install --immutable
 +  sed -i \
@@ -29,14 +29,22 @@
 +    {app,lib}/vite.config.ts
 +  sed -i '/"resolutions": {/a\    "lightningcss": "npm:lightningcss-wasm@1.33.0",' package.json
 +  yarn remove @bufbuild/buf
-+  install -m755 "$srcdir"/rolldown-1.2.11/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
++  install -m755 "$srcdir"/rolldown-1.2.14/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
 +    node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
  
-@@ -163 +185,7 @@
+@@ -162,2 +183,7 @@
+   cd $_name/lib
++  # Discovery probes need longer on slow builders. Only change the test source:
++  # the wheel was already built with the upstream timeouts.
++  sed -i -e 's/^_PROBE_TIMEOUT_S = 5$/_PROBE_TIMEOUT_S = 60/' \
++         -e 's/^_TOTAL_TIMEOUT_S = 7$/_TOTAL_TIMEOUT_S = 90/' \
++    streamlit/.agents/meta-skill/developing-with-streamlit/scripts/discover.py
+   python -m venv --system-site-packages test-env
+@@ -173 +199,7 @@
  }
 +
 +makedepends+=(rust cmake)
-+source+=('rolldown-1.2.11.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.11.tar.gz'
++source+=('rolldown-1.2.14.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.14.tar.gz'
 +         'test-timing.patch')
-+b2sums+=('bd3e3768363ead6b800598b763a9fc9807723e689fffd7d303da254b54e022e9def8225cc0a9f15f48a6d94b56317016054049127418d0db3f81e32a504cab09'
-+         'c7e7726d87f7acbc4756d790e8491be92f49068ffb8971de6ed7ff89efbbff972781a97a07ed405b8a2ea7dadacbce36e762efd20058a922004cf65baa80abb9')
++b2sums+=('a8d421227c0bbc32cd52bba00e77be35142b0edcf8de42e46fe55dc1940d87bccfa35639d9753f0a09992375647e1a3fcd9d817786afc91f80ffe0ec0dcf2c93'
++         '3fb0864d61d66f8a8d2ffe9071915ec59b5f6728929dd37b60c1d2dc9c0b9466c12385c616bf80815f7babd70933e681745faffd785da221ae21c4dba9820674')
