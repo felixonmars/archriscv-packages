@@ -187,7 +187,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
    it('redacts a secret assignment claimed by a leading label', async () => {
      const { createAutoRecallQuery } = await import('./auto-recall.js');
  
-@@ -587,7 +598,7 @@
+@@ -618,7 +629,7 @@
        }
        await closeServer(proxy);
      }
@@ -196,7 +196,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
  
    it.each([
      ['invalid JSON', '{'],
-@@ -770,7 +781,7 @@
+@@ -801,7 +812,7 @@
      env: childEnvironment(envOverrides),
      killSignal: 'SIGKILL',
      stdio: ['pipe', 'pipe', 'pipe'],
@@ -207,7 +207,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
    let stderr = '';
 --- a/integrations/external-context/src/providers.test.ts
 +++ b/integrations/external-context/src/providers.test.ts
-@@ -72,7 +72,8 @@
+@@ -74,7 +74,8 @@
      const items = await adapter.search({
        query: 'deployment',
        limit: 5,
@@ -307,7 +307,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      const { bridge, classifier } = classifierFor(
 --- a/packages/cli/src/serve/channel-worker-supervisor.test.ts
 +++ b/packages/cli/src/serve/channel-worker-supervisor.test.ts
-@@ -3132,11 +3132,10 @@
+@@ -3166,11 +3166,10 @@
      // The duration is the property: 66 KB of `a.` is an adversarial input for
      // the credential-redaction regex, and a backtracking regression shows up
      // as time, not as a wrong value — the other assertions in this case check
@@ -325,7 +325,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        type: 'ready',
 --- a/packages/cli/src/serve/server.test.ts
 +++ b/packages/cli/src/serve/server.test.ts
-@@ -7107,7 +7107,8 @@
+@@ -7644,7 +7644,8 @@
          });
        } finally {
          restore();
@@ -335,7 +335,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          restoreEnv('QWEN_HOME', previousQwenHome);
          restoreEnv(
            'QWEN_CODE_TRUSTED_FOLDERS_PATH',
-@@ -26224,7 +26225,8 @@
+@@ -27033,7 +27034,8 @@
          expect(after.status).toBe(200);
          expect(after.body.features).toContain('workspace_voice_transcription');
        } finally {
@@ -345,7 +345,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          restoreEnv('QWEN_HOME', previousQwenHome);
          resetHomeEnvBootstrapForTesting();
        }
-@@ -40280,7 +40282,8 @@
+@@ -41231,7 +41233,8 @@
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -355,7 +355,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      };
    }
  
-@@ -40300,7 +40303,8 @@
+@@ -41251,7 +41254,8 @@
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -365,7 +365,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      };
    }
  
-@@ -42198,7 +42202,12 @@
+@@ -43210,7 +43214,12 @@
          (app.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
          restoreEnv('QWEN_HOME', previousQwenHome);
          resetHomeEnvBootstrapForTesting();
@@ -379,7 +379,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      };
    }
-@@ -42505,7 +42514,8 @@
+@@ -43710,7 +43719,8 @@
        )?.();
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -389,7 +389,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      }
    });
  
-@@ -42704,7 +42714,7 @@
+@@ -43909,7 +43919,7 @@
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
        loadSettings.mockRestore();
@@ -398,6 +398,71 @@ https://github.com/QwenLM/qwen-code/pull/11337
      }
    });
  });
+--- a/packages/core/src/code-mode/code-mode.test.ts
++++ b/packages/core/src/code-mode/code-mode.test.ts
+@@ -420,6 +420,7 @@
+   });
+ 
+   it('does not charge nested tool wait time against the guest CPU budget', async () => {
++    // Allow QuickJS setup on RISC-V while keeping the wait longer than the budget.
+     const result = await executeCodeMode(
+       'return (await tools.wait({})).output',
+       plan('wait'),
+@@ -433,7 +434,7 @@
+         };
+       }),
+       new AbortController().signal,
+-      { timeoutMs: 50 },
++      { timeoutMs: 1_000 },
+     );
+ 
+     expect(result.value).toBe('finished');
+@@ -837,6 +838,7 @@
+   });
+ 
+   it('does not keep exec alive for an unawaited timer', async () => {
++    // Allow QuickJS setup on RISC-V; the pending timer still outlives the budget.
+     const result = await executeCodeMode(
+       `setTimeout(() => text('late'), 60_000);
+       text('done');`,
+@@ -845,22 +847,23 @@
+         throw new Error('unused');
+       }),
+       new AbortController().signal,
+-      { timeoutMs: 25 },
++      { timeoutMs: 1_000 },
+     );
+ 
+     expect(result.output).toBe('done');
+   });
+ 
+   it('does not charge timer wait time against the guest CPU budget', async () => {
++    // Keep the wait above the enlarged RISC-V setup budget.
+     const result = await executeCodeMode(
+-      `await new Promise((resolve) => setTimeout(resolve, 100));
++      `await new Promise((resolve) => setTimeout(resolve, 2_000));
+       text('done');`,
+       plan(),
+       runtime(async () => {
+         throw new Error('unused');
+       }),
+       new AbortController().signal,
+-      { timeoutMs: 50 },
++      { timeoutMs: 1_000 },
+     );
+ 
+     expect(result.output).toBe('done');
+--- a/packages/core/src/omni/policy/tools/extract-keyframes.test.ts
++++ b/packages/core/src/omni/policy/tools/extract-keyframes.test.ts
+@@ -399,6 +399,8 @@
+     });
+ 
+     it('threads policyTools.<tool>.runtime.timeoutMs into runFfmpeg', async () => {
++      // The bucket guard and ffmpeg call read the same budget at different times.
++      vi.spyOn(Date, 'now').mockReturnValue(1_755_000_000_000);
+       probe({ durationMs: 63_000 });
+       mocks.runFfmpeg.mockImplementation(framesRun(1, [0]));
+       const configured = new OmniExtractKeyframesTool({
 --- a/packages/core/src/config/config-session-env.test.ts
 +++ b/packages/core/src/config/config-session-env.test.ts
 @@ -112,7 +112,7 @@
@@ -411,7 +476,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
  let originalModelEnv: string | undefined;
 --- a/packages/core/src/services/cronScheduler.test.ts
 +++ b/packages/core/src/services/cronScheduler.test.ts
-@@ -822,7 +822,7 @@
+@@ -841,7 +841,7 @@
      const waitForLockGone = (lockPath: string) =>
        vi.waitFor(async () => {
          await expect(fs.access(lockPath)).rejects.toThrow();
@@ -422,7 +487,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        expect(scheduler.durableActive).toBe(false);
 --- a/packages/web-shell/client/daemon/session/DaemonSessionProvider.test.tsx
 +++ b/packages/web-shell/client/daemon/session/DaemonSessionProvider.test.tsx
-@@ -9552,7 +9552,9 @@
+@@ -9995,7 +9995,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        submitPrompt: vi.fn(() => accepted.promise),
@@ -433,7 +498,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          await releaseRestoredComplete.promise;
          yield {
            id: 6,
-@@ -9569,6 +9571,7 @@
+@@ -10012,6 +10014,7 @@
            data: { promptId: 'local-prompt', stopReason: 'end_turn' },
          } satisfies DaemonEvent;
          localCompleteDelivered.resolve();
@@ -441,7 +506,41 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      });
      sdkMocks.sessions.push(session);
-@@ -9639,7 +9642,9 @@
+@@ -10429,7 +10432,7 @@
+       hasActivePrompt: true,
+       backgroundTurn,
+       lastEventId: 5,
+-      async *events() {
++      async *events(opts = {}) {
+         yield {
+           id: 6,
+           v: 1,
+@@ -10445,6 +10448,7 @@
+           data: { promptId: 'auto-1', stopReason: 'end_turn' },
+         };
+         finished.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -10490,7 +10494,7 @@
+       hasActivePrompt: true,
+       backgroundTurn,
+       lastEventId: 5,
+-      async *events() {
++      async *events(opts = {}) {
+         await eventsGate.promise;
+         yield {
+           id: 6,
+@@ -10507,6 +10511,7 @@
+           data: { promptId: 'user-1', stopReason: 'end_turn' },
+         };
+         finished.resolve();
++        yield* createIdleEvents()(opts);
+       },
+     });
+     sdkMocks.sessions.push(session);
+@@ -10556,7 +10561,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -452,7 +551,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          yield {
            id: 6,
            v: 1,
-@@ -9647,6 +9652,7 @@
+@@ -10564,6 +10571,7 @@
            data: { promptId: 'restored-prompt', stopReason: 'end_turn' },
          };
          turnCompleted.resolve();
@@ -460,7 +559,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      });
      sdkMocks.sessions.push(session);
-@@ -9741,7 +9747,9 @@
+@@ -10658,7 +10666,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -471,7 +570,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          yield {
            id: 6,
            v: 1,
-@@ -9753,6 +9761,7 @@
+@@ -10670,6 +10680,7 @@
            },
          } satisfies DaemonEvent;
          turnErrored.resolve();
@@ -479,7 +578,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      });
      sdkMocks.sessions.push(session);
-@@ -9781,7 +9790,9 @@
+@@ -10698,7 +10709,9 @@
      const session = createMockSession({
        hasActivePrompt: true,
        lastEventId: 5,
@@ -490,7 +589,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          yield {
            id: 6,
            v: 1,
-@@ -9793,6 +9804,7 @@
+@@ -10710,6 +10723,7 @@
            },
          } satisfies DaemonEvent;
          promptCancelled.resolve();
@@ -498,26 +597,26 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      });
      sdkMocks.sessions.push(session);
-@@ -9825,7 +9837,9 @@
-     const session = createMockSession({
-       hasActivePrompt: true,
-       submitPrompt: vi.fn(() => accepted.promise),
--      events: async function* restoredPromptCancelDuringLocalPrompt() {
-+      events: async function* restoredPromptCancelDuringLocalPrompt(
-+        opts: { signal?: AbortSignal } = {},
-+      ) {
-         await releaseRestoredCancel.promise;
-         yield {
-           id: 6,
-@@ -9843,6 +9857,7 @@
-           data: { promptId: 'local-prompt', stopReason: 'end_turn' },
-         } satisfies DaemonEvent;
-         localCompleteDelivered.resolve();
-+        yield* createIdleEvents()(opts);
-       },
-     });
-     sdkMocks.sessions.push(session);
-@@ -16224,6 +16239,7 @@
+@@ -10744,7 +10758,9 @@
+       const session = createMockSession({
+         hasActivePrompt: true,
+         submitPrompt: vi.fn(() => accepted.promise),
+-        events: async function* restoredPromptCancelDuringLocalPrompt() {
++        events: async function* restoredPromptCancelDuringLocalPrompt(
++          opts: { signal?: AbortSignal } = {},
++        ) {
+           await releaseRestoredCancel.promise;
+           yield {
+             id: 6,
+@@ -10777,6 +10793,7 @@
+             data: { promptId: 'local-prompt', stopReason: 'end_turn' },
+           } satisfies DaemonEvent;
+           localCompleteDelivered.resolve();
++          yield* createIdleEvents()(opts);
+         },
+       });
+       sdkMocks.sessions.push(session);
+@@ -18164,6 +18181,7 @@
            type: 'turn_complete',
            data: { promptId: 'prompt-new', stopReason: 'end_turn' },
          };
@@ -525,7 +624,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      });
      sdkMocks.sessions.push(firstSession, reloadedSession);
-@@ -17208,10 +17224,18 @@
+@@ -19220,10 +19238,18 @@
        // NOT prevent reconnection — these are server-initiated closes,
        // not user deletions. The provider should preserve the session
        // handle and attempt to resume on the next iteration.
@@ -544,7 +643,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
            yield {
              id: 1,
              v: 1,
-@@ -17240,7 +17264,7 @@
+@@ -19252,7 +19278,7 @@
          await flushPromises();
        });
        await act(async () => {
@@ -553,7 +652,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          await flushPromises();
        });
  
-@@ -17255,17 +17279,24 @@
+@@ -19267,17 +19293,24 @@
      // Defensive: if the server sends session_closed without a reason
      // field (older daemon versions), treat it as non-client_close and
      // let the normal reconnect path handle it.
@@ -579,7 +678,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      });
      sdkMocks.sessions.push(session);
-@@ -17284,10 +17315,7 @@
+@@ -19296,10 +19329,7 @@
      });
  
      await act(async () => {
@@ -591,7 +690,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        await flushPromises();
      });
  
-@@ -17415,6 +17443,7 @@
+@@ -19427,6 +19457,7 @@
      });
      await act(async () => {
        await flushPromises();
@@ -599,7 +698,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      });
  
      // turn_error should stay in transcript as an error block
-@@ -20038,6 +20067,8 @@
+@@ -23979,6 +24010,8 @@
        sessionId: 'session-1',
        data: { promptId, stopReason: 'end_turn' },
      };

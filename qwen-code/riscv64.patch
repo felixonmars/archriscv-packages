@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -41,6 +41,7 @@
+@@ -42,6 +42,7 @@
    # Mock Feishu APIs so the media test cannot leak requests into later tests.
    # https://github.com/QwenLM/qwen-code/pull/13170
    patch -p1 -i "$srcdir/feishu-media-test.patch"
@@ -8,36 +8,43 @@
    # npm 12 returns pack metadata keyed by package name instead of an array.
    # https://github.com/npm/cli/pull/9247
    sed -i 's/const packs = JSON\.parse(stdout)/const packs = Object.values(JSON.parse(stdout))/' \
-@@ -71,17 +72,26 @@
-     packages/cli/src/serve/server/self-origin.test.ts
-   # Upstream's ranged override currently resolves newer than package-lock.json.
-   npm pkg set 'overrides.@types/react=19.2.10'
--  npm clean-install \
-+  # Lightning CSS does not ship native riscv64 binaries.
-+  # Keep npm's nested esbuild binaries on the matching architecture.
-+  npm install --cpu=riscv64 --save-dev --save-exact \
-     --registry=https://registry.npmjs.org \
-     --replace-registry-host=always \
-     --include=optional \
--    --ignore-scripts
-+    --ignore-scripts \
-+    lightningcss@npm:lightningcss-wasm@1.32.0
+@@ -78,13 +79,35 @@
+   # https://github.com/nodejs/node/issues/64549
+   sed -i "s/it('retains the original write error/it.skip('retains the original write error/" \
+     packages/cli/src/acp-integration/acp-output.test.ts
++  # The pinned pnpm release has no riscv64 native binary.
++  printf '\npmOnFail: ignore\n' >> pnpm-workspace.yaml
+   pnpm install --frozen-lockfile --ignore-scripts
    # Upstream postinstall applies dependency patches; install scripts are disabled above.
    ./node_modules/.bin/patch-package
 +  # Vitest 3.2.7 hard-codes a 60-second worker RPC deadline.
 +  patch -d node_modules/vitest -Np1 -i "$srcdir/vitest-rpc-timeout.patch"
 +  cargo fetch --locked --manifest-path="$srcdir/tailwindcss-4.3.2/crates/node/Cargo.toml"
++  cargo fetch --locked --manifest-path="$srcdir/lightningcss-1.32.0/node/Cargo.toml"
++  # Jieba's published source commit does not include Cargo.lock.
++  cargo fetch --manifest-path="$srcdir/node-rs-3b2896520f4274d74aab262436e93e2cfbd4966f/packages/jieba/Cargo.toml"
++  npm pkg set 'files[]=jieba.linux-riscv64-gnu.node' --prefix node_modules/@node-rs/jieba
  }
  
  build() {
    cd $pkgname
++  # Build missing native bindings without changing pnpm's locked dependencies.
++  # Jieba's WASI fallback requires SIMD unavailable on the RISC-V builders.
 +  cargo build --frozen --release --manifest-path="$srcdir/tailwindcss-4.3.2/crates/node/Cargo.toml"
++  cargo build --frozen --release --manifest-path="$srcdir/lightningcss-1.32.0/node/Cargo.toml"
++  # Keep mimalloc's native objects for Rust's link when C LTO is enabled.
++  CFLAGS="$CFLAGS -ffat-lto-objects" \
++    cargo build --frozen --release --manifest-path="$srcdir/node-rs-3b2896520f4274d74aab262436e93e2cfbd4966f/packages/jieba/Cargo.toml"
 +  cp "$srcdir/tailwindcss-4.3.2/target/release/libtailwind_oxide.so" \
 +    node_modules/@tailwindcss/oxide/tailwindcss-oxide.linux-riscv64-gnu.node
++  cp "$srcdir/lightningcss-1.32.0/target/release/liblightningcss_node.so" \
++    node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  cp "$srcdir/node-rs-3b2896520f4274d74aab262436e93e2cfbd4966f/target/release/libnode_rs_jieba.so" \
++    node_modules/@node-rs/jieba/jieba.linux-riscv64-gnu.node
    npm run build
    npm run bundle
    local bundled=$(jq '.dependencies + .optionalDependencies | keys' package.json)
-@@ -123,7 +133,7 @@
+@@ -128,7 +151,7 @@
    npm pkg set 'workspaces[]=!packages/mobile-mcp'
    # NODE_OPTIONS gives Node's Web Storage one shared backing file; keep Vitest
    # files serial so another jsdom test cannot clear draft storage mid-test.
@@ -46,18 +53,24 @@
  }
  
  package() {
-@@ -132,3 +142,14 @@
+@@ -137,3 +160,20 @@
    install -vDm644 -t "$pkgdir/usr/share/doc/$pkgname" README.md
    install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
  }
 +
-+makedepends+=(rust)
++makedepends+=(rust cmake)
 +source+=(riscv64-tests.patch
 +         vitest-rpc-timeout.patch
-+         "tailwindcss-4.3.2.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.2.tar.gz")
-+sha256sums+=('0a9b98b316a9c653670bba2b727ed2b8009dc341d08a84363f2be368d9d42fb5'
++         "tailwindcss-4.3.2.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.2.tar.gz"
++         "lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz"
++         "node-rs-3b2896520f4274d74aab262436e93e2cfbd4966f.tar.gz::https://github.com/napi-rs/node-rs/archive/3b2896520f4274d74aab262436e93e2cfbd4966f.tar.gz")
++sha256sums+=('936aaa744a13696cc557a4c9e5d337b3a090a307ea33266060d0bbca35eff18d'
 +             '683cacd67f676bfff4d4482ec2158780c98ef511109560baa26252094bd22e7e'
-+             '608268447ff0c939da732245e0dbd77d24edfe22fa6b705b402626992361b741')
-+b2sums+=('ba5032d2c92a22be9e0727bf803a5313270e53746a2e7d341fb47abcf40bef6bd3b1cdb48baf2b630c2dc5ba54aaca777c1edf8ea9a7a7676a8c05b8d278918f'
++             '608268447ff0c939da732245e0dbd77d24edfe22fa6b705b402626992361b741'
++             'ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9'
++             '4bdb1a651f24888f3ad53400d1bfdfb7cc451ae75e0a1a0413b268f356a8f699')
++b2sums+=('fb6b77e8ab7117d40fac13131340af382b0114663ac48753ff15274b4395de14658844e25c69b95783a78c02e48529251af8156ab6f4c6d50d45fd073c6f9e37'
 +         'f41ab609e042f191a3df7c0a677e5f958ac731bb36e7e6cacd988ee8273f276f9099db3d43af8496c72ab0bdd59b048d7bd502386710b54b380e52a5310942e6'
-+         '6221b574173fec02d401c14fd77661be2762cd3d555034488d0d4b0ad83348b4409a41216f9a1e7acaecbb85059e399473aa49d44d4cd0914fe35d3c6889da47')
++         '6221b574173fec02d401c14fd77661be2762cd3d555034488d0d4b0ad83348b4409a41216f9a1e7acaecbb85059e399473aa49d44d4cd0914fe35d3c6889da47'
++         'f17877617924aaac34a17f8ba10ccd6fc6e8ef057481f3f69772b0ce93eb2dde5638f3107d21cd26b0c1cd27bc31729318ee7fa5927c717c9d1c6b2686635e29'
++         'dfd17d06b5d6792186a7d91388f0ea448fd506ee7a8901e9afc223479f8c209275ee1599552fba577c21402b643e46b2b3152180c558d2f52039f544dc74eeb6')
