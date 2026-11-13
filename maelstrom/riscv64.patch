@@ -1,0 +1,47 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -56,6 +56,7 @@
+ 
+ prepare() {
+   cd $pkgbase
++  patch -Np1 -i ../native-signal-test.patch
+   patch -Np1 -i ../$pkgbase-0.13.0-maelstrom-client-missing-shared-object.patch
+   patch -Np1 -i ../$pkgbase-0.13.0-cargo-maelstrom-broken-tests.patch
+   patch -Np1 -i ../$pkgbase-0.13.0-maelstrom-go-test-broken-tests.patch
+@@ -93,6 +94,27 @@
+ # tests are currently broken
+ check() {
+   cd $pkgbase
++  # The bundled executor fixtures contain x86 executables, including Python.
++  (
++    cd crates/maelstrom-worker/src
++    mkdir -p executor-test-deps
++    tar -xf executor-test-deps.tar -C executor-test-deps
++    cd executor-test-deps
++    # All bin/ applets are hard links to this BusyBox binary.
++    cp /usr/bin/busybox bin/touch
++    # Arch Bash's default PATH omits /bin.
++    cp -al bin/. usr/bin/
++    for helper in exitsig winsize; do
++      cc $CFLAGS $LDFLAGS -include unistd.h -o "$helper" "$helper.c"
++    done
++    lddtree --copy-to-tree "$PWD" --bindir / exitsig winsize
++    local stdlib=$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')
++    tar -C / --exclude=site-packages --exclude=__pycache__ -cf - "${stdlib#/}" |
++      tar -xf -
++    lddtree --copy-to-tree "$PWD" /usr/bin/bash /usr/bin/python3 \
++      "$stdlib"/lib-dynload/{_ctypes,_socket}.*.so
++    tar -cf ../executor-test-deps.tar -- *
++  )
+   export RUST_BACKTRACE=full
+   # NOTE: cargo-maelstrom tests `empty_cargo_project`, `few_tests` and `failed_test` require a higher open file limit
+   ulimit -n 4096
+@@ -219,3 +241,8 @@
+   install -vDm 644 LICENSE-APACHE "$pkgdir/usr/share/licenses/$pkgname/Apache-2.0.txt"
+   install -vDm 644 LICENSE-MIT "$pkgdir/usr/share/licenses/$pkgname/MIT.txt"
+ }
++
++checkdepends+=(busybox pax-utils)
++source+=(native-signal-test.patch)
++sha512sums+=('033783dc6f03956d81c9a54b49b6fce9a4ea3c10e9985d27c609863453358745e9d4c61ca5b20f1c8792edb709a01ef666d82193a2c30bbf9b4311af1747fb63')
++b2sums+=('149919a632de9f220a183011043bc5f63992d5f33cdd900577afa2c8cae0560f656f46241b8825a9caf906f1c8e68a5712640684f19dd6f45b4c4cc0089a443e')
