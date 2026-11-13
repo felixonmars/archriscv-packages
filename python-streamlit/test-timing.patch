@@ -1,3 +1,20 @@
+--- a/lib/tests/streamlit/elements/checkbox_test.py
++++ b/lib/tests/streamlit/elements/checkbox_test.py
+@@ -233,10 +233,11 @@
+ 
+     def test_checkbox_shows_cached_widget_replay_warning(self):
+         """Test that a warning is shown when this widget is used inside a cached function."""
+-        st.cache_data(lambda: st.checkbox("the label"))()
++        # The delayed spinner can shift queue positions on slow builders.
++        st.cache_data(lambda: st.checkbox("the label"), show_spinner=False)()
+ 
+-        # The widget itself is still created, so we need to go back one element more:
+-        el = self.get_delta_from_queue(-3).new_element.exception
++        # The widget itself follows the warning in the queue.
++        el = self.get_delta_from_queue(-2).new_element.exception
+         assert el.type == "CachedWidgetWarning"
+         assert el.is_warning
+ 
 --- a/lib/tests/streamlit/elements/plotly_chart_test.py
 +++ b/lib/tests/streamlit/elements/plotly_chart_test.py
 @@ -290,10 +290,13 @@
@@ -8,6 +25,25 @@
 +        # The delayed spinner can shift queue positions on slow builders.
 +        st.cache_data(
 +            lambda: st.plotly_chart(data, on_select="rerun"), show_spinner=False
++        )()
+ 
+-        # The widget itself is still created, so we need to go back one element more:
+-        el = self.get_delta_from_queue(-3).new_element.exception
++        # The widget itself follows the warning in the queue.
++        el = self.get_delta_from_queue(-2).new_element.exception
+         assert el.type == "CachedWidgetWarning"
+         assert el.is_warning
+ 
+--- a/lib/tests/streamlit/elements/radio_test.py
++++ b/lib/tests/streamlit/elements/radio_test.py
+@@ -256,10 +256,13 @@
+ 
+     def test_shows_cached_widget_replay_warning(self):
+         """Test that a warning is shown when this widget is used inside a cached function."""
+-        st.cache_data(lambda: st.radio("the label", ["option 1", "option 2"]))()
++        # The delayed spinner can shift queue positions on slow builders.
++        st.cache_data(
++            lambda: st.radio("the label", ["option 1", "option 2"]), show_spinner=False
 +        )()
  
 -        # The widget itself is still created, so we need to go back one element more:
@@ -29,14 +65,48 @@
  # Budget for opening the smoke WebSocket and, separately, for the session
  # from rerun request to script finish. Kept independent of the server-startup
  # timeout so each phase reads independently.
+--- a/lib/tests/streamlit/runtime/agent/interaction_integration_test.py
++++ b/lib/tests/streamlit/runtime/agent/interaction_integration_test.py
+@@ -61,10 +61,9 @@
+ # Arrow has no file extension in media storage.
+ _DATA_URL: Final = re.compile(r"/media/(?P<file_id>[0-9a-f]+)")
+ 
+-# A run that is expected to time out waits this long; every other run gets the
+-# default, which no test comes close to.
++# Keep deliberate timeouts short, but allow rerun chains on slow builders to finish.
+ _SHORT_TIMEOUT: Final = 0.2
+-_TIMEOUT: Final = 10.0
++_TIMEOUT: Final = 60.0
+ 
+ _COUNTER_SCRIPT: Final = """
+ import streamlit as st
+@@ -276,7 +275,7 @@
+         return self.registry.app_session(self.registry._sessions[handle])
+ 
+     async def settled(self, handle: str) -> None:
+-        async with asyncio.timeout(5):
++        async with asyncio.timeout(_TIMEOUT):
+             await self.app_session(handle).wait_until_settled()
+ 
+ 
+@@ -575,7 +574,7 @@
+                 left = asyncio.create_task(
+                     app.call({"session_id": handle, "query_params": {"q": ["left"]}})
+                 )
+-                assert await asyncio.to_thread(build_started.wait, 5)
++                assert await asyncio.to_thread(build_started.wait, _TIMEOUT)
+                 left.cancel()
+                 early = await app.refused(
+                     {"session_id": handle}, run_timeout=_SHORT_TIMEOUT
 --- a/lib/tests/streamlit/runtime/runtime_test.py
 +++ b/lib/tests/streamlit/runtime/runtime_test.py
-@@ -53,9 +53,18 @@
+@@ -59,11 +59,18 @@
  from tests.streamlit.runtime.runtime_test_case import RuntimeTestCase
  
  if TYPE_CHECKING:
-+    from collections.abc import Callable
-+
+-    from collections.abc import Iterator
++    from collections.abc import Callable, Iterator
+ 
      from streamlit.proto.ForwardMsg_pb2 import ForwardMsg
  
  
@@ -50,7 +120,7 @@
  class MockSessionClient(SessionClient):
      """A SessionClient that captures all its ForwardMsgs into a list."""
  
-@@ -559,7 +568,7 @@
+@@ -564,7 +571,7 @@
  
          # Send the client a message. All should be well.
          self.enqueue_forward_msg(session_id, create_dataframe_msg([1, 2, 3]))
@@ -59,7 +129,7 @@
  
          client.write_forward_msg.assert_called_once()
          assert self.runtime.is_active_session(session_id)
-@@ -568,7 +577,7 @@
+@@ -573,7 +580,7 @@
          raise_disconnected_error = MagicMock(side_effect=SessionClientDisconnectedError)
          client.write_forward_msg = raise_disconnected_error
          self.enqueue_forward_msg(session_id, create_dataframe_msg([1, 2, 3]))
@@ -68,7 +138,7 @@
  
          # Assert that our error was raised, and that our session was disconnected.
          raise_disconnected_error.assert_called_once()
-@@ -612,7 +621,7 @@
+@@ -617,7 +624,7 @@
              return_value=[stale_session_info],
          ):
              self.enqueue_forward_msg(session_id, create_dataframe_msg([1, 2, 3]))
@@ -77,7 +147,7 @@
  
          # The stale client raised, but the reconnected session stays active and
          # remains bound to the new client instead of being torn down.
-@@ -652,7 +661,7 @@
+@@ -657,7 +664,7 @@
          msg = create_dataframe_msg([1, 2, 3])
          msg.ClearField("hash")
          self.enqueue_forward_msg(session_id, msg)
@@ -86,6 +156,29 @@
  
          received = client.forward_msgs.pop()
          populate_hash_if_needed(msg)
+@@ -717,7 +724,7 @@
+             ScriptRunnerEvent.ENQUEUE_FORWARD_MSG,
+             forward_msg=create_dataframe_msg([1, 2, 3]),
+         )
+-        await self.tick_runtime_loop()
++        await _wait_for_message(lambda: bool(client.forward_msgs))
+         assert len(client.forward_msgs) == 1
+ 
+         session._on_scriptrunner_event(runner, ScriptRunnerEvent.SHUTDOWN)
+--- a/lib/tests/streamlit/runtime/scriptrunner/script_runner_test.py
++++ b/lib/tests/streamlit/runtime/scriptrunner/script_runner_test.py
+@@ -1507,7 +1507,10 @@
+         scriptrunner.request_rerun(RerunData())
+         scriptrunner.start()
+ 
+-        time.sleep(0.1)
++        # Stop only after the script has produced output, even on slow builders.
++        deadline = time.monotonic() + 30
++        while not scriptrunner.text_deltas() and time.monotonic() < deadline:
++            time.sleep(0.01)
+         scriptrunner.request_stop()
+         scriptrunner.join()
+ 
 --- a/lib/tests/streamlit/runtime/state/session_state_test.py
 +++ b/lib/tests/streamlit/runtime/state/session_state_test.py
 @@ -25,7 +25,7 @@
@@ -97,7 +190,7 @@
  from hypothesis import strategies as hst
  
  import streamlit as st
-@@ -2971,20 +2971,21 @@
+@@ -3027,20 +3027,21 @@
              self.session_state._check_serializable()
  
  
@@ -122,7 +215,7 @@
  def test_compact_presence(state):
      assert _sorted_items(state) == _sorted_items(_compact_copy(state))
  
-@@ -2995,6 +2996,7 @@
+@@ -3051,6 +3052,7 @@
      value1=hst.integers(),
      value2=hst.integers(),
  )
@@ -130,7 +223,7 @@
  def test_map_set_set(m, key, value1, value2):
      m[key] = value1
      l1 = len(m)
-@@ -3004,6 +3006,7 @@
+@@ -3060,6 +3062,7 @@
  
  
  @given(m=stst.session_state(), key=stst.USER_KEY, value1=hst.integers())
@@ -138,7 +231,7 @@
  def test_map_set_del(m, key, value1):
      m[key] = value1
      l1 = len(m)
-@@ -3013,6 +3016,7 @@
+@@ -3069,6 +3072,7 @@
  
  
  @given(state=stst.session_state())
@@ -146,3 +239,48 @@
  def test_key_wid_lookup_equiv(state: SessionState):
      k_wid_map = state._key_id_mapper._key_id_mapping
      for k, wid in k_wid_map.items():
+--- a/lib/tests/streamlit/testing/element_tree_test.py
++++ b/lib/tests/streamlit/testing/element_tree_test.py
+@@ -342,7 +342,8 @@
+         st.help(cached_add)
+         st.help("foo(bar)")
+ 
+-    at = AppTest.from_function(script).run()
++    # Inspecting many help objects can exceed AppTest's default three seconds.
++    at = AppTest.from_function(script).run(timeout=60)
+     assert not at.exception
+ 
+     assert at.progress.len == 3
+@@ -592,7 +593,8 @@
+         st.help(gather)
+         st.help(slash)
+ 
+-    at = AppTest.from_function(script).run()
++    # Inspecting many help objects can exceed AppTest's default three seconds.
++    at = AppTest.from_function(script).run(timeout=60)
+     assert not at.exception
+     (
+         point,
+--- a/lib/tests/streamlit/web/server/starlette/agent_served_app.py
++++ b/lib/tests/streamlit/web/server/starlette/agent_served_app.py
+@@ -96,7 +96,8 @@
+         "server.enableAgentApi": True,
+         "server.fileWatcherType": "none",
+         "server.baseUrlPath": base_url,
+-        "server.agentWaitTimeout": 10,
++        # Snapshot construction can exceed 10 seconds on slow builders.
++        "server.agentWaitTimeout": 60,
+     }
+     for name, value in defaults.items():
+         overrides.setdefault(name, value)
+--- a/lib/tests/streamlit/web/server/starlette/starlette_agent_routes_test.py
++++ b/lib/tests/streamlit/web/server/starlette/starlette_agent_routes_test.py
+@@ -726,7 +726,7 @@
+         run_gate.close()
+         overrides["server.agentWaitTimeout"] = 0.2
+         refused["wait_timed_out"] = client.post(_PATH, json={"session_id": handle})
+-        overrides["server.agentWaitTimeout"] = 10
++        overrides["server.agentWaitTimeout"] = 60
+         run_gate.opened.set()
+         snapshots.append(client.post(_PATH, json={"session_id": handle}))
+ 
