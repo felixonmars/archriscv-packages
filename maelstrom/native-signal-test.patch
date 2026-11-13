@@ -1,0 +1,19 @@
+--- a/crates/maelstrom-worker/src/executor.rs
++++ b/crates/maelstrom-worker/src/executor.rs
+@@ -1799,13 +1799,14 @@
+     #[tokio::test]
+     async fn signaled_11() {
+         Test::new(python_spec!(indoc! {r#"
+-            import os
++            import ctypes
+             import sys
+             print('a')
+             sys.stdout.flush()
+             print('b', file=sys.stderr)
+             sys.stderr.flush()
+-            os.abort()
++            # Force SIGSEGV even as PID 1; abort's fallback trap is architecture-dependent.
++            ctypes.memset(0, 0, 1)
+         "#}))
+         .expected_status(JobTerminationStatus::Signaled(11))
+         .expected_stdout(JobOutputResult::Inline(boxed_u8!(b"a\n")))
