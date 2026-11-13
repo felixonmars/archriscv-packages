@@ -1,22 +1,53 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -27,7 +27,18 @@
+@@ -17,5 +17,8 @@
  
+ prepare() {
+-  cd "$pkgname"
++  cd rolldown-1.2.15
++  cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/$pkgname"
+ 
+   # create directory for build output
+@@ -28,12 +31,30 @@
    # download pnpm dependencies
    cd webui
 -  pnpm install
-+  sed -i '/"overrides": {/a\
-+      "lightningcss@1.32.0": "npm:lightningcss-wasm@1.32.0",\
-+      "lightningcss@1.33.0": "npm:lightningcss-wasm@1.33.0",' package.json
++  sed -i '/^overrides:/a\
++  lightningcss@1.32.0: npm:lightningcss-wasm@1.32.0\
++  lightningcss@1.33.0: npm:lightningcss-wasm@1.33.0' pnpm-workspace.yaml
++  # The pinned pnpm release has no riscv64 native binary.
 +  cat >> pnpm-workspace.yaml <<'EOF'
++pmOnFail: ignore
++allowBuilds:
++  esbuild: true
++  msw: true
 +supportedArchitectures:
 +  cpu: [current, wasm32]
-+packageExtensions:
-+  'rolldown@1.2.8':
-+    dependencies:
-+      '@rolldown/binding-wasm32-wasi': 1.2.8
 +EOF
 +  pnpm install --no-frozen-lockfile
  }
  
  build() {
+-  cd "$pkgname"
++  cd rolldown-1.2.15
++  # The WASI binding requires SIMD unsupported by the builder's V8.
++  cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/$pkgname"
+ 
+   # build webui
+   pushd webui
++  install -m755 "$srcdir/rolldown-1.2.15/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so" \
++    node_modules/.pnpm/rolldown@1.2.15/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
+   pnpm build
+   popd
+@@ -78,2 +99,7 @@
+   install -vDm644 -t "$pkgdir/usr/share/doc/$pkgname/assets/" doc/assets/*.png
+ }
++
++makedepends+=(rust cmake)
++source+=('rolldown-1.2.15.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.15.tar.gz')
++sha512sums+=('42620fee226f3ea932ace2b7a950b6a22044cd55aee088c16e2692209171a9c3f643c24a538427577b5bc24e1ec848b0819f1f517b20b0d798964c45670d5a3a')
++b2sums+=('1937a976d56a8a7bf1bbbe42b9bd0bc9385bbb1ea37b1ccab4663d1445352367e14d256f2c1ffb713e9830fe10f616111c90f64d189299dcfb354d4c70ad7801')
