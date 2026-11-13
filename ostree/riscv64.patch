@@ -1,12 +1,18 @@
-diff --git trunk/PKGBUILD trunk/PKGBUILD
-index 9a3d6e9..0973772 100644
 --- PKGBUILD
 +++ PKGBUILD
-@@ -45,7 +45,6 @@ checkdepends=(
-   gjs
-   parallel
-   python-yaml
--  syslinux
- )
- provides=(libostree-1.so)
- source=(
+@@ -105,7 +105,8 @@
+ }
+ 
+ check() {
+-  make check -k -C $pkgname
++  # Concurrent deployment tests exceed the default ten-minute timeout on riscv64.
++  TEST_TIMEOUT_FACTOR=2 make check -k -C $pkgname
+ }
+ 
+ package() {
+@@ -122,3 +123,5 @@
+ 
+   make DESTDIR="$pkgdir" install -C $pkgname
+ }
++
++checkdepends=(${checkdepends[@]/syslinux})
