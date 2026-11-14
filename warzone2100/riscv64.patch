@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -172,6 +172,9 @@
+   git config submodule.tools/blender/pie-addon.url "$srcdir/blender-pie-addon"
+   git -c protocol.file.allow=always submodule update
+ 
++  # Fix libjpeg-turbo's SIMD detection on unsupported CPUs.
++  patch -Np1 -d lib/ivis_opengl/3rdparty/libjpeg-turbo -i "$srcdir/libjpeg-turbo-simd.patch"
++
+   # https://github.com/Warzone2100/warzone2100/pull/4918
+   # ftbfs: deprecated vulkan api
+   git cherry-pick --no-commit 8701c62ae68ca70da43ec915cbf6776c492e6656
+@@ -197,3 +200,7 @@
+ package() {
+   DESTDIR="$pkgdir" cmake --install build
+ }
++
++source+=("libjpeg-turbo-simd.patch::https://github.com/libjpeg-turbo/libjpeg-turbo/commit/7cdbf9144d40d68d97c498f54dd88a68aee4e36d.patch")
++sha512sums+=('dc498a02312a9dc1eb271903d3d943b5351e2821d330892439a202d33ee4017f137d908a46000126642b472b64b3d090b89a0e7da1dd4d5501649d6f2c41249d')
++b2sums+=('89fbefd1cfdd1c45d903257a3c5924cd057071a245732569ec29234370c061b44a5ce2bf390a3472bd5927d25f0a00cf27e6cb9b50b3f2f42c0c06516dc22a7f')
