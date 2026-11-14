@@ -1,0 +1,31 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -20,6 +20,7 @@
+ prepare() {
+   cd ${_pyname}-${pkgver}
+   patch -Np1 -i ${srcdir}/drop-future.patch
++  patch -Np1 -i ${srcdir}/pytest9.patch
+ }
+ 
+ build() {
+@@ -31,9 +32,9 @@
+ check() {
+   local pytest_options=(
+     -vv
+-    # requires binaryninja which is not packaged
+-    --deselect tests/test_crc.py::test_empty
+-    --deselect tests/test_crc.py::test_empty_start_value
++    # Avoid importing the Binary Ninja plugin above the standalone library tests.
++    --rootdir=tests
++    tests
+   )
+ 
+   cd ${_pyname}-${pkgver}
+@@ -48,3 +49,7 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=("pytest9.patch::https://github.com/thebabush/nampa/commit/4ab5b33e767caef3ae1d64eec3cb894ba2f287f8.patch")
++sha512sums+=('7105f8787c55577fb792010b7a49257d579b3c7c224ea885754e6451960eba6e11d7fcb097a7d8c7d7b92701765cdb2df7c7ac62c58992f7db39b75fd9c55079')
++b2sums+=('c3713de5b7cdbcfada9ac51bd36f6e6cddee5084e76fff4251fe568d45b4e956bbdbbfe381294d01cc8c425ba9cab1d8c35aa051e3e2618d1743d595125dc180')
