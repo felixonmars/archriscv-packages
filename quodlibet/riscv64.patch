@@ -1,0 +1,11 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -77,6 +77,8 @@
+ 
+ prepare() {
+   cd $pkgname-$pkgver
++  # Presenting the GTK window can exceed the MPRIS tests' 3s reply timeout on riscv64.
++  sed -i 's/^MAX_TIME = 3$/MAX_TIME = 30/' tests/plugin/test_mpris.py
+   # Fix zsh completions dir
+   sed -e 's|vendor-completions|site-functions|' -i gdist/zsh_completions.py
+   patch -Np1 < ../$pkgname-fix-executable-conflict.patch
