@@ -1,0 +1,28 @@
+--- a/lib/cfg-lex.l
++++ b/lib/cfg-lex.l
+@@ -563,12 +563,14 @@
+ void
+ cfg_lexer_unput_string(CfgLexer *self, const char *str)
+ {
++  yyscan_t yyscanner = self->state;
++  struct yyguts_t *yyg = (struct yyguts_t *) yyscanner;
+   int len = strlen(str);
+   int i;
+ 
+   for (i = len - 1; i >= 0; i--)
+     {
+-      yyunput(str[i], _cfg_lexer_get_text(self->state), self->state);
++      unput(str[i]);
+       self->include_stack[self->include_depth].lloc.first_column--;
+       self->include_stack[self->include_depth].lloc.last_column--;
+     }
+@@ -590,4 +592,9 @@
+ }
+ 
+ /* avoid warnings of unused symbols */
++#ifdef yyunput
++/* Flex 2.6.5 introduced the yyunput macro and renamed yy_fatal_error. */
++gpointer __dummy[] = { yy_top_state, yypanic };
++#else
+ gpointer __dummy[] = { yy_top_state, yy_fatal_error };
++#endif

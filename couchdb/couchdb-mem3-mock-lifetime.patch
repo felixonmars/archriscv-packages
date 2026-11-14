@@ -1,0 +1,36 @@
+--- a/src/mem3/test/eunit/mem3_rep_test.erl
++++ b/src/mem3/test/eunit/mem3_rep_test.erl
+@@ -31,7 +31,6 @@
+     create_db(PartSrc, [{q, 1}, {n, 1}, {props, PartProps}]),
+     create_db(PartTgt, [{q, 2}, {n, 1}, {props, PartProps}]),
+     create_local_db(Localdb),
+-    meck:new(mem3, [passthrough]),
+     #{
+         allsrc => AllSrc,
+         alltgt => AllTgt,
+@@ -41,7 +40,7 @@
+     }.
+ 
+ teardown(#{} = Dbs) ->
+-    meck:unload(),
++    meck:delete(mem3, shards, 1),
+     maps:map(
+         fun
+             (localdb, Db) -> delete_local_db(Db);
+@@ -51,10 +50,14 @@
+     ).
+ 
+ start_couch() ->
+-    test_util:start_couch([mem3, fabric]).
++    Ctx = test_util:start_couch([mem3, fabric]),
++    % Keep mem3 mocked while CouchDB processes can call it.
++    meck:new(mem3, [passthrough]),
++    Ctx.
+ 
+ stop_couch(Ctx) ->
+-    test_util:stop_couch(Ctx).
++    test_util:stop_couch(Ctx),
++    meck:unload(mem3).
+ 
+ mem3_reshard_db_test_() ->
+     {

@@ -1,0 +1,31 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -19,8 +19,8 @@
+ 
+   (
+     cd ui
+-    corepack install
+-    corepack pnpm install --frozen-lockfile
++    # Use the packaged pnpm; Corepack's downloaded binary has no riscv64 build.
++    pnpm --pm-on-fail=ignore install --frozen-lockfile --no-runtime
+   )
+ 
+   export GOPATH="${srcdir}"
+@@ -32,7 +32,7 @@
+ 
+   (
+     cd ui
+-    ARGO_VERSION="$pkgver" NODE_ENV='production' NODE_ONLINE_ENV='online' corepack pnpm run build
++    ARGO_VERSION="$pkgver" NODE_ENV='production' NODE_ONLINE_ENV='online' pnpm --pm-on-fail=ignore run build
+   )
+ 
+   export CGO_CPPFLAGS="${CPPFLAGS}"
+@@ -59,6 +59,8 @@
+   ./argocd completion zsh > argocd.zsh
+ }
+ 
++makedepends=(${makedepends[@]/corepack/pnpm} nodejs)
++
+ package() {
+   cd "argo-cd-$pkgver"
+ 

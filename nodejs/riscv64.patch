@@ -1,16 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -57,6 +57,32 @@
-   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
-   CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-   CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
-+  # https://github.com/riscv-forks/electron/issues/7
-+  export CC=/usr/bin/clang
-+  export CXX=/usr/bin/clang++
-+}
-+
-+prepare() {
-+  cd node
+@@ -62,12 +62,34 @@
+ 
+   # Adjust test expectations for OpenSSL 4.x.
+   git cherry-pick -n c61ba86ed02dc0c80c51b9333d3fe9e3e4e2f887
 +
 +  # Fix truncated RISC-V lazy-compilation jumps in large Wasm modules.
 +  patch -Np1 -d deps/v8 -i "$srcdir/v8-wasm-lazy-jump.patch"
@@ -32,8 +25,17 @@
 +  sed -i 's/concurrency = Math.min(10, concurrency);/concurrency = Math.min(2, concurrency);/' test/common/wpt.js
  }
  
+ _set_flags() {
+   # /usr/lib/libnode.so uses malloc_usable_size, which is incompatible with fortification level 3
+   CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
+   CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
++  # https://github.com/riscv-forks/electron/issues/7
++  export CC=/usr/bin/clang
++  export CXX=/usr/bin/clang++
+ }
+ 
  build() {
-@@ -106,7 +132,11 @@
+@@ -121,7 +143,11 @@
    # https://github.com/nodejs/node/issues/63914
    rm test/parallel/test-snapshot-reproducible.js
  
@@ -46,7 +48,7 @@
  }
  
  package() {
-@@ -116,4 +146,18 @@
+@@ -131,4 +157,18 @@
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname
  }
  

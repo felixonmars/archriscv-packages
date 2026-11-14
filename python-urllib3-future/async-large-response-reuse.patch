@@ -1,0 +1,56 @@
+--- a/test/with_dummyserver/asynchronous/test_socketlevel.py
++++ b/test/with_dummyserver/asynchronous/test_socketlevel.py
+@@ -78,12 +78,19 @@
+         ],
+     )
+     async def test_requesting_large_resources_via_ssl(
+-        self, content_length: int, preload_content: bool, read_amt: int | None
++        self,
++        request: pytest.FixtureRequest,
++        content_length: int,
++        preload_content: bool,
++        read_amt: int | None,
+     ) -> None:
+         # Async counterpart of TestSSL.test_requesting_large_resources_via_ssl.
+         # A small body with an oversized read also exercises the Python <3.10 guard.
+         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+         context.load_cert_chain(DEFAULT_CERTS["certfile"], DEFAULT_CERTS["keyfile"])
++        reuse_ready = Event()
++        # Release the server even if body validation fails.
++        request.addfinalizer(reuse_ready.set)
+ 
+         def socket_handler(listener: socket.socket) -> None:
+             listener.settimeout(30)
+@@ -92,6 +99,9 @@
+                 with context.wrap_socket(sock, server_side=True) as ssl_sock:
+                     with ssl_sock.makefile("rb") as requests:
+                         for length in (content_length, 5):
++                            if length == 5:
++                                # Body assembly and validation are not socket I/O.
++                                reuse_ready.wait()
+                             while True:
+                                 line = requests.readline()
+                                 if not line:
+@@ -111,7 +121,13 @@
+ 
+         self._start_server(socket_handler)
+         async with AsyncHTTPSConnectionPool(
+-            self.host, self.port, ca_certs=DEFAULT_CA, retries=False, timeout=30
++            self.host,
++            self.port,
++            ca_certs=DEFAULT_CA,
++            retries=False,
++            timeout=30,
++            # Reuse must survive transfers longer than the ten-minute default.
++            keepalive_delay=None,
+         ) as pool:
+             response = await pool.request("GET", "/", preload_content=preload_content)
+             assert response.status == 200
+@@ -129,6 +145,7 @@
+             buffer = bytearray(b"untouched")
+             assert await response.readinto(buffer) == 0
+             assert buffer == b"untouched"
++            reuse_ready.set()
+             response = await pool.request("GET", "/again")
+             assert response.status == 200
+             assert await response.data == b"Hello"

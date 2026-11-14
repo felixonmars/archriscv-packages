@@ -1,9 +1,17 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -17,6 +17,23 @@
+@@ -17,6 +17,31 @@
  
  prepare() {
    cd monty
++  # A successful checkout also proves capacity was released during mock shutdown.
++  patch -Np1 -i ../fix-wedged-socket-test.patch
++  # Type checking can exhaust this protocol test's 1s CPU budget on riscv64.
++  # Keep a finite wall deadline longer than the relaxed CPU budget.
++  sed -i '/fn invalid_typed_stub_answers_keep_the_feed_suspended()/,/^}/ {
++    s/limits(1000)/limits(5000)/
++    s/supervised(monty_binary())/PoolConfig { request_timeout: Some(Duration::from_secs(10)), ..supervised(monty_binary()) }/
++  }' crates/monty-pool/tests/support/cpu_limits.rs
 +  # CSV setup can exhaust 50 ms before the replay timeout is exercised on riscv64.
 +  sed -i '/fn csv_dict_reader_replay_counts_toward_time_limit()/,/^}/ {
 +    s/from_millis(50)/from_millis(500)/
@@ -24,3 +32,10 @@
    # pytest 9.1 deprecates generators passed to parametrize.
    sed -i 's/find_examples(\*paths)/list(find_examples(*paths))/' \
      crates/monty-python/tests/test_readme_examples.py
+@@ -89,3 +114,6 @@
+   python -m installer --destdir="$pkgdir" target/wheels/pydantic_monty_runtime-*.whl
+   install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+ }
++
++source+=("fix-wedged-socket-test.patch::https://github.com/pydantic/monty/commit/86c9b4970ea7cd5c64fe804b370631018cc1e8c5.patch?full_index=1")
++sha512sums+=('60234a4c53b92d1699a70adcaf99384c7cb603941ed1bf75c2018f34cb0be506ba557e33b2c90b05036faf3645144b57dc56f04daf88cd8ff74b7dd7f143cccc')

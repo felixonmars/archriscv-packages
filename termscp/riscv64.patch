@@ -1,0 +1,12 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -23,6 +23,9 @@
+ 
+ prepare() {
+   cd "$pkgname"
++  # The self-update integration test requires an upstream riscv64 release binary.
++  sed -i '/^    fn auto_update() {/i\    #[ignore = "No upstream riscv64 release binary"]' \
++    src/system/auto_update.rs
+   cargo fetch --target "$(rustc --print host-tuple)" # --locked
+ }
+ 

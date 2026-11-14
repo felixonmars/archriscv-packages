@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -39,6 +39,8 @@
+@@ -33,14 +33,37 @@
  
  prepare() {
    cd $pkgname
@@ -9,3 +9,43 @@
    bun install --cwd desktop --frozen-lockfile
  
    CARGO_HOME="$srcdir/cargo-home" \
+     cargo fetch --locked --target "$(rustc --print host-tuple)"
++
++  cd "$srcdir/rolldown-1.2.16"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.33.0"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
+ }
+ 
+ build() {
+-  cd $pkgname
++  # Vite's Rolldown and Lightning CSS dependencies do not ship RISC-V bindings.
++  cd rolldown-1.2.16
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++  install -m755 target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so \
++    "$srcdir/$pkgname/desktop/node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node"
++
++  cd "$srcdir/lightningcss-1.33.0"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo build --frozen --release -p lightningcss_node --target riscv64gc-unknown-linux-gnu
++  install -m755 target/riscv64gc-unknown-linux-gnu/release/liblightningcss_node.so \
++    "$srcdir/$pkgname/desktop/node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node"
++
++  cd "$srcdir/$pkgname"
+ 
+   bun run --cwd desktop build
+ 
+@@ -73,3 +96,9 @@
+     install -Dm644 "$mo" "$pkgdir/usr/share/locale/$lang/LC_MESSAGES/clamui.mo"
+   done
+ }
++
++makedepends+=(cmake)
++source+=('rolldown-1.2.16.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.16.tar.gz'
++         'lightningcss-1.33.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.33.0.tar.gz')
++b2sums+=('24132c8bb449f8136bbcc9b95625a1802ed4b19200741986e06cf8a16201b4c1aef97c58e394fc1a59ad38450f338e7136c90fff81d447a39699868251b27c84'
++         '67afeb5bd96b59cdf7702bf4198e00b48809028efbcd17b36e24df5e1717fd2a3804a476a4746b098fffbc13366a8e60097691a04278bc751b341f028c68f1b8')

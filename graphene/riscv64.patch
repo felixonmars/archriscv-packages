@@ -1,0 +1,22 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -35,6 +35,11 @@
+ prepare() {
+   cd graphene
+ 
++  # Use compiler-compatible vector shuffles in public headers.
++  patch -Np1 -i "$srcdir/clang-vector-intrinsics.patch"
++  # Aro supports Clang's shuffle builtin but does not define __clang__.
++  sed -i 's/^#if defined(__clang__)$/#if defined(__clang__) || defined(__ARO_EMULATE__)/' include/graphene-simd4f.h
++
+   # Don't install tests
+   git cherry-pick -n f89522ca60a76512b8b85c7b8e4d16b94849f22f
+ 
+@@ -76,4 +81,7 @@
+   install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 graphene/LICENSE.txt
+ }
+ 
++source+=("clang-vector-intrinsics.patch::https://github.com/ebassi/graphene/commit/1a4430f448e0fcc8188cfe9323f1a688d0486eae.patch")
++b2sums+=('41cf9f477e0ce34effa8119a679484effb00eb462ea567ac552025485c4694c823bf06c6d2681e2700dfbbedf3a3bfac18ee3ee9c015876f73e5aa8ef86947e0')
++
+ # vim:set sw=2 et:

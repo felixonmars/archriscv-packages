@@ -1,25 +1,33 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -64,2 +64,12 @@
+@@ -58,9 +58,12 @@
  
-+prepare() {
-+  cd "${_name}"
-+
+ prepare() {
+   cd "${_name}"
+-  # Run Steady with the packaged Node.js; upstream's launcher requires exactly 22.22.3.
+-  sed -i 's|node scripts/utils/node-tooling.cjs steady|npm exec --package=@stdy/cli@0.22.1 -- steady|' \
 +  # Steady's npm package has no riscv64 binary; run the same release from source.
-+  sed -i 's|npm exec --package=@stdy/cli@0.22.1 -- steady|deno run -A --config=../steady-0.22.1/deno.json ../steady-0.22.1/cmd/steady.ts|g' scripts/mock
++  sed -i 's|node scripts/utils/node-tooling.cjs steady|deno run -A --config=../steady-0.22.1/deno.json ../steady-0.22.1/cmd/steady.ts|' \
+     scripts/run-steady
 +
 +  # Allow more time for mTLS example subprocesses on slow builders.
 +  sed -i 's/timeout=15,/timeout=60,/' tests/test_mtls_http_client.py
-+}
-+
+ }
+ 
  build() {
-@@ -76,4 +86,3 @@
+@@ -75,8 +78,7 @@
+   export PYTHONPATH="$PWD/tmp_install/${site_packages}"
+ 
    # Start mock server and make sure it's cleaned up on exit
 -  export npm_config_yes=true
 -  trap 'pkill "npm exec steady"' EXIT
 +  trap 'pkill -f "^deno run .*steady"' EXIT
    ./scripts/mock --daemon
-@@ -97 +106,5 @@
+ 
+   # Randomly generated mock API key
+@@ -98,3 +100,7 @@
+   install -vDm644 src/openai/_vendor/httpx_aiohttp/LICENSE \
+     "${pkgdir}/usr/share/licenses/${pkgname}/httpx-aiohttp-LICENSE"
  }
 +
 +checkdepends=("${checkdepends[@]/npm/deno}")
