@@ -1,0 +1,61 @@
+Compare percent-encoded hex digits case-insensitively, as proposed upstream.
+https://github.com/curl/trurl/issues/440
+https://github.com/curl/trurl/pull/441
+
+--- a/test.py
++++ b/test.py
+@@ -26,6 +26,7 @@
+ import sys
+ from os import getcwd, path
+ import json
++import re
+ import shlex
+ from subprocess import PIPE, run, Popen
+ from dataclasses import dataclass, asdict
+@@ -50,7 +51,18 @@
+     stderr: str
+ 
+ 
+-def testComponent(value, exp):
++def normalize_percent_hex(value):
++    # libcurl versions differ in the case of percent-encoded hex digits.
++    if isinstance(value, str):
++        return re.sub(r"%[0-9a-fA-F]{2}", lambda match: match.group().upper(), value)
++    if isinstance(value, list):
++        return [normalize_percent_hex(item) for item in value]
++    if isinstance(value, dict):
++        return {key: normalize_percent_hex(item) for key, item in value.items()}
++    return value
++
++
++def testComponent(value, exp, component):
+     if isinstance(exp, bool):
+         result = value == 0 or value not in ("", [])
+         if exp:
+@@ -58,6 +70,8 @@
+         else:
+             return not result
+ 
++    if component == "stdout":
++        return normalize_percent_hex(value) == normalize_percent_hex(exp)
+     return value == exp
+ 
+ # checks if valgrind is installed
+@@ -130,7 +144,7 @@
+         # return true only if stdout, stderr and errorcode
+         # are equal to the ones found in the testfile
+         self.testPassed = all(
+-            testComponent(asdict(self.commandOutput)[k], exp)
++            testComponent(asdict(self.commandOutput)[k], exp, k)
+             for k, exp in self.expected.items())
+         return self.testPassed
+ 
+@@ -140,7 +154,7 @@
+         for component, exp in self.expected.items():
+             value = asdict(self.commandOutput)[component]
+             itemFail = self.commandOutput.returncode == 1 or \
+-                not testComponent(value, exp)
++                not testComponent(value, exp, component)
+ 
+             print(f"--- {component} --- ", file=output)
+             print("expected:", file=output)
