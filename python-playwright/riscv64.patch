@@ -1,27 +1,61 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,10 +38,12 @@
+@@ -49,12 +49,41 @@
  
- prepare() {
--  zip -qr playwright-$pkgver-linux.zip package
-+  zip -qr playwright-$pkgver-linux-riscv64.zip package
- 
-   cd $_name
-+  # Upstream has no riscv64 driver bundle, but Arch uses system node.
-+  patch -Np1 -i ../add-riscv64-wheel-support.patch
-   sed -e 's|==.*\"|"|' -i pyproject.toml # Drop dependency version constraints
--  sed -e "s|driver_version = \".*\"|driver_version = \"$pkgver\"|" -i setup.py
--  install -Dm644 "$srcdir"/playwright-$pkgver-linux.zip -t driver
-+  printf '%s\n' "$pkgver" > DRIVER_VERSION
-+  install -Dm644 "$srcdir"/playwright-$pkgver-linux-riscv64.zip -t driver
+   mv ../playwright .upstream
+   git -C .upstream checkout $(cat DRIVER_VERSION)
++  cd .upstream
++  npm ci --no-audit --no-fund
++
++  cd "$srcdir/rolldown-1.1.5"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.32.0"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
  }
  
-@@ -64,5 +66,7 @@
+ build() {
+-  cd $_name
++  # Vite's Rolldown and Lightning CSS dependencies do not ship RISC-V bindings.
++  cd rolldown-1.1.5
++  CARGO_HOME="$srcdir/cargo-home" CFLAGS="$CFLAGS -ffat-lto-objects" \
++    cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.32.0"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo build --frozen --release -p lightningcss_node --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/$_name/.upstream"
++  install -m755 "$srcdir/rolldown-1.1.5/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so" \
++    node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
++  install -m755 "$srcdir/lightningcss-1.32.0/target/riscv64gc-unknown-linux-gnu/release/liblightningcss_node.so" \
++    node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
++  npm run build
++  # Record the completed driver build so upstream reuses our native bindings.
++  cat ../DRIVER_VERSION > node_modules/.playwright-python-build
++
++  cd ..
++  # Build the wheel from an sdist to use the portable driver without bundled Node.js.
+   SETUPTOOLS_SCM_PRETEND_VERSION="$pkgver" \
+-  python -m build --wheel --no-isolation
++  python -m build --no-isolation
+ }
  
- # Replace bundled node with system one
+ # Testing is utterly broken
+@@ -68,7 +97,12 @@
+   cd $_name
+   python -m installer --destdir="$pkgdir" dist/*.whl
+ 
+-# Replace bundled node with system one
 -  rm "$pkgdir"/usr/lib/python*/site-packages/playwright/driver/node
++  # Use system node for the portable driver.
    ln -s /usr/bin/node -t "$pkgdir"/usr/lib/python*/site-packages/playwright/driver/
  }
 +
-+source+=(add-riscv64-wheel-support.patch)
-+sha256sums+=('44985d33720b29ed9ae1a1b3c09330c4ff78a06270cc9eba49679a3ad096599a')
++makedepends+=(rust cmake)
++source+=('rolldown-1.1.5.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.1.5.tar.gz'
++         'lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz')
++sha256sums+=('2042204fda63956408dc102dd5cf5577368077ed70f9bce68474ed983c779879'
++             'ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9')
