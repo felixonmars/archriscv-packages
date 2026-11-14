@@ -1,0 +1,88 @@
+--- a/python/tests/cli/test_snapshot.py
++++ b/python/tests/cli/test_snapshot.py
+@@ -88,7 +88,7 @@
+     docket.heartbeat_interval = heartbeat
+ 
+     # Use tasks.sleep for CLI tests since the subprocess needs importable tasks
+-    execution = await docket.add(tasks.sleep)(5)
++    execution = await docket.add(tasks.sleep)(15)
+ 
+     # This test cancels worker mid-execution, leaving incomplete tasks
+     key_leak_checker.add_exemption(f"{docket.name}:runs:{execution.key}")
+@@ -122,13 +122,14 @@
+     heartbeat = timedelta(milliseconds=20)
+     docket.heartbeat_interval = heartbeat
+ 
+-    future = datetime.now(timezone.utc) + timedelta(seconds=5)
++    # Keep the task mix stable while the CLI starts on slower builders.
++    future = datetime.now(timezone.utc) + timedelta(seconds=30)
+     execution1 = await docket.add(tasks.trace, when=future)("hi!")
+ 
+     # Use tasks.sleep for CLI tests since the subprocess needs importable tasks
+     executions: list[Execution] = []
+     for _ in range(5):
+-        executions.append(await docket.add(tasks.sleep)(4))
++        executions.append(await docket.add(tasks.sleep)(15))
+ 
+     # This test cancels worker mid-execution, leaving incomplete tasks
+     key_leak_checker.add_exemption(f"{docket.name}:runs:{execution1.key}")
+@@ -224,8 +225,8 @@
+     heartbeat = timedelta(milliseconds=20)
+     docket.heartbeat_interval = heartbeat
+ 
+-    # Add multiple tasks of different types
+-    future = datetime.now(timezone.utc) + timedelta(seconds=5)
++    # Keep the task mix stable while the CLI starts on slower builders.
++    future = datetime.now(timezone.utc) + timedelta(seconds=30)
+     await docket.add(tasks.trace, when=future, key="trace-1")("hi!")
+     await docket.add(tasks.trace, when=future, key="trace-2")("hello!")
+ 
+@@ -235,7 +236,7 @@
+ 
+     # Use tasks.sleep for CLI tests since the subprocess needs importable tasks
+     for i in range(3):
+-        await docket.add(tasks.sleep, key=f"sleep-{i}")(4)
++        await docket.add(tasks.sleep, key=f"sleep-{i}")(15)
+         key_leak_checker.add_exemption(f"{docket.name}:runs:sleep-{i}")
+ 
+     async with Worker(docket, name="test-worker", concurrency=2) as worker:
+@@ -311,8 +312,8 @@
+ 
+     # Add tasks that will be picked up immediately by worker
+     # Use tasks.sleep for CLI tests since the subprocess needs importable tasks
+-    await docket.add(tasks.sleep)(5)
+-    await docket.add(tasks.sleep)(5)
++    await docket.add(tasks.sleep)(15)
++    await docket.add(tasks.sleep)(15)
+ 
+     async with Worker(docket, name="test-worker", concurrency=2) as worker:
+         worker_running = asyncio.create_task(worker.run_until_finished())
+--- a/python/tests/cli/test_clear.py
++++ b/python/tests/cli/test_clear.py
+@@ -177,7 +177,7 @@
+     result = await run_cli(
+         "clear",
+         "--url",
+-        "redis://nonexistent:12345/0",
++        "redis://127.0.0.1:12345/0",
+         "--docket",
+         "test-docket",
+     )
+--- a/python/tests/cli/test_watch.py
++++ b/python/tests/cli/test_watch.py
+@@ -109,12 +109,12 @@
+             docket.url,
+             "--docket",
+             docket.name,
+-            timeout=10.0,
++            timeout=25.0,
+         )
+     )
+ 
+-    # Wait for watch to subscribe (deterministic synchronization)
+-    await wait_for_watch_subscribed(docket, "slower-task")
++    # Allow for CLI startup on slower builders before releasing the task.
++    await wait_for_watch_subscribed(docket, "slower-task", timeout=15.0)
+ 
+     # Signal task it can complete now
+     async with docket.redis() as redis:
