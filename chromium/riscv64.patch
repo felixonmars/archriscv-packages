@@ -1,15 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -132,7 +132,7 @@
- 
- if (( _manual_clone )); then
-   source[0]=fetch-chromium-release
--  sha256sums[0]='2e2f36e3cd1ebc4ad57fd310774a5e5e9db77883d5f9374fedeaabd3c103b819'
-+  sha256sums[0]='8c813ca28588154d0121c97a47ec1ae756765e9d6b739be1cd67fe42ef14ed61'
-   makedepends+=('python-httplib2' 'python-pyparsing' 'python-six' 'npm' 'rsync')
- fi
- 
-@@ -205,14 +205,16 @@
+@@ -211,14 +211,16 @@
    # runtime -- this allows signing into Chromium without baked-in values
    patch -Np1 -i ../use-oauth2-client-switches-as-default.patch
  
@@ -29,13 +20,14 @@
    # Increase _FORTIFY_SOURCE level to match Arch's default flags
    patch -Np1 -i ../increase-fortify-level.patch
  
-@@ -268,15 +270,19 @@
+@@ -275,17 +277,21 @@
    mkdir -p third_party/node/linux/node-linux-x64/bin \
             third_party/jdk/current/bin \
             third_party/rust-toolchain/bin \
--           third_party/dawn/tools/golang/linux-amd64/bin
+-           third_party/dawn/tools/golang/linux-amd64/bin \
 +           third_party/gperf/cipd/bin \
-+           third_party/dawn/tools/golang/linux-riscv64/bin
++           third_party/dawn/tools/golang/linux-riscv64/bin \
+            third_party/rust-toolchain/crubit/lib/third_party/
  
    ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
    ln -s /usr/bin/java third_party/jdk/current/bin/
@@ -43,6 +35,7 @@
    if (( !_manual_clone )); then
      ln -s /usr/bin/rustc third_party/rust-toolchain/bin/
 -    ln -s /usr/bin/go third_party/dawn/tools/golang/linux-amd64/bin/
+     ln -s "$srcdir/crubit" third_party/rust-toolchain/crubit/lib/third_party/crubit
    fi
  
 +  # Let V8 metagen fall back to system GN instead of the bundled x86_64 binary.
@@ -51,7 +44,17 @@
    # remove x86_64 binary and use our own
    rm -f third_party/gperf/cipd/bin/gperf
    ln -s /usr/bin/gperf third_party/gperf/cipd/bin/
-@@ -511,4 +517,13 @@
+@@ -458,7 +464,8 @@
+     _rustc_libs="$_rust_sysroot/lib/rustlib/$(rustc --print host-tuple)/lib"
+     export CARGO_TARGET_DIR=target
+     export RUSTC_BOOTSTRAP=1
+-    export RUSTFLAGS+=" -Clink-args=-Wl,-z,origin -Clink-args=-Wl,-rpath,$_rustc_libs"
++    # The rustup toolchain defaults to BFD, which rejects --icf=safe.
++    export RUSTFLAGS+=" -Clink-arg=-fuse-ld=lld -Clink-args=-Wl,-z,origin -Clink-args=-Wl,-rpath,$_rustc_libs"
+     cargo build --frozen --release -p cc_bindings_from_rs --bin cc_bindings_from_rs
+     install -Dm755 -t ../chromium-$pkgver/third_party/rust-toolchain/crubit/bin/ target/release/cc_bindings_from_rs
+   )
+@@ -541,4 +548,16 @@
    install -Dvm644 LICENSE "$pkgdir/usr/share/licenses/chromium/LICENSE"
  }
  
@@ -62,7 +65,10 @@
 +sha256sums+=('2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
 +             'c7b09bddcadbd341c47c4ec90176a1437efcb32f19e10f2ce7f490fe485e9e81'
 +             '3bdbff7bf9e831ee5f6005fb5e9e6743fc1c8f8a2492f7e2fe692b64aa29ad50'
-+             '1c4f34675ed826bff5eff7ee8a3d3004c2a7842072b931526f26debd040b96bb')
++             'd96ac5d391dce6aed31824086ec41ac7012e69e19602ff9ad45e9e0f1e6a19cf')
++if (( _manual_clone )); then
++  sha256sums[0]='8c813ca28588154d0121c97a47ec1ae756765e9d6b739be1cd67fe42ef14ed61'
++fi
 +
  # vim:set ts=2 sw=2 et:
 --- fetch-chromium-release
