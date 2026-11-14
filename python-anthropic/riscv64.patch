@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -70,7 +70,7 @@
+   test-env/bin/python -m installer dist/*.whl
+ 
+   trap 'kill $(lsof -t -i tcp:4010 -sTCP:LISTEN)' EXIT
+-  npm_config_yes=true ./scripts/mock --daemon
++  ./scripts/mock --daemon
+ 
+   DEFER_PYDANTIC_BUILD=false test-env/bin/python -m pytest
+ }
+@@ -82,3 +82,14 @@
+   install -Dm644 src/anthropic/_vendor/httpx_aiohttp/LICENSE \
+     "$pkgdir/usr/share/licenses/$pkgname/LICENSE-httpx-aiohttp"
+ }
++
++prepare() {
++  cd anthropic-sdk-python
++  # Steady's npm package has no riscv64 binary; run the same release from source.
++  sed -i 's|npm exec --package=@stdy/cli@0.22.2 -- steady|deno run -A --config=../steady-0.22.2/deno.json ../steady-0.22.2/cmd/steady.ts|g' scripts/mock
++}
++
++checkdepends=(${checkdepends[@]/nodejs/})
++checkdepends=("${checkdepends[@]/npm/deno}")
++source+=("steady-0.22.2.tar.gz::https://github.com/dgellow/steady/archive/refs/tags/v0.22.2.tar.gz")
++sha256sums+=('a505e45569913f77b2202dcd7e23883522221d03275e47b896491017dfa16f77')
