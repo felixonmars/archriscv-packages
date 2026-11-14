@@ -1,0 +1,24 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -21,7 +21,20 @@
+ 
+ prepare() {
+   cd $pkgname
+-  uv sync
++  cat >> pyproject.toml <<'EOF'
++
++# cffsubr uses the distutils dry_run API removed in setuptools 81.
++# Build constraints also apply when uv resolves dynamic build requirements.
++[tool.uv]
++build-constraint-dependencies = ["setuptools<81"]
++
++# scikit-build's unnamed AFDKO distribution cannot use the per-project override.
++[tool.uv.extra-build-variables.cffsubr]
++SETUPTOOLS_SCM_PRETEND_VERSION = "0.4.0"
++EOF
++  # Use the booleanOperations fallback because skia-pathops's GN downloader has no riscv64 support.
++  sed -i '/"skia-pathops>=/d' pyproject.toml
++  uv sync --upgrade-package openstep-plist==0.5.2
+ }
+ 
+ build() (
