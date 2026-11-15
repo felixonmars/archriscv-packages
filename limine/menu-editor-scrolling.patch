@@ -1,0 +1,19 @@
+--- a/checks/cases/menu_edges.py
++++ b/checks/cases/menu_edges.py
+@@ -160,11 +160,14 @@
+     t.check('comment line 59' not in screen_text(scr), 'the last line out of view')
+     bottom = [row for row in scr.lines() if '┘' in row]
+     t.check(bottom and '↓' in bottom[0], 'more below: ↓ in the bottom of the frame')
+-    m.press(*['down'] * 70, delay=0.06)
++    # QEMU holds each key for 100 ms. Under load, the BIOS keyboard buffer
++    # drops overlapping presses, so leave a guest-sized gap between them.
++    key_delay = 0.15 * t.port.timeout_scale if t.port.name == 'bios' else 0.06
++    m.press(*['down'] * 70, delay=key_delay)
+     scr = t.wait_text(m, 'comment line 59')
+     top = [row for row in scr.lines() if '┐' in row]
+     t.check(top and '↑' in top[0], 'more above: ↑ in the top of the frame')
+-    m.press(*['up'] * 70, delay=0.06)
++    m.press(*['up'] * 70, delay=key_delay)
+     scr = t.wait_text(m, 'cmdline: scrolled')
+     m.press('f10')
+     t.expect_eq(booted_cmdline(t, m), 'scrolled', 'booted unchanged')
