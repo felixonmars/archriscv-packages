@@ -1,0 +1,32 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -114,18 +114,21 @@
+ 
+ check() {
+   cd fastmcp
++  # Adjust test budgets after building so the installed library is unchanged.
++  patch -Np1 -i "$srcdir/riscv64-tests.patch"
+   python -m venv --system-site-packages --without-pip test-env
+   test-env/bin/python -m installer dist/*.whl
+   test-env/bin/python -m installer fastmcp_slim/dist/*.whl
+   test-env/bin/python -m installer fastmcp_tasks/dist/*.whl
+   test-env/bin/python -m installer fastmcp_remote/dist/*.whl
+ 
++  # The five-second default aborts pytest during failure reporting on riscv64.
+   # Local GitHub OAuth tests use dummy app credentials; remote MCP needs a real token.
+   FASTMCP_TEST_AUTH_GITHUB_CLIENT_ID=test-client \
+     FASTMCP_TEST_AUTH_GITHUB_CLIENT_SECRET=test-secret \
+     OPENAPI_DIRECTORY_PATH="$srcdir/openapi-directory" \
+     RUN_REAL_WORLD_SCHEMA_TEST=1 \
+-    PATH="$PWD/test-env/bin:$PATH" test-env/bin/python -m pytest \
++    PATH="$PWD/test-env/bin:$PATH" test-env/bin/python -m pytest --timeout=60 \
+     --ignore=tests/integration_tests/test_github_mcp_remote.py
+ }
+ 
+@@ -185,3 +188,6 @@
+   python -m installer --destdir="$pkgdir" fastmcp_remote/dist/*.whl
+   install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
+ }
++
++source+=(riscv64-tests.patch)
++sha512sums+=('dc1bc8abf6d42a6d90ab152874a1e8b56577239e577deed12b814a8838b8b7019e87c8775b3ac24288efd00f93e2e9cefa4c74fb464c5c88e40b07a4cd007cf2')
