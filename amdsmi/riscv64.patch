@@ -1,20 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -52,6 +52,9 @@
+@@ -53,6 +53,11 @@
  
-   patch -Np1 -i "$srcdir"/gcc15-missing-include.patch
-   patch -Np1 -i "$srcdir"/165.patch
+   # HACK from Fedora's spec: Replace git tag with version of our tar archive
+   sed -i "s/NOT latest_esmi_tag/NOT esmi_pkg_ver-$_esmi_ver/" CMakeLists.txt
 +
 +  # The Go shim calls CPU APIs unavailable with ESMI disabled.
 +  sed -i '/^add_subdirectory(goamdsmi_shim)$/d' CMakeLists.txt
++
++  patch -Np1 -i "$srcdir/nic-permaddr-alignment.patch"
  }
  
  build() {
-@@ -62,6 +65,7 @@
-     -D CMAKE_INSTALL_PREFIX=/opt/rocm
-     -D CMAKE_BUILD_TYPE=None
-     -D BUILD_TESTS=OFF
-+    -D ENABLE_ESMI_LIB=OFF
-   )
-   cmake "${cmake_args[@]}"
-   cmake --build build
+@@ -83,3 +88,6 @@
+   # cmake also installs python package under share.
+   rm -r "${pkgdir}"/opt/rocm/share/amd_smi
+ }
++
++source+=(nic-permaddr-alignment.patch)
++sha256sums+=('a203f7664549d76329e3bbe0da8d503b33bcc4c171dd51bc5be29fe5764fd4f1')
