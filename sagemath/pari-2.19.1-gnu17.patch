@@ -1,0 +1,17 @@
+PARI 2.19.1 exposes sigjmp_buf only when POSIX feature-test macros are
+enabled. Use GNU C17 so glibc provides those types, matching upstream
+cypari2:
+https://github.com/sagemath/cypari2/commit/9a4b86bd384092c51cfcc373f60bb0f4b709efa1
+
+--- a/meson.build
++++ b/meson.build
+@@ -3,7 +3,8 @@
+   ['c', 'cpp', 'cython'],
+   version: files('VERSION.txt'),
+   license: 'GPL v3',
+-  default_options: ['c_std=c17', 'cpp_std=c++17', 'python.install_env=auto'],
++  # PARI headers require POSIX types hidden by strict ISO C modes.
++  default_options: ['c_std=gnu17', 'cpp_std=c++17', 'python.install_env=auto'],
+   meson_version: '>=1.11.2',
+ )
+ 
