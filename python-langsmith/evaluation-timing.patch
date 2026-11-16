@@ -1,19 +1,20 @@
 --- a/tests/unit_tests/evaluation/test_runner.py
 +++ b/tests/unit_tests/evaluation/test_runner.py
-@@ -112,10 +112,11 @@
+@@ -103,9 +103,12 @@
                  return response
              elif endpoint == "http://localhost:1984/runs/query":
                  res = MagicMock()
 +                # Background uploads can add runs while the query filters them.
                  res.json.return_value = {
                      "runs": [
-                         r
--                        for r in self.runs.values()
+-                        r for r in self.runs.values() if r["trace_id"] == r["id"] and r.get("reference_example_id")
++                        r
 +                        for r in self.runs.copy().values()
-                         if r["trace_id"] == r["id"] and r.get("reference_example_id")
++                        if r["trace_id"] == r["id"] and r.get("reference_example_id")
                      ]
                  }
-@@ -434,17 +435,23 @@
+                 return res
+@@ -402,17 +405,23 @@
      def predict(inputs: dict) -> dict:
          nonlocal locked
          nonlocal slow_index
@@ -47,7 +48,7 @@
              ordering_of_stuff.append("predict")
          return {"output": inputs["in"] + 1}
  
-@@ -570,8 +577,7 @@
+@@ -535,8 +544,7 @@
      else:
          assert not fake_request.created_session
  
@@ -57,7 +58,7 @@
      assert slow_index == (len(evaluators) + 1) * (N_PREDS - 1)
  
      if upload_results:
-@@ -730,17 +736,24 @@
+@@ -691,17 +699,24 @@
          nonlocal locked
          nonlocal slow_index
  
@@ -92,17 +93,18 @@
              ordering_of_stuff.append("predict")
          return {"output": inputs["in"] + 1}
  
-@@ -837,7 +850,8 @@
+@@ -796,8 +811,8 @@
              deltas.append((now - last))
              last = now
          total = now - start  # type: ignore
--        assert 3.3 > total > 1.5
+-        # Upper bound only guards against serialized streaming; shared CI runners jitter.
+-        assert 4.0 > total > 1.5
 +        # Include the bounded wait for other evaluations on slower builders.
 +        assert 40 > total > 1.5
  
          # Essentially we want to check that most calls were very fast.
          assert len(deltas) == SPLIT_SIZE * NUM_REPETITIONS
-@@ -868,8 +882,7 @@
+@@ -825,8 +840,7 @@
          # Want it to be interleaved
          assert ordering_of_stuff[:N_PREDS] != ["predict"] * N_PREDS
          assert slow_index is not None
