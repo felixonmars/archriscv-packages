@@ -1,13 +1,24 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -16,7 +16,10 @@
+@@ -16,7 +16,11 @@
  prepare() {
    cd "$pkgname-$pkgver"
++  patch -Np1 -i "$srcdir/use-core-geometry-function.patch"
    sed -i '/^duckdb =/s/"bundled"/"buildtime_bindgen"/' Cargo.toml
-+  sed -i '/^DUCKDB_DOWNLOAD_LIB/d' .cargo/config.toml
++  sed -i 's/^DUCKDB_DOWNLOAD_LIB = .*/DUCKDB_DOWNLOAD_LIB = "0"/' .cargo/config.toml
    cargo fetch --target "$(rustc --print host-tuple)"
 +  sed -i 's@duckdb/duckdb.h@duckdb.h@' \
 +    "${CARGO_HOME:-$HOME/.cargo}"/registry/src/*/libduckdb-sys-*/wrapper.h
  }
  
  build() {
+@@ -34,6 +38,9 @@ package() {
+   install -Dm 755 "target/release/$pkgname" -t "$pkgdir/usr/bin"
+   install -Dm 644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
+   install -Dm 644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+ }
+ 
++source+=(use-core-geometry-function.patch)
++sha512sums+=('f105d5af9c0fdbeb8a22a7ec662eab64374c221b63bd26fc2a4094559e89935ea3c4f67f8f7a929a397904061276a1e5a7257e25623afd451f3eb02da4c3f01d')
++
+ # vim:set ts=2 sw=2 et:
