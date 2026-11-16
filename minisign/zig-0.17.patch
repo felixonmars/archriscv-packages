@@ -1,0 +1,262 @@
+--- a/build.zig
++++ b/build.zig
+@@ -1,3 +1,4 @@
++const builtin = @import("builtin");
+ const std = @import("std");
+ 
+ pub fn build(b: *std.Build) !void {
+@@ -9,41 +10,70 @@ pub fn build(b: *std.Build) !void {
+ 
+     const minisign = b.addExecutable(.{
+         .name = "minisign",
+-        .target = target,
+-        .optimize = optimize,
+-        .strip = true,
+-    });
+-    minisign.linkLibC();
+-    if (use_libzodium) {
+-        const libzodium_mod = b.createModule(.{
+-            .root_source_file = b.path("src/libzodium.zig"),
++        .root_module = b.createModule(.{
+             .target = target,
+             .optimize = optimize,
+-        });
+-        const libzodium = b.addStaticLibrary(.{
+-            .name = "zodium",
+-            .root_module = libzodium_mod,
+-            .strip = true,
+-        });
+-        libzodium.linkLibC();
++            .link_libc = true,
++        }),
++    });
++
++    if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 15) {
++        @compileError("Building requires Zig 0.15.1 or later");
++    }
++
++    // fix Mach-O relocation
++    minisign.headerpad_max_install_names = true;
++
++    if (use_libzodium) {
++        const libzodium = lib: {
++            break :lib b.addLibrary(.{
++                .name = "zodium",
++                .root_module = b.createModule(.{
++                    .root_source_file = b.path("src/libzodium.zig"),
++                    .target = target,
++                    .optimize = optimize,
++                    .link_libc = true,
++                }),
++            });
++        };
+         b.installArtifact(libzodium);
+         minisign.root_module.addCMacro("LIBZODIUM", "1");
+-        minisign.linkLibrary(libzodium);
++        minisign.root_module.linkLibrary(libzodium);
+     } else {
++        var override_pkgconfig = false;
++        if (b.graph.environ_map.get("LIBSODIUM_INCLUDE_PATH")) |path| {
++            minisign.root_module.addSystemIncludePath(.{ .cwd_relative = path });
++            override_pkgconfig = true;
++        }
++        if (b.graph.environ_map.get("LIBSODIUM_LIB_PATH")) |path| {
++            minisign.root_module.addLibraryPath(.{ .cwd_relative = path });
++            override_pkgconfig = true;
++        }
++
++        for ([_][]const u8{ "/opt/homebrew/include", "/home/linuxbrew/.linuxbrew/include", "/usr/local/include" }) |p| {
++            std.Io.Dir.accessAbsolute(b.graph.io, p, .{}) catch continue;
++            minisign.root_module.addSystemIncludePath(.{ .cwd_relative = p });
++        }
++        for ([_][]const u8{ "/opt/homebrew/lib", "/home/linuxbrew/.linuxbrew/lib", "/usr/local/lib" }) |p| {
++            std.Io.Dir.accessAbsolute(b.graph.io, p, .{}) catch continue;
++            minisign.root_module.addLibraryPath(.{ .cwd_relative = p });
++        }
++        if (!use_static_linking) {
++            minisign.headerpad_max_install_names = true; // required to compile using Homebrew, see https://github.com/jedisct1/minisign/pull/155
++        }
+         minisign.root_module.linkSystemLibrary(
+             "sodium",
+             .{
+-                .use_pkg_config = .yes,
++                .use_pkg_config = if (override_pkgconfig) .no else .yes,
+                 .preferred_link_mode = if (use_static_linking) .static else .dynamic,
+             },
+         );
+     }
+-    minisign.addIncludePath(b.path("src"));
+-    minisign.addSystemIncludePath(.{ .cwd_relative = "/opt/homebrew/include" });
+-    minisign.addSystemIncludePath(.{ .cwd_relative = "/usr/local/include" });
++    minisign.root_module.addIncludePath(b.path("src"));
++
+     minisign.root_module.addCMacro("_GNU_SOURCE", "1");
+     const source_files = &.{ "src/base64.c", "src/get_line.c", "src/helpers.c", "src/minisign.c" };
+-    minisign.addCSourceFiles(.{ .files = source_files });
++    minisign.root_module.addCSourceFiles(.{ .files = source_files });
+ 
+     b.installArtifact(minisign);
+ }
+--- a/src/libzodium.zig
++++ b/src/libzodium.zig
+@@ -2,24 +2,33 @@ const std = @import("std");
+ const crypto = std.crypto;
+ const mem = std.mem;
+ const Ed25519 = crypto.sign.Ed25519;
++const Io = std.Io;
+ 
+-export fn sodium_init() callconv(.C) c_int {
++fn getIo() Io {
++    return Io.Threaded.global_single_threaded.io();
++}
++
++fn secureRandom(buf: []u8) void {
++    getIo().randomSecure(buf) catch @panic("CSPRNG unavailable");
++}
++
++export fn sodium_init() callconv(.c) c_int {
+     return 0;
+ }
+ 
+-export fn sodium_memzero(pnt: [*c]u8, len: usize) callconv(.C) void {
+-    crypto.utils.secureZero(u8, pnt[0..len]);
++export fn sodium_memzero(pnt: [*c]u8, len: usize) callconv(.c) void {
++    crypto.secureZero(u8, pnt[0..len]);
+ }
+ 
+-export fn randombytes_buf(pnt: [*c]u8, len: usize) callconv(.C) void {
+-    crypto.random.bytes(pnt[0..len]);
++export fn randombytes_buf(pnt: [*c]u8, len: usize) callconv(.c) void {
++    secureRandom(pnt[0..len]);
+ }
+ 
+-export fn sodium_malloc(len: usize) callconv(.C) ?*anyopaque {
++export fn sodium_malloc(len: usize) callconv(.c) ?*anyopaque {
+     return std.c.malloc(len);
+ }
+ 
+-export fn sodium_free(pnt: ?*anyopaque) callconv(.C) void {
++export fn sodium_free(pnt: ?*anyopaque) callconv(.c) void {
+     return std.c.free(pnt);
+ }
+ 
+@@ -31,54 +40,65 @@ export fn crypto_pwhash_scryptsalsa208sha256(
+     salt: [*c]const u8,
+     opslimit: c_ulonglong,
+     memlimit: usize,
+-) callconv(.C) c_int {
++) callconv(.c) c_int {
+     crypto.pwhash.scrypt.kdf(
+         std.heap.c_allocator,
+-        out[0..outlen],
+-        passwd[0..passwdlen],
++        out[0..@intCast(outlen)],
++        passwd[0..@intCast(passwdlen)],
+         salt[0..32],
+         crypto.pwhash.scrypt.Params.fromLimits(opslimit, memlimit),
+     ) catch return -1;
+     return 0;
+ }
+ 
+-const crypto_generichash_state = crypto.hash.blake2.Blake2b512;
++const Blake2bState = crypto.hash.blake2.Blake2b512;
++fn blake2bState(state_ptr: *anyopaque) *Blake2bState {
++    return @ptrFromInt(mem.alignForward(usize, @intFromPtr(state_ptr), @alignOf(Blake2bState)));
++}
+ 
+ export fn crypto_generichash_init(
+-    state: *crypto_generichash_state,
++    state: *anyopaque,
+     _: [*c]const u8,
+     _: usize,
+     outlen: usize,
+ ) c_int {
+-    state.* = crypto.hash.blake2.Blake2b512.init(.{ .expected_out_bits = outlen * 8 });
++    blake2bState(state).* = crypto.hash.blake2.Blake2b512.init(.{ .expected_out_bits = outlen * 8 });
+     return 0;
+ }
+ 
+ export fn crypto_generichash_update(
+-    state: *crypto_generichash_state,
++    state: *anyopaque,
+     in: [*c]const u8,
+     inlen: c_ulonglong,
+ ) c_int {
+-    state.*.update(in[0..inlen]);
++    blake2bState(state).update(in[0..@intCast(inlen)]);
+     return 0;
+ }
+ 
+ export fn crypto_generichash_final(
+-    state: *crypto_generichash_state,
++    state: *anyopaque,
+     out: [*c]u8,
+     outlen: usize,
+ ) c_int {
+     var h: [64]u8 = undefined;
+-    state.*.final(&h);
++    blake2bState(state).final(&h);
+     @memcpy(out[0..outlen], h[0..outlen]);
+     return 0;
+ }
+ 
+-export fn crypto_sign_keypair(pk: [*c]u8, sk: [*c]u8) callconv(.C) c_int {
+-    const kp = Ed25519.KeyPair.generate();
+-    pk[0..32].* = kp.public_key.toBytes();
+-    sk[0..64].* = kp.secret_key.toBytes();
+-    return 0;
++export fn crypto_sign_keypair(pk: [*c]u8, sk: [*c]u8) callconv(.c) c_int {
++    var seed: [Ed25519.KeyPair.seed_length]u8 = undefined;
++    while (true) {
++        secureRandom(&seed);
++        const kp = Ed25519.KeyPair.generateDeterministic(seed) catch {
++            @branchHint(.unlikely);
++            continue;
++        };
++        crypto.secureZero(u8, &seed);
++        pk[0..32].* = kp.public_key.toBytes();
++        sk[0..64].* = kp.secret_key.toBytes();
++        return 0;
++    }
+ }
+ 
+ export fn crypto_sign_detached(
+@@ -87,12 +107,12 @@ export fn crypto_sign_detached(
+     m: [*c]const u8,
+     mlen: c_ulonglong,
+     sk_bytes: [*c]const u8,
+-) callconv(.C) c_int {
++) callconv(.c) c_int {
+     const sk = Ed25519.SecretKey.fromBytes(sk_bytes[0..64].*) catch return -1;
+     const kp = Ed25519.KeyPair.fromSecretKey(sk) catch return -1;
+     var noise: [Ed25519.noise_length]u8 = undefined;
+-    crypto.random.bytes(&noise);
+-    const s = kp.sign(m[0..mlen], noise) catch return -1;
++    secureRandom(&noise);
++    const s = kp.sign(m[0..@intCast(mlen)], noise) catch return -1;
+     sig_bytes[0..64].* = s.toBytes();
+     return 0;
+ }
+@@ -102,10 +122,10 @@ export fn crypto_sign_verify_detached(
+     m: [*c]const u8,
+     mlen: c_ulonglong,
+     pk_bytes: [*c]const u8,
+-) callconv(.C) c_int {
++) callconv(.c) c_int {
+     const pk = Ed25519.PublicKey.fromBytes(pk_bytes[0..32].*) catch return -1;
+     const sig = Ed25519.Signature.fromBytes(sig_bytes[0..64].*);
+-    sig.verify(m[0..mlen], pk) catch return 1;
++    sig.verify(m[0..@intCast(mlen)], pk) catch return 1;
+     return 0;
+ }
+ 
+@@ -114,7 +134,7 @@ export fn sodium_bin2hex(
+     hex_maxlen: usize,
+     bin: [*c]const u8,
+     bin_len: usize,
+-) callconv(.C) [*c]u8 {
+-    _ = std.fmt.bufPrint(hex[0..hex_maxlen], "{s}", .{std.fmt.fmtSliceHexLower(bin[0..bin_len])}) catch return null;
++) callconv(.c) [*c]u8 {
++    _ = std.fmt.bufPrint(hex[0..hex_maxlen], "{x}", .{bin[0..bin_len]}) catch return null;
+     return hex;
+ }
