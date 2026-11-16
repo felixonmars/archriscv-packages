@@ -1,0 +1,47 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -39,10 +39,30 @@
+   cd "${pkgname}"
+   cargo fetch --locked --target host-tuple
+   npm ci
++
++  cd "$srcdir/rolldown-1.1.5"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.32.0"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
+ }
+ 
+ build() {
+-  cd "${pkgname}"
++  cd "$srcdir/rolldown-1.1.5"
++  CARGO_HOME="$srcdir/cargo-home" CFLAGS="$CFLAGS -ffat-lto-objects" \
++    cargo build --frozen --release -p rolldown_binding --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/lightningcss-1.32.0"
++  CARGO_HOME="$srcdir/cargo-home" \
++    cargo build --frozen --release -p lightningcss_node --target riscv64gc-unknown-linux-gnu
++
++  cd "$srcdir/${pkgname}"
++  install -m755 "$srcdir/rolldown-1.1.5/target/riscv64gc-unknown-linux-gnu/release/librolldown_binding.so" \
++    node_modules/rolldown/dist/shared/rolldown-binding.linux-riscv64-gnu.node
++  install -m755 "$srcdir/lightningcss-1.32.0/target/riscv64gc-unknown-linux-gnu/release/liblightningcss_node.so" \
++    node_modules/lightningcss/lightningcss.linux-riscv64-gnu.node
+   export CFLAGS+=" -ffat-lto-objects"
+   cargo tauri build -b deb --ci
+ }
+@@ -51,4 +71,12 @@
+   mv -v "${pkgname}"/target/release/bundle/deb/radicle-desktop_*/data/usr "${pkgdir}"
+ }
+ 
++makedepends+=(rust cmake)
++source+=('rolldown-1.1.5.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.1.5.tar.gz'
++         'lightningcss-1.32.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.32.0.tar.gz')
++sha256sums+=('2042204fda63956408dc102dd5cf5577368077ed70f9bce68474ed983c779879'
++             'ca67b9ba532d439f5f91d23debfc2543d6decac130ee88bc4c66202fc7173ad9')
++b2sums+=('fe9085e02a7232f9e9cfc66d5276b6bffc0a81952333515e62d41b276e4b0cafb5b63a6cd0d91c3004faf944e68a18a1250d7651802daf9f314341ea40ba9d11'
++         'f17877617924aaac34a17f8ba10ccd6fc6e8ef057481f3f69772b0ce93eb2dde5638f3107d21cd26b0c1cd27bc31729318ee7fa5927c717c9d1c6b2686635e29')
++
+ # vim: ts=2 sw=2 et:
