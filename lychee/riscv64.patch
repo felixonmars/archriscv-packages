@@ -1,0 +1,26 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -31,6 +31,10 @@
+ 
+ prepare() {
+   cd $pkgname
++  # Measure retry timing between actual requests on slower builders.
++  patch -Np1 -i "$srcdir/lychee-retry-rate-limit-test.patch"
++  # Preserve line-start columns when html5ever uses the non-SIMD tokenizer.
++  patch -Np1 -i "$srcdir/lychee-verbatim-span.patch"
+   cargo fetch --locked --target host-tuple
+ }
+ 
+@@ -62,3 +66,12 @@
+   install -Dm644 -t "$pkgdir"/usr/share/doc/$pkgname README.md
+   install -Dm644 -t "$pkgdir"/usr/share/licenses/$pkgname LICENSE-MIT
+ }
++
++source+=(
++  'lychee-retry-rate-limit-test.patch'
++  'lychee-verbatim-span.patch'
++)
++b2sums+=(
++  'ae246440af44bbb680156be8d18960a1ac60a3400ae33de41c2403ac4f1c9ba83bbb511a61de16f339a32a96316bc3ec553f7b91ba2841f539c94fb861da87f8'
++  'e8931d429e02ff6d564a11ef442aac78d37ff44ce8ae375edf97ad854b54b2eab01f44b34704cc3c1235df38663cac1d6b712ed5ce782d97d6731546148d4361'
++)
