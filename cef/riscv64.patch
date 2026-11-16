@@ -10,13 +10,16 @@
    # Increase _FORTIFY_SOURCE level to match Arch's default flags
    patch -Np1 -i ../increase-fortify-level.patch
  
-@@ -240,6 +237,13 @@
+@@ -240,6 +237,16 @@
    # CEF: Remove libxml_visibility patch (fails with system libxml2)
    patch -Np1 -i ../cef-no-libxml-visibility-patch.patch
  
 +  patch -Np1 -i "../$pkgname-riscv64-build-support.patch"
 +  patch -Np0 -i ../swiftshader-use-llvm16.patch
 +  patch -Np1 -i ../riscv-sandbox.patch
++
++  # Let V8 metagen fall back to system GN instead of the bundled x86_64 binary.
++  rm -f buildtools/linux64/gn
 +
 +  # Dawn tools only know amd64/arm64 for CIPD platform paths
 +  sed -i "/raise ValueError('Unable to determine architecture')/i\\    if platform.machine().lower() in ('riscv64', 'riscv'):\\n        return 'riscv64'" third_party/dawn/tools/python/cipd_deps.py
@@ -90,6 +93,6 @@
 +                riscv-sandbox.patch)
 +sha256sums_riscv64=('4685ed9c2e251e3e24227a5512dfa8cab0b10083ac1b6a8bf4a75a681588a7a2'
 +                    '2ea949ed1d20a1745ce72f760a7d9297dc0002a747c4bd53e243c4d58ba2c7ca'
-+                    '7b5e90a85835ed867103a9e3bf7b334d35a3ac50dab58b7642978f6ec5fb9821')
++                    'e57082d59ec6fbfe87ba03975aee5bfb9aaef9c5546c72be9eac0fad44bdf42f')
 +
  # vim:set ts=2 sw=2 et:
