@@ -1,0 +1,15 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -93,8 +93,10 @@
+   # do not pin starlette dependency
+   sed -i 's|starlette.*"|starlette"|' pyproject.toml
+   sed -i '/"error"/d' pyproject.toml
+-  # pytest 9 expects pytest-timeout's TOML option to be numeric
+-  sed -i 's/^timeout = "20"$/timeout = 20/' pyproject.toml
++  # Several snapshot and telemetry tests exceed the default timeout on riscv64.
++  sed -i 's/^timeout = "20"$/timeout = 120/' pyproject.toml
++  # Fresh interpreter telemetry tests exceed their 15-second subprocess timeout on riscv64.
++  sed -i 's/timeout=15,$/timeout=60,/' tests/test_telemetry/_subprocess.py
+ }
+ 
+ build() {
