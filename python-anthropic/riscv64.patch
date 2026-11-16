@@ -9,7 +9,7 @@
  
    DEFER_PYDANTIC_BUILD=false test-env/bin/python -m pytest
  }
-@@ -82,3 +82,14 @@
+@@ -82,3 +82,18 @@
    install -Dm644 src/anthropic/_vendor/httpx_aiohttp/LICENSE \
      "$pkgdir/usr/share/licenses/$pkgname/LICENSE-httpx-aiohttp"
  }
@@ -17,7 +17,11 @@
 +prepare() {
 +  cd anthropic-sdk-python
 +  # Steady's npm package has no riscv64 binary; run the same release from source.
-+  sed -i 's|npm exec --package=@stdy/cli@0.22.2 -- steady|deno run -A --config=../steady-0.22.2/deno.json ../steady-0.22.2/cmd/steady.ts|g' scripts/mock
++  sed -i \
++    -e 's|(cd "$steady_dir" && npm ci .*|:|' \
++    -e 's|steady="$steady_dir/node_modules/.bin/steady"|steady="../steady-0.22.2/cmd/steady.ts"|' \
++    -e 's|"\$steady"|deno run -A --config=../steady-0.22.2/deno.json "$steady"|g' \
++    scripts/mock
 +}
 +
 +checkdepends=(${checkdepends[@]/nodejs/})
