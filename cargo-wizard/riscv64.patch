@@ -1,0 +1,12 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -15,6 +15,9 @@
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
++  # Rust 1.90+ still selects lld on riscv64, but the tests only check the compiler version.
++  sed -i 's/if rustversion::cfg!(before(1.90.0)) {/if rustversion::cfg!(before(1.90.0)) || cfg!(target_arch = "riscv64") {/' \
++    tests/integration/dialog.rs
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+ }
+ 
