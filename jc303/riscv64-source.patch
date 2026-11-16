@@ -1,19 +1,16 @@
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -7,6 +7,11 @@
+@@ -9,4 +9,9 @@
  
- project(JC303 VERSION 0.12.3)
  
 +if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
 +    add_compile_definitions(CHOWDSP_NO_XSIMD=1)
 +    add_compile_definitions(CHOWDSP_USE_LIBSAMPLERATE=1)
 +endif()
 +
- 
  ### Dependency versions ###
  
-@@ -62,13 +67,25 @@
-     GIT_TAG        ${LIB_CLAP_TAG}
+@@ -68,11 +73,23 @@
      GIT_CONFIG     advice.detachedHead=false)
  
 -FetchContent_Declare(chowdsp_utils
@@ -39,11 +36,9 @@
 +    find_library(SAMPLERATE_LIBRARY samplerate REQUIRED)
 +endif()
 +
- # gui resources BinaryData via CMakeLists.txt
- add_subdirectory(src/gui/${GUI})
- 
-@@ -193,6 +210,10 @@
- # add dsp source code for overdrive based on guitarml from BYOD
+ if(JC303_BUILD_TESTS)
+     enable_testing()
+@@ -210,4 +227,8 @@
  add_subdirectory(src/dsp/guitarml-byod)
  
 +if(CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
@@ -52,7 +47,6 @@
 +
  ### IDE Generator post-config ###
  
- # IDEs:  Place source groups for project targets into a "Targets" folder (to reduce visual clutter).
 --- a/src/dsp/guitarml-byod/CMakeLists.txt
 +++ b/src/dsp/guitarml-byod/CMakeLists.txt
 @@ -30,7 +30,11 @@
