@@ -1,0 +1,12 @@
+--- a/meson.build
++++ b/meson.build
+@@ -458,7 +458,8 @@
+    # https://github.com/flatpak/flatpak-builder-tools/tree/master/cargo
+    meson.add_dist_script( cargo_lock, cargo_toml.full_path() )
+    buildrs = configure_file( input: 'build.rs.in', output: 'build.rs', configuration: cargo_data )
+-   cargo_env = [ 'CARGO_HOME=' + meson.project_build_root() / 'cargo-home' ]
++   # Cargo 1.100's per-unit layout no longer populates rust_target/deps.
++   cargo_env = [ 'CARGO_HOME=' + meson.project_build_root() / 'cargo-home', '__CARGO_TEMPORARY_BUILD_DIR_NEW_LAYOUT_OPT_OUT=1' ]
+    cargo_options = [ '--manifest-path', cargo_toml ]
+    cargo_options += [ '--profile', rust_target ]
+    cargo_options += [ '--target-dir', meson.project_build_root() / 'src' ]
