@@ -1,0 +1,156 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -60,43 +60,22 @@
+ }
+ 
+ build() {
+-  local _file _certs=""
+   local _options=(
+     NO_WERROR=1
+-    bin/ipxe.lkrn
+-    bin/ipxe.pxe
+-    bin-i386-efi/ipxe.efi
+-    bin-x86_64-efi/ipxe.efi
++    bin-riscv64/ipxe.sbi
++    bin-riscv64-efi/ipxe.efi
+     -C src
+   )
+ 
+-  # add certs
+-  for _file in "${source[@]}"; do
+-    if [[ "$_file" == *.pem ]]; then
+-      _certs+="$srcdir/$_file,"
+-    fi
+-  done
+-
+   cd $pkgname-$pkgver
+-  # build arch specific images
+-  # TODO: adapt arch.ipxe as soon as we can fix https://bugs.archlinux.org/task/70767
+   # NOTE: to debug issues with TLS or codesigning, add "DEBUG=open,tls,x509:3,certstore,privkey"
+-  make EMBED="$srcdir/arch.ipxe" CERT="$_certs" TRUST="$_certs" "${_options[@]}"
+-
+-  # move binaries out of the way
+-  mv -v src/bin/ipxe{,-arch}.lkrn
+-  mv -v src/bin/ipxe{,-arch}.pxe
+-  mv -v src/bin-i386-efi/ipxe{,-arch}.efi
+-  mv -v src/bin-x86_64-efi/ipxe{,-arch}.efi
+ 
+   # build remote images
+   make EMBED="$srcdir/remote.ipxe" "${_options[@]}"
+ 
+   # move binaries out of the way
+-  mv -v src/bin/ipxe{,-remote}.lkrn
+-  mv -v src/bin/ipxe{,-remote}.pxe
+-  mv -v src/bin-i386-efi/ipxe{,-remote}.efi
+-  mv -v src/bin-x86_64-efi/ipxe{,-remote}.efi
++  mv -v src/bin-riscv64/ipxe{,-remote}.sbi
++  mv -v src/bin-riscv64-efi/ipxe{,-remote}.efi
+ 
+   # build default images
+   make "${_options[@]}"
+@@ -104,15 +83,14 @@
+ }
+ 
+ package() {
+-  local _arch
+-
+   cd $pkgname-$pkgver
+-  install -vDm 644 src/bin/ipxe{,-arch,-remote}.{lkrn,pxe} -t "$pkgdir/usr/share/$pkgname/"
+-  for _arch in i386 x86_64; do
+-    install -vDm 644 src/bin-$_arch-efi/ipxe{,-arch,-remote}.efi -t "$pkgdir/usr/share/$pkgname/$_arch/"
+-  done
++  install -vDm 644 src/bin-riscv64/ipxe{,-remote}.sbi -t "$pkgdir/usr/share/$pkgname/"
++  install -vDm 644 src/bin-riscv64-efi/ipxe{,-remote}.efi -t "$pkgdir/usr/share/$pkgname/riscv64/"
+   install -vDm 644 COPYING.UBDL -t "$pkgdir/usr/share/licenses/$pkgname/"
+   install -vDm 644 ../LICENSE "$pkgdir/usr/share/licenses/$pkgname/0BSD.txt"
+ 
+   install -vDm 755 ../run_$pkgname -t "$pkgdir/usr/bin/"
+ }
++optdepends=("${optdepends[@]/edk2-ovmf: for run_ipxe/edk2-riscv64: for run_ipxe}")
++sha512sums[8]=0771b98b0bc33ec482c64e39450e5a40c2136ea263151ae46a1415928e188adbd1e8801c63f86562f7d5c755fa40e846badaf32c5da497faffd882f29b323756
++b2sums[8]=23539f77ea130fad3d78ada74cc54b1bab77bcf8e4660dbed5141a1d6e71814b76eb91bfd8aa2e49bd3e6597c281d471611ba66576f4d5085441e25ad505ec3b
+--- run_ipxe
++++ run_ipxe
+@@ -2,20 +2,46 @@
+ 
+ set -euo pipefail
+ 
+-ovmf_code=/usr/share/edk2-ovmf/x64/OVMF_CODE.4m.fd
+-ovmf_vars=/usr/share/edk2-ovmf/x64/OVMF_VARS.4m.fd
+ ipxe_image="${1}"
+ 
+-if [[ ! -f "${ovmf_code}" ]]; then
+-  printf "ERROR: %s is missing, install the edk2-ovmf package.\n" "${ovmf_code}" >&2
++if [[ ! -f "${ipxe_image}" ]]; then
++  echo "ERROR: No IPXE image to run provided as first argument." >&2
+   exit 1
+ fi
+-if [[ ! -f "${ovmf_vars}" ]]; then
+-  printf "ERROR: %s is missing, install the edk2-ovmf package.\n" "${ovmf_vars}" >&2
++
++qemu_args=(
++  -machine virt
++  -cpu max
++  -m 3072
++  -name ipxe,process=ipxe_0
++  -device virtio-net-pci,romfile=,netdev=net0
++  -netdev user,ipv4=on,ipv6=on,ipv6-net=::/0,id=net0
++  -serial stdio
++  -vga virtio
++)
++
++case "${ipxe_image}" in
++  *.sbi)
++    qemu-system-riscv64 "${qemu_args[@]}" -kernel "${ipxe_image}"
++    exit
++    ;;
++  *.efi)
++    ;;
++  *)
++    echo "ERROR: IPXE image must be an .efi or .sbi file." >&2
++    exit 1
++    ;;
++esac
++
++ovmf_code=/usr/share/edk2/riscv64/RISCV_VIRT_CODE.fd
++ovmf_vars=/usr/share/edk2/riscv64/RISCV_VIRT_VARS.fd
++
++if [[ ! -f "${ovmf_code}" ]]; then
++  printf "ERROR: %s is missing, install the edk2-riscv64 package.\n" "${ovmf_code}" >&2
+   exit 1
+ fi
+-if [[ ! -f "${ipxe_image}" ]]; then
+-  echo "ERROR: No IPXE image to run provided as first argument." >&2
++if [[ ! -f "${ovmf_vars}" ]]; then
++  printf "ERROR: %s is missing, install the edk2-riscv64 package.\n" "${ovmf_vars}" >&2
+   exit 1
+ fi
+ 
+@@ -24,21 +50,12 @@
+ 
+ cd "${workdir}"
+ cp "${ovmf_vars}" efivars
+-mkdir -p ./fat/EFI/Boot/
+-cp "${ipxe_image}" ./fat/EFI/Boot/bootx64.efi
++mkdir -p ./fat/EFI/BOOT/
++cp "${ipxe_image}" ./fat/EFI/BOOT/BOOTRISCV64.EFI
+ 
+-qemu-system-x86_64 \
+-  -boot order=d,menu=on,reboot-timeout=5000 \
+-  -m "size=3072,slots=0,maxmem=$((3072*1024*1024))" \
+-  -k en-us \
+-  -name ipxe,process=ipxe_0 \
+-  -device virtio-net-pci,romfile=,netdev=net0 \
+-  -netdev user,ipv4=on,ipv6=on,ipv6-net=::/0,id=net0 \
++qemu-system-riscv64 "${qemu_args[@]}" \
++  -boot order=c,menu=on,reboot-timeout=5000 \
+   -drive if=pflash,format=raw,unit=0,readonly=on,file="${ovmf_code}" \
+   -drive if=pflash,format=raw,unit=1,file=efivars \
+-  -usb \
+-  -enable-kvm \
+-  -serial stdio \
+-  -drive if=none,id=usb-fat,format=raw,file=fat:rw:./fat \
+-  -device usb-storage,drive=usb-fat \
+-  -vga virtio
++  -drive if=none,id=efi-fat,format=raw,file=fat:rw:./fat \
++  -device virtio-blk-pci,drive=efi-fat
