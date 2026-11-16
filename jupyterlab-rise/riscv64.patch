@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -32,6 +32,16 @@
+ prepare() {
+   cd $_name-$pkgver
+ 
++  # Lerna's Nx dependency has no riscv64 native binding.
++  node - <<'EOF'
++const fs = require('fs');
++const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
++delete pkg.devDependencies.lerna;
++pkg.scripts['build:prod'] =
++  'jlpm workspace jupyterlab-rise-application run build:prod && jlpm workspace jupyterlab-rise run build:prod && jlpm workspace rise-app run build:prod';
++fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4) + '\n');
++EOF
++
+   # Replace uninstallation instructions with Arch-specific ones.
+   cp ../install.json .
+ }
