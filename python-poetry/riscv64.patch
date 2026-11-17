@@ -1,0 +1,19 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -71,6 +71,9 @@
+ 	patch -Np1 -i ../0004-Allow-safe-tarfile-path-normalization-in-the-traversal-test.patch
+ 	# Python 3.14.10 derives the sysconfigdata name from sys.platform.
+ 	patch -Np1 -i ../0005-Initialize-sysconfig-before-mocking-sys-platform.patch
++	# The 1-second join is too short under slow execution.
++	# https://github.com/python-poetry/poetry/pull/11107
++	patch -Np1 -i ../0006-Make-full-pipe-test-more-robust.patch
+ }
+ 
+ build() {
+@@ -109,3 +112,6 @@
+ 	install -vDm 644 $_pkgname.zsh "$pkgdir/usr/share/zsh/site-functions/_$_pkgname"
+ 	install -vDm 644 $_pkgname.fish -t "$pkgdir/usr/share/fish/vendor_completions.d/"
+ }
++
++source+=("0006-Make-full-pipe-test-more-robust.patch::https://github.com/python-poetry/poetry/commit/d4fd21e4711ae948f04e18a1736d9ee85b590e87.patch")
++sha256sums+=('b3f9079a5c0250c2baa29b5ce4ca9d6dfabea5e3f55d8ab0a3a9ec9adddd33f7')
