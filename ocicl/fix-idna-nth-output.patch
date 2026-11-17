@@ -1,0 +1,33 @@
+--- a/decode.lisp
++++ b/decode.lisp
+@@ -16,7 +16,7 @@
+   (declare (optimize debug))
+   (let ((output nil)
+         (output-length 0)
+-        (case-flags (make-array (length input) :initial-element nil))
++        (case-flags (make-list (length input) :initial-element nil))
+         (n +initial-n+)
+         (i 0)
+         (bias +initial-bias+)
+@@ -31,7 +31,7 @@
+           for char across input
+           for char-code = (char-code char)
+           do (when preserve-case
+-               (setf (aref case-flags output-length)
++               (setf (nth output-length case-flags)
+                      (< (- char-code 65)
+                         26)))
+              (when (>= char-code #x80)
+@@ -93,9 +93,9 @@
+     (when preserve-case
+       (loop with len = output-length
+             for i from 0 below len
+-            do (when (elt case-flags i)
+-                 (setf (elt output i)
+-                       (char-code (char-upcase (code-char (elt output i))))))))
++            do (when (nth i case-flags)
++                 (setf (nth i output)
++                       (char-code (char-upcase (code-char (nth i output))))))))
+     (map 'string #'code-char output)))
+ 
+ (defun to-unicode (string)
