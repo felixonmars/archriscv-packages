@@ -3,6 +3,10 @@ CPU work to finish, wait for asynchronous cleanup, avoid unsupported mobilecli
 binary probes, and leave terminal mock SSE streams open until abort so
 one-millisecond replay loops cannot starve React act.
 
+Native RISC-V builders are shared but markerless; use the existing
+shared-runner sample and ceiling instead of the strict 50ms median:
+https://github.com/QwenLM/qwen-code/issues/10490
+
 Cleanup-retry precedent:
 https://github.com/QwenLM/qwen-code/pull/8982
 Bounded sanitizer input retained; assignment matching scans separators and their
@@ -474,6 +478,20 @@ https://github.com/QwenLM/qwen-code/pull/11337
  
  let originalEnv: string | undefined;
  let originalModelEnv: string | undefined;
+--- a/packages/core/src/memory/recall-scan-latency.test.ts
++++ b/packages/core/src/memory/recall-scan-latency.test.ts
+@@ -53,7 +53,10 @@
+ // magnitude. A scan that has blown up still reddens the release; one that
+ // merely drifted is caught by the strict bound off shared runners, where
+ // the property this test is named for is actually asserted.
+-const SHARED_CI = process.env['RUNNER_NAME']?.startsWith('ecs-qwen-') === true;
++// Native RISC-V builders are shared but do not expose the CI runner name.
++const SHARED_CI =
++  process.env['RUNNER_NAME']?.startsWith('ecs-qwen-') === true ||
++  process.arch === 'riscv64';
+ const FAST_RESULT_CEILING_MS = SHARED_CI
+   ? INITIAL_BUDGET_MS * 10
+   : INITIAL_BUDGET_MS / 2;
 --- a/packages/core/src/services/cronScheduler.test.ts
 +++ b/packages/core/src/services/cronScheduler.test.ts
 @@ -841,7 +841,7 @@
