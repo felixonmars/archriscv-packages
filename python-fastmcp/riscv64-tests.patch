@@ -11,6 +11,18 @@
      attempt = 0
      while attempt < max_attempts and proc.is_alive():
          try:
+--- a/tests/cli/test_run.py
++++ b/tests/cli/test_run.py
+@@ -106,7 +106,8 @@
+ class TestMCPConfig:
+     """Test MCPConfig functionality."""
+ 
+-    @pytest.mark.timeout(15)
++    # Stdio startup and server discovery can exceed the original 15-second budget.
++    @pytest.mark.timeout(120)
+     @pytest.mark.skipif(
+         sys.platform == "win32",
+         reason="Stdio subprocess lifecycle is unreliable on Windows CI",
 --- a/tests/client/test_stdio_session_kwargs.py
 +++ b/tests/client/test_stdio_session_kwargs.py
 @@ -30,10 +30,11 @@
@@ -64,6 +76,16 @@
              assert result.data == "done"
      finally:
          await transport.close()
+@@ -111,7 +112,8 @@
+         await transport.close()
+ 
+ 
+-@pytest.mark.timeout(20)
++# A proxy clone starts a fresh stdio backend on slower builders.
++@pytest.mark.timeout(120)
+ async def test_proxy_client_clones_keep_the_stdio_session(sleepy_server: Path) -> None:
+     transport = PythonStdioTransport(sleepy_server)
+     proxy = ProxyClient(transport)
 --- a/tests/client/transports/test_uv_transport.py
 +++ b/tests/client/transports/test_uv_transport.py
 @@ -85,7 +85,8 @@
@@ -239,3 +261,23 @@
  async def test_multi_client_force_close(tmp_path: Path):
      server_script = inspect.cleandoc("""
          from fastmcp import FastMCP
+--- a/tests/utilities/json_schema_type/test_real_world_schemas.py
++++ b/tests/utilities/json_schema_type/test_real_world_schemas.py
+@@ -359,7 +359,7 @@
+ # Tiered timeouts so small providers fail fast while large ones get room.
+ #
+ # Local times → CI estimate → timeout bucket:
+-#   azure/aws/github/msft/google  80-137s → 240-410s → 600s
++#   azure/aws/github/msft/google  80-137s → 240-410s → 1800s on riscv64
+ #   adyen                         21s     → 63s      → 120s
+ #   loket/mailchimp/apisetu/k8s   6-10s   → 18-30s   → 120s
+ #   everything else (p99)         <8s     → <24s     → 60s
+@@ -394,7 +394,7 @@
+     params = []
+     for p in _collect_providers():
+         if p in _TIER1_PROVIDERS:
+-            t = 600
++            t = 1800
+         elif p in _TIER2_PROVIDERS:
+             t = 120
+         else:
