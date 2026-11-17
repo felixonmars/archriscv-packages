@@ -1,0 +1,25 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -14,6 +14,14 @@
+ sha512sums=('43ce24e8c123d930f2517a5c1a9465f960b237f59e37fd0996747affc26cdf55d83d3b0ba800262131d05808c322ccc32d5b296fee4e46414baa1b2dfefd3881')
+ b2sums=('9645c0435d9b73d282d327bbae81325509e13172f18d69115f3cd5182efd800a773977ef7acc102a22a7c0cc7a68f48e04008305feb491c85c350f071f8642d3')
+ 
++prepare() {
++  cd "$pkgname"
++
++  # SBCL 2.6.10 rejects the mixed vector/list state in punycode-decode.
++  # https://github.com/antifuchs/idna/issues/2
++  patch -Np1 -d systems/idna-20260908-a9ca49f -i "$srcdir/fix-idna-nth-output.patch"
++}
++
+ build() {
+   cd "$pkgname"
+ 
+@@ -45,3 +53,7 @@
+     LICENSE \
+     VENDORED-LICENSES.txt
+ }
++
++source+=(fix-idna-nth-output.patch)
++sha512sums+=('05a04e40dd255e7175bf889f0468c1b5b500c445ffc2df56c7ac461a4f8cc1fd8eacbd8fb43f22957596155b42e06d6773af9cdf9438c8b5d751d3ec0572a8c4')
++b2sums+=('03d4070ae764780e72f4a0032a8b145d5accdeacae0991e34211dac4def91365aa98d06cd447e03d16bb93abc7355b5571bf04d01fe740b63704ceb253e83377')
