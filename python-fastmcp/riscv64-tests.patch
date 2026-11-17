@@ -263,7 +263,19 @@
          from fastmcp import FastMCP
 --- a/tests/utilities/json_schema_type/test_real_world_schemas.py
 +++ b/tests/utilities/json_schema_type/test_real_world_schemas.py
-@@ -359,7 +359,7 @@
+@@ -79,8 +79,9 @@
+ OPENAPI_DIRECTORY_COMMIT = "f7207cf0a5c56081d275ebae4cf615249323385d"
+ CLONE_DIR = Path(os.environ.get("OPENAPI_DIRECTORY_PATH", "/tmp/openapi-directory"))
+ 
+-# Per-schema timeout (seconds) to catch infinite loops
+-SCHEMA_TIMEOUT = 5
++# Per-schema timeout (seconds) to catch infinite loops. Large Pydantic
++# dataclass compilation needs more headroom on native RISC-V builders.
++SCHEMA_TIMEOUT = 30
+ 
+ # In CI (RUN_REAL_WORLD_SCHEMA_TEST=1), _ensure_repo clones automatically.
+ # Locally, skip unless the repo is already cloned to avoid a surprise 200MB download.
+@@ -359,7 +360,7 @@
  # Tiered timeouts so small providers fail fast while large ones get room.
  #
  # Local times → CI estimate → timeout bucket:
@@ -272,7 +284,15 @@
  #   adyen                         21s     → 63s      → 120s
  #   loket/mailchimp/apisetu/k8s   6-10s   → 18-30s   → 120s
  #   everything else (p99)         <8s     → <24s     → 60s
-@@ -394,7 +394,7 @@
+@@ -385,6 +386,7 @@
+         "sportsdata.io",
+         "vtex.local",
+         "amadeus.com",
++        "stream-io-api.com",
+     }
+ )
+ 
+@@ -394,7 +396,7 @@
      params = []
      for p in _collect_providers():
          if p in _TIER1_PROVIDERS:

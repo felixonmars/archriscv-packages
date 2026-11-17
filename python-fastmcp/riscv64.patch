@@ -1,14 +1,16 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -114,18 +114,21 @@
- 
- check() {
-   cd fastmcp
-+  # Adjust test budgets after building so the installed library is unchanged.
+@@ -105,6 +105,9 @@
+   # The packaged redis-py backports the 8.1.0 reconnection fix.
+   # https://github.com/redis/redis-py/pull/4260
+   sed -i 's/redis!=8.1.0/redis/' fastmcp_tasks/pyproject.toml
++  # Apply test-budget changes before building so downstream checks use the
++  # widened process readiness budget shipped in fastmcp.utilities.tests.
 +  patch -Np1 -i "$srcdir/riscv64-tests.patch"
-   python -m venv --system-site-packages --without-pip test-env
-   test-env/bin/python -m installer dist/*.whl
-   test-env/bin/python -m installer fastmcp_slim/dist/*.whl
+ }
+ 
+ build() {
+@@ -123,12 +126,13 @@
    test-env/bin/python -m installer fastmcp_tasks/dist/*.whl
    test-env/bin/python -m installer fastmcp_remote/dist/*.whl
  
@@ -23,10 +25,10 @@
      --ignore=tests/integration_tests/test_github_mcp_remote.py
  }
  
-@@ -185,3 +188,6 @@
+@@ -188,3 +192,6 @@
    python -m installer --destdir="$pkgdir" fastmcp_remote/dist/*.whl
    install -Dm644 LICENSE -t "$pkgdir"/usr/share/licenses/$pkgname/
  }
 +
 +source+=(riscv64-tests.patch)
-+sha512sums+=('aa3e4f59dccc1a6d868615a34b5ed7ee2b58af926a4769db03efd073b53841e4fc503ad670bf9d547cb6f3722d6df4875fbac3d502206ddc0b0a1134dc8a487e')
++sha512sums+=('6d205bd04ced426a2e646db6fd2d6368e43b530ede20d80b0852cbf883bdac2d25fb6ca853fdb15943612a9bb928be55dc345f4e5a16087f5c8ac61c93920a53')
