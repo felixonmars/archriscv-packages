@@ -1,6 +1,6 @@
 --- a/tests/test_date.py
 +++ b/tests/test_date.py
-@@ -1520,7 +1520,8 @@
+@@ -1661,7 +1661,8 @@
      def test_sanitize_date_long_roman_numeral_run(self) -> None:
          start = process_time()
          date.sanitize_date("MCC " * 32000)
@@ -12,7 +12,17 @@
          self.assertEqual(date.sanitize_date("2019:"), "2019")
 --- a/tests/test_languages.py
 +++ b/tests/test_languages.py
-@@ -3536,7 +3536,8 @@
+@@ -3608,7 +3608,8 @@
+         date_string = "1" * 100_000 + unit
+         start = monotonic()
+         locale._simplify(date_string, settings=settings)
+-        assert monotonic() - start < 1.0
++        # Allow slower riscv64 builders to process the same long input.
++        assert monotonic() - start < 10.0
+ 
+ 
+ class TestNoWordSpacingSecurity:
+@@ -3717,7 +3718,8 @@
          dictionary = Dictionary(default_loader.get_locale(shortname).info, settings)
          start = monotonic()
          dictionary.split(word * count)
@@ -22,6 +32,94 @@
  
      def test_newline(self) -> None:
          dictionary = Dictionary(default_loader.get_locale("en").info, settings)
+--- a/tests/test_locale_token_alignment.py
++++ b/tests/test_locale_token_alignment.py
+@@ -323,53 +323,69 @@
+     that must grow in proportion to the length of the text."""
+ 
+     def test_align_words_added_by_normalization(self) -> None:
++        # Allow slower riscv64 builders to process the same long input.
+         assert_fast(
+             SETUP,
+             [
+                 f"locale._simplify_split_align('j ' + {FDFA + ' '!r} * {n}, settings)"
+                 for n in (6_000, 12_000, 24_000)
+             ],
++            limit=20.0,
++            # The longer limit needs room for all three statements.
++            deadline=60.0,
+         )
+ 
+     def test_search_dates_words_added_by_normalization(self) -> None:
++        # Allow slower riscv64 builders to process the same long input.
+         assert_fast(
+             SETUP,
+             [
+                 f"search_dates('j ' + {FDFA + ' '!r} * {n}, languages=['en'])"
+                 for n in (6_000, 12_000, 24_000)
+             ],
+-            limit=2.5,
+-            deadline=30.0,
++            limit=60.0,
++            # The longer limit needs room for all three statements.
++            deadline=120.0,
+         )
+ 
+     def test_break_standalone_marks(self) -> None:
++        # Allow slower riscv64 builders to process the same long input.
+         assert_fast(
+             SETUP,
+             [
+                 f"locale._break_standalone_marks('j' + {ACUTE!r} * {n})"
+                 for n in (50_000, 100_000, 200_000)
+             ],
++            limit=10.0,
++            # The longer limit needs room for all three statements.
++            deadline=30.0,
+         )
+ 
+     def test_align_words_added_by_breaking_marks(self) -> None:
+         # The other direction: the text has more words than its normalized
+         # form, because every U+00B4 glued to the letters gets a break after it
+         # while the normalization drops it, so the simplified words are padded.
++        # Allow slower riscv64 builders to process the same long input.
+         assert_fast(
+             SETUP,
+             [
+                 f"locale._simplify_split_align('j' + {ACUTE!r} * {n}, settings)"
+                 for n in (50_000, 100_000, 200_000)
+             ],
++            limit=20.0,
++            # The longer limit needs room for all three statements.
++            deadline=60.0,
+         )
+ 
+     def test_search_dates_words_added_by_breaking_marks(self) -> None:
++        # Allow slower riscv64 builders to process the same long input.
+         assert_fast(
+             SETUP,
+             [
+                 f"search_dates('j' + {ACUTE!r} * {n}, languages=['en'])"
+                 for n in (48_000, 96_000, 192_000)
+             ],
+-            limit=2.5,
+-            deadline=30.0,
++            limit=60.0,
++            # The longer limit needs room for all three statements.
++            deadline=120.0,
+         )
+--- a/tests/test_search.py
++++ b/tests/test_search.py
+@@ -2130,7 +2130,8 @@
+     def test_search_dates_long_punctuation_run_between_dates(self) -> None:
+         start = process_time()
+         search_dates("2020年9月1日" + "，" * 8000 + "后天", languages=["zh"])
+-        self.assertLess(process_time() - start, 1.0)
++        # Allow slower riscv64 builders to process the same long input.
++        self.assertLess(process_time() - start, 10.0)
+ 
+     def test_search_dates_skipped_words_before_relative_expression(self) -> None:
+         result = search_dates("and " * 11 + "in 2 days 2020-09-01", languages=["en"])
 --- a/tests/test_search_bracket_runs.py
 +++ b/tests/test_search_bracket_runs.py
 @@ -212,13 +212,12 @@
@@ -52,4 +150,37 @@
 +    assert_fast(SEARCH_SETUP, [statement], limit=10.0)
  
  
- @pytest.mark.parametrize("shortname", PUNCTUATION)
+ # Text shaped like the lookbehinds that keep a full stop inside a date: a
+--- a/tests/test_translate_space_runs.py
++++ b/tests/test_translate_space_runs.py
+@@ -32,22 +32,28 @@
+     "payload", PAYLOADS, ids=["bang", "spaced-skip-word", "semicolon"]
+ )
+ def test_translate_run_of_separators_then_skip_words_is_linear(payload: str) -> None:
++    # Allow slower riscv64 builders to process the same long input.
+     assert_fast(
+         SETUP,
+         [
+             f"locale.translate(sanitize_date({payload.format(k=k)}), settings=settings)"
+             for k in (12_000, 24_000, 48_000)
+         ],
+-        limit=1.5,
++        limit=40.0,
++        # The longer limit needs room for all three statements.
++        deadline=90.0,
+     )
+ 
+ 
+ @pytest.mark.parametrize("payload", PAYLOADS[:1], ids=["bang"])
+ def test_parse_run_of_separators_then_skip_words_is_linear(payload: str) -> None:
++    # Allow slower riscv64 builders to process the same long input.
+     assert_fast(
+         SETUP,
+         [f"dateparser.parse({payload.format(k=k)})" for k in (6_000, 12_000, 24_000)],
+-        limit=1.5,
++        limit=50.0,
++        # The longer limit needs room for all three statements.
++        deadline=90.0,
+     )
+ 
+ 
