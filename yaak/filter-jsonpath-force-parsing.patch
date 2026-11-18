@@ -1,0 +1,31 @@
+--- a/plugins/filter-jsonpath/tests/breadcrumbs.test.ts
++++ b/plugins/filter-jsonpath/tests/breadcrumbs.test.ts
+@@ -1,5 +1,5 @@
+ import { forceParsing } from "@codemirror/language";
+-import { EditorState } from "@codemirror/state";
++import { EditorState, type TransactionSpec } from "@codemirror/state";
+ import { jsonc } from "@shopify/lang-jsonc";
+ import { JSONPath } from "jsonpath-plus";
+ import { describe, expect, test } from "vite-plus/test";
+@@ -23,8 +23,19 @@
+ /** Exercise the caret path and expression the breadcrumb button actually sends. */
+ function breadcrumb(json: unknown) {
+   const doc = JSON.stringify(json, null, 2);
+-  const state = EditorState.create({ doc, extensions: [jsonc()] });
+-  forceParsing({ state } as never, doc.length, 5000);
++  let state = EditorState.create({ doc, extensions: [jsonc()] });
++  forceParsing(
++    {
++      get state() {
++        return state;
++      },
++      dispatch(transaction: TransactionSpec) {
++        state = state.update(transaction).state;
++      },
++    } as never,
++    doc.length,
++    5000,
++  );
+   const segments = jsonPathSegmentsAt(state, doc.indexOf('"needle-value"') + 4);
+   expect(segments).not.toBeNull();
+   const path = segmentsToJsonPath(segments ?? []);
