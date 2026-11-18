@@ -1,0 +1,20 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -33,6 +33,8 @@
+ 
+ check() {
+   cd "${pkgname}-${pkgver}"
++  # Give the DoH forwarding tests enough time for stub startup and handshakes.
++  patch -Np1 -i "$srcdir/numa-forward-test-timeout.patch"
+   cargo test --frozen -- \
+     --skip failover_skips_bad_srtt_primary_when_fallback_exists
+   target/release/numa --help
+@@ -50,4 +52,8 @@
+   install -Dm 644 LICENSE -t "${pkgdir}/usr/share/licenses/${pkgname}"
+ }
+ 
++source+=(numa-forward-test-timeout.patch)
++sha256sums+=('040b157341c78c066d129d65f7c408eacda1e712c08389c8545e27516b31c998')
++b2sums+=('1b821dae7db57426c0ca5f3b3e7a04261d2d7c4c65f002b81d5610a336c60153ed07442f65d5337e43daa98f5baae528782a44ae9745caaa956180f8945d5bd7')
++
+ # vim: ts=2 sw=2 et:
