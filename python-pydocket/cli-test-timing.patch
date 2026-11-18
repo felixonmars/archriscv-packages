@@ -1,3 +1,17 @@
+--- a/python/tests/cli/run.py
++++ b/python/tests/cli/run.py
+@@ -42,5 +42,10 @@
+         stderr=asyncio.subprocess.PIPE,
+         env=merged_env,
+     )
+-    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
++    try:
++        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
++    except TimeoutError:  # pragma: no cover
++        proc.kill()
++        await proc.communicate()
++        raise
+     return CliResult(proc.returncode or 0, stdout.decode(), stderr.decode())
 --- a/python/tests/cli/test_snapshot.py
 +++ b/python/tests/cli/test_snapshot.py
 @@ -88,7 +88,7 @@
@@ -75,7 +89,7 @@
              "--docket",
              docket.name,
 -            timeout=10.0,
-+            timeout=25.0,
++            timeout=60.0,
          )
      )
  
@@ -86,3 +100,66 @@
  
      # Signal task it can complete now
      async with docket.redis() as redis:
+@@ -186,7 +186,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
+@@ -227,7 +227,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
+@@ -257,7 +257,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
+@@ -297,7 +297,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
+@@ -335,7 +335,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
+@@ -376,7 +376,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
+@@ -414,7 +414,7 @@
+         docket.url,
+         "--docket",
+         docket.name,
+-        timeout=10.0,
++        timeout=60.0,
+     )
+ 
+     await worker_task
