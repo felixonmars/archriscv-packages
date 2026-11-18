@@ -1,0 +1,18 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -17,6 +17,8 @@
+ 
+ prepare() {
+   cd "$pkgname-$pkgver"
++  # Check reset rejection synchronously; the integration test races async cleanup.
++  patch -Np1 -i "$srcdir/pueue-reset-test-race.patch"
+   cargo fetch --locked --target "$(rustc --print host-tuple)"
+   mkdir -p utils/completions/
+ }
+@@ -55,3 +57,6 @@
+ }
+ 
+ # vim: ts=2 sw=2 et:
++
++source+=(pueue-reset-test-race.patch)
++sha256sums+=('a6dc4411107e2a887ed56448cc66cfc9831111bd7a20fc0080d51cc1cb6d13cf')
