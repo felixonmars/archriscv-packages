@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -67,7 +67,28 @@
+@@ -67,7 +67,30 @@
  }
  
  prepare() {
@@ -13,6 +13,8 @@
 +    cargo fetch --locked --target riscv64gc-unknown-linux-gnu
 +
 +    cd "${srcdir}/${pkgname}-${pkgver}"
++    patch -Np1 -i "$srcdir/filter-jsonpath-force-parsing.patch"
++
 +    # Vite+ publishes neither a riscv64 binding nor its advertised WASI fallback.
 +    # Use the Vite/Vitest tools it wraps, preserving the workspace test suite.
 +    sed -i 's|npm:@voidzero-dev/vite-plus-core@\^0.3.3|8.3.0|g' \
@@ -30,7 +32,7 @@
  
      # Avoid downloading Node.js and Protoc
      echo "console.log('Skipped NodeJS download for Arch Linux');" > scripts/vendor-node.cjs
-@@ -84,10 +105,31 @@
+@@ -84,10 +107,31 @@
  }
  
  build() {
@@ -63,15 +65,17 @@
      pushd crates-tauri/${_appname}
      npx tauri build
      popd
-@@ -137,3 +179,11 @@
+@@ -137,3 +181,13 @@
  
      install -Dm644 "LICENSE" -t "${pkgdir}/usr/share/licenses/${pkgname}"
  }
 +
 +makedepends+=(cmake)
-+source+=('rolldown-1.2.9.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.9.tar.gz'
++source+=('filter-jsonpath-force-parsing.patch'
++         'rolldown-1.2.9.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.9.tar.gz'
 +         'lightningcss-1.33.0.tar.gz::https://github.com/parcel-bundler/lightningcss/archive/refs/tags/v1.33.0.tar.gz'
 +         'tailwindcss-4.3.3.tar.gz::https://github.com/tailwindlabs/tailwindcss/archive/refs/tags/v4.3.3.tar.gz')
-+sha256sums+=('26e83e84c6383aa61ce2cb6e09d1a8562f62b4e895269c75d6757a428d238e6f'
++sha256sums+=('621a7ec34c27d587f80caa232a1feb241f2123e44ab637612a8b331771a280a8'
++             '26e83e84c6383aa61ce2cb6e09d1a8562f62b4e895269c75d6757a428d238e6f'
 +             '3197aa5188b66d0d1e5026cbc8b65c4c0c53fdc949f9ed497fe75df2d13f722a'
 +             'e702ce2493505287e8f6cab2dd1e0c14f154e57c296854d4ded38bde5da2be6e')
