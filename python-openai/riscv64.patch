@@ -1,21 +1,21 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -58,9 +58,12 @@
+@@ -60,9 +60,12 @@
  
  prepare() {
    cd "${_name}"
 -  # Run Steady with the packaged Node.js; upstream's launcher requires exactly 22.22.3.
--  sed -i 's|node scripts/utils/node-tooling.cjs steady|npm exec --package=@stdy/cli@0.22.1 -- steady|' \
+-  sed -i 's|node scripts/utils/node-tooling.cjs steady|npm exec --package=@stdy/cli@0.22.2 -- steady|' \
 +  # Steady's npm package has no riscv64 binary; run the same release from source.
-+  sed -i 's|node scripts/utils/node-tooling.cjs steady|deno run -A --config=../steady-0.22.1/deno.json ../steady-0.22.1/cmd/steady.ts|' \
++  sed -i 's|node scripts/utils/node-tooling.cjs steady|deno run -A --config=../steady-0.22.2/deno.json ../steady-0.22.2/cmd/steady.ts|' \
      scripts/run-steady
 +
-+  # Allow more time for mTLS example subprocesses on slow builders.
-+  sed -i 's/timeout=15,/timeout=60,/' tests/test_mtls_http_client.py
++  # Cold SDK imports contend with 32 pytest workers; cap each example subprocess at 5 minutes.
++  sed -i 's/timeout=15,/timeout=300,/' tests/test_mtls_http_client.py
  }
  
  build() {
-@@ -75,8 +78,7 @@
+@@ -77,8 +80,7 @@
    export PYTHONPATH="$PWD/tmp_install/${site_packages}"
  
    # Start mock server and make sure it's cleaned up on exit
@@ -25,11 +25,11 @@
    ./scripts/mock --daemon
  
    # Randomly generated mock API key
-@@ -98,3 +100,7 @@
+@@ -102,3 +104,7 @@
    install -vDm644 src/openai/_vendor/httpx_aiohttp/LICENSE \
      "${pkgdir}/usr/share/licenses/${pkgname}/httpx-aiohttp-LICENSE"
  }
 +
 +checkdepends=("${checkdepends[@]/npm/deno}")
-+source+=("steady-0.22.1.tar.gz::https://github.com/dgellow/steady/archive/refs/tags/v0.22.1.tar.gz")
-+b2sums+=('f90f9a5ce968e2a88b9392ded27982c5cb7a0062deef1b40990acc924fb1be042a3b724e04b56c326090a81b51d4a149d483326703ee10c3f53a56ec9057f088')
++source+=("steady-0.22.2.tar.gz::https://github.com/dgellow/steady/archive/refs/tags/v0.22.2.tar.gz")
++b2sums+=('da4d4028879b7ebdf012c25924e487a7af851f9d451441e63e8ad5399acf275d87d0201285543d36c871cd9149eab4eb42e9e954042e6bf5e1311e1e7e24b09e')
