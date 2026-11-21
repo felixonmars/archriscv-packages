@@ -1,12 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -42,6 +42,10 @@
+@@ -42,6 +42,13 @@
  
  prepare() {
 +	patch -Np1 -d skia-bindings-0.156.0 -i "$srcdir/skia-bindings-riscv.patch"
 +
  	cd "$_archive"
  	sed -r -i -e '/^incremental/a opt-level = 3' Cargo.toml
++	if ! grep -Fqx '[patch.crates-io]' Cargo.toml; then
++		printf '\n[patch.crates-io]\n' >> Cargo.toml
++	fi
 +	sed -i '/^\[patch.crates-io\]/a skia-bindings = { path = "../skia-bindings-0.156.0" }' Cargo.toml
 +	cargo update -p skia-bindings
  	cargo fetch --locked --target "$(rustc --print host-tuple)"
