@@ -1,0 +1,48 @@
+--- a/cloudpickle/cloudpickle.py
++++ b/cloudpickle/cloudpickle.py
+@@ -62,6 +62,7 @@
+ import itertools
+ import logging
+ import opcode
++import os
+ import pickle
+ from pickle import _getattribute as _pickle_getattribute
+ import platform
+@@ -842,12 +843,12 @@
+     # See the inline comment in _class_setstate for details.
+     co_name = "".join(obj.co_name)
+ 
+-    # co_filename is not used in the constructor of code objects, so we can
+-    # safely set it to indicate that this is dynamic code. This also makes
+-    # the payload deterministic, independent of where the function is defined
+-    # which is especially useful when defining classes in jupyter/ipython
+-    # cells which do not have a deterministic filename.
+-    co_filename = "".join("<dynamic-code>")
++    # Normalize generated filenames to keep notebook payloads deterministic,
++    # but preserve source paths so coverage can attribute deserialized code.
++    co_filename = "".join(obj.co_filename)
++    normalized_filename = co_filename.replace("\\", "/")
++    if not os.path.isfile(co_filename) or "/ipykernel_" in normalized_filename:
++        co_filename = "".join("<dynamic-code>")
+ 
+     # Create shallow copies of these tuple to make cloudpickle payload deterministic.
+     # When creating a code object during load, copies of these four tuples are
+--- a/tests/cloudpickle_test.py
++++ b/tests/cloudpickle_test.py
+@@ -207,6 +207,16 @@
+         self.assertTrue("exit" in foo.__code__.co_names)
+         cloudpickle.dumps(foo)
+ 
++    def test_file_backed_function_filename_is_preserved(self):
++        def local_function():
++            return 1
++
++        restored_function = pickle_depickle(local_function, protocol=self.protocol)
++        self.assertEqual(
++            restored_function.__code__.co_filename,
++            local_function.__code__.co_filename,
++        )
++
+     def test_memoryview(self):
+         buffer_obj = memoryview(b"Hello")
+         self.assertEqual(
