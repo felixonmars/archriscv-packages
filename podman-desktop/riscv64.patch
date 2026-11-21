@@ -1,6 +1,6 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -40,20 +40,28 @@
+@@ -40,20 +40,35 @@
      npm pkg set devDependencies.electron=${_elver}
      export ELECTRON_SKIP_BINARY_DOWNLOAD=1
      export ELECTRON_OVERRIDE_DIST_PATH="/usr/lib/${_electron}"
@@ -9,6 +9,13 @@
 +      -e '/^overrides:/a\  lightningcss: npm:lightningcss-wasm@1.32.0' \
 +      -e '/^nodeLinker:/i\supportedArchitectures:\n  cpu:\n    - current\n    - wasm32' \
 +      pnpm-workspace.yaml
++    # Rolldown publishes its WASI fallback separately instead of installing it by default.
++    cat >> pnpm-workspace.yaml <<'EOF'
++packageExtensions:
++  'rolldown@1.2.8':
++    dependencies:
++      '@rolldown/binding-wasm32-wasi': 1.2.8
++EOF
      pnpm install --ignore-scripts --no-frozen-lockfile
 +    # Prime dlmalloc before workers start; raw WASI preallocation bypasses its heap.
 +    patch -Np1 -i "$srcdir/rolldown-wasi-memory.patch"
@@ -31,11 +38,11 @@
      install -Dm644 ./.flatpak-appdata.xml \
          "${pkgdir}/usr/share/metainfo/io.podman_desktop.PodmanDesktop.metainfo.xml"
      install -Dm644 ./.flatpak.desktop \
-@@ -67,3 +75,7 @@
+@@ -67,3 +82,7 @@
      sed "s/@ELECTRON@/${_electron}/" "${srcdir}"/run.sh.in > "${pkgdir}/usr/bin/${pkgname}"
      chmod 755 "${pkgdir}/usr/bin/${pkgname}"
  }
 +
 +source+=(electron-builder-riscv64.patch rolldown-wasi-memory.patch)
 +b2sums+=('e599e12b48bc526ebe5fa4f246387e36d771bc68ae5373f38f0a253f34641295987ba7a6b98490a95413c27f37bd17163d8c8287893adad3c34a454d0231c8db'
-+         '00a48f1ea06ecb7f9090838cce5a6947ca20d21fc1378b03ac4d65a512aef5d355db05a9e21fe2c3e16e00743befcff9cdb2a7d53fe4b094b13e4d2e010dac65')
++         '26a050eeba5e77e790e9c7eeebd76eadd87992276f719fad04546ea09e72668fb9860ce1f679020f2fa4b0d5349e968b2e039ab358ae79bbd05cd11fb156c6e2')
