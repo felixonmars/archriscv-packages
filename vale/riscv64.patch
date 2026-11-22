@@ -1,0 +1,27 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -18,6 +18,7 @@
+ 
+ prepare(){
+ 	cd "${pkgname}-${pkgver}"
++	patch -Np1 -i ../expect-write-good-0.5.0.patch
+ 	mkdir -p build/
+ }
+ 
+@@ -41,7 +42,8 @@
+ 	rm -f internal/system/path_test.go
+ 	# The "TestSymlinkFixture" test needs to run `vale`
+ 	export PATH="${PWD}/build:${PATH}"
+-	go test ./...
++	# The WebAssembly grammars are significantly slower on riscv64.
++	go test -p 1 -timeout 1h ./...
+ }
+ 
+ package() {
+@@ -50,3 +52,6 @@
+ 	install -Dm 644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+ 	install -Dm 644 LICENSE   "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+ }
++
++source+=(expect-write-good-0.5.0.patch)
++sha256sums+=('2020abcbbd1e607e9a06c06d24192db8ca74e2d0933a656fa7cb11e533ceece3')
