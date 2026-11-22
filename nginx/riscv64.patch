@@ -7,8 +7,18 @@
 +  patch -p1 -d nginx-tests -i "$srcdir/h3_limit_req-fix-spurious-failures.patch"
    # Fix ssl_certificate_compression test: loop only checked first algorithm
    sed '/\$has_zlib = 1 if \$algo == 1;/{n;/^\t\t\t\tlast;/d}' -i nginx-tests/ssl_certificate_compression.t
+ 
+@@ -198,7 +199,8 @@
+ check() {
+   cd nginx-tests
+   local _jobs=$(nproc)
+-  (( _jobs > 16 )) && _jobs=16
++  # Keep HTTP/2 tests from hitting fixed 8-second socket timeouts under load.
++  (( _jobs > 8 )) && _jobs=8
+   TEST_NGINX_BINARY="$srcdir/$pkgbase/objs/nginx" prove -j "$_jobs" .
  }
-@@ -309,3 +310,6 @@
+ 
+@@ -324,3 +326,6 @@
    backup=(etc/nginx/modules.d/20-xslt.conf)
    _package_module xslt
  }
