@@ -1,0 +1,40 @@
+--- PKGBUILD
++++ PKGBUILD
+@@ -38,6 +38,9 @@
+     lib/llvm/src
+ 
+   patch -Np1 < ../ponyc-remove-usr-local-refs.patch
++  patch -Np1 < ../riscv-clock.patch
++  patch -Np1 < ../riscv-cshim-test.patch
++  patch -Np1 < ../remove-flaky-ssl-send-test.patch
+ }
+ 
+ build() {
+@@ -81,7 +84,7 @@
+ 
+   mkdir -p full-program-tests/release
+   ../build_release/test/full-program-runner/full-program-runner \
+-    --timeout_s=60 --max_parallel=1 \
++    --timeout_s=900 --max_parallel=1 \
+     --compiler="$PWD/ponyc" \
+     --output="$PWD/full-program-tests/release" \
+     --test_lib="$PWD/test_lib" \
+@@ -89,7 +92,7 @@
+ 
+   mkdir -p full-program-tests/debug
+   ../build_release/test/full-program-runner/full-program-runner \
+-    --timeout_s=60 --max_parallel=1 \
++    --timeout_s=900 --max_parallel=1 \
+     --compiler="$PWD/ponyc" --debug \
+     --output="$PWD/full-program-tests/debug" \
+     --test_lib="$PWD/test_lib" \
+@@ -120,3 +123,9 @@
+ 
+   install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
+ }
++
++source+=(riscv-clock.patch riscv-cshim-test.patch
++         "remove-flaky-ssl-send-test.patch::https://github.com/ponylang/ponyc/commit/0ff1725a59d9cf4316d934368949aa2bec709c9a.patch?full_index=1")
++b2sums+=('e60659d09b98b5dbfa02f93251e615ad4de1abe3133616c86bf2a86cf40de05879c4a3ad63c7a19511dd928d75fc6af0433f7dfdc97f51c423cd8e99ff340e70'
++         '16f8fc759d4179516f6532b306f0c2ecfb136751d80a2bfe60f687d65a92f1707104eecaf6bb14286fe2f8d894f5b1287ccd5af0b297c2941a1c7bf053817d70'
++         'a12617465abc0ba879a276c1a47d728d4128b7d6017c4b1977b88f374a3120a01ffb4e6b7defc46c93f728b76209eb2526d2ec9737cde14a377db04edec0c213')

@@ -1,0 +1,20 @@
+--- a/test/libponyc/cshim.cc
++++ b/test/libponyc/cshim.cc
+@@ -930,12 +930,15 @@
+   // host CPU now; dispose those defaults and re-run with a cross triple and no
+   // CPU. codegen_pass_init copies the triple and allocates cpu/features, which
+   // the fixture's codegen_pass_cleanup disposes in TearDown; triple_buf is a
+-  // local, so nothing leaks. riscv64 is used because it is cross on every host
+-  // that runs this suite (x86_64 and aarch64 alike).
++  // local, so nothing leaks. Choose a foreign architecture on every host.
+   LLVMDisposeMessage(opt.triple);
+   LLVMDisposeMessage(opt.cpu);
+   LLVMDisposeMessage(opt.features);
++#ifdef PLATFORM_IS_RISCV
++  char triple_buf[] = "x86_64-unknown-linux-gnu";
++#else
+   char triple_buf[] = "riscv64-unknown-linux-gnu";
++#endif
+   opt.triple = triple_buf;
+   opt.cpu = NULL;
+   opt.features = NULL;
