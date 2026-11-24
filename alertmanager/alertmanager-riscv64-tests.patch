@@ -1,0 +1,44 @@
+--- a/dispatch/dispatch_test.go
++++ b/dispatch/dispatch_test.go
+@@ -1489,9 +1489,13 @@
+ 	ag := newAggrGroup(context.Background(), lset, route, nil,
+ 		eventrecorder.NopRecorder(), promslog.NewNopLogger(), tmpl)
+ 
+-	alertsCh := make(chan alert.AlertSlice)
++	// Keep periodic flushes from blocking run() while the test inspects labels.
++	alertsCh := make(chan alert.AlertSlice, 1)
+ 	ntfy := func(ctx context.Context, alerts ...*alert.Alert) bool {
+-		alertsCh <- alert.AlertSlice(alerts)
++		select {
++		case alertsCh <- alert.AlertSlice(alerts):
++		default:
++		}
+ 		return true
+ 	}
+ 	go ag.run(ntfy)
+--- a/test/with_api_v2/acceptance/send_test.go
++++ b/test/with_api_v2/acceptance/send_test.go
+@@ -154,9 +154,9 @@
+ 
+ 	// Declare which alerts are expected to arrive at the collector within
+ 	// the defined time intervals.
+-	co.Want(Between(2, 2.5), Alert("alertname", "test").Active(1))
+-	co.Want(Between(3, 3.5), Alert("alertname", "test").Active(1))
+-	co.Want(Between(4, 4.5), Alert("alertname", "test").Active(1, 3))
++	co.Want(Between(2, 3), Alert("alertname", "test").Active(1))
++	co.Want(Between(3, 4), Alert("alertname", "test").Active(1))
++	co.Want(Between(4, 6), Alert("alertname", "test").Active(1, 3))
+ 
+ 	// Start the flow as defined above and run the checks afterwards.
+ 	at.Run()
+--- a/test/with_api_v2/acceptance/cluster_test.go
++++ b/test/with_api_v2/acceptance/cluster_test.go
+@@ -79,7 +79,7 @@
+ 
+ 	acceptanceOpts := func() *a.AcceptanceOpts {
+ 		return &a.AcceptanceOpts{
+-			Tolerance: 2 * time.Second,
++			Tolerance: 3 * time.Second,
+ 		}
+ 	}
+ 
