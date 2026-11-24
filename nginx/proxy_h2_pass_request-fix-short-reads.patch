@@ -1,0 +1,17 @@
+--- a/proxy_h2_pass_request.t
++++ b/proxy_h2_pass_request.t
+@@ -118,7 +118,13 @@
+ 
+ 	while (my $client = $server->accept()) {
+ 		$client->autoflush(1);
+-		$client->sysread(my $buf, 24) == 24 or next; # preface
++		my $buf = '';
++		while (length($buf) < 24) {
++			my $n = $client->sysread($buf, 24 - length($buf),
++				length($buf));
++			last unless $n;
++		}
++		next unless length($buf) == 24; # preface
+ 
+ 		my $c = Test::Nginx::HTTP2->new(1, socket => $client,
+ 			pure => 1, preface => "") or next;
