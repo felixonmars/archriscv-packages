@@ -1,17 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -78,6 +78,10 @@
- }
+@@ -70,6 +70,8 @@
  
- build() {
-+  # https://github.com/apache/arrow/issues/12681
-+  CFLAGS=${CFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS/}
-+  CXXFLAGS=${CXXFLAGS/-Wp,-D_GLIBCXX_ASSERTIONS/}
-+
-   # workaround for cmake 4.0 - arrow bundles several old dependencies https://github.com/apache/arrow/issues/45985
-   # (note that ExternalProject does not propagate this as a CMake variable so we need to export an environment variable)
-   export CMAKE_POLICY_VERSION_MINIMUM=3.5
-@@ -139,7 +143,7 @@
+ prepare() {
+   cd apache-$pkgname-$pkgver
++  # https://github.com/apache/arrow/pull/55744
++  patch -Np1 -i "$srcdir/arrow-quantile-precision.patch"
+   # Patch out unused AWS-SDK component https://github.com/apache/arrow/pull/45191
+   sed -i 's|COMPONENTS config|COMPONENTS|' cpp/cmake_modules/FindAWSSDKAlt.cmake
+ }
+@@ -136,7 +138,7 @@
      # execute tests in parallel
      --parallel $(nproc)
      # limit execution time for each test
@@ -20,3 +18,10 @@
      # exclude problematic tests
      --exclude-regex "$excluded_tests"
    )
+@@ -150,3 +152,6 @@
+   # remove testing libraries
+   find "$pkgdir"/usr/lib/ -name '*testing*' -delete
+ }
++
++source+=("arrow-quantile-precision.patch::https://github.com/apache/arrow/commit/391be251d3f1365fdbacfde6112330fb80143510.patch")
++sha512sums+=('75ae3eae7a15638ca7120c03f5e7a19597630d438a2b7b3178dcb7ee5e377aa515e7a1648a8d7c912c0fde87ed0cd22f4489fc0ac5a41745dd0544c7136b86c2')
