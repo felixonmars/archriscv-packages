@@ -1,8 +1,9 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -22,2 +22,18 @@
+@@ -22,2 +22,32 @@
  
 +prepare() {
++  patch -Np1 -d "$pkgname-$pkgver" -i "$srcdir/alertmanager-riscv64-tests.patch"
 +  cd "$pkgname-$pkgver/ui/app"
 +
 +  # Use the packaged Elm compiler; elm-format is not used by the production build.
@@ -16,21 +17,37 @@
 +EOF
 +  pnpm import
 +  pnpm install --frozen-lockfile
++
++  cd ../mantine-ui
++  # Biome is only used for linting and has no riscv64 CLI.
++  sed -i '/"@biomejs\/biome": /d' package.json
++  cat > pnpm-workspace.yaml <<'EOF'
++overrides:
++  vite: 7.3.6
++  '@vitejs/plugin-react': 5.2.0
++allowBuilds:
++  esbuild: true
++EOF
++  pnpm import
++  pnpm install --frozen-lockfile
 +}
 +
  build() {
-@@ -26,3 +42,3 @@
+@@ -26,3 +56,4 @@
    # Build JavaScript UI
--  make ui-elm
+-  make ui-elm ui-mantine
 +  pnpm --dir ui/app build
++  pnpm --dir ui/mantine-ui build
  
-@@ -57,3 +73,4 @@
+@@ -57,3 +88,4 @@
    cd $pkgname-$pkgver
 -  go test ./...
 +  # Reduce contention in timing-sensitive tests on slower builders.
 +  go test -p 1 -parallel 1 ./...
  }
-@@ -74 +91,3 @@
+@@ -74 +106,5 @@
  }
 +
++source+=(alertmanager-riscv64-tests.patch)
++sha512sums+=('cd52c364511b95cc9ae36ffa5a1634856c69f6cf710f91b3523926577375ab24456e4f8755178ead37e9d75cffe9edd6989e69e0a6dd326e2939c4c967e25dce')
 +makedepends=(${makedepends[@]/npm/pnpm} nodejs elm-compiler)
