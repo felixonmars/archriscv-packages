@@ -1,35 +1,48 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -60,9 +60,12 @@
+@@ -59,6 +59,20 @@
+ )
+ b2sums=('ebfed7ac255ddd159c4482e17312f996f621e3cad3938f20dd20865257c7243170d35f59c00bacddb284c3f2dcfa1b4174804e4a3f83ac5b74400c4a96ffc130')
  
- prepare() {
-   cd "${_name}"
--  # Run Steady with the packaged Node.js; upstream's launcher requires exactly 22.22.3.
--  sed -i 's|node scripts/utils/node-tooling.cjs steady|npm exec --package=@stdy/cli@0.22.2 -- steady|' \
-+  # Steady's npm package has no riscv64 binary; run the same release from source.
-+  sed -i 's|node scripts/utils/node-tooling.cjs steady|deno run -A --config=../steady-0.22.2/deno.json ../steady-0.22.2/cmd/steady.ts|' \
-     scripts/run-steady
++prepare() {
++  cd "${_name}"
++
++  # Steady's pinned Deno download has no riscv64 build; use the packaged runtime.
++  sed -i \
++    -e "s|source \"\$STEADY_ROOT/scripts/steady/settings\"|STEADY_SOURCE=\"\$STEADY_ROOT/../steady-${_steady_revision}\"|" \
++    -e '/^steady_verify$/d' \
++    -e 's|exec "$DENO_DIRECTORY/$DENO_BINARY"|exec deno|' \
++    scripts/run-steady
 +
 +  # Cold SDK imports contend with 32 pytest workers; cap each example subprocess at 5 minutes.
 +  sed -i 's/timeout=15,/timeout=300,/' tests/test_mtls_http_client.py
- }
- 
++}
++
  build() {
-@@ -77,8 +80,7 @@
+   cd "${_name}"
+   python -m build --wheel --no-isolation --skip-dependency-check
+@@ -70,10 +84,13 @@
+   local site_packages=$(python -c "import site; print(site.getsitepackages()[0])")
    export PYTHONPATH="$PWD/tmp_install/${site_packages}"
  
+-  ./scripts/steady/install
++  export DENO_DIR="$PWD/scripts/steady/.cache/deps"
++  export DENO_NO_UPDATE_CHECK=1
++  deno cache --frozen --config "../steady-${_steady_revision}/deno.json" \
++    "../steady-${_steady_revision}/cmd/steady.ts"
+ 
    # Start mock server and make sure it's cleaned up on exit
--  export npm_config_yes=true
--  trap 'pkill "npm exec steady"' EXIT
-+  trap 'pkill -f "^deno run .*steady"' EXIT
+-  trap 'pkill -f "$PWD/scripts/steady/.cache/.*/cmd/steady.ts" || true' EXIT
++  trap 'pkill -f "^deno run .*steady" || true' EXIT
    ./scripts/mock --daemon
  
    # Randomly generated mock API key
-@@ -102,3 +104,7 @@
+@@ -97,3 +114,8 @@
    install -vDm644 src/openai/_vendor/httpx_aiohttp/LICENSE \
      "${pkgdir}/usr/share/licenses/${pkgname}/httpx-aiohttp-LICENSE"
  }
 +
-+checkdepends=("${checkdepends[@]/npm/deno}")
-+source+=("steady-0.22.2.tar.gz::https://github.com/dgellow/steady/archive/refs/tags/v0.22.2.tar.gz")
-+b2sums+=('da4d4028879b7ebdf012c25924e487a7af851f9d451441e63e8ad5399acf275d87d0201285543d36c871cd9149eab4eb42e9e954042e6bf5e1311e1e7e24b09e')
++_steady_revision=195de4e71f6f87282110b044b454582e7fbc34bb
++checkdepends+=(deno)
++source+=("steady-${_steady_revision}.tar.gz::https://github.com/openai-oss-forks/steady/archive/${_steady_revision}.tar.gz")
++b2sums+=('5280faddf7e20767006e98c24df969a0c624d986e871b01792bfd79cdbd7d4a2edb9065175c8487928b37ed0029d5b148b7482dd4ea3981eeb0ec6050e845e7a')
