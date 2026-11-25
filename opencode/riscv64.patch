@@ -14,7 +14,7 @@
 +  sed -i '/"@tailwindcss\/oxide-wasm32-wasi":/s/"cpu": "none"/"cpu": "riscv64"/' bun.lock
 +  bun install --ignore-scripts
 +
-+  cd "$srcdir/opentui-0.8.1/packages/native"
++  cd "$srcdir/opentui-0.9.4/packages/native"
 +  bash scripts/prepare-zig-deps.sh
 +
 +  cd "$srcdir/rolldown-1.2.5"
@@ -47,9 +47,9 @@
 +    -d 'CMAKE_ASM_FLAGS=-march=rv64gc -mabi=lp64d'
 +  cp build/koffi/linux_riscv64d/koffi.node "$srcdir/$pkgbase/packages/cli/node_modules/@opentui/core/"
 +
-+  # OpenTUI 0.8.1 needs Zig 0.17.0 and does not publish a RISC-V renderer.
-+  cd "$srcdir/opentui-0.8.1/packages/native"
-+  "$srcdir/zig-riscv64-linux-0.17.0/zig" build -Doptimize=ReleaseFast -Dlibrary-target=riscv64-linux-gnu.2.27
++  # OpenTUI 0.9.4 needs Zig 0.17.1 and does not publish a RISC-V renderer.
++  cd "$srcdir/opentui-0.9.4/packages/native"
++  "$srcdir/zig-riscv64-linux-0.17.1/zig" build -Doptimize=ReleaseFast -Dlibrary-target=riscv64-linux-gnu.2.27
 +
    # build CLI
    cd "$srcdir/$pkgbase/packages/cli"
@@ -80,7 +80,7 @@
    esac
    install -vDm755 -t "$pkgdir/usr/bin" "packages/cli/dist/cli-$target/bin/opencode"
 +  install -vDm755 -t "$pkgdir/usr/lib/opencode" \
-+    "$srcdir/opentui-0.8.1/packages/native/lib/riscv64-linux-gnu.2.27/libopentui.so"
++    "$srcdir/opentui-0.9.4/packages/native/lib/riscv64-linux-gnu.2.27/libopentui.so"
  
    install -vDm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE
  
@@ -94,15 +94,15 @@
 +makedepends+=('cmake' 'node-gyp' 'rust')
 +source+=(wasm-css.patch fix-oxide-worker-exit.patch riscv64-target.patch
 +         opentui-riscv64.patch
-+         'opentui-0.8.1.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.8.1.tar.gz'
-+         'https://ziglang.org/download/0.17.0/zig-riscv64-linux-0.17.0.tar.xz'
++         'opentui-0.9.4.tar.gz::https://github.com/anomalyco/opentui/archive/refs/tags/v0.9.4.tar.gz'
++         'https://ziglang.org/download/0.17.1/zig-riscv64-linux-0.17.1.tar.xz'
 +         'https://registry.npmjs.org/koffi/-/koffi-3.2.1.tgz'
 +         'rolldown-1.2.5.tar.gz::https://github.com/rolldown/rolldown/archive/refs/tags/v1.2.5.tar.gz')
-+b2sums+=('e1ca114236f96b0ae89c05e22f7f1232f8c7cc4809b2d97169dc7dbd56b199c3fc5209de0091db0789ff48712c96c6f98aa84ddb0b494272341dfd720a018572'
++b2sums+=('88abcb16d5ca7c9dad3392dac8e2678fb4159fc7f867c0b412ca12c1c93eba8ac6e2088f1d20f659666a8986de16f1bb4117e14f05dccaf56980786d6e7a1d25'
 +         '8ccefc948e86b53c43f77cc3f3ef3de557cd4c104a444fb0eb8b2626cfc607ae20825370ffa29eab66604514c5c76eeaa0c86d45a3b65776ac15edae374278b1'
-+         '75019ba8dc0b5db3344682e66c558e0f0ad9dce172fd9cb00f6ff35d268e527fbbffa7102d9ca5530b09b60f191e09619ffec54327b2382e59b8bc307c935f56'
-+         'fdc8e7a75fc10e8fd48add15457392a41fd35dad5526c7ada2e6e1ff21b1fb39251a9e464a3a79d790a8afc6288555fe85ea63129e1dfbfdcfe08d9124bcc402'
-+         '80cea2a0b30e4313ed24f996742c0934e4207784f323d398bb43a5c25c81aef58307c2fb51a966a4a6af451069fa8bb69f99464890dd27435935a3bce386a2e5'
-+         'e6d67f44856a67f41def7de10a1b3fed8f9a0cbea15c492e568d9123615c074b2e41e47d0d4aa37da9264fc3c4386491beaec48a4171816f370e19a209d24508'
++         '2e824be74ff6b59161a2251838086870bd4feb1f1f0caa64fb748f8e8afe969f46e22ca3a1dbe42c0e8491940c0c32480bb9b7d613b10d4c389f1b56cc49dc8e'
++         'ceb1c581adaa0897eec7006153d517761ea454fc33fe5c86fa1c45e47567543376ba77957efdf3d54458451967009c790b9c57c11a882c00710f32192de4f2b6'
++         '6ce89032ba416d6a85a354776f79d8c013d84c63f4c30d70c9db6c5b1f6961d72c7cb76264b30ed1983807e6fa8779ca66d848295abc68aae69f911f3bfc0aa6'
++         '8343ca1d04d4e0049f596835198e051571cd6bcde24fe3544be46bfd822be4bb5ce1fc44be13c1df4f27c1de56adcc9e3ce984f773b4a18650db17c1f6a9734f'
 +         'c521ab108a3d52606ab8514cd532fe7d989d50f2d6f60bca40d20858a64403e5588b0cbdf9f3727dcd298c6fcd6413b19a054d4d836c3494b6a6485929c3148b'
 +         'acc542870324851ab2f5171f56343b6d43a231917cb5c369a22ca90a2bdaf915bd5e366e58d6811a9907f5374d60fe289587d1ea3f1b196419093aad55fe7741')

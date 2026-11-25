@@ -13,7 +13,7 @@
    { os: "linux", arch: "arm64" },
    { os: "linux", arch: "x64" },
    { os: "linux", arch: "x64", avx2: false },
-@@ -143,7 +144,10 @@
+@@ -155,7 +156,10 @@
        )
      },
    }
@@ -25,9 +25,23 @@
    const parcelWatcherPlugin: BunPlugin = {
      name: "parcel-watcher-binding",
      setup(build) {
+@@ -165,10 +169,10 @@
+       }))
+     },
+   }
+-  // The machine link's Iroh binding: this target's native package is embedded, and a target with none (Intel Macs)
+-  // gets `undefined`, which the server takes as Iroh being unavailable.
++  // The machine link's Iroh binding: this target's native package is embedded. A target with none (Intel Macs or
++  // RISC-V) gets `undefined`, which the server takes as Iroh being unavailable.
+   const irohPackage =
+-    item.os === "darwin" && item.arch === "x64"
++    (item.os === "darwin" && item.arch === "x64") || item.arch === "riscv64"
+       ? undefined
+       : `@number0/iroh-${item.os}-${item.arch}${item.os === "linux" ? `-${item.abi === "musl" ? "musl" : "gnu"}` : item.os === "win32" ? "-msvc" : ""}`
+   const irohBindingPlugin: BunPlugin = {
 --- a/packages/core/package.json
 +++ b/packages/core/package.json
-@@ -56,9 +56,9 @@
+@@ -54,9 +54,9 @@
      },
      "#fff": {
        "workerd": "./src/filesystem/fff.workerd.ts",
