@@ -1,12 +1,15 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -38,10 +38,24 @@
+@@ -38,10 +38,27 @@
  prepare() {
    cd $_gitname
  
 +  # BPF targets lack the RISC-V ABI macros required by glibc's errno.h.
 +  sed -i 's|<errno.h>|<asm-generic/errno.h>|' \
 +    scheds/{rust,experimental}/*/src/bpf/*.bpf.c scheds/include/scx/task_local_data.bpf.h
++
++  # RISC-V vmlinux.h omits the schedutil structs used by LAVD and MAVD.
++  patch -Np1 -i "$srcdir/fix-schedutil-core.patch"
 +
 +  # Freestanding BPF must not emit a libc memcmp call.
 +  patch -Np1 -i "$srcdir/fix-lavd-memcmp.patch"
@@ -25,14 +28,16 @@
    cargo build \
       --release \
       --frozen \
-@@ -63,3 +77,10 @@
-     -maxdepth 1 -type f -executable ! -name '*.so' \
-     -exec install -Dm755 -t "$pkgdir/usr/bin/" {} +
+@@ -73,3 +90,12 @@
+   install -Dm644 tools/scxcli/org.sched_ext.scxcli.policy \
+     -t "$pkgdir/usr/share/polkit-1/actions/"
  }
 +
 +source+=("perfetto_protos-0.51.1.tar.gz::https://static.crates.io/crates/perfetto_protos/perfetto_protos-0.51.1.crate"
 +        "perfetto-protos-system-protoc.patch::https://github.com/a6f/perfetto_protos/commit/faf8cd21e19313ea72f63f6fa9d8d5dde9edaa9e.patch"
-+        fix-lavd-memcmp.patch)
++        fix-lavd-memcmp.patch
++        fix-schedutil-core.patch)
 +sha256sums+=('634f88ebef917643d9e470dbf99637fbfa8295f54525954d156641f06823f9ac'
 +             '60299d1118169a69ab87d1e09fd6e123996288611163c2932c0a1eb0ef79f58b'
-+             '037540d4d4fa09eb75cc89aaa645949d73143c8456b5dc087df84684e41e9232')
++             '037540d4d4fa09eb75cc89aaa645949d73143c8456b5dc087df84684e41e9232'
++             '8663e53c851c79c0828b5484dcbc590d63453594a82aaca8e3e0531b144e829e')

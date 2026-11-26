@@ -1,0 +1,105 @@
+--- a/scheds/include/scx/common.bpf.h
++++ b/scheds/include/scx/common.bpf.h
+@@ -1095,6 +1095,20 @@
+  */
+ extern struct irqtime___local cpu_irqtime __ksym __weak;
+ 
++/*
++ * Shadow the schedutil structures whose definitions are omitted when
++ * vmlinux.h is generated from a kernel config without the schedutil
++ * governor. The ___local suffix matches these against the kernel types.
++ */
++struct sugov_policy___local {
++	s64 freq_update_delay_ns;
++} __attribute__((preserve_access_index));
++
++struct sugov_cpu___local {
++	struct update_util_data update_util;
++	struct sugov_policy___local *sg_policy;
++} __attribute__((preserve_access_index));
++
+ static inline struct rq___local *get_current_rq(u32 cpu)
+ {
+ 	/*
+--- a/scheds/rust/scx_lavd/src/bpf/power.bpf.c
++++ b/scheds/rust/scx_lavd/src/bpf/power.bpf.c
+@@ -1025,13 +1025,13 @@
+ 	struct cpufreq_policy *policy;
+ 	struct update_util_data *hook;
+ 	struct cpufreq_governor *governor;
+-	struct sugov_policy *sg_pol;
+-	struct sugov_cpu *sg_cpu;
++	struct sugov_policy___local *sg_pol;
++	struct sugov_cpu___local *sg_cpu;
+ 	char name[sizeof("schedutil")];
+ 	s64 delay_ns;
+ 
+ 	/* Without schedutil, nothing reads the target. */
+-	if (!bpf_core_type_exists(struct sugov_policy)) {
++	if (!bpf_core_type_exists(struct sugov_policy___local)) {
+ 		return 0;
+ 	}
+ 	if (!bpf_ksym_exists(&cpufreq_cpu_data) ||
+@@ -1041,9 +1041,9 @@
+ 	if (!bpf_core_field_exists(struct cpufreq_policy, governor) ||
+ 	    !bpf_core_field_exists(struct cpufreq_policy, governor_data) ||
+ 	    !bpf_core_field_exists(struct cpufreq_governor, name) ||
+-	    !bpf_core_field_exists(struct sugov_cpu, update_util) ||
+-	    !bpf_core_field_exists(struct sugov_cpu, sg_policy) ||
+-	    !bpf_core_field_exists(struct sugov_policy, freq_update_delay_ns)) {
++	    !bpf_core_field_exists(struct sugov_cpu___local, update_util) ||
++	    !bpf_core_field_exists(struct sugov_cpu___local, sg_policy) ||
++	    !bpf_core_field_exists(struct sugov_policy___local, freq_update_delay_ns)) {
+ 		return cpufreq_rate_limit_broken(LAVD_CPUFREQ_ERR_CORE);
+ 	}
+ 
+@@ -1072,7 +1072,7 @@
+ 	if (!hook) {
+ 		return 0;
+ 	}
+-	sg_cpu = (void *)hook - bpf_core_field_offset(struct sugov_cpu, update_util);
++	sg_cpu = (void *)hook - bpf_core_field_offset(struct sugov_cpu___local, update_util);
+ 	sg_pol = BPF_CORE_READ(sg_cpu, sg_policy);
+ 	if (!sg_pol || (void *)sg_pol != BPF_CORE_READ(policy, governor_data)) {
+ 		return cpufreq_rate_limit_broken(LAVD_CPUFREQ_ERR_HOOK);
+--- a/scheds/experimental/scx_mavd/src/bpf/power.bpf.c
++++ b/scheds/experimental/scx_mavd/src/bpf/power.bpf.c
+@@ -904,13 +904,13 @@
+ 	struct cpufreq_policy **policyp, *policy;
+ 	struct update_util_data **hookp, *hook;
+ 	struct cpufreq_governor *governor;
+-	struct sugov_policy *sg_pol;
+-	struct sugov_cpu *sg_cpu;
++	struct sugov_policy___local *sg_pol;
++	struct sugov_cpu___local *sg_cpu;
+ 	char name[sizeof("schedutil")];
+ 	s64 delay_ns;
+ 
+ 	/* Without schedutil, nothing reads the target. */
+-	if (!bpf_core_type_exists(struct sugov_policy)) {
++	if (!bpf_core_type_exists(struct sugov_policy___local)) {
+ 		return 0;
+ 	}
+ 	if (!bpf_ksym_exists(&cpufreq_cpu_data) ||
+@@ -920,9 +920,9 @@
+ 	if (!bpf_core_field_exists(struct cpufreq_policy, governor) ||
+ 	    !bpf_core_field_exists(struct cpufreq_policy, governor_data) ||
+ 	    !bpf_core_field_exists(struct cpufreq_governor, name) ||
+-	    !bpf_core_field_exists(struct sugov_cpu, update_util) ||
+-	    !bpf_core_field_exists(struct sugov_cpu, sg_policy) ||
+-	    !bpf_core_field_exists(struct sugov_policy, freq_update_delay_ns)) {
++	    !bpf_core_field_exists(struct sugov_cpu___local, update_util) ||
++	    !bpf_core_field_exists(struct sugov_cpu___local, sg_policy) ||
++	    !bpf_core_field_exists(struct sugov_policy___local, freq_update_delay_ns)) {
+ 		return cpufreq_rate_limit_broken(LAVD_CPUFREQ_ERR_CORE);
+ 	}
+ 
+@@ -959,7 +959,7 @@
+ 	if (!hook) {
+ 		return 0;
+ 	}
+-	sg_cpu = (void *)hook - bpf_core_field_offset(struct sugov_cpu, update_util);
++	sg_cpu = (void *)hook - bpf_core_field_offset(struct sugov_cpu___local, update_util);
+ 	sg_pol = BPF_CORE_READ(sg_cpu, sg_policy);
+ 	if (!sg_pol || (void *)sg_pol != BPF_CORE_READ(policy, governor_data)) {
+ 		return cpufreq_rate_limit_broken(LAVD_CPUFREQ_ERR_HOOK);
