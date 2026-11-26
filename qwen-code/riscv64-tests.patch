@@ -253,39 +253,6 @@ https://github.com/QwenLM/qwen-code/pull/11337
    it('bounds sanitizer work before applying credential patterns', async () => {
      const { createAutoRecallQuery } = await import('./auto-recall.js');
      const startedAt = Date.now();
---- a/integrations/external-context-mem0/src/delete.integration.test.ts
-+++ b/integrations/external-context-mem0/src/delete.integration.test.ts
-@@ -103,7 +103,9 @@
-       res.writeHead(target ? 200 : 404, { 'content-type': 'application/json' });
-       res.end(JSON.stringify(target ?? { detail: 'not found' }));
-     };
--    if (mode === 'cumulative-deadline') timers.push(setTimeout(respond, 100));
-+    // Keep two responses inside the shared deadline and the third outside it,
-+    // with enough scheduling headroom on RISC-V to reach verification.
-+    if (mode === 'cumulative-deadline') timers.push(setTimeout(respond, 1000));
-     else respond();
-   });
-   await new Promise<void>((resolve, reject) => {
-@@ -132,7 +134,7 @@
-         basePath: '',
-         allowInsecureHttp: true,
-       },
--      timeoutMs: mode === 'cumulative-deadline' ? 250 : 200,
-+      timeoutMs: mode === 'cumulative-deadline' ? 2500 : 200,
-     }),
-   );
-   const client = new Client({ name: 'stdio-delete-test', version: '1' });
-@@ -267,7 +269,9 @@
-           expectedContent: test.expectedContent,
-         },
-       });
--      expect(Date.now() - startTime).toBeLessThan(1800);
-+      expect(Date.now() - startTime).toBeLessThan(
-+        mode === 'cumulative-deadline' ? 4000 : 1800,
-+      );
-       expect(result.structuredContent).toMatchObject({
-         status: mode === 'slow-preflight-body' ? 'not_deleted' : 'unknown',
-       });
 --- a/integrations/external-context-mem0/src/write.integration.test.ts
 +++ b/integrations/external-context-mem0/src/write.integration.test.ts
 @@ -76,7 +76,8 @@
@@ -329,7 +296,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        type: 'ready',
 --- a/packages/cli/src/serve/server.test.ts
 +++ b/packages/cli/src/serve/server.test.ts
-@@ -7644,7 +7644,8 @@
+@@ -7904,7 +7904,8 @@
          });
        } finally {
          restore();
@@ -339,7 +306,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          restoreEnv('QWEN_HOME', previousQwenHome);
          restoreEnv(
            'QWEN_CODE_TRUSTED_FOLDERS_PATH',
-@@ -27033,7 +27034,8 @@
+@@ -27631,7 +27632,8 @@
          expect(after.status).toBe(200);
          expect(after.body.features).toContain('workspace_voice_transcription');
        } finally {
@@ -349,7 +316,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
          restoreEnv('QWEN_HOME', previousQwenHome);
          resetHomeEnvBootstrapForTesting();
        }
-@@ -41231,7 +41233,8 @@
+@@ -42060,7 +42062,8 @@
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -359,7 +326,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      };
    }
  
-@@ -41251,7 +41254,8 @@
+@@ -42080,7 +42083,8 @@
      return async () => {
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -369,7 +336,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      };
    }
  
-@@ -43210,7 +43214,12 @@
+@@ -44039,7 +44043,12 @@
          (app.locals['stopLiveCoordinator'] as (() => void) | undefined)?.();
          restoreEnv('QWEN_HOME', previousQwenHome);
          resetHomeEnvBootstrapForTesting();
@@ -383,7 +350,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
        },
      };
    }
-@@ -43710,7 +43719,8 @@
+@@ -44557,7 +44566,8 @@
        )?.();
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
@@ -393,7 +360,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
      }
    });
  
-@@ -43909,7 +43919,7 @@
+@@ -44756,7 +44766,7 @@
        restoreEnv('QWEN_HOME', previousQwenHome);
        resetHomeEnvBootstrapForTesting();
        loadSettings.mockRestore();
@@ -727,7 +694,7 @@ https://github.com/QwenLM/qwen-code/pull/11337
  
 --- a/packages/cli/src/ui/utils/MermaidDiagram.test.tsx
 +++ b/packages/cli/src/ui/utils/MermaidDiagram.test.tsx
-@@ -162,6 +162,6 @@
+@@ -182,6 +182,6 @@
        expect(lastFrame()).toContain(
          'Image rendering unavailable: renderer exploded',
        );
