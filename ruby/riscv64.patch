@@ -1,16 +1,19 @@
 --- PKGBUILD
 +++ PKGBUILD
-@@ -163,6 +163,9 @@
+@@ -163,6 +163,12 @@
  prepare() {
    cd "ruby-${pkgver}"
  
 +  # This object tracing test exceeds its 10-second subprocess timeout on riscv64.
 +  patch -Np1 -i "${srcdir}/increase-objspace-timeout.patch"
 +
++  # The Ractor dtoa test exceeds its 180-second subprocess timeout on riscv64.
++  patch -Np1 -i "${srcdir}/increase-ractor-timeout.patch"
++
    autoreconf -fiv
  }
  
-@@ -193,6 +196,8 @@
+@@ -193,6 +199,8 @@
    # this uses malloc_usable_size, which is incompatible with fortification level 3
    export CFLAGS="${CFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
    export CXXFLAGS="${CXXFLAGS/_FORTIFY_SOURCE=3/_FORTIFY_SOURCE=2}"
@@ -19,11 +22,20 @@
  
    make check
  }
-@@ -363,3 +368,7 @@
+@@ -363,3 +371,16 @@
  }
  
  # vim: tabstop=2 shiftwidth=2 expandtab:
 +
-+source+=(increase-objspace-timeout.patch)
-+sha512sums+=('016a9b38f17e2bf5863747898ff864d51299bfd53b0198fa5bb20209761233022f184a7501a8b7596259bda66c7a7d57dfebb3479911aab477b57a1562a6d021')
-+b2sums+=('d9503f49aba8f3f9eff25077891e136d925baa3c83c4f01eabc5edf224930b6cdb86298f996aafdec0639630548b575d4e5c89f8df027f70ca9f2225cd59e01b')
++source+=(
++  increase-objspace-timeout.patch
++  increase-ractor-timeout.patch
++)
++sha512sums+=(
++  '016a9b38f17e2bf5863747898ff864d51299bfd53b0198fa5bb20209761233022f184a7501a8b7596259bda66c7a7d57dfebb3479911aab477b57a1562a6d021'
++  'be5313d8fb8f0201274cadde0407f105fe44b2170cf1701e8cba3b307a9202e998b30fc703f66174e2d77d849f0fdd41f0c77d318e64a7278875cb4db1b5fb44'
++)
++b2sums+=(
++  'd9503f49aba8f3f9eff25077891e136d925baa3c83c4f01eabc5edf224930b6cdb86298f996aafdec0639630548b575d4e5c89f8df027f70ca9f2225cd59e01b'
++  'dc3c0c154116e50d05b618d6f18a126a955314ee8fb42aa5551005e7610e02720107837098e671e492c447d80b0b3eea2778de071c709b01804a170807371635'
++)
